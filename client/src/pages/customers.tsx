@@ -23,6 +23,7 @@ import { queryClient } from "@/lib/queryClient";
 export default function Customers() {
   const { data: customers, isLoading } = useLeads();
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const { toast } = useToast();
 
@@ -39,6 +40,7 @@ export default function Customers() {
   });
 
   const onSubmit = async (data: any) => {
+    setIsSubmitting(true);
     try {
       await apiRequest("POST", "/api/customers", data);
       await queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
@@ -54,6 +56,8 @@ export default function Customers() {
         description: "Failed to create customer",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -119,12 +123,12 @@ export default function Customers() {
                   + Add Customer
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md">
+              <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Add New Customer</DialogTitle>
                 </DialogHeader>
                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pb-4">
                     <FormField
                       control={form.control}
                       name="name"
@@ -218,12 +222,21 @@ export default function Customers() {
                       )}
                     />
 
-                    <div className="flex justify-end space-x-3 pt-4">
-                      <Button type="button" variant="outline" onClick={() => setShowCreateForm(false)}>
+                    <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => setShowCreateForm(false)}
+                        className="min-h-[44px] order-2 sm:order-1"
+                      >
                         Cancel
                       </Button>
-                      <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-                        Add Customer
+                      <Button 
+                        type="submit" 
+                        disabled={isSubmitting}
+                        className="bg-blue-600 hover:bg-blue-700 min-h-[44px] order-1 sm:order-2"
+                      >
+                        {isSubmitting ? "Creating..." : "Add Customer"}
                       </Button>
                     </div>
                   </form>

@@ -664,7 +664,7 @@ export function EnhancedEventModal({ open, onOpenChange }: EnhancedEventModalPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[900px] max-h-[95vh] overflow-y-auto bg-gradient-to-br from-slate-50 to-blue-50/20">
+      <DialogContent className="w-[95vw] max-w-[900px] max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-50 to-blue-50/20 p-4 sm:p-6">
         <DialogHeader className="space-y-4 pb-6">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
@@ -704,26 +704,29 @@ export function EnhancedEventModal({ open, onOpenChange }: EnhancedEventModalPro
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                {currentStep === 1 && renderStep1()}
-                {currentStep === 2 && renderStep2()}
-              </div>
-              
-              {aiAssistantMode && (
-                <div className="lg:col-span-1">
-                  {renderAIAssistant()}
+            <div className="grid grid-cols-1 gap-6">
+              <div className={aiAssistantMode ? "lg:grid lg:grid-cols-3 lg:gap-6" : ""}>
+                <div className={aiAssistantMode ? "lg:col-span-2" : ""}>
+                  {currentStep === 1 && renderStep1()}
+                  {currentStep === 2 && renderStep2()}
                 </div>
-              )}
+                
+                {aiAssistantMode && (
+                  <div className="lg:col-span-1">
+                    {renderAIAssistant()}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Navigation */}
-            <div className="flex justify-between items-center pt-6 border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 pt-6 border-t border-gray-200">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}
                 disabled={currentStep === 1}
+                className="order-2 sm:order-1"
               >
                 <ChevronLeft className="w-4 h-4 mr-1" />
                 Previous
@@ -733,7 +736,7 @@ export function EnhancedEventModal({ open, onOpenChange }: EnhancedEventModalPro
                 <Button
                   type="button"
                   onClick={() => setCurrentStep(currentStep + 1)}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-600 hover:bg-blue-700 order-1 sm:order-2"
                 >
                   Next
                   <ChevronRight className="w-4 h-4 ml-1" />
@@ -742,7 +745,7 @@ export function EnhancedEventModal({ open, onOpenChange }: EnhancedEventModalPro
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-green-600 hover:bg-green-700 order-1 sm:order-2 min-h-[44px]"
                 >
                   {isSubmitting ? "Creating..." : "Create Event"}
                   <Check className="w-4 h-4 ml-1" />

@@ -160,6 +160,20 @@
   .card-content {
     padding: 20px;
   }
+
+  /* Modal improvements for mobile */
+  [data-radix-dialog-content] {
+    width: 95vw !important;
+    max-height: 90vh !important;
+    margin: 0 auto;
+    padding: 16px !important;
+  }
+
+  /* Ensure modals don't exceed viewport */
+  .dialog-content {
+    overflow-y: auto;
+    max-height: calc(100vh - 2rem);
+  }
 }
 
 /* Improved mobile tab styling */
