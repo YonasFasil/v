@@ -109,7 +109,7 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
     });
   };
 
-  const updateTimeForDate = (date: Date, field: 'start' | 'end' | 'space', value: string) => {
+  const updateTimeForDate = async (date: Date, field: 'start' | 'end' | 'space', value: string) => {
     const dateKey = date.toISOString().split('T')[0];
     setSelectedTimes(prev => ({
       ...prev,
@@ -118,6 +118,46 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
         [field]: value,
       }
     }));
+    
+    // Check for conflicts when both start time, end time, and space are set
+    const currentSettings = selectedTimes[dateKey] || {};
+    const newSettings = { ...currentSettings, [field]: value };
+    
+    if (newSettings.start && newSettings.end && newSettings.space) {
+      // Fetch existing bookings to check for conflicts
+      try {
+        const bookingsResponse = await fetch('/api/bookings');
+        const existingBookings = await bookingsResponse.json();
+        
+        const conflict = existingBookings.find((booking: any) => {
+          if (booking.status === 'cancelled') return false;
+          if (booking.venueId !== newSettings.space) return false;
+          if (new Date(booking.eventDate).toDateString() !== date.toDateString()) return false;
+          
+          const parseTime = (timeStr: string) => {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return hours * 60 + minutes;
+          };
+          
+          const newStart = parseTime(newSettings.start);
+          const newEnd = parseTime(newSettings.end);
+          const existingStart = parseTime(booking.startTime);
+          const existingEnd = parseTime(booking.endTime);
+          
+          return (newStart < existingEnd && newEnd > existingStart);
+        });
+        
+        if (conflict) {
+          toast({
+            title: "Time Conflict Warning",
+            description: `This time slot conflicts with "${conflict.eventName}" (${conflict.startTime} - ${conflict.endTime})`,
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error('Error checking conflicts:', error);
+      }
+    }
   };
 
   const updateServiceQuantity = (serviceId: string, change: number) => {
@@ -205,7 +245,23 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
             notes: `Package: ${selectedPackage?.name || 'Custom'}\nServices: ${addOnServices.map(s => `${s.name} (${s.quantity})`).join(', ')}`,
           };
 
-          await apiRequest("POST", "/api/bookings", bookingData);
+          try {
+            await apiRequest("POST", "/api/bookings", bookingData);
+          } catch (error: any) {
+            if (error.status === 409) {
+              const errorData = await error.json();
+              if (errorData?.message === "Time slot conflict") {
+                toast({
+                  title: "Time Conflict",
+                  description: `Time slot conflicts with existing booking: ${errorData.conflictingBooking?.eventName} (${errorData.conflictingBooking?.startTime} - ${errorData.conflictingBooking?.endTime})`,
+                  variant: "destructive",
+                });
+                setIsSubmitting(false);
+                return;
+              }
+            }
+            throw error;
+          }
         }
       }
 

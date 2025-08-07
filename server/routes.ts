@@ -94,6 +94,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       const validatedData = insertBookingSchema.parse(bookingData);
+      
+      // Check for time conflicts with existing bookings
+      const existingBookings = await storage.getBookings();
+      const eventDate = validatedData.eventDate;
+      const startTime = validatedData.startTime;
+      const endTime = validatedData.endTime;
+      const venueId = validatedData.venueId;
+      
+      const conflict = existingBookings.find(existing => {
+        // Skip cancelled bookings
+        if (existing.status === 'cancelled') return false;
+        
+        // Check if same venue and same date
+        if (existing.venueId === venueId && 
+            existing.eventDate.toDateString() === eventDate.toDateString()) {
+          
+          // Convert times to minutes for easier comparison
+          const parseTime = (timeStr: string) => {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return hours * 60 + minutes;
+          };
+          
+          const newStart = parseTime(startTime);
+          const newEnd = parseTime(endTime);
+          const existingStart = parseTime(existing.startTime);
+          const existingEnd = parseTime(existing.endTime);
+          
+          // Check for overlap: new booking starts before existing ends AND new booking ends after existing starts
+          return (newStart < existingEnd && newEnd > existingStart);
+        }
+        return false;
+      });
+      
+      if (conflict) {
+        return res.status(409).json({ 
+          message: "Time slot conflict", 
+          conflictingBooking: {
+            eventName: conflict.eventName,
+            startTime: conflict.startTime,
+            endTime: conflict.endTime
+          }
+        });
+      }
+      
       const booking = await storage.createBooking(validatedData);
       res.json(booking);
     } catch (error) {
