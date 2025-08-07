@@ -133,7 +133,7 @@ export default function Settings() {
         
         <main className="flex-1 overflow-y-auto p-6">
           <Tabs defaultValue="business" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6">
+            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7">
               <TabsTrigger value="business" className="flex items-center gap-2">
                 <Building className="w-4 h-4" />
                 <span className="hidden sm:inline">Business</span>
@@ -149,6 +149,10 @@ export default function Settings() {
               <TabsTrigger value="payments" className="flex items-center gap-2">
                 <CreditCard className="w-4 h-4" />
                 <span className="hidden sm:inline">Payments</span>
+              </TabsTrigger>
+              <TabsTrigger value="taxes" className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4" />
+                <span className="hidden sm:inline">Tax & Fees</span>
               </TabsTrigger>
               <TabsTrigger value="security" className="flex items-center gap-2">
                 <Shield className="w-4 h-4" />
@@ -622,6 +626,124 @@ export default function Settings() {
                   <Button onClick={() => saveSettings("Security")} className="bg-blue-600 hover:bg-blue-700">
                     <Save className="w-4 h-4 mr-2" />
                     Save Security Settings
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Tax & Fees Settings */}
+            <TabsContent value="taxes" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="w-5 h-5" />
+                    Tax and Fees Configuration
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="bg-blue-100 rounded-full p-1">
+                        <DollarSign className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-blue-900">Tax & Fee Management</h4>
+                        <p className="text-sm text-blue-700 mt-1">
+                          Configure tax rates and fees that will be automatically applied to packages and services.
+                          These settings will be used during event booking calculations.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-medium">Active Tax Rules & Fees</h4>
+                    <Button className="bg-blue-600 hover:bg-blue-700">
+                      <DollarSign className="w-4 h-4 mr-2" />
+                      Add Tax/Fee
+                    </Button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* Sample tax settings - these would come from API */}
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border">
+                      <div>
+                        <h5 className="font-medium">Sales Tax</h5>
+                        <p className="text-sm text-gray-600">8.25% applied to all services</p>
+                        <Badge variant="outline" className="mt-1 text-xs">
+                          Services Only
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                          Active
+                        </Badge>
+                        <Button variant="outline" size="sm">Edit</Button>
+                        <Button variant="outline" size="sm">Delete</Button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border">
+                      <div>
+                        <h5 className="font-medium">Service Fee</h5>
+                        <p className="text-sm text-gray-600">$25.00 flat fee per booking</p>
+                        <Badge variant="outline" className="mt-1 text-xs">
+                          Total Amount
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                          Active
+                        </Badge>
+                        <Button variant="outline" size="sm">Edit</Button>
+                        <Button variant="outline" size="sm">Delete</Button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border">
+                      <div>
+                        <h5 className="font-medium">Gratuity</h5>
+                        <p className="text-sm text-gray-600">18% applied to packages</p>
+                        <Badge variant="outline" className="mt-1 text-xs">
+                          Packages Only
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                          Inactive
+                        </Badge>
+                        <Button variant="outline" size="sm">Edit</Button>
+                        <Button variant="outline" size="sm">Delete</Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <h4 className="font-medium mb-3">Quick Setup</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <Button variant="outline" className="p-4 h-auto flex flex-col items-center gap-2">
+                        <DollarSign className="w-5 h-5" />
+                        <span className="text-sm font-medium">Sales Tax</span>
+                        <span className="text-xs text-gray-500">Percentage-based tax</span>
+                      </Button>
+                      <Button variant="outline" className="p-4 h-auto flex flex-col items-center gap-2">
+                        <DollarSign className="w-5 h-5" />
+                        <span className="text-sm font-medium">Service Fee</span>
+                        <span className="text-xs text-gray-500">Fixed amount fee</span>
+                      </Button>
+                      <Button variant="outline" className="p-4 h-auto flex flex-col items-center gap-2">
+                        <DollarSign className="w-5 h-5" />
+                        <span className="text-sm font-medium">Gratuity</span>
+                        <span className="text-xs text-gray-500">Optional tip percentage</span>
+                      </Button>
+                    </div>
+                  </div>
+
+                  <Button onClick={() => handleSaveSettings('taxes')} className="bg-blue-600 hover:bg-blue-700">
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Tax Settings
                   </Button>
                 </CardContent>
               </Card>

@@ -155,6 +155,19 @@ export const services = pgTable("services", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Tax and fees configuration
+export const taxSettings = pgTable("tax_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  type: text("type").notNull(), // 'tax', 'fee', 'service_charge'
+  calculation: text("calculation").notNull(), // 'percentage', 'fixed'
+  value: decimal("value", { precision: 10, scale: 2 }).notNull(),
+  applyTo: text("apply_to").notNull(), // 'packages', 'services', 'both', 'total'
+  isActive: boolean("is_active").default(true),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertVenueSchema = createInsertSchema(venues).omit({ id: true });
@@ -167,6 +180,7 @@ export const insertAiInsightSchema = createInsertSchema(aiInsights).omit({ id: t
 export const insertPackageSchema = createInsertSchema(packages).omit({ id: true, createdAt: true });
 export const insertServiceSchema = createInsertSchema(services).omit({ id: true, createdAt: true });
 export const insertSpaceSchema = createInsertSchema(spaces).omit({ id: true, createdAt: true });
+export const insertTaxSettingSchema = createInsertSchema(taxSettings).omit({ id: true, createdAt: true });
 
 // Types
 export type User = typeof users.$inferSelect;
@@ -191,3 +205,5 @@ export type Service = typeof services.$inferSelect;
 export type InsertService = z.infer<typeof insertServiceSchema>;
 export type Space = typeof spaces.$inferSelect;
 export type InsertSpace = z.infer<typeof insertSpaceSchema>;
+export type TaxSetting = typeof taxSettings.$inferSelect;
+export type InsertTaxSetting = z.infer<typeof insertTaxSettingSchema>;

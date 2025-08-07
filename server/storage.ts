@@ -9,7 +9,8 @@ import {
   type Task, type InsertTask,
   type AiInsight, type InsertAiInsight,
   type Package, type InsertPackage,
-  type Service, type InsertService
+  type Service, type InsertService,
+  type TaxSetting, type InsertTaxSetting
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -73,25 +74,30 @@ export interface IStorage {
 
   // Packages & Services
   getPackages(): Promise<Package[]>;
-  updatePackage(id: string, packageData: any): Promise<Package | null>;
+  getPackage(id: string): Promise<Package | undefined>;
+  createPackage(pkg: InsertPackage): Promise<Package>;
+  updatePackage(id: string, pkg: Partial<InsertPackage>): Promise<Package | undefined>;
   deletePackage(id: string): Promise<boolean>;
+
   getServices(): Promise<Service[]>;
-  updateService(id: string, serviceData: any): Promise<Service | null>;
+  getService(id: string): Promise<Service | undefined>;
+  createService(service: InsertService): Promise<Service>;
+  updateService(id: string, service: Partial<InsertService>): Promise<Service | undefined>;
   deleteService(id: string): Promise<boolean>;
   
-  // Additional CRUD operations
+  // Tax Settings
+  getTaxSettings(): Promise<TaxSetting[]>;
+  getTaxSetting(id: string): Promise<TaxSetting | undefined>;
+  createTaxSetting(taxSetting: InsertTaxSetting): Promise<TaxSetting>;
+  updateTaxSetting(id: string, taxSetting: Partial<InsertTaxSetting>): Promise<TaxSetting | undefined>;
+  deleteTaxSetting(id: string): Promise<boolean>;
+  
+  // Additional CRUD operations  
   deleteCustomer(id: string): Promise<boolean>;
   updateVenue(id: string, venueData: Partial<Venue>): Promise<Venue | null>;
   deleteVenue(id: string): Promise<boolean>;
   deleteSpace(id: string): Promise<boolean>;
   deleteBooking(id: string): Promise<boolean>;
-  getPackage(id: string): Promise<Package | undefined>;
-  createPackage(pkg: InsertPackage): Promise<Package>;
-  updatePackage(id: string, pkg: Partial<InsertPackage>): Promise<Package | undefined>;
-  getServices(): Promise<Service[]>;
-  getService(id: string): Promise<Service | undefined>;
-  createService(service: InsertService): Promise<Service>;
-  updateService(id: string, service: Partial<InsertService>): Promise<Service | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -106,6 +112,7 @@ export class MemStorage implements IStorage {
   private aiInsights: Map<string, AiInsight>;
   private packages: Map<string, Package>;
   private services: Map<string, Service>;
+  private taxSettings: Map<string, TaxSetting>;
 
   constructor() {
     this.users = new Map();
@@ -119,6 +126,7 @@ export class MemStorage implements IStorage {
     this.aiInsights = new Map();
     this.packages = new Map();
     this.services = new Map();
+    this.taxSettings = new Map();
 
     this.initializeData();
   }
@@ -793,6 +801,38 @@ export class MemStorage implements IStorage {
     const updated = { ...venue, ...venueData };
     this.venues.set(id, updated);
     return updated;
+  }
+
+  // Tax Settings methods
+  async getTaxSettings(): Promise<TaxSetting[]> {
+    return Array.from(this.taxSettings.values());
+  }
+
+  async getTaxSetting(id: string): Promise<TaxSetting | undefined> {
+    return this.taxSettings.get(id);
+  }
+
+  async createTaxSetting(taxSetting: InsertTaxSetting): Promise<TaxSetting> {
+    const newTaxSetting: TaxSetting = {
+      id: randomUUID(),
+      ...taxSetting,
+      createdAt: new Date(),
+    };
+    this.taxSettings.set(newTaxSetting.id, newTaxSetting);
+    return newTaxSetting;
+  }
+
+  async updateTaxSetting(id: string, taxSetting: Partial<InsertTaxSetting>): Promise<TaxSetting | undefined> {
+    const existing = this.taxSettings.get(id);
+    if (!existing) return undefined;
+    
+    const updated = { ...existing, ...taxSetting };
+    this.taxSettings.set(id, updated);
+    return updated;
+  }
+
+  async deleteTaxSetting(id: string): Promise<boolean> {
+    return this.taxSettings.delete(id);
   }
 }
 

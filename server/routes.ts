@@ -7,7 +7,8 @@ import {
   insertProposalSchema, 
   insertPaymentSchema,
   insertTaskSchema,
-  insertAiInsightSchema 
+  insertAiInsightSchema,
+  insertTaxSettingSchema 
 } from "@shared/schema";
 import { 
   generateAIInsights,
@@ -1069,6 +1070,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(service);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Tax Settings
+  app.get("/api/tax-settings", async (req, res) => {
+    try {
+      const taxSettings = await storage.getTaxSettings();
+      res.json(taxSettings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tax settings" });
+    }
+  });
+
+  app.post("/api/tax-settings", async (req, res) => {
+    try {
+      const validatedData = insertTaxSettingSchema.parse(req.body);
+      const taxSetting = await storage.createTaxSetting(validatedData);
+      res.json(taxSetting);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid tax setting data" });
+    }
+  });
+
+  app.put("/api/tax-settings/:id", async (req, res) => {
+    try {
+      const validatedData = insertTaxSettingSchema.parse(req.body);
+      const taxSetting = await storage.updateTaxSetting(req.params.id, validatedData);
+      if (!taxSetting) {
+        return res.status(404).json({ message: "Tax setting not found" });
+      }
+      res.json(taxSetting);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid tax setting data" });
+    }
+  });
+
+  app.delete("/api/tax-settings/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteTaxSetting(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Tax setting not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete tax setting" });
     }
   });
 

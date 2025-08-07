@@ -49,6 +49,19 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
   // Step 2: Event Configuration - now managed per date
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   
+  // Copy config functionality
+  const [showCopyModal, setShowCopyModal] = useState(false);
+  
+  // New service creation
+  const [showNewServiceForm, setShowNewServiceForm] = useState(false);
+  const [newService, setNewService] = useState({
+    name: "",
+    description: "",
+    category: "addon",
+    price: "",
+    pricingModel: "fixed"
+  });
+  
   // Step 3: Final Details
   const [eventName, setEventName] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState("");
@@ -166,6 +179,28 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
   const selectedVenueData = (venues as any[]).find((v: any) => v.id === selectedVenue);
   const selectedPackageData = (packages as any[]).find((p: any) => p.id === activeDate?.packageId);
 
+  // Copy configuration to other dates
+  const copyConfigToOtherDates = () => {
+    if (!activeDate) return;
+    
+    const currentConfig = {
+      guestCount: activeDate.guestCount,
+      packageId: activeDate.packageId,
+      selectedServices: [...(activeDate.selectedServices || [])],
+      itemQuantities: { ...activeDate.itemQuantities },
+      pricingOverrides: { ...activeDate.pricingOverrides }
+    };
+
+    setSelectedDates(prev => 
+      prev.map((date, index) => 
+        index === activeTabIndex ? date : { ...date, ...currentConfig }
+      )
+    );
+
+    toast({ title: "Configuration copied to all other dates" });
+    setShowCopyModal(false);
+  };
+
   // Create customer mutation
   const createCustomer = useMutation({
     mutationFn: async (customerData: any) => {
@@ -181,6 +216,26 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
     },
     onError: (error: any) => {
       toast({ title: "Failed to create customer", description: error.message, variant: "destructive" });
+    }
+  });
+
+  // Create service mutation
+  const createService = useMutation({
+    mutationFn: async (serviceData: any) => {
+      const response = await apiRequest("POST", "/api/services", serviceData);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+      // Auto-add the new service to current date configuration
+      const currentServices = activeDate?.selectedServices || [];
+      updateDateConfig('selectedServices', [...currentServices, data.id]);
+      setShowNewServiceForm(false);
+      setNewService({ name: "", description: "", category: "addon", price: "", pricingModel: "fixed" });
+      toast({ title: "Service created and added to event!" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to create service", description: error.message, variant: "destructive" });
     }
   });
 
@@ -228,6 +283,21 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
       return;
     }
     createCustomer.mutate(newCustomer);
+  };
+
+  const handleCreateService = () => {
+    if (!newService.name || !newService.price) {
+      toast({
+        title: "Required fields missing",
+        description: "Please provide service name and price",
+        variant: "destructive"
+      });
+      return;
+    }
+    createService.mutate({
+      ...newService,
+      price: parseFloat(newService.price).toString()
+    });
   };
 
   const handleSubmit = () => {
@@ -591,8 +661,12 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                         <div className="flex justify-between items-center mb-1">
                           <h3 className="text-xl font-semibold">Configure Event</h3>
                           {selectedDates.length > 1 && (
-                            <Button variant="outline" size="sm">
-                              Copy Config...
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => setShowCopyModal(true)}
+                            >
+                              Copy to Other Dates
                             </Button>
                           )}
                         </div>
@@ -659,6 +733,26 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                     placeholder={selectedPackageData.price}
                                   />
                                 </div>
+                                <div className="mt-2 flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <Checkbox
+                                      checked={selectedPackageData.pricingModel === 'per_person'}
+                                      onCheckedChange={(checked) => {
+                                        // Toggle between per_person and fixed pricing for this package
+                                        const newPricingModel = checked ? 'per_person' : 'fixed';
+                                        // This would require updating the package configuration
+                                      }}
+                                    />
+                                    <span className="text-sm text-gray-600">
+                                      Calculate per guest ({activeDate.guestCount || 1} guests)
+                                    </span>
+                                  </div>
+                                  {selectedPackageData.pricingModel === 'per_person' && (
+                                    <span className="text-sm font-medium">
+                                      Total: ${((activeDate.pricingOverrides?.packagePrice ?? parseFloat(selectedPackageData.price || 0)) * (activeDate.guestCount || 1)).toFixed(2)}
+                                    </span>
+                                  )}
+                                </div>
                                 {selectedPackageData.includedServiceIds?.length > 0 && (
                                   <div className="mt-2">
                                     <p className="text-sm font-medium">Included services:</p>
@@ -681,7 +775,13 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                           <div>
                             <div className="flex items-center justify-between mb-2">
                               <h4 className="font-semibold text-gray-700">Add-on Services</h4>
-                              <Button variant="outline" size="sm">+ New Service</Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => setShowNewServiceForm(true)}
+                              >
+                                + New Service
+                              </Button>
                             </div>
                             <div className="space-y-2 max-h-60 overflow-y-auto">
                               {(services as any[]).map((service: any) => {
@@ -964,6 +1064,139 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
           </div>
         </div>
       </DialogContent>
+
+      {/* Copy Configuration Modal */}
+      <Dialog open={showCopyModal} onOpenChange={setShowCopyModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Copy Configuration</DialogTitle>
+            <DialogDescription>
+              Copy the current event configuration to all other dates in this booking.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-gray-600">
+              This will copy the following settings to all other event dates:
+            </p>
+            <ul className="mt-2 text-sm text-gray-600 list-disc list-inside space-y-1">
+              <li>Number of guests ({activeDate?.guestCount || 1})</li>
+              <li>Selected package {selectedPackageData ? `(${selectedPackageData.name})` : '(None)'}</li>
+              <li>Add-on services ({activeDate?.selectedServices?.length || 0} selected)</li>
+              <li>Quantities and pricing overrides</li>
+            </ul>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setShowCopyModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={copyConfigToOtherDates}>
+              Copy to All Dates
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Service Creation Modal */}
+      <Dialog open={showNewServiceForm} onOpenChange={setShowNewServiceForm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Service</DialogTitle>
+            <DialogDescription>
+              Add a new service that will be available as an add-on option.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="service-name">Service Name *</Label>
+              <Input
+                id="service-name"
+                value={newService.name}
+                onChange={(e) => setNewService(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="e.g., Photography Package"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="service-description">Description</Label>
+              <Input
+                id="service-description"
+                value={newService.description}
+                onChange={(e) => setNewService(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Brief description of the service"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="service-category">Category</Label>
+                <Select 
+                  value={newService.category} 
+                  onValueChange={(value) => setNewService(prev => ({ ...prev, category: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="addon">Add-on</SelectItem>
+                    <SelectItem value="catering">Catering</SelectItem>
+                    <SelectItem value="entertainment">Entertainment</SelectItem>
+                    <SelectItem value="decor">Decor</SelectItem>
+                    <SelectItem value="photography">Photography</SelectItem>
+                    <SelectItem value="equipment">Equipment</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label htmlFor="service-pricing">Pricing Model</Label>
+                <Select 
+                  value={newService.pricingModel} 
+                  onValueChange={(value) => setNewService(prev => ({ ...prev, pricingModel: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixed">Fixed Price</SelectItem>
+                    <SelectItem value="per_person">Per Person</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="service-price">Price * ($)</Label>
+              <Input
+                id="service-price"
+                type="number"
+                step="0.01"
+                min="0"
+                value={newService.price}
+                onChange={(e) => setNewService(prev => ({ ...prev, price: e.target.value }))}
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-3 mt-6">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowNewServiceForm(false);
+                setNewService({ name: "", description: "", category: "addon", price: "", pricingModel: "fixed" });
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateService}
+              disabled={createService.isPending}
+            >
+              {createService.isPending ? 'Creating...' : 'Create Service'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
