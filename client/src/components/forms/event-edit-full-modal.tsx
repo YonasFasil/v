@@ -295,9 +295,6 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
     setCurrentStep(1);
     setSelectedDates([]);
     setSelectedVenue("");
-    setGuestCount(1);
-    setSelectedPackage("");
-    setSelectedServices([]);
     setEventName("");
     setSelectedCustomer("");
     setEventStatus("inquiry");
@@ -355,12 +352,16 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                   <div>
                     <h3 className="font-medium text-slate-900 mb-3">Configuration</h3>
                     <div className="space-y-2 text-sm">
-                      <div>Guest Count: <span className="font-medium">{guestCount}</span></div>
-                      {selectedPackageData && (
-                        <div>Package: <span className="font-medium">{selectedPackageData.name}</span></div>
-                      )}
-                      {selectedServices.length > 0 && (
-                        <div>Services: <span className="font-medium">{selectedServices.length} selected</span></div>
+                      {activeDate && (
+                        <>
+                          <div>Guest Count: <span className="font-medium">{activeDate.guestCount}</span></div>
+                          {selectedPackageData && (
+                            <div>Package: <span className="font-medium">{selectedPackageData.name}</span></div>
+                          )}
+                          {activeDate.selectedServices && activeDate.selectedServices.length > 0 && (
+                            <div>Services: <span className="font-medium">{activeDate.selectedServices.length} selected</span></div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -887,7 +888,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                         </div>
                         <div>
                           <span className="text-slate-600">Guest Count:</span>
-                          <div className="font-medium">{guestCount}</div>
+                          <div className="font-medium">{activeDate?.guestCount || 0}</div>
                         </div>
                         <div>
                           <span className="text-slate-600">Venue:</span>
@@ -916,7 +917,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                           <span className="text-xl font-bold text-green-600">${totalPrice.toFixed(2)}</span>
                         </div>
                         <div className="text-sm text-slate-600 mt-1">
-                          Includes {selectedPackageData ? 'package' : 'services'} and {selectedServices.length} additional services
+                          Includes {selectedPackageData ? 'package' : 'services'} and {activeDate?.selectedServices?.length || 0} additional services
                         </div>
                       </div>
                     </div>

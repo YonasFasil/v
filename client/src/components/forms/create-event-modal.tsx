@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, getDay } from "date-fns";
 import { ChevronLeft, ChevronRight, X, Plus, RotateCcw } from "lucide-react";
@@ -85,6 +86,15 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
   ];
 
   // Per-date configuration helpers
+  const updateDateTime = (index: number, field: keyof SelectedDate, value: any) => {
+    setSelectedDates(prev => prev.map((date, i) => 
+      i === index ? { ...date, [field]: value } : date
+    ));
+  };
+
+  // Get active date configuration
+  const activeDate = selectedDates[activeTabIndex];
+  
   const updateDateConfig = (field: keyof SelectedDate, value: any) => {
     if (activeDate) {
       updateDateTime(activeTabIndex, field, value);
@@ -149,15 +159,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
     }
   };
 
-  // Update time for a selected date
-  const updateDateTime = (index: number, field: keyof SelectedDate, value: any) => {
-    setSelectedDates(prev => prev.map((date, i) => 
-      i === index ? { ...date, [field]: value } : date
-    ));
-  };
 
-  // Get active date configuration
-  const activeDate = selectedDates[activeTabIndex];
   const selectedVenueData = (venues as any[]).find((v: any) => v.id === selectedVenue);
   const selectedPackageData = (packages as any[]).find((p: any) => p.id === activeDate?.packageId);
 
@@ -427,7 +429,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                           <SelectValue placeholder="Select a venue (property)" />
                         </SelectTrigger>
                         <SelectContent>
-                          {venues.map((venue: any) => (
+                          {(venues as any[]).map((venue: any) => (
                             <SelectItem key={venue.id} value={venue.id}>
                               {venue.name} - {venue.spaces?.length || 0} spaces available
                             </SelectItem>
@@ -783,7 +785,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                               <SelectValue placeholder="-- Select a Customer --" />
                             </SelectTrigger>
                             <SelectContent>
-                              {customers.map((customer: any) => (
+                              {(customers as any[]).map((customer: any) => (
                                 <SelectItem key={customer.id} value={customer.id}>
                                   {customer.name} - {customer.email}
                                 </SelectItem>
