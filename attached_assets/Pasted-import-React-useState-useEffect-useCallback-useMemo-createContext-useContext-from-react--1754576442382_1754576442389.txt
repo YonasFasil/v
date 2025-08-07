@@ -1,0 +1,2825 @@
+import React, { useState, useEffect, useCallback, useMemo, createContext, useContext } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { getFirestore, collection, doc, onSnapshot, addDoc, setDoc, getDocs, query, where, deleteDoc, Timestamp, writeBatch, updateDoc, getDoc } from 'firebase/firestore';
+import { ArrowLeft, ArrowRight, Calendar, Clock, Users, X, Trash2, CheckCircle, ShoppingCart, Copy, Briefcase, Building, Send, Edit, RefreshCw, BarChart2, Package, PlusCircle, UserPlus, Search, DollarSign, FileText, Settings, MessageSquare, Mail, Phone, CreditCard, ShieldCheck, LogOut, MoreVertical, UserCog, Printer, View, ChevronDown, Share2, Info, Home, FileText as FileTextIcon, TrendingUp, Users as UsersIcon, Package as PackageIcon, BarChart, Zap, CheckSquare, ClipboardList, BrainCircuit, UserCheck, ListTodo } from 'lucide-react';
+
+// --- Chart.js and Date-fns imports ---
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
+import { Bar, Line, Pie } from 'react-chartjs-2';
+import { format as formatDateFns, parseISO, eachDayOfInterval, startOfDay } from 'date-fns';
+
+// --- Register Chart.js components ---
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend);
+
+
+// --- Constants & Helpers ---
+const EVENT_STATUSES = { 'Inquiry': { color: 'bg-yellow-400', textColor: 'text-yellow-800', label: 'Inquiry', hex: '#FBBF24' }, 'On Hold': { color: 'bg-orange-400', textColor: 'text-orange-800', label: 'On Hold', hex: '#FB923C' }, 'Confirmed': { color: 'bg-blue-500', textColor: 'text-white', label: 'Confirmed', hex: '#3B82F6'}, 'Deposit Paid': { color: 'bg-teal-500', textColor: 'text-white', label: 'Deposit Paid', hex: '#14B8A6' }, 'Paid in Full': { color: 'bg-green-500', textColor: 'text-white', label: 'Paid in Full', hex: '#22C55E' }, 'Event Complete': { color: 'bg-purple-500', textColor: 'text-white', label: 'Event Complete', hex: '#A855F7' }, 'Cancelled': { color: 'bg-red-500', textColor: 'text-white', label: 'Cancelled', hex: '#EF4444' }, };
+const USER_ROLES = { SUPER_ADMIN: 'Super Admin', ADMIN: 'Admin', MANAGER: 'Manager', STAFF: 'Staff' };
+const addDays = (date, days) => { const result = new Date(date); result.setDate(result.getDate() + days); return result; };
+const startOfWeek = (date) => { const dt = new Date(date); const day = dt.getDay(); const diff = dt.getDate() - day + (day === 0 ? -6 : 1); return new Date(dt.setDate(diff)); };
+const isSameDay = (d1, d2) => d1 && d2 && new Date(d1).getFullYear() === new Date(d2).getFullYear() && new Date(d1).getMonth() === new Date(d1).getMonth() && new Date(d1).getDate() === new Date(d2).getDate();
+const formatDate = (date, options = {}, timeZone = 'UTC') => { if (!date) return ''; const d = date instanceof Date ? date : date.toDate(); const defaultOptions = { year: 'numeric', month: 'long', day: 'numeric', timeZone, ...options }; try { return new Intl.DateTimeFormat('en-US', defaultOptions).format(d); } catch (e) { console.warn(`Invalid time zone: ${timeZone}`); return new Intl.DateTimeFormat('en-US', {...defaultOptions, timeZone: 'UTC'}).format(d); } };
+const formatTime = (date, options = {}, timeZone = 'UTC') => { if (!date) return ''; const d = date instanceof Date ? date : date.toDate(); const defaultOptions = { hour: 'numeric', minute: '2-digit', hour12: true, timeZone, ...options }; try { return new Intl.DateTimeFormat('en-US', defaultOptions).format(d); } catch (e) { console.warn(`Invalid time zone: ${timeZone}`); return new Intl.DateTimeFormat('en-US', {...defaultOptions, timeZone: 'UTC'}).format(d); } };
+const formatCurrency = (amount) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
+const generateSlotId = (slot) => slot?.space?.id && slot.startTime ? `${slot.space.id}@${slot.startTime.toISOString()}` : null;
+
+const calculatePriceBreakdown = (bookings, appSettings, services, packages) => {
+    let subtotal = 0;
+    let total = 0;
+    let taxes = [];
+    let fees = [];
+
+    bookings.forEach(bookingConfig => {
+        let bookingSubtotal = 0;
+        const overrides = bookingConfig.pricingOverrides || {};
+        const pkg = packages.find(p => p.id === bookingConfig.packageId);
+        if (pkg) {
+            const price = overrides.packagePrice ?? pkg.price;
+            const pricingModel = bookingConfig.pricingModel || pkg.pricingModel;
+            const pkgPrice = pricingModel === 'per_person' ? (price || 0) * (bookingConfig.guests || 1) : (price || 0);
+            bookingSubtotal += pkgPrice;
+        }
+        bookingConfig.addOns?.forEach(serviceId => {
+            const service = services.find(s => s.id === serviceId);
+            if (!service || (pkg && pkg.includedServiceIds?.includes(serviceId))) return;
+            
+            let servicePrice = 0;
+            const price = overrides.servicePrices?.[serviceId] ?? service.price;
+
+            if (service.pricingModel === 'per_person') {
+                servicePrice = (price || 0) * (bookingConfig.guests || 1);
+            } else {
+                const quantity = bookingConfig.itemQuantities?.[serviceId] || 1;
+                servicePrice = (price || 0) * quantity;
+            }
+            bookingSubtotal += servicePrice;
+        });
+        subtotal += bookingSubtotal;
+    });
+
+    let taxableTotal = subtotal;
+    (appSettings?.serviceFees || []).forEach(fee => {
+        if (fee.isTaxable) {
+            taxableTotal += fee.type === 'percentage' ? subtotal * (fee.amount / 100) : fee.amount;
+        }
+    });
+
+    (appSettings?.taxes || []).forEach(tax => {
+        const taxAmount = taxableTotal * (tax.rate / 100);
+        taxes.push({ name: tax.name, amount: taxAmount });
+    });
+
+    (appSettings?.serviceFees || []).forEach(fee => {
+        const feeAmount = fee.type === 'percentage' ? subtotal * (fee.amount / 100) : fee.amount;
+        fees.push({ name: fee.name, amount: feeAmount });
+    });
+    
+    total = subtotal + taxes.reduce((acc, t) => acc + t.amount, 0) + fees.reduce((acc, f) => acc + f.amount, 0);
+
+    return { total, subtotal, taxes, fees };
+};
+
+
+// --- React Context for Global State Management ---
+const AppContext = createContext();
+export const useAppContext = () => useContext(AppContext);
+
+const AppProvider = ({ children, db, auth, appId, user, currentUserLimits, currentUserFeatures }) => {
+    const [data, setData] = useState({ venues: [], bookings: [], services: [], packages: [], customers: [], users: [], policies: [], appSettings: null });
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        if (!db) return;
+        const collectionsToListen = { venues: 'venues', bookings: 'bookings', services: 'services', packages: 'packages', customers: 'customers', users: 'users', policies: 'policies' };
+        
+        const unsubscribers = Object.entries(collectionsToListen).map(([stateKey, collectionName]) => {
+            const q = query(collection(db, 'artifacts', appId, 'public', 'data', collectionName));
+            return onSnapshot(q, (snapshot) => {
+                const items = snapshot.docs.map(doc => {
+                    const docData = doc.data();
+                    if (collectionName === 'bookings' && docData.startTime) {
+                        return { id: doc.id, ...docData, startTime: docData.startTime.toDate(), endTime: docData.endTime.toDate() };
+                    }
+                    return { id: doc.id, ...docData };
+                });
+                setData(prev => ({ ...prev, [stateKey]: items }));
+            }, (err) => { console.error(`Error listening to ${collectionName}:`, err); setError(`Lost connection to ${collectionName} data.`); });
+        });
+
+        const settingsDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global');
+        const settingsUnsub = onSnapshot(settingsDocRef, (doc) => {
+            if (doc.exists()) {
+                setData(prev => ({ ...prev, appSettings: doc.data() }));
+            } else {
+                const defaultSettings = {
+                    taxes: [{id: 'tax1', name: 'Sales Tax', rate: 8.25, type: 'percentage'}],
+                    serviceFees: [{id: 'fee1', name: 'Service Fee', amount: 20, type: 'percentage', isTaxable: false}],
+                    timeZone: 'America/Chicago',
+                    bookingWindowStart: 8,
+                    bookingWindowEnd: 22,
+                    bookingInterval: 60,
+                    tiers: [ // Default tiers
+                        {
+                            id: 'basic',
+                            name: 'Basic Tier',
+                            maxVenues: 1,
+                            maxUsers: 2, // Max 2 users (including themselves)
+                            maxSpaces: 2, // Max 2 spaces per venue
+                            features: ['calendar', 'dashboard'],
+                            isDefault: true
+                        },
+                        {
+                            id: 'pro',
+                            name: 'Pro Tier',
+                            maxVenues: 5,
+                            maxUsers: 10,
+                            maxSpaces: 5,
+                            features: ['calendar', 'dashboard', 'reporting', 'user_management'],
+                        },
+                        {
+                            id: 'enterprise',
+                            name: 'Enterprise Tier',
+                            maxVenues: 999, // Effectively unlimited
+                            maxUsers: 999,
+                            maxSpaces: 999,
+                            features: ['calendar', 'dashboard', 'reporting', 'user_management'],
+                        }
+                    ]
+                };
+                setData(prev => ({ ...prev, appSettings: defaultSettings }));
+                if (user) setDoc(settingsDocRef, defaultSettings).catch(e => { console.error("Failed to write default settings:", e); setError("Could not initialize application settings."); });
+            }
+            setIsLoading(false);
+        }, (e) => { console.error("Failed to load settings:", e); setError("Could not load application settings."); setIsLoading(false); });
+        
+        unsubscribers.push(settingsUnsub);
+        return () => unsubscribers.forEach(unsub => unsub());
+    }, [db, appId, user]);
+
+    const value = { ...data, isLoading, error, db, auth, appId, currentUserLimits, currentUserFeatures };
+    return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+};
+
+// --- Custom Hook for Firestore Write Actions ---
+const useFirestoreActions = () => {
+    const { db, appId } = useAppContext();
+
+    const getCollectionRef = (collectionName) => collection(db, 'artifacts', appId, 'public', 'data', collectionName);
+    const getDocRef = (collectionName, id) => doc(getCollectionRef(collectionName), id || crypto.randomUUID());
+
+    const saveDoc = async (collectionName, item, isDelete = false) => {
+        if (!db) return;
+        const itemRef = getDocRef(collectionName, item.id);
+        if (isDelete) await deleteDoc(itemRef);
+        else await setDoc(itemRef, { ...item, id: itemRef.id }, { merge: true });
+        return { ...item, id: itemRef.id };
+    };
+
+    const handleUpdateContract = async (contractId, dataToUpdate) => {
+        if (!db || !contractId) return;
+        const q = query(getCollectionRef('bookings'), where("contractId", "==", contractId));
+        const querySnapshot = await getDocs(q);
+        const batch = writeBatch(db);
+        querySnapshot.forEach((doc) => batch.update(doc.ref, dataToUpdate));
+        await batch.commit();
+    };
+    
+    return { saveDoc, handleUpdateContract };
+};
+
+
+// --- App Wrapper for Initialization & Auth Routing (REWRITTEN) ---
+export default function App() {
+    const [db, setDb] = useState(null);
+    const [auth, setAuth] = useState(null);
+    const [user, setUser] = useState(null);
+    const [userProfile, setUserProfile] = useState(null); // Contains role, limits, features
+    const [isAuthLoading, setIsAuthLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [view, setView] = useState('loading'); // 'loading', 'auth', 'public-signup', 'app'
+    const appId = 'default-app-id';
+
+    // Step 1: Initialize Firebase
+    useEffect(() => {
+        try {
+            const firebaseConfig = { apiKey: "AIzaSyCuj9YnfD0eBYgvbXdvY3caraq3bvpLh44", authDomain: "venuine-bc387.firebaseapp.com", projectId: "venuine-bc387", storageBucket: "venuine-bc387.appspot.com", messagingSenderId: "792787394983", appId: "1:792787394983:web:e27532971151e8ea815682", measurementId: "G-PMN0X48VWP" };
+            const app = initializeApp(firebaseConfig);
+            const firestore = getFirestore(app);
+            const authInstance = getAuth(app);
+            setDb(firestore);
+            setAuth(authInstance);
+        } catch (e) {
+            console.error("Firebase Init Error:", e);
+            setError("Could not connect to the booking service.");
+            setIsAuthLoading(false);
+            setView('error');
+        }
+    }, []);
+
+    // Step 2: Listen for Authentication Changes
+    useEffect(() => {
+        if (!auth || !db) return;
+
+        const unsubscribe = onAuthStateChanged(auth, async (authedUser) => {
+            if (authedUser) {
+                setUser(authedUser);
+                // User is signed in, now load their profile data.
+                await loadUserProfile(authedUser, db, appId, setUserProfile, setError);
+                setView('app');
+            } else {
+                // User is signed out.
+                setUser(null);
+                setUserProfile(null);
+                const params = new URLSearchParams(window.location.search);
+                if (params.get('view') === 'public-signup') {
+                    setView('public-signup');
+                } else {
+                    setView('auth');
+                }
+            }
+            setIsAuthLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, [auth, db, appId]);
+
+    // --- Helper function to load or create a user profile ---
+    const loadUserProfile = async (authedUser, firestore, appId, setUserProfileCallback, setErrorCallback) => {
+        const userDocRef = doc(firestore, 'artifacts', appId, 'public', 'data', 'users', authedUser.uid);
+        try {
+            const userDocSnap = await getDoc(userDocRef);
+            const settingsDocRef = doc(firestore, 'artifacts', appId, 'public', 'data', 'settings', 'global');
+            const settingsSnap = await getDoc(settingsDocRef);
+            const appSettings = settingsSnap.exists() ? settingsSnap.data() : {};
+            const tiers = appSettings.tiers || [];
+            let userData;
+
+            if (userDocSnap.exists()) {
+                // --- Existing User ---
+                userData = userDocSnap.data();
+            } else {
+                // --- New User (from standard signup) ---
+                // This logic runs if a user signs up via the AuthScreen, not the public tier page.
+                const usersColRef = collection(firestore, 'artifacts', appId, 'public', 'data', 'users');
+                const allUsersSnap = await getDocs(query(usersColRef));
+                const isFirstUser = allUsersSnap.empty;
+                
+                const defaultRole = isFirstUser ? USER_ROLES.SUPER_ADMIN : USER_ROLES.STAFF;
+                const defaultTier = tiers.find(t => t.isDefault) || tiers[0];
+
+                userData = {
+                    uid: authedUser.uid,
+                    email: authedUser.email,
+                    role: defaultRole,
+                    tierId: defaultTier ? defaultTier.id : null,
+                    customLimits: {},
+                    customFeatures: []
+                };
+                await setDoc(userDocRef, userData);
+            }
+
+            // --- Calculate effective permissions ---
+            const userTier = tiers.find(t => t.id === userData.tierId);
+            const profile = {
+                role: userData.role,
+                limits: {
+                    maxVenues: userData.customLimits?.maxVenues ?? userTier?.maxVenues ?? 999,
+                    maxUsers: userData.customLimits?.maxUsers ?? userTier?.maxUsers ?? 999,
+                    maxSpaces: userData.customLimits?.maxSpaces ?? userTier?.maxSpaces ?? 999,
+                },
+                features: Array.from(new Set([
+                    ...(userTier?.features || []),
+                    ...(userData.customFeatures || [])
+                ]))
+            };
+
+            setUserProfileCallback(profile);
+
+        } catch (e) {
+            console.error("Error loading user profile:", e);
+            setErrorCallback("There was a problem loading your account details.");
+        }
+    };
+    
+    // --- Render logic based on auth state ---
+    const renderContent = () => {
+        if (isAuthLoading || view === 'loading') {
+            return <div className="flex items-center justify-center h-screen bg-gray-50"><p className="text-xl text-gray-600 animate-pulse">Loading...</p></div>;
+        }
+        if (error || view === 'error') {
+            return <div className="flex flex-col items-center justify-center h-screen bg-red-50 text-red-800 p-4"><p>{error || "An unknown error occurred."}</p></div>;
+        }
+        
+        switch (view) {
+            case 'auth':
+                return <AuthScreen auth={auth} />;
+            case 'public-signup':
+                return <PublicSignupPage auth={auth} db={db} appId={appId} />;
+            case 'app':
+                if (user && userProfile && db) {
+                    return (
+                        <AppProvider 
+                            db={db} 
+                            auth={auth} 
+                            appId={appId} 
+                            user={user} 
+                            currentUserLimits={userProfile.limits} 
+                            currentUserFeatures={userProfile.features}
+                        >
+                            <AppContent 
+                                auth={auth} 
+                                user={user} 
+                                currentUserRole={userProfile.role} 
+                            />
+                        </AppProvider>
+                    );
+                }
+                // Fallback while waiting for profile/db
+                return <div className="flex items-center justify-center h-screen bg-gray-50"><p className="text-xl text-gray-600 animate-pulse">Initializing App...</p></div>;
+            default:
+                return <AuthScreen auth={auth} />;
+        }
+    };
+
+    return renderContent();
+}
+
+
+const AppContent = ({ auth, user, currentUserRole }) => {
+    const { appSettings, isLoading, error: dataError } = useAppContext();
+
+    if (isLoading) return <div className="flex items-center justify-center h-screen bg-gray-50"><p className="text-xl text-gray-600 animate-pulse">Loading Data...</p></div>;
+    if (dataError) return <div className="flex flex-col items-center justify-center h-screen bg-red-50 text-red-800 p-4"><p>{dataError}</p></div>;
+    
+    if (currentUserRole === USER_ROLES.SUPER_ADMIN) {
+        return <SuperAdminPanel auth={auth} user={user} currentUserRole={currentUserRole} />;
+    }
+
+    if (user && currentUserRole && appSettings) return <VenueBookingApp auth={auth} user={user} currentUserRole={currentUserRole} />;
+    
+    return <div className="flex items-center justify-center h-screen bg-gray-50"><p className="text-xl text-gray-600 animate-pulse">Finalizing Setup...</p></div>;
+};
+
+
+const AuthScreen = ({ auth }) => {
+    const [isLogin, setIsLogin] = useState(true);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault(); 
+        setIsLoading(true); 
+        setError('');
+        try {
+            if (isLogin) {
+                await signInWithEmailAndPassword(auth, email, password);
+            } else {
+                // The onAuthStateChanged listener in App.js will handle creating the user document.
+                await createUserWithEmailAndPassword(auth, email, password);
+            }
+            // On success, the onAuthStateChanged listener will redirect automatically.
+        } catch (err) { 
+            setError(err.message); 
+            setIsLoading(false); 
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
+            <div className="w-full max-w-md bg-white rounded-xl shadow-2xl p-8">
+                <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">Venuine Staff Portal</h1>
+                <p className="text-center text-gray-500 mb-8">{isLogin ? 'Sign in to manage your bookings' : 'Create a new staff account'}</p>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    <div><label className="text-sm font-bold text-gray-600 block">Email Address</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full mt-1 p-3 border rounded-lg"/></div>
+                    <div><label className="text-sm font-bold text-gray-600 block">Password</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full mt-1 p-3 border rounded-lg"/></div>
+                    {error && <p className="text-sm text-red-600 text-center bg-red-50 p-2 rounded-md">{error}</p>}
+                    <div><button type="submit" disabled={isLoading} className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white font-bold text-lg disabled:bg-indigo-300">{isLoading ? 'Processing...' : (isLogin ? 'Login' : 'Sign Up')}</button></div>
+                </form>
+                <div className="mt-6 text-center">
+                    <button onClick={() => { setIsLogin(!isLogin); setError(''); }} className="text-sm text-indigo-600 hover:underline">{isLogin ? 'Need an account? Sign Up' : 'Already have an account? Login'}</button>
+                    <p className="mt-4 text-sm text-gray-500">Looking for pricing plans? <a href="?view=public-signup" className="text-indigo-600 hover:underline">View our tiers</a></p>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+const PublicSignupPage = ({ auth, db, appId }) => {
+    const [appSettings, setAppSettings] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [selectedTierId, setSelectedTierId] = useState('');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [error, setError] = useState('');
+    const [isLoadingSignup, setIsLoadingSignup] = useState(false);
+    const [paymentSuccess, setPaymentSuccess] = useState(false);
+    const [showPaymentForm, setShowPaymentForm] = useState(false);
+
+    // Load settings directly for the public page
+    useEffect(() => {
+        const settingsDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global');
+        getDoc(settingsDocRef).then(docSnap => {
+            if (docSnap.exists()) {
+                setAppSettings(docSnap.data());
+            }
+            setIsLoading(false);
+        }).catch(err => {
+            console.error("Error fetching settings for public page:", err);
+            setError("Could not load pricing plans.");
+            setIsLoading(false);
+        });
+    }, [db, appId]);
+
+    const tiers = appSettings?.tiers || [];
+    const selectedTier = tiers.find(t => t.id === selectedTierId);
+
+    if (isLoading) return <div className="flex items-center justify-center h-screen bg-gray-50"><p className="text-xl text-gray-600 animate-pulse">Loading tiers...</p></div>;
+
+    const handleProceedToPayment = (e) => {
+        e.preventDefault();
+        setError('');
+        if (password !== confirmPassword) {
+            setError("Passwords do not match.");
+            return;
+        }
+        if (!selectedTierId) {
+            setError("Please select a tier.");
+            return;
+        }
+        setShowPaymentForm(true);
+    };
+
+    const handleFinalizeSignup = async () => {
+        setIsLoadingSignup(true);
+        setError('');
+        
+        try {
+            // Step 1: Create the user in Firebase Auth
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            // Step 2: Immediately create their user profile in Firestore with the selected tier and ADMIN role
+            const userDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.uid);
+            await setDoc(userDocRef, {
+                uid: user.uid,
+                email: user.email,
+                role: USER_ROLES.ADMIN, // New signups from public page are Admins of their org
+                tierId: selectedTierId,
+                customLimits: {},
+                customFeatures: []
+            });
+
+            // Simulate payment processing
+            await new Promise(resolve => setTimeout(resolve, 1500)); 
+            
+            // The onAuthStateChanged listener in App.js will now handle logging the user in.
+            setPaymentSuccess(true);
+
+        } catch (err) {
+            setError(err.message);
+            setShowPaymentForm(false);
+        } finally {
+            setIsLoadingSignup(false);
+        }
+    };
+
+    if (paymentSuccess) {
+        return (
+            <div className="min-h-screen bg-green-50 flex flex-col justify-center items-center p-4 text-center">
+                <CheckCircle className="w-20 h-20 text-green-600 mb-4"/>
+                <h1 className="text-3xl font-bold text-gray-800 mb-2">Signup Successful!</h1>
+                <p className="text-lg text-gray-600 mb-6">Welcome to Venuine! Your account has been created and your {selectedTier?.name} tier is active.</p>
+                <a href="/" className="px-6 py-3 rounded-lg bg-indigo-600 text-white font-bold hover:bg-indigo-700">Go to Login</a>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
+            <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl p-8">
+                <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">Choose Your Venuine Tier</h1>
+                <p className="text-center text-gray-500 mb-8">Select the plan that best fits your needs.</p>
+                
+                {!showPaymentForm ? (
+                    <form onSubmit={handleProceedToPayment} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {tiers.map(tier => (
+                                <div key={tier.id} onClick={() => setSelectedTierId(tier.id)} className={`p-6 border-2 rounded-lg cursor-pointer transition-all ${selectedTierId === tier.id ? 'border-indigo-600 shadow-lg bg-indigo-50' : 'border-gray-200 hover:border-indigo-300'}`}>
+                                    <h3 className="text-xl font-bold text-gray-800 mb-2">{tier.name}</h3>
+                                    <p className="text-sm text-gray-600 mb-4">Perfect for {tier.name.toLowerCase().includes('basic') ? 'small teams' : tier.name.toLowerCase().includes('pro') ? 'growing businesses' : 'large enterprises'}.</p>
+                                    <ul className="text-sm text-gray-700 space-y-1">
+                                        <li><CheckCircle className="inline-block w-4 h-4 mr-2 text-green-500"/> Max {tier.maxVenues} Venue(s)</li>
+                                        <li><CheckCircle className="inline-block w-4 h-4 mr-2 text-green-500"/> Max {tier.maxUsers} User(s)</li>
+                                        <li><CheckCircle className="inline-block w-4 h-4 mr-2 text-green-500"/> Max {tier.maxSpaces} per venue</li>
+                                        {tier.features.length > 0 && <li><CheckCircle className="inline-block w-4 h-4 mr-2 text-green-500"/> {tier.features.length} key features</li>}
+                                    </ul>
+                                </div>
+                            ))}
+                        </div>
+                        {selectedTier && (
+                            <div className="mt-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg text-indigo-800">
+                                <p className="font-semibold">You selected: {selectedTier.name}</p>
+                                <p className="text-sm">Features: {selectedTier.features.map(f => f.replace(/_/g, ' ')).join(', ')}</p>
+                            </div>
+                        )}
+
+                        <div className="mt-4">
+                            <label className="text-sm font-bold text-gray-600 block">Email Address</label>
+                            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full mt-1 p-3 border rounded-lg"/>
+                        </div>
+                        <div>
+                            <label className="text-sm font-bold text-gray-600 block">Password</label>
+                            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full mt-1 p-3 border rounded-lg"/>
+                        </div>
+                        <div>
+                            <label className="text-sm font-bold text-gray-600 block">Confirm Password</label>
+                            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full mt-1 p-3 border rounded-lg"/>
+                        </div>
+                        {error && <p className="text-sm text-red-600 text-center bg-red-50 p-2 rounded-md">{error}</p>}
+                        <div>
+                            <button type="submit" disabled={isLoadingSignup || !selectedTierId} className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white font-bold text-lg disabled:bg-indigo-300">
+                                Proceed to Payment
+                            </button>
+                        </div>
+                        <div className="mt-6 text-center">
+                            <a href="/" className="text-sm text-indigo-600 hover:underline">Already have an account? Login</a>
+                        </div>
+                    </form>
+                ) : (
+                    <div className="p-8 border rounded-lg bg-gray-50 text-center">
+                        <h2 className="text-2xl font-bold text-gray-800 mb-4">Simulated Payment for {selectedTier?.name}</h2>
+                        <p className="text-gray-600 mb-6">This is a mock payment process. Click "Pay & Complete Signup" to activate your account.</p>
+                        <div className="space-y-4 max-w-sm mx-auto">
+                            <div>
+                                <label className="text-sm font-medium block text-left">Card Number</label>
+                                <input type="text" placeholder="**** **** **** 1234" className="w-full mt-1 p-2 border rounded-md"/>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-sm font-medium block text-left">Expiry</label>
+                                    <input type="text" placeholder="MM / YY" className="w-full mt-1 p-2 border rounded-md"/>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium block text-left">CVC</label>
+                                    <input type="text" placeholder="123" className="w-full mt-1 p-2 border rounded-md"/>
+                                </div>
+                            </div>
+                            {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+                            <button onClick={handleFinalizeSignup} disabled={isLoadingSignup} className="w-full mt-4 px-6 py-3 rounded-md bg-green-600 text-white font-semibold flex items-center justify-center disabled:bg-green-300">
+                                {isLoadingSignup ? 'Processing...' : 'Pay & Complete Signup (Simulated)'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+
+const SuperAdminPanel = ({ auth, user, currentUserRole, setView }) => {
+    const { appSettings } = useAppContext();
+    const [currentTab, setCurrentTab] = useState('users');
+    const tabs = { users: 'User Management', tiers: 'Tier Management' };
+
+    return (
+        <div className="bg-gray-50 min-h-screen font-sans text-gray-800 p-2 sm:p-4 lg:p-6">
+            <header className="mb-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900">Super Admin Dashboard</h1>
+                        <p className="text-md text-gray-500 flex items-center mt-1"><UserCog className="w-4 h-4 mr-2" /> System Control</p>
+                    </div>
+                    <div className="mt-3 sm:mt-0 flex flex-col items-start sm:items-end">
+                        <div className="flex items-center space-x-2 mb-2">
+                            <button onClick={() => signOut(auth)} className="flex items-center text-sm px-3 py-2 rounded-md border text-red-600 hover:bg-red-50"><LogOut className="w-4 h-4 mr-2"/>Logout</button>
+                        </div>
+                        <span className="text-xs text-gray-400">Logged in as: {user.email} ({currentUserRole})</span>
+                    </div>
+                </div>
+            </header>
+
+            <div className="flex border-b bg-white rounded-t-lg shadow-sm">
+                {Object.keys(tabs).map(key => (
+                    <button key={key} onClick={() => setCurrentTab(key)} className={`px-6 py-3 font-semibold ${currentTab === key ? 'border-b-2 border-indigo-500 text-indigo-600' : 'text-gray-500'}`}>
+                        {tabs[key]}
+                    </button>
+                ))}
+            </div>
+            <div className="flex-grow p-6 overflow-y-auto bg-white rounded-b-lg shadow-lg border border-gray-200">
+                {currentTab === 'users' && <UserManager isSuperAdmin={true} />}
+                {currentTab === 'tiers' && <TierManager />}
+            </div>
+        </div>
+    );
+};
+
+function VenueBookingApp({ auth, user, currentUserRole }) {
+    const { venues, bookings, appSettings, db, appId, currentUserLimits, currentUserFeatures } = useAppContext();
+    const { handleUpdateContract } = useFirestoreActions();
+
+    const [currentDate, setCurrentDate] = useState(new Date());
+    const [now, setNow] = useState(new Date());
+    const [selectedVenue, setSelectedVenue] = useState(null);
+    const [viewMode, setViewMode] = useState('calendar');
+    const [isWizardOpen, setIsWizardOpen] = useState(false);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+    const [selectedSlots, setSelectedSlots] = useState([]);
+    const [selectedBooking, setSelectedBooking] = useState(null);
+    const [bookingsToEdit, setBookingsToEdit] = useState(null);
+    const [rescheduleTarget, setRescheduleTarget] = useState(null);
+    
+    const timeZone = appSettings?.timeZone || 'UTC';
+    const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(currentDate), i)), [currentDate]);
+    const timeSlots = useMemo(() => {
+        const start = appSettings.bookingWindowStart || 8;
+        const end = appSettings.bookingWindowEnd || 22;
+        const interval = appSettings.bookingInterval || 60;
+        const slots = [];
+        for (let hour = start; hour < end; hour++) {
+            for (let minute = 0; minute < 60; minute += interval) {
+                const d = new Date();
+                d.setHours(hour, minute, 0, 0);
+                slots.push(d);
+            }
+        }
+        return slots;
+    }, [appSettings.bookingWindowStart, appSettings.bookingWindowEnd, appSettings.bookingInterval]);
+
+    useEffect(() => {
+        const timer = setInterval(() => setNow(new Date()), 60000); 
+        return () => clearInterval(timer);
+    }, []);
+    
+    useEffect(() => {
+        if (bookings.length === 0 || !db || currentUserRole === USER_ROLES.STAFF) return;
+        const checkAndUpdateStatuses = async () => {
+            const today = new Date();
+            const contractsToUpdate = new Set();
+            bookings.forEach(booking => {
+                if (booking.endTime < today && (booking.paymentStatus === 'paid' || ['Paid in Full', 'Event Complete'].includes(booking.eventStatus)) && !['Event Complete', 'Cancelled'].includes(booking.eventStatus)) {
+                    contractsToUpdate.add(booking.contractId);
+                }
+            });
+            if (contractsToUpdate.size > 0) {
+                for (const contractId of contractsToUpdate) {
+                    await handleUpdateContract(contractId, { eventStatus: 'Event Complete' });
+                }
+            }
+        };
+        const timeoutId = setTimeout(checkAndUpdateStatuses, 5000);
+        return () => clearTimeout(timeoutId);
+    }, [bookings, db, currentUserRole, handleUpdateContract]);
+
+    useEffect(() => {
+        if (venues.length > 0 && (!selectedVenue || !venues.some(v => v.id === selectedVenue.id))) {
+            setSelectedVenue(venues[0]);
+        } else if (venues.length === 0 && selectedVenue) {
+            setSelectedVenue(null);
+        }
+    }, [venues, selectedVenue]);
+    
+    const handleSelectBookingFromDashboard = (booking) => {
+        setSelectedBooking(booking);
+        setIsDetailsModalOpen(true);
+    };
+
+    const handleSlotClick = (space, day, time) => {
+        const startTime = new Date(day); 
+        startTime.setHours(time.getHours(), time.getMinutes(), 0, 0);
+        
+        const endTime = new Date(startTime.getTime() + (appSettings.bookingInterval || 60) * 60 * 1000);
+        const bookingInSlot = bookings.find(b => b.venueId === selectedVenue.id && b.spaceId === space.id && startTime < b.endTime && endTime > b.startTime);
+        
+        if (rescheduleTarget) {
+            if (bookingInSlot) { alert("This slot is already booked. Please choose an empty one."); return; }
+            handleRescheduleBooking(rescheduleTarget, { startTime, endTime, space });
+            return;
+        }
+
+        if (bookingInSlot) { handleSelectBookingFromDashboard(bookingInSlot); } 
+        else if (startTime < now && !bookingsToEdit) {
+            return;
+        }
+        else if (currentUserRole !== USER_ROLES.STAFF) {
+            const newSlot = { venue: selectedVenue, space, startTime, endTime };
+            const newSlotId = generateSlotId(newSlot);
+            setSelectedSlots(prev => prev.some(s => generateSlotId(s) === newSlotId) ? prev.filter(s => generateSlotId(s) !== newSlotId) : [...prev, newSlot] );
+        }
+    };
+    
+    const handleSaveBookings = async (eventDetails, configurations, pricingOverrides, bookingsToProcess) => {
+        if (!db || !user.uid || currentUserRole === USER_ROLES.STAFF) return false;
+        if (!eventDetails.eventName || !eventDetails.customerId) return false;
+    
+        const batch = writeBatch(db);
+        const isEditMode = bookingsToProcess.some(b => b.contractId);
+        const contractId = isEditMode ? bookingsToProcess[0].contractId : crypto.randomUUID();
+        
+        for (const booking of bookingsToProcess) {
+            const slotId = generateSlotId({ space: { id: booking.space.id }, startTime: booking.startTime });
+            const config = configurations[slotId];
+            if (!config) continue;
+
+            const bookingData = {
+                ...eventDetails,
+                userId: user.uid,
+                contractId,
+                venueId: booking.venue.id,
+                spaceId: booking.space.id,
+                startTime: Timestamp.fromDate(booking.startTime),
+                endTime: Timestamp.fromDate(booking.endTime),
+                packageId: config.packageId || null,
+                pricingModel: config.pricingModel || 'fixed',
+                addOns: config.addOns || [],
+                itemQuantities: config.itemQuantities || {},
+                guests: config.guests || 1,
+                pricingOverrides: pricingOverrides[slotId] || null,
+            };
+            
+            if (isEditMode && booking.id) {
+                const bookingRef = doc(db, 'artifacts', appId, 'public', 'data', 'bookings', booking.id);
+                batch.update(bookingRef, bookingData);
+            } else {
+                const newBookingRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'bookings'));
+                const contractData = { paymentStatus: 'unpaid', notes: '', communications: [], timeline: null };
+                batch.set(newBookingRef, { ...bookingData, ...contractData, id: newBookingRef.id });
+            }
+        }
+    
+        try {
+            await batch.commit();
+            setIsWizardOpen(false);
+            setSelectedSlots([]);
+            setBookingsToEdit(null);
+            return true;
+        } catch (e) { console.error("Batch booking save failed:", e); return false; }
+    };
+    
+    const handleEditBookingContract = (booking) => { const contractBookings = bookings.filter(b => b.contractId === booking.contractId); setBookingsToEdit(contractBookings); setIsDetailsModalOpen(false); setIsWizardOpen(true); };
+    const handleInitiateReschedule = (bookingOrSlot) => { setRescheduleTarget(bookingOrSlot); if(isWizardOpen) setIsWizardOpen(false); };
+    
+    const handleRescheduleBooking = async (originalItem, newSlotData) => {
+        const isExistingBooking = !!originalItem.contractId;
+        if (isExistingBooking) {
+            if (!db) return;
+            const bookingRef = doc(db, 'artifacts', appId, 'public', 'data', 'bookings', originalItem.id);
+            try {
+                await updateDoc(bookingRef, { startTime: Timestamp.fromDate(newSlotData.startTime), endTime: Timestamp.fromDate(newSlotData.endTime), spaceId: newSlotData.space.id, venueId: selectedVenue.id, });
+                const updatedContractBookings = bookings.filter(b => b.contractId === originalItem.contractId).map(b => b.id === originalItem.id ? {...b, ...newSlotData, startTime: newSlotData.startTime, endTime: newSlotData.endTime} : b);
+                setBookingsToEdit(updatedContractBookings);
+            } catch (e) { console.error("Reschedule failed:", e); }
+        } else {
+            const oldSlotId = generateSlotId(originalItem);
+            setSelectedSlots(prev => [...prev.filter(s => generateSlotId(s) !== oldSlotId), { venue: selectedVenue, ...newSlotData }]);
+        }
+        setRescheduleTarget(null);
+        setIsWizardOpen(true);
+    };
+
+    const handleOpenNewEventWizard = () => {
+        setSelectedSlots([]);
+        setBookingsToEdit(null);
+        setIsWizardOpen(true);
+    };
+    
+    const canCreateVenues = currentUserRole !== USER_ROLES.STAFF && venues.length < currentUserLimits.maxVenues;
+
+    if (venues.length === 0 && currentUserRole !== USER_ROLES.STAFF) {
+        return (
+            <>
+                <WelcomeScreen onManageSettings={() => setIsSettingsModalOpen(true)} />
+                {isSettingsModalOpen && <SettingsManager currentUserRole={currentUserRole} onClose={() => setIsSettingsModalOpen(false)} />}
+            </>
+        )
+    }
+
+    if (!selectedVenue) return <div className="flex items-center justify-center h-screen bg-gray-50"><p className="text-xl text-gray-600 animate-pulse">Loading Venues...</p></div>;
+
+    return (
+        <div className="bg-gray-50 min-h-screen font-sans text-gray-800 p-2 sm:p-4 lg:p-6">
+            {rescheduleTarget && (<div className="fixed top-0 left-0 w-full p-4 bg-yellow-200 text-yellow-800 text-center z-[60] shadow-lg"><p className="font-bold">Reschedule Mode: Select a new, open time slot.</p><button onClick={() => { setRescheduleTarget(null); setIsWizardOpen(true); }} className="text-sm underline mt-1">Cancel Reschedule</button></div>)}
+            <div className={`max-w-full mx-auto pb-24 ${rescheduleTarget ? 'pt-20' : ''}`}>
+                <Header {...{user, auth, selectedVenue, setSelectedVenue, currentUserRole}} onManageSettings={() => setIsSettingsModalOpen(true)} onViewReports={() => setViewMode('reports')} currentUserFeatures={currentUserFeatures} onNewEvent={handleOpenNewEventWizard} />
+                
+                {viewMode === 'reports' ? (
+                     currentUserFeatures.includes('reporting') && <ComprehensiveReportingPage onClose={() => setViewMode('calendar')} />
+                ) : (
+                    <>
+                        <AnalyticsHeader />
+                        <div className="flex items-center justify-between mb-4">
+                            {viewMode === 'calendar' ? <CalendarControls {...{currentDate, setCurrentDate, timeZone}} /> : <h2 className="text-xl font-semibold text-gray-700">Event Pipeline</h2>}
+                            <button onClick={() => setViewMode(prev => prev === 'calendar' ? 'kanban' : 'calendar')} className="flex items-center text-sm px-4 py-2 rounded-md border text-gray-600 hover:bg-gray-100"><View className="w-4 h-4 mr-2" />{viewMode === 'calendar' ? 'Pipeline View' : 'Calendar View'}</button>
+                        </div>
+
+                        {viewMode === 'calendar' ? (
+                            <div className="overflow-x-auto bg-white rounded-lg shadow-lg border border-gray-200">
+                                <div className="grid min-w-[1600px]" style={{ gridTemplateColumns: `200px repeat(${weekDays.length * timeSlots.length}, 1fr)` }}>
+                                    <div className="sticky top-0 left-0 bg-white z-30"></div>
+                                    {weekDays.map(day => { const isToday = isSameDay(day, now); return (<div key={day.toISOString()} className={`text-center py-3 border-b-2 sticky top-0 z-20 bg-white ${isToday ? 'border-blue-500' : 'border-gray-200'}`} style={{ gridColumn: `span ${timeSlots.length}` }}><div className={`font-semibold ${isToday ? 'text-blue-600' : 'text-gray-700'}`}>{day.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}</div><div className={`text-2xl font-bold mt-1 ${isToday ? 'text-blue-600' : 'text-gray-800'}`}>{day.getDate()}</div></div>)})}
+                                    <div className="sticky top-0 left-0 bg-white z-20"></div>
+                                    {weekDays.flatMap(day => timeSlots.map(time => { const isCurrentHour = now.getHours() === time.getHours() && isSameDay(day, now); return (<div key={`${day.toISOString()}-${time.toISOString()}`} className={`text-center text-xs font-medium p-2 border-b border-l ${isCurrentHour ? 'bg-blue-100 text-blue-700' : 'bg-gray-50 text-gray-500'}`}>{formatTime(time, {hour: 'numeric', minute:'numeric'}, timeZone)}</div>) }))}
+                                    {selectedVenue.spaces.map(space => (
+                                        <React.Fragment key={space.id}>
+                                            <div className="sticky left-0 bg-white z-20 flex flex-col items-start justify-center text-left p-3 border-r border-b"><div className="flex items-center space-x-2"><Building className="w-5 h-5 text-indigo-500 shrink-0"/><p className="font-bold text-md text-gray-800">{space.name}</p></div><p className="text-xs text-gray-500 ml-7">Cap: {space.capacity}</p></div>
+                                            {weekDays.flatMap(day => timeSlots.map(time => {
+                                                const slotStart = new Date(day); slotStart.setHours(time.getHours(), time.getMinutes(), 0, 0);
+                                                const slotEnd = new Date(slotStart.getTime() + (appSettings.bookingInterval || 60) * 60 * 1000);
+                                                const booking = bookings.find(b => b.venueId === selectedVenue.id && b.spaceId === space.id && slotStart < b.endTime && slotEnd > b.startTime);
+                                                const slotId = generateSlotId({space, startTime: slotStart});
+                                                const isSelected = selectedSlots.some(s => generateSlotId(s) === slotId);
+                                                const isPast = slotStart < now;
+                                                const canInteract = !rescheduleTarget;
+                                                const cellClass = `h-24 border-b border-l border-gray-100 transition-colors duration-200 relative group p-1 ${isPast && !booking ? 'bg-gray-100' : ''} ${booking ? 'bg-white cursor-pointer' : ''} ${isSelected ? 'bg-green-200 border-2 border-green-400 shadow-inner' : ''} ${!booking && !isSelected && !isPast ? `hover:bg-indigo-50 ${canInteract ? 'cursor-pointer' : ''}` : ''} ${rescheduleTarget && !booking && !isPast ? 'bg-green-50 cursor-pointer' : ''}`;
+                                                const statusColor = booking ? (EVENT_STATUSES[booking.eventStatus]?.color || 'bg-gray-500') : '';
+                                                const statusTextColor = booking ? (EVENT_STATUSES[booking.eventStatus]?.textColor || 'text-white') : '';
+                                                return (
+                                                    <div key={`${space.id}-${day.toISOString()}-${time.toISOString()}`} className={cellClass} onClick={() => handleSlotClick(space, day, time)}>
+                                                        {booking && booking.startTime.getTime() === slotStart.getTime() && (<div className={`w-full h-full rounded-md flex flex-col justify-start overflow-hidden text-left p-1.5 ${statusColor} ${statusTextColor}`}><div className="flex justify-between items-center"><p className="font-bold truncate text-xs flex-grow">{booking.eventName}</p>{booking.eventStatus === 'Inquiry' && <Send className="w-3 h-3 ml-1 shrink-0" />}</div><div className="text-xs opacity-80 mt-1 flex items-center"><Users className="w-3 h-3 mr-1"/>{booking.guests}</div></div>)}
+                                                        {isSelected && <div className="absolute inset-0 bg-green-500 bg-opacity-50 flex items-center justify-center"><CheckCircle className="w-6 h-6 text-white" /></div>}
+                                                        {!booking && !isPast && canInteract && !isSelected && currentUserRole !== USER_ROLES.STAFF && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-gray-300 group-hover:text-indigo-400 transition-opacity opacity-0 group-hover:opacity-100">+</div>}
+                                                    </div>
+                                                )
+                                            }))}
+                                        </React.Fragment>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <KanbanView onSelectBooking={handleSelectBookingFromDashboard} currentUserRole={currentUserRole} timeZone={timeZone} />
+                        )}
+                    </>
+                )}
+
+                {isWizardOpen && (
+                    <BookingWizard
+                        key={bookingsToEdit ? bookingsToEdit[0].contractId : (selectedSlots.length > 0 ? selectedSlots.map(s=>generateSlotId(s)).join('-') : 'create-event')}
+                        initialSlots={selectedSlots}
+                        initialBookings={bookingsToEdit}
+                        currentUserRole={currentUserRole}
+                        onClose={() => {
+                            setIsWizardOpen(false);
+                            setBookingsToEdit(null);
+                            setSelectedSlots([]);
+                        }}
+                        onSave={handleSaveBookings}
+                        onInitiateReschedule={handleInitiateReschedule}
+                    />
+                )}
+                {isDetailsModalOpen && selectedBooking && ( <BookingDetailsModal booking={selectedBooking} currentUserRole={currentUserRole} onClose={() => setIsDetailsModalOpen(false)} onEdit={handleEditBookingContract} /> )}
+                {isSettingsModalOpen && <SettingsManager currentUserRole={currentUserRole} onClose={() => setIsSettingsModalOpen(false)} />}
+                
+                {selectedSlots.length > 0 && !isWizardOpen && currentUserRole !== USER_ROLES.STAFF &&( <div className="fixed bottom-0 left-1/2 -translate-x-1/2 mb-6 z-50"> <button onClick={() => setIsWizardOpen(true)} className="flex items-center justify-center px-6 py-4 bg-indigo-600 text-white font-bold rounded-full shadow-lg hover:bg-indigo-700 transition-transform hover:scale-105 animate-pulse"> <ShoppingCart className="w-6 h-6 mr-3" /> Book {selectedSlots.length} Slot(s) </button> </div> )}
+            </div>
+        </div>
+    );
+}
+
+const WelcomeScreen = ({ onManageSettings }) => (
+    <div className="flex flex-col items-center justify-center h-screen bg-gray-50 text-center p-8">
+        <h1 className="text-4xl font-bold text-gray-800">Welcome to Venuine!</h1>
+        <p className="text-lg text-gray-600 mt-4 max-w-lg">To get started, create your first venue and add some event spaces.</p>
+        <button onClick={onManageSettings} className="mt-8 flex items-center px-6 py-3 rounded-md bg-indigo-600 text-white font-semibold shadow-lg hover:bg-indigo-700 transition-transform hover:scale-105"><PlusCircle className="w-5 h-5 mr-2" />Create Your First Venue</button>
+    </div>
+);
+
+// --- Analytics Header ---
+const AnalyticsHeader = () => {
+    const { bookings } = useAppContext();
+
+    const analytics = useMemo(() => {
+        const today = new Date();
+        const uniqueContracts = [...new Map(bookings.map(b => [b.contractId, b])).values()];
+
+        const totalEvents = uniqueContracts.length;
+        const todaysEvents = uniqueContracts.filter(b => isSameDay(b.startTime, today)).length;
+        const upcomingEvents = uniqueContracts.filter(b => new Date(b.startTime) >= new Date(today.setHours(0,0,0,0))).length;
+
+        return { totalEvents, todaysEvents, upcomingEvents };
+    }, [bookings]);
+
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div className="p-6 bg-white rounded-lg shadow-lg border flex items-center justify-between">
+                <div>
+                    <h3 className="text-gray-500">Total Events</h3>
+                    <p className="text-4xl font-bold text-indigo-600">{analytics.totalEvents}</p>
+                    <p className="text-xs text-gray-400 mt-2">More info &rarr;</p>
+                </div>
+                <div className="p-3 bg-gray-100 rounded-lg">
+                    <Calendar className="w-8 h-8 text-indigo-500" />
+                </div>
+            </div>
+            <div className="p-6 bg-white rounded-lg shadow-lg border flex items-center justify-between">
+                <div>
+                    <h3 className="text-gray-500">Today's Events</h3>
+                    <p className="text-4xl font-bold text-green-600">{analytics.todaysEvents}</p>
+                     <p className="text-xs text-gray-400 mt-2">More info &rarr;</p>
+                </div>
+                 <div className="p-3 bg-gray-100 rounded-lg">
+                    <View className="w-8 h-8 text-green-500" />
+                </div>
+            </div>
+            <div className="p-6 bg-white rounded-lg shadow-lg border flex items-center justify-between">
+                <div>
+                    <h3 className="text-gray-500">Upcoming Events</h3>
+                    <p className="text-4xl font-bold text-yellow-500">{analytics.upcomingEvents}</p>
+                     <p className="text-xs text-gray-400 mt-2">More info &rarr;</p>
+                </div>
+                 <div className="p-3 bg-gray-100 rounded-lg">
+                    <Clock className="w-8 h-8 text-yellow-500" />
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- Booking Wizard (handles create, edit, reschedule, customers, pricing) ---
+const BookingWizard = ({ initialSlots, initialBookings, onClose, onSave, onInitiateReschedule, currentUserRole }) => {
+    const { services, packages, venues, customers, appSettings, policies } = useAppContext();
+    const { saveDoc } = useFirestoreActions();
+    const [generatedSlots, setGeneratedSlots] = useState([]);
+    const isEditMode = !!initialBookings;
+    const [isAddingSlots, setIsAddingSlots] = useState(!isEditMode && (!initialSlots || initialSlots.length === 0));
+    const [isAddingService, setIsAddingService] = useState(false);
+
+    const wizardSlots = useMemo(() => {
+        const slotsFromInitial = initialSlots || [];
+        const slotsFromBookings = (initialBookings || []).map(b => ({ ...b, venue: venues.find(v => v.id === b.venueId), space: venues.find(v => v.id === b.venueId)?.spaces.find(s => s.id === b.spaceId) }));
+        const allSlots = isEditMode ? [...slotsFromBookings, ...generatedSlots] : [...slotsFromInitial, ...generatedSlots];
+        return allSlots.sort((a,b) => a.startTime - b.startTime);
+    }, [initialSlots, initialBookings, generatedSlots, venues, isEditMode]);
+
+    const [step, setStep] = useState(1);
+    const [activeTabId, setActiveTabId] = useState(null);
+    const [configurations, setConfigurations] = useState({});
+    const [pricingOverrides, setPricingOverrides] = useState({});
+    const [eventDetails, setEventDetails] = useState(() => isEditMode && wizardSlots.length > 0 ? { eventName: wizardSlots[0].eventName, customerId: wizardSlots[0].customerId, eventStatus: wizardSlots[0].eventStatus, policyIds: wizardSlots[0].policyIds || [] } : { eventName: '', customerId: '', eventStatus: 'Inquiry', policyIds: [] });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isCloning, setIsCloning] = useState(false);
+    const canEdit = currentUserRole !== USER_ROLES.STAFF;
+
+    useEffect(() => {
+        if (isEditMode && initialBookings) {
+            const initialOverrides = {};
+            initialBookings.forEach(b => {
+                if (b.pricingOverrides) {
+                    const slotId = generateSlotId(b);
+                    initialOverrides[slotId] = b.pricingOverrides;
+                }
+            });
+            setPricingOverrides(initialOverrides);
+        }
+    }, [isEditMode, initialBookings]);
+
+    useEffect(() => {
+        if (wizardSlots.length > 0) {
+            setActiveTabId(prev => wizardSlots.some(s => generateSlotId(s) === prev) ? prev : generateSlotId(wizardSlots[0]));
+            setConfigurations(prevConfigs => {
+                const newConfigs = {...prevConfigs};
+                wizardSlots.forEach(slot => {
+                    const slotId = generateSlotId(slot);
+                    if (!newConfigs[slotId]) {
+                        const booking = isEditMode ? initialBookings.find(b => generateSlotId(b) === slotId) : null;
+                        const pkg = packages.find(p => p.id === booking?.packageId);
+                        newConfigs[slotId] = { 
+                            packageId: booking?.packageId || '', 
+                            addOns: booking?.addOns || [], 
+                            itemQuantities: booking?.itemQuantities || {}, 
+                            guests: booking?.guests || 1,
+                            pricingModel: booking?.pricingModel || pkg?.pricingModel || 'fixed'
+                        };
+                    }
+                });
+                return newConfigs;
+            });
+        }
+    }, [wizardSlots, isEditMode, initialBookings, packages]);
+
+    const handlePriceOverride = (slotId, type, id, value) => {
+        const numericValue = value === '' ? null : parseFloat(value);
+        if (value !== '' && isNaN(numericValue)) return;
+
+        setPricingOverrides(prev => {
+            const newOverrides = JSON.parse(JSON.stringify(prev)); // Deep copy
+            if (!newOverrides[slotId]) {
+                newOverrides[slotId] = { packagePrice: null, servicePrices: {} };
+            }
+            if (type === 'package') {
+                newOverrides[slotId].packagePrice = numericValue;
+            } else if (type === 'service') {
+                if (!newOverrides[slotId].servicePrices) {
+                    newOverrides[slotId].servicePrices = {};
+                }
+                newOverrides[slotId].servicePrices[id] = numericValue;
+            }
+            return newOverrides;
+        });
+    };
+
+    const updateConfig = (slotId, newConfig) => setConfigurations(prev => ({...prev, [slotId]: {...prev[slotId], ...newConfig}}));
+    const handleSelectPackage = (slotId, pkgId) => { const pkg = packages.find(p => p.id === pkgId); updateConfig(slotId, { packageId: pkgId, addOns: pkg ? [...(pkg.includedServiceIds || [])] : [], pricingModel: pkg?.pricingModel || 'fixed' }); };
+    const handleToggleAddOn = (slotId, serviceId) => { const currentConfig = configurations[slotId]; const isAdded = currentConfig.addOns.includes(serviceId); updateConfig(slotId, { addOns: isAdded ? currentConfig.addOns.filter(id => id !== serviceId) : [...currentConfig.addOns, serviceId] }); };
+    const handleItemQuantityChange = (slotId, serviceId, quantity) => { const q = Math.max(1, parseInt(quantity, 10) || 1); updateConfig(slotId, { itemQuantities: { ...configurations[slotId].itemQuantities, [serviceId]: q } }); };
+    const handleApplyGuestCount = (slotId) => { const currentConfig = configurations[slotId]; const newItemQuantities = {...currentConfig.itemQuantities}; services.forEach(service => { if(service.pricingModel === 'per_person') newItemQuantities[service.id] = currentConfig.guests; }); updateConfig(slotId, { itemQuantities: newItemQuantities }); };
+    const handleApplyClone = (targetSlotIds) => { const sourceConfig = configurations[activeTabId]; const sourceOverrides = pricingOverrides[activeTabId]; setConfigurations(prev => { const newConfigs = { ...prev }; targetSlotIds.forEach(id => { if (newConfigs[id]) newConfigs[id] = { ...sourceConfig }; }); return newConfigs; }); setPricingOverrides(prev => { const newOverrides = { ...prev }; targetSlotIds.forEach(id => { if (newOverrides[id]) newOverrides[id] = { ...sourceOverrides }; }); return newOverrides; }); setIsCloning(false); };
+    const handleSubmit = async (e) => { e.preventDefault(); setIsSubmitting(true); const success = await onSave(eventDetails, configurations, pricingOverrides, wizardSlots); if (!success) setIsSubmitting(false); };
+    
+    const handleSaveNewService = async (serviceToSave) => {
+        const savedService = await saveDoc('services', serviceToSave);
+        if (savedService && activeTabId) {
+            handleToggleAddOn(activeTabId, savedService.id);
+        }
+        setIsAddingService(false);
+    };
+
+    const priceBreakdown = useMemo(() => {
+        const bookingConfigsForPricing = wizardSlots.map(slot => {
+            const slotId = generateSlotId(slot);
+            return {
+                ...configurations[slotId],
+                pricingOverrides: pricingOverrides[slotId] || null
+            };
+        }).filter(Boolean);
+        return calculatePriceBreakdown(bookingConfigsForPricing, appSettings, services, packages);
+    }, [wizardSlots, configurations, pricingOverrides, appSettings, services, packages]);
+
+    const activeSlot = wizardSlots.find(s => generateSlotId(s) === activeTabId);
+    const activeConfig = activeTabId ? configurations[activeTabId] : null;
+    const availablePackages = useMemo(() => activeSlot ? packages.filter(p => p.applicableSpaceIds && p.applicableSpaceIds.includes(activeSlot.space.id)) : [], [packages, activeSlot]);
+    const selectedPackage = activeConfig ? packages.find(p => p.id === activeConfig.packageId) : null;
+
+    const showSlotGenerator = isAddingSlots;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl flex flex-col h-[90vh]">
+                <div className="p-6 border-b"><div className="flex justify-between items-center"><h2 className="text-2xl font-bold">{isEditMode ? 'Edit Event' : 'Create Event'}</h2><button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200"><X className="w-6 h-6"/></button></div></div>
+                <div className="flex-grow flex overflow-hidden">
+                    {showSlotGenerator ? (
+                        <EventSlotGenerator onSlotsGenerated={(newSlots) => {
+                            setGeneratedSlots(prev => [...prev, ...newSlots]);
+                            setIsAddingSlots(false);
+                        }} />
+                    ) : (
+                        <>
+                            <div className="w-1/3 border-r overflow-y-auto bg-gray-50">
+                                <div className="p-4 font-semibold text-lg border-b bg-white sticky top-0 flex justify-between items-center">
+                                    Event Dates
+                                    <button onClick={() => setIsAddingSlots(true)} className="text-sm px-2 py-1 rounded-md border text-indigo-600 hover:bg-indigo-50"><PlusCircle className="w-4 h-4 inline-block mr-1"/>Add</button>
+                                </div>
+                                {wizardSlots.map(slot => (<div key={generateSlotId(slot)} onClick={() => setActiveTabId(generateSlotId(slot))} className={`p-4 cursor-pointer border-b ${activeTabId === generateSlotId(slot) ? 'bg-indigo-100 border-l-4 border-indigo-500' : 'hover:bg-gray-100'}`}><div className="flex justify-between items-start"><div><p className="font-semibold">{formatDate(slot.startTime, {weekday: 'long'})}</p><p className="text-sm text-gray-600">{formatDate(slot.startTime)}</p><p className="text-sm text-gray-600">{slot.space.name} @ {formatTime(slot.startTime)}</p></div>{canEdit && <button onClick={() => onInitiateReschedule(slot)} className="p-1 text-blue-600 hover:bg-blue-100 rounded-full"><RefreshCw className="w-4 h-4"/></button>}</div></div>))}
+                            </div>
+                            <div className="w-2/3 flex flex-col overflow-y-auto">
+                                {activeSlot && activeConfig && (
+                                <fieldset disabled={!canEdit} className="contents">
+                                {step === 1 && (
+                                    <div className="p-6 flex-grow">
+                                        <div className="flex justify-between items-center mb-1"><h3 className="text-xl font-semibold">Configure Event</h3>{wizardSlots.length > 1 && <button onClick={() => setIsCloning(true)} className="flex items-center text-sm px-3 py-1.5 rounded-md border text-indigo-600 hover:bg-indigo-50"><Copy className="w-4 h-4 mr-2" />Copy Config...</button>}</div>
+                                        <p className="text-sm text-gray-500 mb-4">For {formatDate(activeSlot.startTime, { weekday: 'long' })} in {activeSlot.space.name}</p>
+                                        <div className="space-y-4">
+                                            <div className="mt-4"><label className="font-semibold text-gray-700">Number of Guests</label><input type="number" min="1" max={activeSlot.space.capacity} value={activeConfig.guests} onChange={e => updateConfig(activeTabId, {guests: parseInt(e.target.value, 10) || 1})} className="w-full mt-1 px-3 py-2 border rounded-md"/></div>
+                                            <div>
+                                                <h4 className="font-semibold text-gray-700 mb-2">Package</h4>
+                                                <select value={activeConfig.packageId} onChange={(e) => handleSelectPackage(activeTabId, e.target.value)} className="w-full px-3 py-2 border rounded-md">
+                                                    <option value="">A La Carte</option>
+                                                    {availablePackages.map(pkg => (<option key={pkg.id} value={pkg.id}>{pkg.name}</option>))}
+                                                </select>
+                                                {selectedPackage && (
+                                                    <div className="p-3 bg-gray-100 rounded-md mt-2">
+                                                        <div className="flex items-center">
+                                                            <span className="text-gray-700 font-medium">Price:</span>
+                                                            <span className="text-lg font-semibold mx-2">$</span>
+                                                            <input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={pricingOverrides[activeTabId]?.packagePrice ?? ''}
+                                                                onChange={(e) => handlePriceOverride(activeTabId, 'package', selectedPackage.id, e.target.value)}
+                                                                className="w-32 p-1 border rounded-md"
+                                                                placeholder={selectedPackage.price}
+                                                            />
+                                                        </div>
+                                                        <div className="mt-2 flex items-center space-x-4 text-sm">
+                                                            <label className="flex items-center cursor-pointer">
+                                                                <input
+                                                                    type="radio"
+                                                                    name={`pricingModel-${activeTabId}`}
+                                                                    value="fixed"
+                                                                    checked={activeConfig.pricingModel === 'fixed'}
+                                                                    onChange={() => updateConfig(activeTabId, { pricingModel: 'fixed' })}
+                                                                    className="mr-2"
+                                                                />
+                                                                Flat Fee
+                                                            </label>
+                                                            <label className="flex items-center cursor-pointer">
+                                                                <input
+                                                                    type="radio"
+                                                                    name={`pricingModel-${activeTabId}`}
+                                                                    value="per_person"
+                                                                    checked={activeConfig.pricingModel === 'per_person'}
+                                                                    onChange={() => updateConfig(activeTabId, { pricingModel: 'per_person' })}
+                                                                    className="mr-2"
+                                                                />
+                                                                Per Person
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <h4 className="font-semibold text-gray-700">Add-on Services</h4>
+                                                    <div className="flex items-center space-x-2">
+                                                        <button type="button" onClick={() => handleApplyGuestCount(activeTabId)} className="text-xs px-2 py-1 rounded-md border text-gray-600 hover:bg-gray-100">Apply guest count</button>
+                                                        {canEdit && (
+                                                            <button type="button" onClick={() => setIsAddingService(true)} className="text-xs px-2 py-1 rounded-md border text-indigo-600 hover:bg-indigo-50 flex items-center">
+                                                                <PlusCircle className="w-3 h-3 mr-1"/>New Service
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-2">{services.map(service => {
+                                                    const isIncludedInPackage = activeConfig.packageId && packages.find(p=>p.id === activeConfig.packageId)?.includedServiceIds.includes(service.id); 
+                                                    const isSelected = activeConfig.addOns.includes(service.id); 
+                                                    return (
+                                                    <div key={service.id} className={`p-3 border rounded-lg ${isIncludedInPackage ? 'bg-gray-200 text-gray-500' : ''} ${isSelected && !isIncludedInPackage ? 'bg-indigo-50 border-indigo-300' : ''}`}>
+                                                        <div onClick={() => !isIncludedInPackage && handleToggleAddOn(activeTabId, service.id)} className={`flex items-center justify-between ${!isIncludedInPackage ? 'cursor-pointer' : ''}`}>
+                                                            <div className="flex-grow">
+                                                                <p className="font-semibold">{service.name}</p>
+                                                                {isIncludedInPackage && <span className="text-xs text-green-700 font-medium">Included in package</span>}
+                                                            </div>
+                                                            <div className="flex items-center">
+                                                                {!isIncludedInPackage && (
+                                                                    <div className="flex items-center mr-4">
+                                                                        <span className="text-sm mr-1">$</span>
+                                                                        <input
+                                                                            type="number"
+                                                                            step="0.01"
+                                                                            value={pricingOverrides[activeTabId]?.servicePrices?.[service.id] ?? ''}
+                                                                            onChange={(e) => handlePriceOverride(activeTabId, 'service', service.id, e.target.value)}
+                                                                            className="w-24 p-1 border rounded-md text-sm"
+                                                                            placeholder={service.price}
+                                                                            onClick={e => e.stopPropagation()}
+                                                                            disabled={!isSelected}
+                                                                        />
+                                                                        <span className="text-xs ml-1 text-gray-500">{service.pricingModel === 'per_person' ? '/person' : ''}</span>
+                                                                    </div>
+                                                                )}
+                                                                {isSelected && !isIncludedInPackage && service.pricingModel !== 'per_person' && (
+                                                                    <div className="flex items-center mr-2">
+                                                                        <span className="text-xs mr-1">Qty:</span>
+                                                                        <input type="number" min="1" value={activeConfig.itemQuantities[service.id] || 1} onClick={e => e.stopPropagation()} onChange={e => handleItemQuantityChange(activeTabId, service.id, e.target.value)} className="w-16 text-center border-gray-300 rounded-md"/>
+                                                                    </div>
+                                                                )}
+                                                                <div className="w-6 h-6">
+                                                                    {(isSelected || isIncludedInPackage) && <CheckCircle className="text-indigo-600"/>}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )})}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                {step === 2 && (
+                                    <div className="p-6 flex-grow">
+                                        <h3 className="text-xl font-semibold mb-4">Confirm Details</h3>
+                                        <div className="space-y-4">
+                                            <div><label className="font-semibold text-gray-700">Event Name</label><input type="text" placeholder="e.g., 'Annual Conference 2025'" value={eventDetails.eventName} onChange={e => setEventDetails({...eventDetails, eventName: e.target.value})} required className="w-full mt-1 px-3 py-2 border rounded-md"/></div>
+                                            <CustomerSelector selectedCustomerId={eventDetails.customerId} onSelectCustomer={(customerId) => setEventDetails({...eventDetails, customerId})} canEdit={canEdit}/>
+                                            <div><label className="font-semibold text-gray-700">Event Status</label><select value={eventDetails.eventStatus} onChange={e => setEventDetails({...eventDetails, eventStatus: e.target.value})} className="w-full mt-1 px-3 py-2 border rounded-md"><option disabled>Select Status</option>{Object.entries(EVENT_STATUSES).map(([key, {label}]) => <option key={key} value={key}>{label}</option>)}</select></div>
+                                            <div><label className="font-semibold text-gray-700">Applicable Policies</label><div className="mt-1 border rounded-md p-2 space-y-1">{policies.map(p => (<label key={p.id} className="flex items-center"><input type="checkbox" checked={eventDetails.policyIds.includes(p.id)} onChange={e => { const newPolicies = e.target.checked ? [...eventDetails.policyIds, p.id] : eventDetails.policyIds.filter(id => id !== p.id); setEventDetails({...eventDetails, policyIds: newPolicies}); }} className="mr-2"/>{p.title}</label>))}</div></div>
+                                        </div>
+                                    </div>
+                                )}
+                                </fieldset>
+                                )}
+                            </div>
+                        </>
+                    )}
+                </div>
+                {!showSlotGenerator && wizardSlots.length > 0 && (
+                    <div className="p-6 bg-gray-50 rounded-b-lg flex justify-between items-center border-t">
+                        <div><p className="text-sm text-gray-600">Grand Total</p><p className="text-2xl font-bold">{formatCurrency(priceBreakdown.total)}</p></div>
+                        {canEdit && <div className="flex items-center space-x-3">
+                            {step > 1 && <button type="button" onClick={() => setStep(s=>s-1)} className="px-4 py-2 rounded-md border hover:bg-gray-100">Back</button>}
+                            {step === 1 && <button type="button" onClick={() => setStep(2)} className="px-6 py-3 rounded-md bg-indigo-600 text-white font-semibold hover:bg-indigo-700">Next</button>}
+                            {step === 2 && <button type="button" onClick={handleSubmit} disabled={isSubmitting || !eventDetails.eventName || !eventDetails.customerId} className="px-6 py-3 rounded-md bg-indigo-600 text-white font-semibold hover:bg-indigo-700 disabled:bg-indigo-300 flex items-center">{isSubmitting ? 'Saving...' : 'Save Changes'}</button>}
+                        </div>}
+                    </div>
+                )}
+            </div>
+            {isAddingService && <ServiceEditor onSave={handleSaveNewService} onClose={() => setIsAddingService(false)} />}
+            {isCloning && <CloneConfigModal activeSlot={activeSlot} otherSlots={wizardSlots.filter(s => generateSlotId(s) !== activeTabId)} onClone={handleApplyClone} onClose={() => setIsCloning(false)} />}
+        </div>
+    )
+}
+
+const EventSlotGenerator = ({ onSlotsGenerated }) => {
+    const { venues, bookings, currentUserLimits } = useAppContext();
+    const [selectedDates, setSelectedDates] = useState([]);
+    const [slotConfigs, setSlotConfigs] = useState([]);
+    const [currentMonthDate, setCurrentMonthDate] = useState(new Date());
+    const [selectedVenueId, setSelectedVenueId] = useState('');
+    const [now] = useState(new Date(new Date().setHours(0, 0, 0, 0)));
+
+    const selectedVenue = useMemo(() => venues.find(v => v.id === selectedVenueId), [venues, selectedVenueId]);
+
+    useEffect(() => {
+        setSlotConfigs(selectedDates.map(date => ({
+            date,
+            spaceId: selectedVenue?.spaces[0]?.id || '',
+            startTime: '09:00',
+            endTime: '17:00'
+        })));
+    }, [selectedDates, selectedVenue]);
+    
+    const handleDateClick = (day) => {
+        if (day < now) return;
+        const dayString = day.toISOString().split('T')[0];
+        setSelectedDates(prev => prev.includes(dayString) ? prev.filter(d => d !== dayString) : [...prev, dayString].sort());
+    };
+
+    const handleConfigChange = (index, field, value) => {
+        setSlotConfigs(prev => prev.map((config, i) => i === index ? { ...config, [field]: value } : config));
+    };
+
+    const availabilityStatus = useMemo(() => {
+        const status = {};
+        const activeBookings = bookings.filter(b => b.eventStatus !== 'Cancelled' && venues.some(v => v.id === b.venueId && v.spaces.some(s => s.id === b.spaceId)));
+
+        slotConfigs.forEach(config => {
+            const date = new Date(config.date + 'T00:00:00Z');
+            if (date < now) {
+                status[config.date] = { available: false, reason: 'Past Date' };
+                return;
+            }
+            if (!selectedVenueId || !config.spaceId || !config.startTime || !config.endTime) {
+                status[config.date] = { available: true, reason: '' };
+                return;
+            }
+            const [startHour, startMinute] = config.startTime.split(':').map(Number);
+            const [endHour, endMinute] = config.endTime.split(':').map(Number);
+            
+            const startTime = new Date(date);
+            startTime.setUTCHours(startHour, startMinute, 0, 0);
+            
+            const endTime = new Date(date);
+            endTime.setUTCHours(endHour, endMinute, 0, 0);
+            
+            if (endTime <= startTime) endTime.setUTCDate(endTime.getUTCDate() + 1);
+
+            const conflictingBooking = activeBookings.find(b => 
+                b.venueId === selectedVenueId && 
+                b.spaceId === config.spaceId && 
+                startTime < b.endTime && 
+                endTime > b.startTime
+            );
+            status[config.date] = conflictingBooking 
+                ? { available: false, reason: 'Conflict', conflictingEvent: conflictingBooking } 
+                : { available: true, reason: '' };
+        });
+        return status;
+    }, [slotConfigs, bookings, selectedVenueId, now, venues]);
+    
+    const handleGenerate = () => {
+        const conflicts = slotConfigs.filter(config => !availabilityStatus[config.date]?.available);
+        if (conflicts.length > 0) {
+            alert(`Some selected slots are unavailable. Please resolve conflicts or remove past dates before proceeding.`);
+            return;
+        }
+
+        const generatedSlots = slotConfigs.map(config => {
+            if (!selectedVenueId || !config.spaceId || !config.startTime || !config.endTime) return null;
+            const venue = venues.find(v => v.id === selectedVenueId);
+            const space = venue.spaces.find(s => s.id === config.spaceId);
+            const [startHour, startMinute] = config.startTime.split(':').map(Number);
+            const [endHour, endMinute] = config.endTime.split(':').map(Number);
+            
+            const localDate = new Date(config.date + 'T00:00:00');
+            const startTime = new Date(localDate);
+            startTime.setHours(startHour, startMinute, 0, 0);
+            const endTime = new Date(localDate);
+            endTime.setHours(endHour, endMinute, 0, 0);
+
+            if (endTime <= startTime) endTime.setDate(endTime.getDate() + 1);
+            return { venue, space, startTime, endTime };
+        }).filter(Boolean);
+
+        if (generatedSlots.length === 0) {
+            alert("Please configure at least one valid slot.");
+            return;
+        }
+        onSlotsGenerated(generatedSlots);
+    };
+
+    const calendarDays = useMemo(() => {
+        const year = currentMonthDate.getFullYear();
+        const month = currentMonthDate.getMonth();
+        const firstDayOfMonth = new Date(year, month, 1);
+        const lastDayOfMonth = new Date(year, month + 1, 0);
+        const daysInMonth = lastDayOfMonth.getDate();
+        const startDayOfWeek = firstDayOfMonth.getDay();
+        
+        const days = [];
+        for (let i = 0; i < startDayOfWeek; i++) {
+            days.push(null);
+        }
+        for (let i = 1; i <= daysInMonth; i++) {
+            days.push(new Date(year, month, i));
+        }
+        return days;
+    }, [currentMonthDate]);
+
+    const changeMonth = (delta) => {
+        setCurrentMonthDate(prev => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
+    };
+    
+    const canGenerate = slotConfigs.length > 0 && slotConfigs.every(c => availabilityStatus[c.date]?.available);
+
+    return (
+        <div className="flex-grow flex flex-col w-full">
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8 flex-grow overflow-y-auto">
+                <div className="flex flex-col">
+                    <div className="flex items-center justify-between mb-4">
+                        <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover:bg-gray-100"><ArrowLeft className="w-5 h-5"/></button>
+                        <h4 className="text-lg font-semibold text-center">{currentMonthDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</h4>
+                        <button onClick={() => changeMonth(1)} className="p-2 rounded-full hover:bg-gray-100"><ArrowRight className="w-5 h-5"/></button>
+                    </div>
+                    <div className="grid grid-cols-7 gap-1 text-center text-sm text-gray-500 mb-2">
+                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => <div key={day}>{day}</div>)}
+                    </div>
+                    <div className="grid grid-cols-7 gap-1">
+                        {calendarDays.map((day, index) => {
+                            if (!day) return <div key={`empty-${index}`}></div>;
+                            const dayString = day.toISOString().split('T')[0];
+                            const isSelected = selectedDates.includes(dayString);
+                            const isPast = day < now;
+                            return (
+                                <button key={dayString} onClick={() => handleDateClick(day)} disabled={isPast} className={`w-full aspect-square rounded-full flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 text-white' : isPast ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'hover:bg-gray-200'}`}>
+                                    {day.getDate()}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    <div>
+                        <label className="font-semibold text-gray-700">Venue</label>
+                        <select value={selectedVenueId} onChange={e => setSelectedVenueId(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-md">
+                            <option value="">Select a Venue</option>
+                            {venues.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-gray-700 mb-2">Configure Dates ({slotConfigs.length})</h4>
+                        <div className="max-h-80 overflow-y-auto bg-gray-50 p-2 rounded-md border space-y-3">
+                            {slotConfigs.length > 0 ? slotConfigs.map((config, index) => {
+                                const status = availabilityStatus[config.date];
+                                return (
+                                <div key={config.date} className={`p-3 bg-white rounded-lg shadow-sm border-l-4 ${!status.available ? 'border-red-500' : 'border-green-500'}`}>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <p className="font-bold text-gray-800">{formatDate(new Date(config.date + 'T00:00:00'), { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                                        {status.reason === 'Conflict' && <span className="text-xs font-bold text-white bg-red-500 px-2 py-1 rounded-full">Unavailable</span>}
+                                        {status.reason === 'Past Date' && <span className="text-xs font-bold text-white bg-gray-500 px-2 py-1 rounded-full">Past</span>}
+                                        {status.available && <span className="text-xs font-bold text-white bg-green-500 px-2 py-1 rounded-full">Available</span>}
+                                    </div>
+                                    {status.reason === 'Conflict' && <p className="text-xs text-red-600 mb-2">Blocked by: {status.conflictingEvent.eventName}</p>}
+                                    <div className="space-y-2">
+                                        <select value={config.spaceId} onChange={e => handleConfigChange(index, 'spaceId', e.target.value)} className="w-full text-sm p-2 border rounded-md" disabled={!selectedVenue}>
+                                            <option value="">Select Space</option>
+                                            {selectedVenue?.spaces.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                        </select>
+                                        <div className="flex items-center gap-2">
+                                            <input type="time" value={config.startTime} onChange={e => handleConfigChange(index, 'startTime', e.target.value)} className="w-full text-sm p-2 border rounded-md"/>
+                                            <span className="text-gray-500">to</span>
+                                            <input type="time" value={config.endTime} onChange={e => handleConfigChange(index, 'endTime', e.target.value)} className="w-full text-sm p-2 border rounded-md"/>
+                                        </div>
+                                    </div>
+                                </div>
+                                )}) : <p className="text-sm text-gray-400 text-center py-4">Select dates from the calendar</p>}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="p-4 bg-gray-50 border-t mt-auto">
+                <button onClick={handleGenerate} disabled={!canGenerate} className="w-full px-6 py-3 rounded-md bg-indigo-600 text-white font-semibold hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed">
+                    Generate {slotConfigs.length > 0 ? `${slotConfigs.length} Event Slot(s)` : 'Slots'}
+                </button>
+            </div>
+        </div>
+    );
+};
+
+
+// --- Customer Selector Component ---
+const CustomerSelector = ({ selectedCustomerId, onSelectCustomer, canEdit }) => {
+    const { customers } = useAppContext();
+    const { saveDoc } = useFirestoreActions();
+    const [isManaging, setIsManaging] = useState(false);
+    const [editingCustomer, setEditingCustomer] = useState(null);
+
+    const handleSelect = (e) => {
+        if (e.target.value === 'new') { setEditingCustomer({ name: '', email: '', phone: '' }); setIsManaging(true); } 
+        else { onSelectCustomer(e.target.value); }
+    };
+
+    const handleSave = async (customerToSave) => {
+        const savedCustomer = await saveDoc('customers', customerToSave);
+        onSelectCustomer(savedCustomer.id);
+        setIsManaging(false);
+        setEditingCustomer(null);
+    }
+    
+    const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
+
+    return (
+        <div>
+            <label className="font-semibold text-gray-700">Customer</label>
+            <div className="flex items-center space-x-2 mt-1">
+                <select value={selectedCustomerId || ''} onChange={handleSelect} className="w-full px-3 py-2 border rounded-md" disabled={!canEdit}>
+                    <option value="" disabled>-- Select a Customer --</option>
+                    {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    <option value="new" className="font-bold text-indigo-600">-- Add New Customer --</option>
+                </select>
+                {selectedCustomer && canEdit && <button type="button" onClick={() => { setEditingCustomer(selectedCustomer); setIsManaging(true); }} className="p-2 rounded-md border text-gray-600 hover:bg-gray-100"><Edit className="w-5 h-5"/></button>}
+            </div>
+            {isManaging && <CustomerManagerModal customer={editingCustomer} onSave={handleSave} onClose={() => setIsManaging(false)} />}
+        </div>
+    );
+};
+
+// --- Customer Manager Modal ---
+const CustomerManagerModal = ({ customer, onSave, onClose }) => {
+    const [formData, setFormData] = useState(customer);
+    const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+    const handleSubmit = (e) => { e.preventDefault(); onSave(formData); };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-[60] p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+                <form onSubmit={handleSubmit}>
+                    <div className="p-6 border-b"><h3 className="text-lg font-bold">{!customer.id ? 'Add New Customer' : 'Edit Customer'}</h3></div>
+                    <div className="p-6 space-y-4">
+                        <div><label className="text-sm font-medium">Full Name</label><input type="text" name="name" value={formData.name} onChange={handleChange} required className="w-full mt-1 px-3 py-2 border rounded-md"/></div>
+                        <div><label className="text-sm font-medium">Email Address</label><input type="email" name="email" value={formData.email} onChange={handleChange} required className="w-full mt-1 px-3 py-2 border rounded-md"/></div>
+                        <div><label className="text-sm font-medium">Phone Number</label><input type="tel" name="phone" value={formData.phone} onChange={handleChange} className="w-full mt-1 px-3 py-2 border rounded-md"/></div>
+                    </div>
+                    <div className="p-4 bg-gray-50 flex justify-end space-x-2 rounded-b-lg">
+                        <button type="button" onClick={onClose} className="px-4 py-2 rounded-md">Cancel</button>
+                        <button type="submit" className="px-4 py-2 rounded-md bg-indigo-600 text-white font-semibold">Save Customer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+// --- Settings Manager ---
+const SettingsManager = ({ currentUserRole, onClose }) => {
+    const { appSettings } = useAppContext();
+    const { saveDoc } = useFirestoreActions();
+    const [currentTab, setCurrentTab] = useState('general');
+    const tabs = { general: 'General', tasks: 'Tasks', booking: 'Booking', venues: 'Venues', services: 'Services', packages: 'Packages', customers: 'Customers', pricing: 'Taxes & Fees', policies: 'Policies', users: 'Users', tiers: 'Tiers' };
+    const availableTabs = Object.keys(tabs).filter(tab => !(tab === 'users' && currentUserRole !== USER_ROLES.ADMIN && currentUserRole !== USER_ROLES.SUPER_ADMIN) && !(tab === 'tiers' && currentUserRole !== USER_ROLES.SUPER_ADMIN));
+    
+    const handleSaveSettings = (settings) => saveDoc('settings', { ...appSettings, ...settings, id: 'global' });
+
+    return (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl h-[90vh] flex flex-col">
+                    <div className="p-6 border-b flex justify-between items-center"><h2 className="text-2xl font-bold">Settings</h2><button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200"><X className="w-6 h-6"/></button></div>
+                    <div className="flex border-b">{availableTabs.map(key => (<button key={key} onClick={() => setCurrentTab(key)} className={`px-6 py-3 font-semibold ${currentTab === key ? 'border-b-2 border-indigo-500 text-indigo-600' : 'text-gray-500'}`}>{tabs[key]}</button>))}</div>
+                    <div className="flex-grow p-6 overflow-y-auto bg-gray-50">
+                        {currentTab === 'general' && <GeneralSettings settings={appSettings} onSave={handleSaveSettings} />}
+                        {currentTab === 'tasks' && <TaskManager />}
+                        {currentTab === 'booking' && <BookingSettings settings={appSettings} onSave={handleSaveSettings} />}
+                        {currentTab === 'venues' && <VenueManager />}
+                        {currentTab === 'services' && <ServiceManager />}
+                        {currentTab === 'packages' && <PackageManager />}
+                        {currentTab === 'customers' && <CustomerManager />}
+                        {currentTab === 'pricing' && <PricingManager settings={appSettings} onSave={handleSaveSettings} />}
+                        {currentTab === 'policies' && <PolicyManager />}
+                        {currentTab === 'users' && <UserManager isSuperAdmin={currentUserRole === USER_ROLES.SUPER_ADMIN} />}
+                        {currentTab === 'tiers' && <TierManager />}
+                    </div>
+                </div>
+            </div>
+    )
+}
+
+const GeneralSettings = ({ settings, onSave }) => {
+    const [formData, setFormData] = useState(settings);
+    const timeZoneNames = useMemo(() => Intl.supportedValuesOf('timeZone'), []);
+    return (
+            <div>
+                <h2 className="text-xl font-bold mb-4">General Settings</h2>
+                <div className="p-4 bg-white border rounded-md max-w-md">
+                    <label htmlFor="timezone-select" className="font-semibold">Time Zone</label>
+                    <p className="text-sm text-gray-500 mb-2">Set the primary time zone for your operations.</p>
+                    <select id="timezone-select" value={formData.timeZone} onChange={e => setFormData(p => ({ ...p, timeZone: e.target.value }))} className="w-full mt-1 p-2 border rounded-md">{timeZoneNames.map(tz => <option key={tz} value={tz}>{tz}</option>)}</select>
+                </div>
+                <div className="mt-6"><button onClick={() => onSave(formData)} className="px-6 py-2 rounded-md bg-indigo-600 text-white font-semibold">Save Settings</button></div>
+            </div>
+    )
+}
+
+const TierManager = () => {
+    const { appSettings } = useAppContext();
+    const { saveDoc } = useFirestoreActions();
+    const [tiers, setTiers] = useState(appSettings?.tiers || []);
+    const [editingTier, setEditingTier] = useState(null);
+    const [isCreating, setIsCreating] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(null);
+
+    useEffect(() => {
+        setTiers(appSettings?.tiers || []);
+    }, [appSettings?.tiers]);
+
+    const handleSaveTier = async (tierToSave) => {
+        const updatedTiers = editingTier
+            ? tiers.map(t => t.id === tierToSave.id ? tierToSave : t)
+            : [...tiers, { ...tierToSave, id: crypto.randomUUID() }];
+        
+        if (tierToSave.isDefault) {
+            updatedTiers.forEach(t => {
+                if (t.id !== tierToSave.id) t.isDefault = false;
+            });
+        }
+
+        await saveDoc('settings', { ...appSettings, tiers: updatedTiers, id: 'global' });
+        setEditingTier(null);
+        setIsCreating(false);
+    };
+
+    const handleDeleteTier = async () => {
+        if (confirmDelete) {
+            const updatedTiers = tiers.filter(t => t.id !== confirmDelete.id);
+            await saveDoc('settings', { ...appSettings, tiers: updatedTiers, id: 'global' });
+            setConfirmDelete(null);
+        }
+    };
+
+    if (editingTier || isCreating) {
+        return <TierEditor tier={editingTier} onSave={handleSaveTier} onClose={() => { setEditingTier(null); setIsCreating(false); }} />;
+    }
+
+    return (
+        <div>
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">Tier Management</h2>
+                <button onClick={() => setIsCreating(true)} className="flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white font-semibold">
+                    <PlusCircle className="w-5 h-5 mr-2"/>New Tier
+                </button>
+            </div>
+            <div className="space-y-4">
+                {tiers.length === 0 && <p className="text-center text-gray-500">No tiers defined yet.</p>}
+                {tiers.map(tier => (
+                    <div key={tier.id} className="p-4 border bg-white rounded-lg flex justify-between items-center">
+                        <div>
+                            <h3 className="font-bold text-lg">{tier.name} {tier.isDefault && <span className="text-xs bg-gray-200 px-2 py-1 rounded-full ml-2">Default</span>}</h3>
+                            <p className="text-sm text-gray-600">Venues: {tier.maxVenues}, Users: {tier.maxUsers}, Spaces: {tier.maxSpaces}</p>
+                            <p className="text-sm text-gray-500">Features: {tier.features?.join(', ') || 'None'}</p>
+                        </div>
+                        <div className="space-x-2">
+                            <button onClick={() => setEditingTier(tier)} className="p-2 rounded-md hover:bg-gray-200"><Edit className="w-5 h-5"/></button>
+                            <button onClick={() => setConfirmDelete(tier)} className="p-2 rounded-md hover:bg-red-100 text-red-600"><Trash2 className="w-5 h-5"/></button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+            <ConfirmationModal isOpen={!!confirmDelete} onClose={() => setConfirmDelete(null)} onConfirm={handleDeleteTier} title="Delete Tier?" message="Are you sure you want to delete this tier? This cannot be undone." confirmText="Delete"/>
+        </div>
+    );
+};
+
+const TierEditor = ({ tier, onSave, onClose }) => {
+    const allFeatures = useMemo(() => [
+        'calendar', 'dashboard', 'reporting', 'user_management'
+    ], []);
+
+    const [formData, setFormData] = useState(tier || {
+        name: '',
+        maxVenues: 1,
+        maxUsers: 1,
+        maxSpaces: 1,
+        features: [],
+        isDefault: false
+    });
+
+    const handleChange = e => {
+        const { name, value, type, checked } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: type === 'number' ? parseInt(value, 10) || 0 : type === 'checkbox' ? checked : value
+        }));
+    };
+
+    const toggleFeature = (feature) => {
+        setFormData(prev => ({
+            ...prev,
+            features: prev.features.includes(feature)
+                ? prev.features.filter(f => f !== feature)
+                : [...prev.features, feature]
+        }));
+    };
+
+    const handleSubmit = e => {
+        e.preventDefault();
+        onSave(formData);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
+            <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-xl w-full max-w-2xl h-[90vh] flex flex-col">
+                <div className="p-6 border-b">
+                    <h2 className="text-2xl font-bold">{tier ? 'Edit Tier' : 'New Tier'}</h2>
+                </div>
+                <div className="flex-grow p-6 space-y-4 overflow-y-auto">
+                    <div>
+                        <label className="font-semibold">Tier Name</label>
+                        <input type="text" name="name" value={formData.name} onChange={handleChange} required className="w-full mt-1 px-3 py-2 border rounded-md"/>
+                    </div>
+                    <div>
+                        <label className="font-semibold">Max Venues</label>
+                        <input type="number" name="maxVenues" value={formData.maxVenues} onChange={handleChange} min="0" className="w-full mt-1 px-3 py-2 border rounded-md"/>
+                    </div>
+                    <div>
+                        <label className="font-semibold">Max Users (per organization)</label>
+                        <input type="number" name="maxUsers" value={formData.maxUsers} onChange={handleChange} min="0" className="w-full mt-1 px-3 py-2 border rounded-md"/>
+                    </div>
+                    <div>
+                        <label className="font-semibold">Max Spaces (per venue)</label>
+                        <input type="number" name="maxSpaces" value={formData.maxSpaces} onChange={handleChange} min="0" className="w-full mt-1 px-3 py-2 border rounded-md"/>
+                    </div>
+                    <div className="flex items-center">
+                        <input type="checkbox" name="isDefault" checked={formData.isDefault} onChange={handleChange} className="mr-2"/>
+                        <label className="font-semibold">Set as Default Tier</label>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold mb-2">Enabled Features</h4>
+                        <div className="grid grid-cols-2 gap-2 border p-3 rounded-md">
+                            {allFeatures.map(feature => (
+                                <label key={feature} className="flex items-center capitalize">
+                                    <input type="checkbox" checked={formData.features.includes(feature)} onChange={() => toggleFeature(feature)} className="mr-2"/>
+                                    {feature.replace(/_/g, ' ')}
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+                <div className="p-4 bg-gray-50 flex justify-end space-x-2 rounded-b-lg">
+                    <button type="button" onClick={onClose} className="px-4 py-2 rounded-md">Cancel</button>
+                    <button type="submit" className="px-4 py-2 rounded-md bg-indigo-600 text-white font-semibold">Save Tier</button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
+
+const UserManager = ({ isSuperAdmin }) => {
+    const { users, appSettings, currentUserLimits } = useAppContext();
+    const { saveDoc } = useFirestoreActions();
+    const [isAdding, setIsAdding] = useState(false);
+    const [editingUser, setEditingUser] = useState(null);
+    const [confirmDelete, setConfirmDelete] = useState(null);
+
+    const tiers = appSettings?.tiers || [];
+
+    const filteredUsers = useMemo(() => {
+        if (isSuperAdmin) return users;
+        return users.filter(u => u.role !== USER_ROLES.SUPER_ADMIN);
+    }, [users, isSuperAdmin]);
+
+    const handleSaveUser = async (userToSave) => {
+        await saveDoc('users', userToSave);
+        setIsAdding(false);
+        setEditingUser(null);
+    };
+
+    const handleDeleteUser = async () => {
+        if (confirmDelete) {
+            await saveDoc('users', confirmDelete, true);
+            setConfirmDelete(null);
+        }
+    };
+
+    const canAddUser = users.length < currentUserLimits.maxUsers;
+
+    if (isAdding || editingUser) {
+        return <AddEditUserForm user={editingUser} onSave={handleSaveUser} onClose={() => { setIsAdding(false); setEditingUser(null); }} isSuperAdmin={isSuperAdmin} tiers={tiers} />;
+    }
+
+    return (
+        <div>
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">User Management</h2>
+                {canAddUser && (
+                    <button onClick={() => setIsAdding(true)} className="flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white font-semibold">
+                        <PlusCircle className="w-5 h-5 mr-2"/>Add User
+                    </button>
+                )}
+                {!canAddUser && <p className="text-sm text-red-500">User limit reached ({currentUserLimits.maxUsers}).</p>}
+            </div>
+            <div className="space-y-4">
+                {filteredUsers.map(user => (
+                    <div key={user.uid} className="p-4 border bg-white rounded-lg flex justify-between items-center">
+                        <div>
+                            <p className="font-bold">{user.email || user.uid}</p>
+                            <p className="text-sm text-gray-500">Role: {user.role}</p>
+                            {user.tierId && <p className="text-xs text-gray-500">Tier: {tiers.find(t => t.id === user.tierId)?.name || user.tierId}</p>}
+                        </div>
+                        <div className="space-x-2">
+                            <button onClick={() => setEditingUser(user)} className="p-2 rounded-md hover:bg-gray-200"><Edit className="w-5 h-5"/></button>
+                            {user.role !== USER_ROLES.SUPER_ADMIN && (
+                                <button onClick={() => setConfirmDelete(user)} className="p-2 rounded-md hover:bg-red-100 text-red-600"><Trash2 className="w-5 h-5"/></button>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+            <ConfirmationModal isOpen={!!confirmDelete} onClose={() => setConfirmDelete(null)} onConfirm={handleDeleteUser} title="Delete User?" message="Are you sure you want to delete this user? This action cannot be undone." confirmText="Delete"/>
+        </div>
+    );
+};
+
+const AddEditUserForm = ({ user, onSave, onClose, isSuperAdmin, tiers }) => {
+    const { auth } = useAppContext();
+    const allFeatures = useMemo(() => ['calendar', 'dashboard', 'reporting', 'user_management'], []);
+
+    const [formData, setFormData] = useState(user || {
+        email: '',
+        role: USER_ROLES.STAFF,
+        tierId: tiers.find(t => t.isDefault)?.id || (tiers.length > 0 ? tiers[0].id : null),
+        customLimits: {},
+        customFeatures: []
+    });
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        if (name.startsWith('customLimits')) {
+            const [parent, field] = name.split('.');
+            setFormData(prev => ({ ...prev, [parent]: { ...prev[parent], [field]: parseInt(value, 10) || 0 } }));
+        } else {
+            setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
+        }
+    };
+
+    const toggleCustomFeature = (feature) => {
+        setFormData(prev => ({ ...prev, customFeatures: prev.customFeatures.includes(feature) ? prev.customFeatures.filter(f => f !== feature) : [...prev.customFeatures, feature] }));
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
+        setIsLoading(true);
+
+        if (user) { // Editing existing user
+            await onSave(formData);
+        } else { // Creating new user
+            if (password !== confirmPassword) {
+                setError("Passwords do not match.");
+                setIsLoading(false);
+                return;
+            }
+            try {
+                // Create user in Firebase Auth
+                const userCredential = await createUserWithEmailAndPassword(auth, formData.email, password);
+                const newUid = userCredential.user.uid;
+                
+                // Save user data to Firestore
+                await onSave({ ...formData, uid: newUid });
+            } catch (err) {
+                setError(err.message);
+            }
+        }
+        setIsLoading(false);
+    };
+
+    const selectedTier = tiers.find(t => t.id === formData.tierId);
+    const effectiveFeatures = selectedTier ? Array.from(new Set([...selectedTier.features, ...formData.customFeatures])) : formData.customFeatures;
+
+    const availableRoles = isSuperAdmin 
+        ? Object.values(USER_ROLES)
+        : [USER_ROLES.MANAGER, USER_ROLES.STAFF];
+
+    return (
+        <div>
+            <h2 className="text-xl font-bold mb-4">{user ? 'Edit User' : 'Add New User'}</h2>
+            <div className="p-6 bg-white rounded-lg border">
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="font-semibold">User Email</label>
+                        <input type="email" name="email" value={formData.email} onChange={handleChange} required className="w-full mt-1 p-2 border rounded-md" disabled={!!user}/>
+                    </div>
+                    {!user && (
+                        <>
+                            <div>
+                                <label className="font-semibold">Password</label>
+                                <input type="password" value={password} onChange={e => setPassword(e.target.value)} required className="w-full mt-1 p-2 border rounded-md" />
+                            </div>
+                            <div>
+                                <label className="font-semibold">Confirm Password</label>
+                                <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required className="w-full mt-1 p-2 border rounded-md" />
+                            </div>
+                        </>
+                    )}
+                    <div>
+                        <label className="font-semibold">Role</label>
+                        <select name="role" value={formData.role} onChange={handleChange} className="w-full mt-1 p-2 border rounded-md">
+                            {availableRoles.map(r => (
+                                <option key={r} value={r}>
+                                    {r}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                     {isSuperAdmin && (
+                        <>
+                            <div>
+                                <label className="font-semibold">Assign Tier</label>
+                                <select name="tierId" value={formData.tierId || ''} onChange={handleChange} className="w-full mt-1 p-2 border rounded-md">
+                                    <option value="">No Tier (Custom)</option>
+                                    {tiers.map(tier => (
+                                        <option key={tier.id} value={tier.id}>{tier.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div>
+                                    <label className="font-semibold">Custom Max Venues</label>
+                                    <input type="number" name="customLimits.maxVenues" value={formData.customLimits?.maxVenues || ''} onChange={handleChange} min="0" placeholder={selectedTier?.maxVenues || 'Unlimited'} className="w-full mt-1 p-2 border rounded-md"/>
+                                </div>
+                                <div>
+                                    <label className="font-semibold">Custom Max Users</label>
+                                    <input type="number" name="customLimits.maxUsers" value={formData.customLimits?.maxUsers || ''} onChange={handleChange} min="0" placeholder={selectedTier?.maxUsers || 'Unlimited'} className="w-full mt-1 p-2 border rounded-md"/>
+                                </div>
+                                <div>
+                                    <label className="font-semibold">Custom Max Spaces</label>
+                                    <input type="number" name="customLimits.maxSpaces" value={formData.customLimits?.maxSpaces || ''} onChange={handleChange} min="0" placeholder={selectedTier?.maxSpaces || 'Unlimited'} className="w-full mt-1 p-2 border rounded-md"/>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 className="font-semibold mb-2">Custom Features</h4>
+                                <div className="grid grid-cols-2 gap-2 border p-3 rounded-md">
+                                    {allFeatures.map(feature => (
+                                        <label key={feature} className="flex items-center capitalize">
+                                            <input type="checkbox" checked={effectiveFeatures.includes(feature)} onChange={() => toggleCustomFeature(feature)} className="mr-2"/>
+                                            {feature.replace(/_/g, ' ')}
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
+                    {error && <p className="text-sm text-red-600 bg-red-50 p-2 rounded-md">{error}</p>}
+                    <div className="flex justify-end space-x-2 pt-4">
+                        <button type="button" onClick={onClose} className="px-4 py-2 rounded-md">Cancel</button>
+                        <button type="submit" disabled={isLoading} className="px-4 py-2 rounded-md bg-indigo-600 text-white font-semibold disabled:bg-indigo-300">
+                            {isLoading ? 'Saving...' : 'Save User'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const CustomerManager = () => {
+    const { customers } = useAppContext();
+    const { saveDoc } = useFirestoreActions();
+    const [editingItem, setEditingItem] = useState(null);
+    const [isCreating, setIsCreating] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(null);
+    const handleSave = (item) => { saveDoc('customers', item); setEditingItem(null); setIsCreating(false); };
+    const handleDelete = () => { if(confirmDelete) { saveDoc('customers', confirmDelete, true); setConfirmDelete(null); } };
+    if (editingItem || isCreating) return <CustomerManagerModal customer={editingItem || {}} onSave={handleSave} onClose={() => { setEditingItem(null); setIsCreating(false); }} />;
+    return(
+        <div>
+            <div className="flex justify-end mb-4"><button onClick={() => setIsCreating(true)} className="flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white font-semibold"><PlusCircle className="w-5 h-5 mr-2"/>New Customer</button></div>
+            <div className="space-y-4">{customers.map(customer => (<div key={customer.id} className="p-4 border bg-white rounded-lg flex justify-between items-center"><div><h3 className="font-bold text-lg">{customer.name}</h3><p className="text-sm text-gray-600">{customer.email} - {customer.phone}</p></div><div className="space-x-2"><button onClick={() => setEditingItem(customer)} className="p-2 rounded-md hover:bg-gray-200"><Edit className="w-5 h-5"/></button><button onClick={() => setConfirmDelete(customer)} className="p-2 rounded-md hover:bg-red-100 text-red-600"><Trash2 className="w-5 h-5"/></button></div></div>))}</div>
+            <ConfirmationModal isOpen={!!confirmDelete} onClose={() => setConfirmDelete(null)} onConfirm={handleDelete} title="Delete Customer?" message="Are you sure? This action cannot be undone." confirmText="Delete"/>
+        </div>
+    )
+}
+
+const VenueManager = () => {
+    const { venues, currentUserLimits } = useAppContext();
+    const { saveDoc } = useFirestoreActions();
+    const [editingItem, setEditingItem] = useState(null);
+    const [isCreating, setIsCreating] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(null);
+    const handleSave = (item) => { saveDoc('venues', item); setEditingItem(null); setIsCreating(false); };
+    const handleDelete = () => { if(confirmDelete) { saveDoc('venues', confirmDelete, true); setConfirmDelete(null); } };
+
+    const canAddVenue = venues.length < currentUserLimits.maxVenues;
+
+    if (editingItem || isCreating) return <VenueEditor venue={editingItem} onSave={handleSave} onClose={() => { setEditingItem(null); setIsCreating(false); }} />;
+    return (
+        <div>
+            <div className="flex justify-end mb-4">
+                {canAddVenue && (
+                    <button onClick={() => setIsCreating(true)} className="flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white font-semibold">
+                        <PlusCircle className="w-5 h-5 mr-2"/>New Venue
+                    </button>
+                )}
+                {!canAddVenue && <p className="text-sm text-red-500">Venue limit reached ({currentUserLimits.maxVenues}).</p>}
+            </div>
+            <div className="space-y-4">{venues.map(venue => (<div key={venue.id} className="p-4 border bg-white rounded-lg flex justify-between items-center"><div><h3 className="font-bold text-lg">{venue.name}</h3><p className="text-sm text-gray-600">{venue.address}</p></div><div className="space-x-2"><button onClick={() => setEditingItem(venue)} className="p-2 rounded-md hover:bg-gray-200"><Edit className="w-5 h-5"/></button><button onClick={() => setConfirmDelete(venue)} className="p-2 rounded-md hover:bg-red-100 text-red-600"><Trash2 className="w-5 h-5"/></button></div></div>))}</div>
+            <ConfirmationModal isOpen={!!confirmDelete} onClose={() => setConfirmDelete(null)} onConfirm={handleDelete} title="Delete Venue?" message="Are you sure? Deleting a venue cannot be undone." confirmText="Delete"/>
+        </div>
+    );
+};
+
+const VenueEditor = ({ venue, onSave, onClose }) => {
+    const { currentUserLimits } = useAppContext();
+    const [formData, setFormData] = useState(venue || { name: '', address: '', spaces: [{ id: crypto.randomUUID(), name: '', capacity: 100 }] });
+    const handleChange = e => setFormData({...formData, [e.target.name]: e.target.value });
+    const handleSpaceChange = (index, field, value) => { const newSpaces = [...formData.spaces]; newSpaces[index] = { ...newSpaces[index], [field]: value }; setFormData({ ...formData, spaces: newSpaces }); };
+    const addSpace = () => {
+        if (formData.spaces.length >= currentUserLimits.maxSpaces) {
+            alert(`You have reached the maximum number of spaces allowed (${currentUserLimits.maxSpaces}).`);
+            return;
+        }
+        setFormData(prev => ({ ...prev, spaces: [...prev.spaces, {id: crypto.randomUUID(), name: '', capacity: 100 }]}));
+    };
+    const removeSpace = (index) => setFormData(prev => ({ ...prev, spaces: prev.spaces.filter((_, i) => i !== index) }));
+    const handleSubmit = e => { e.preventDefault(); onSave(formData); };
+    
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
+            <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-xl w-full max-w-2xl h-[90vh] flex flex-col">
+                <div className="p-6 border-b"><h2 className="text-2xl font-bold">{venue ? 'Edit Venue' : 'Create New Venue'}</h2></div>
+                <div className="flex-grow p-6 space-y-4 overflow-y-auto">
+                    <div><label className="font-semibold">Venue Name</label><input type="text" name="name" value={formData.name} onChange={handleChange} required className="w-full mt-1 px-3 py-2 border rounded-md"/></div>
+                    <div><label className="font-semibold">Address</label><input type="text" name="address" value={formData.address} onChange={handleChange} required className="w-full mt-1 px-3 py-2 border rounded-md"/></div>
+                    <div><h4 className="font-semibold mb-2">Spaces</h4>
+                        <div className="space-y-4">{formData.spaces.map((space, index) => (<div key={space.id} className="p-4 border rounded-lg bg-gray-50 flex items-end gap-4"><div className="flex-grow"><label className="text-sm font-medium">Space Name</label><input type="text" value={space.name} onChange={e => handleSpaceChange(index, 'name', e.target.value)} required className="w-full mt-1 px-2 py-1 border rounded-md" /></div><div><label className="text-sm font-medium">Capacity</label><input type="number" value={space.capacity} onChange={e => handleSpaceChange(index, 'capacity', parseInt(e.target.value) || 0)} required className="w-full mt-1 px-2 py-1 border rounded-md" /></div><button type="button" onClick={() => removeSpace(index)} className="p-2 text-red-500 hover:bg-red-100 rounded-full"><Trash2 className="w-5 h-5"/></button></div>))}</div>
+                        <button type="button" onClick={addSpace} className="mt-4 flex items-center text-sm px-3 py-1.5 rounded-md border text-indigo-600 hover:bg-indigo-50"><PlusCircle className="w-4 h-4 mr-2"/>Add Space</button>
+                    </div>
+                </div>
+                <div className="p-4 bg-gray-50 flex justify-end space-x-2 rounded-b-lg"><button type="button" onClick={onClose} className="px-4 py-2 rounded-md">Cancel</button><button type="submit" className="px-4 py-2 rounded-md bg-indigo-600 text-white font-semibold">Save Venue</button></div>
+            </form>
+        </div>
+    )
+}
+
+const ServiceManager = () => {
+    const { services } = useAppContext();
+    const { saveDoc } = useFirestoreActions();
+    const [editingItem, setEditingItem] = useState(null);
+    const [isCreating, setIsCreating] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(null);
+    const handleSave = (item) => { saveDoc('services', item); setEditingItem(null); setIsCreating(false); };
+    const handleDelete = () => { if(confirmDelete) { saveDoc('services', confirmDelete, true); setConfirmDelete(null); } };
+    if (editingItem || isCreating) return <ServiceEditor service={editingItem} onSave={handleSave} onClose={() => { setEditingItem(null); setIsCreating(false); }} />;
+    return (
+        <div>
+            <div className="flex justify-end mb-4"><button onClick={() => setIsCreating(true)} className="flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white font-semibold"><PlusCircle className="w-5 h-5 mr-2"/>New Service</button></div>
+            <div className="space-y-4">{services.map(service => (<div key={service.id} className="p-4 border bg-white rounded-lg flex justify-between items-center"><div><h3 className="font-bold text-lg">{service.name} - {formatCurrency(service.price)}</h3><p className="text-sm text-gray-600">{service.category} - {service.pricingModel}</p></div><div className="space-x-2"><button onClick={() => setEditingItem(service)} className="p-2 rounded-md hover:bg-gray-200"><Edit className="w-5 h-5"/></button><button onClick={() => setConfirmDelete(service)} className="p-2 rounded-md hover:bg-red-100 text-red-600"><Trash2 className="w-5 h-5"/></button></div></div>))}</div>
+            <ConfirmationModal isOpen={!!confirmDelete} onClose={() => setConfirmDelete(null)} onConfirm={handleDelete} title="Delete Service?" message="Are you sure?" confirmText="Delete"/>
+        </div>
+    );
+};
+const ServiceEditor = ({ service, onSave, onClose }) => {
+    const [formData, setFormData] = useState(service || { name: '', category: '', price: 0, pricingModel: 'fixed' });
+    const handleChange = e => setFormData({...formData, [e.target.name]: e.target.name === 'price' ? parseFloat(e.target.value) : e.target.value });
+    const handleSubmit = e => { e.preventDefault(); onSave(formData); };
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
+            <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-xl w-full max-w-lg flex flex-col">
+                <div className="p-6 border-b"><h2 className="text-2xl font-bold">{service ? 'Edit Service' : 'New Service'}</h2></div>
+                <div className="flex-grow p-6 space-y-4">
+                    <div><label className="font-semibold">Service Name</label><input type="text" name="name" value={formData.name} onChange={handleChange} required className="w-full mt-1 px-3 py-2 border rounded-md"/></div>
+                    <div><label className="font-semibold">Category</label><input type="text" name="category" value={formData.category} onChange={handleChange} className="w-full mt-1 px-3 py-2 border rounded-md"/></div>
+                    <div><label className="font-semibold">Price</label><input type="number" step="0.01" name="price" value={formData.price} onChange={handleChange} required className="w-full mt-1 px-3 py-2 border rounded-md"/></div>
+                    <div><label className="font-semibold">Pricing Model</label><select name="pricingModel" value={formData.pricingModel} onChange={handleChange} className="w-full mt-1 px-3 py-2 border rounded-md"><option value="fixed">Fixed</option><option value="per_person">Per Person</option></select></div>
+                </div>
+                <div className="p-4 bg-gray-50 flex justify-end space-x-2 rounded-b-lg"><button type="button" onClick={onClose} className="px-4 py-2 rounded-md">Cancel</button><button type="submit" className="px-4 py-2 rounded-md bg-indigo-600 text-white font-semibold">Save Service</button></div>
+            </form>
+        </div>
+    );
+};
+const PackageManager = () => {
+    const { packages } = useAppContext();
+    const { saveDoc } = useFirestoreActions();
+    const [editingItem, setEditingItem] = useState(null);
+    const [isCreating, setIsCreating] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(null);
+    const handleSave = (item) => { saveDoc('packages', item); setEditingItem(null); setIsCreating(false); };
+    const handleDelete = () => { if(confirmDelete) { saveDoc('packages', confirmDelete, true); setConfirmDelete(null); } };
+    if (editingItem || isCreating) return <PackageEditor pkg={editingItem} onSave={handleSave} onClose={() => { setEditingItem(null); setIsCreating(false); }} />;
+    return (
+        <div>
+            <div className="flex justify-end mb-4"><button onClick={() => setIsCreating(true)} className="flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white font-semibold"><PlusCircle className="w-5 h-5 mr-2"/>New Package</button></div>
+            <div className="space-y-4">{packages.map(pkg => (<div key={pkg.id} className="p-4 border bg-white rounded-lg flex justify-between items-center"><div><h3 className="font-bold text-lg">{pkg.name} - {formatCurrency(pkg.price)}</h3><p className="text-sm text-gray-600">{pkg.description}</p></div><div className="space-x-2"><button onClick={() => setEditingItem(pkg)} className="p-2 rounded-md hover:bg-gray-200"><Edit className="w-5 h-5"/></button><button onClick={() => setConfirmDelete(pkg)} className="p-2 rounded-md hover:bg-red-100 text-red-600"><Trash2 className="w-5 h-5"/></button></div></div>))}</div>
+            <ConfirmationModal isOpen={!!confirmDelete} onClose={() => setConfirmDelete(null)} onConfirm={handleDelete} title="Delete Package?" message="Are you sure?" confirmText="Delete"/>
+        </div>
+    );
+};
+const PackageEditor = ({ pkg, onSave, onClose }) => {
+    const { services, venues } = useAppContext();
+    const [formData, setFormData] = useState(pkg || { name: '', description: '', price: 0, pricingModel: 'fixed', applicableSpaceIds: [], includedServiceIds: [] });
+    const handleChange = e => setFormData({...formData, [e.target.name]: e.target.name === 'price' ? parseFloat(e.target.value) || 0 : e.target.value });
+    const toggleInclusion = (field, id) => setFormData(prev => ({...prev, [field]: prev[field].includes(id) ? prev[field].filter(sId => sId !== id) : [...prev[field], id]}));
+    const handleSubmit = e => { e.preventDefault(); onSave(formData); };
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
+            <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-xl w-full max-w-2xl h-[90vh] flex flex-col">
+                <div className="p-6 border-b"><h2 className="text-2xl font-bold">{pkg ? 'Edit Package' : 'New Package'}</h2></div>
+                <div className="flex-grow p-6 space-y-4 overflow-y-auto">
+                    <div><label className="font-semibold">Package Name</label><input type="text" name="name" value={formData.name} onChange={handleChange} required className="w-full mt-1 px-3 py-2 border rounded-md"/></div>
+                    <div><label className="font-semibold">Description</label><textarea name="description" value={formData.description} onChange={handleChange} className="w-full mt-1 px-3 py-2 border rounded-md"/></div>
+                    <div><label className="font-semibold">Price</label><input type="number" step="0.01" name="price" value={formData.price} onChange={handleChange} required className="w-full mt-1 px-3 py-2 border rounded-md"/></div>
+                    <div><label className="font-semibold">Pricing Model</label><select name="pricingModel" value={formData.pricingModel} onChange={handleChange} className="w-full mt-1 px-3 py-2 border rounded-md"><option value="fixed">Fixed</option><option value="per_person">Per Person</option></select></div>
+                    <div><h4 className="font-semibold mb-2">Applicable Spaces</h4><div className="space-y-2 max-h-40 overflow-y-auto border p-2 rounded-md">{venues.flatMap(v => v.spaces).map(space => (<div key={space.id} onClick={() => toggleInclusion('applicableSpaceIds', space.id)} className={`p-2 border rounded-md cursor-pointer flex items-center ${formData.applicableSpaceIds.includes(space.id) ? 'bg-indigo-50' : ''}`}><CheckCircle className={`w-5 h-5 mr-2 ${formData.applicableSpaceIds.includes(space.id) ? 'text-indigo-600' : 'text-gray-300'}`}/>{space.name}</div>))}</div></div>
+                    <div><h4 className="font-semibold mb-2">Included Services</h4><div className="space-y-2 max-h-40 overflow-y-auto border p-2 rounded-md">{services.map(service => (<div key={service.id} onClick={() => toggleInclusion('includedServiceIds', service.id)} className={`p-2 border rounded-md cursor-pointer flex items-center ${formData.includedServiceIds.includes(service.id) ? 'bg-indigo-50' : ''}`}><CheckCircle className={`w-5 h-5 mr-2 ${formData.includedServiceIds.includes(service.id) ? 'text-indigo-600' : 'text-gray-300'}`}/>{service.name}</div>))}</div></div>
+                </div>
+                <div className="p-4 bg-gray-50 flex justify-end space-x-2 rounded-b-lg"><button type="button" onClick={onClose} className="px-4 py-2 rounded-md">Cancel</button><button type="submit" className="px-4 py-2 rounded-md bg-indigo-600 text-white font-semibold">Save Package</button></div>
+            </form>
+        </div>
+    );
+};
+const PricingManager = ({ settings, onSave }) => {
+    const [formData, setFormData] = useState(settings || { taxes: [], serviceFees: []});
+    const handleAdd = (type) => setFormData(prev => ({ ...prev, [type]: [...(prev[type] || []), type === 'taxes' ? {id: crypto.randomUUID(), name: 'New Tax', rate: 10} : {id: crypto.randomUUID(), name: 'New Fee', amount: 20, type: 'fixed', isTaxable: false}] }));
+    const handleUpdate = (type, id, field, value) => setFormData(prev => ({...prev, [type]: prev[type].map(item => item.id === id ? {...item, [field]: field === 'isTaxable' ? value : (field === 'rate' || field === 'amount') ? parseFloat(value) || 0 : value} : item)}));
+    const handleRemove = (type, id) => setFormData(prev => ({...prev, [type]: prev[type].filter(item => item.id !== id)}));
+    return (
+        <div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-xl">Taxes</h3><button onClick={() => handleAdd('taxes')} className="text-sm flex items-center px-3 py-1.5 rounded-md border text-indigo-600 hover:bg-indigo-50"><PlusCircle className="w-4 h-4 mr-2"/>Add Tax</button></div>
+                    <div className="space-y-2">{formData.taxes?.map(tax => (<div key={tax.id} className="p-3 bg-white border rounded-md"><div className="flex items-center space-x-2"><input value={tax.name} onChange={e => handleUpdate('taxes', tax.id, 'name', e.target.value)} className="font-semibold flex-grow p-1 border-b"/> <input type="number" step="0.01" value={tax.rate} onChange={e => handleUpdate('taxes', tax.id, 'rate', e.target.value)} className="w-16 p-1 border rounded-md"/> <span className="text-gray-500">%</span><button onClick={() => handleRemove('taxes', tax.id)} className="p-1 text-red-500 hover:bg-red-100 rounded-full"><Trash2 className="w-4 h-4"/></button></div></div>))}</div>
+                </div>
+                <div>
+                    <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-xl">Service Fees</h3><button onClick={() => handleAdd('serviceFees')} className="text-sm flex items-center px-3 py-1.5 rounded-md border text-indigo-600 hover:bg-indigo-50"><PlusCircle className="w-4 h-4 mr-2"/>Add Fee</button></div>
+                    <div className="space-y-2">{formData.serviceFees?.map(fee => (<div key={fee.id} className="p-3 bg-white border rounded-md"><div className="flex items-center space-x-2"><input value={fee.name} onChange={e => handleUpdate('serviceFees', fee.id, 'name', e.target.value)} className="font-semibold flex-grow p-1 border-b"/> <input type="number" step="0.01" value={fee.amount} onChange={e => handleUpdate('serviceFees', fee.id, 'amount', e.target.value)} className="w-16 p-1 border rounded-md"/><select value={fee.type} onChange={e => handleUpdate('serviceFees', fee.id, 'type', e.target.value)} className="p-1 border rounded-md"><option value="fixed">$</option><option value="percentage">%</option></select><button onClick={() => handleRemove('serviceFees', fee.id)} className="p-1 text-red-500 hover:bg-red-100 rounded-full"><Trash2 className="w-4 h-4"/></button></div><label className="flex items-center text-xs mt-2 text-gray-600"><input type="checkbox" checked={fee.isTaxable || false} onChange={e => handleUpdate('serviceFees', fee.id, 'isTaxable', e.target.checked)} className="mr-2"/>Taxable</label></div>))}</div>
+                </div>
+            </div>
+            <div className="mt-6 flex justify-end"><button onClick={() => onSave(formData)} className="px-6 py-2 rounded-md bg-indigo-600 text-white font-semibold">Save Pricing</button></div>
+        </div>
+    );
+};
+
+// --- NEW COMPREHENSIVE REPORTING DASHBOARD ---
+const ComprehensiveReportingPage = ({ onClose }) => {
+    const { bookings, services, venues, appSettings } = useAppContext();
+    const { saveDoc } = useFirestoreActions();
+    const [activeTab, setActiveTab] = useState('overview');
+    const [editingPackage, setEditingPackage] = useState(null);
+    
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const [filters, setFilters] = useState({
+        startDate: formatDateFns(firstDayOfMonth, 'yyyy-MM-dd'),
+        endDate: formatDateFns(today, 'yyyy-MM-dd'),
+        venueId: 'all'
+    });
+
+    const handleFilterChange = (e) => {
+        setFilters(prev => ({...prev, [e.target.name]: e.target.value}));
+    };
+
+    const filteredContracts = useMemo(() => {
+        const uniqueContracts = [...new Map(bookings.map(b => [b.contractId, b])).values()];
+        
+        return uniqueContracts.filter(c => {
+            const bookingDate = startOfDay(c.startTime);
+            const startDate = filters.startDate ? startOfDay(parseISO(filters.startDate)) : null;
+            const endDate = filters.endDate ? startOfDay(parseISO(filters.endDate)) : null;
+
+            const venueMatch = filters.venueId === 'all' || c.venueId === filters.venueId;
+            const dateMatch = (!startDate || bookingDate >= startDate) && (!endDate || bookingDate <= endDate);
+            
+            return venueMatch && dateMatch && c.eventStatus !== 'Cancelled';
+        });
+    }, [bookings, filters]);
+
+    const reportData = useMemo(() => {
+        if (!filteredContracts.length) return null;
+
+        const allBookingsInContracts = bookings.filter(b => filteredContracts.some(c => c.contractId === b.contractId));
+        
+        const totalRevenue = filteredContracts.reduce((sum, contract) => {
+            const contractBookings = allBookingsInContracts.filter(b => b.contractId === contract.contractId);
+            const price = calculatePriceBreakdown(contractBookings, appSettings, services, []);
+            return sum + price.total;
+        }, 0);
+
+        const totalBookings = filteredContracts.length;
+        const avgBookingValue = totalBookings > 0 ? totalRevenue / totalBookings : 0;
+
+        const totalBookedHours = allBookingsInContracts.reduce((acc, booking) => {
+            return acc + (booking.endTime.getTime() - booking.startTime.getTime()) / (1000 * 60 * 60);
+        }, 0);
+
+        const availableHours = venues.reduce((total, venue) => {
+            if (filters.venueId !== 'all' && venue.id !== filters.venueId) return total;
+            const daysInRange = (parseISO(filters.endDate).getTime() - parseISO(filters.startDate).getTime()) / (1000 * 3600 * 24) + 1;
+            const dailyHours = (appSettings.bookingWindowEnd || 22) - (appSettings.bookingWindowStart || 8);
+            return total + (venue.spaces.length * dailyHours * daysInRange);
+        }, 0);
+        
+        const occupancyRate = availableHours > 0 ? (totalBookedHours / availableHours) * 100 : 0;
+
+        return { totalRevenue, totalBookings, avgBookingValue, occupancyRate: occupancyRate.toFixed(2) };
+
+    }, [filteredContracts, bookings, appSettings, services, venues, filters]);
+
+    const chartData = useMemo(() => {
+        if (!filteredContracts.length || !filters.startDate || !filters.endDate) return {};
+        
+        const revenueByDay = {};
+        const allBookingsInContracts = bookings.filter(b => filteredContracts.some(c => c.contractId === b.contractId));
+        
+        const dateLabels = eachDayOfInterval({
+            start: parseISO(filters.startDate),
+            end: parseISO(filters.endDate)
+        }).map(d => formatDateFns(d, 'MMM d'));
+
+        dateLabels.forEach(label => revenueByDay[label] = 0);
+
+        filteredContracts.forEach(contract => {
+            const contractBookings = allBookingsInContracts.filter(b => b.contractId === contract.contractId);
+            const price = calculatePriceBreakdown(contractBookings, appSettings, services, []);
+            const dateLabel = formatDateFns(contract.startTime, 'MMM d');
+            if (revenueByDay[dateLabel] !== undefined) {
+                revenueByDay[dateLabel] += price.total;
+            }
+        });
+
+        const revenueLineChart = {
+            labels: dateLabels,
+            datasets: [{
+                label: 'Revenue',
+                data: Object.values(revenueByDay),
+                borderColor: 'rgb(79, 70, 229)',
+                backgroundColor: 'rgba(79, 70, 229, 0.5)',
+                tension: 0.1
+            }]
+        };
+
+        return { revenueLineChart };
+    }, [filteredContracts, bookings, filters, appSettings, services]);
+
+    const handleSavePackage = async (pkg) => {
+        await saveDoc('packages', pkg);
+        setEditingPackage(null);
+    };
+
+    const renderTabContent = () => {
+        switch (activeTab) {
+            case 'overview':
+                return (
+                    <div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                            <div className="bg-white p-6 rounded-lg shadow-md"><h4 className="text-gray-500">Total Revenue</h4><p className="text-3xl font-bold mt-2">{formatCurrency(reportData?.totalRevenue || 0)}</p></div>
+                            <div className="bg-white p-6 rounded-lg shadow-md"><h4 className="text-gray-500">Total Bookings</h4><p className="text-3xl font-bold mt-2">{reportData?.totalBookings || 0}</p></div>
+                            <div className="bg-white p-6 rounded-lg shadow-md"><h4 className="text-gray-500">Avg. Booking Value</h4><p className="text-3xl font-bold mt-2">{formatCurrency(reportData?.avgBookingValue || 0)}</p></div>
+                            <div className="bg-white p-6 rounded-lg shadow-md"><h4 className="text-gray-500">Occupancy Rate</h4><p className="text-3xl font-bold mt-2">{reportData?.occupancyRate || 0}%</p></div>
+                        </div>
+                        <div className="bg-white p-6 rounded-lg shadow-md">
+                            <h3 className="font-bold text-lg mb-4">Revenue Over Time</h3>
+                            {chartData.revenueLineChart && <Line options={{responsive: true}} data={chartData.revenueLineChart} />}
+                        </div>
+                    </div>
+                );
+            case 'aiInsights':
+                return <AIPackageSuggester bookings={filteredContracts} onPackageCreate={setEditingPackage} />;
+            default:
+                return <div>Select a report tab.</div>;
+        }
+    };
+    
+    return (
+        <div className="bg-gray-100 p-6 rounded-lg mt-4">
+            {editingPackage && <PackageEditor pkg={editingPackage} onSave={handleSavePackage} onClose={() => setEditingPackage(null)} />}
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Comprehensive Reports</h2>
+                <button onClick={onClose} className="px-4 py-2 text-sm font-medium border rounded-md hover:bg-gray-200">Back to Calendar</button>
+            </div>
+
+            <div className="bg-white p-4 rounded-lg shadow-md mb-6 flex flex-wrap items-end gap-4">
+                <div><label className="text-sm font-semibold text-gray-600 block">Start Date</label><input type="date" name="startDate" value={filters.startDate} onChange={handleFilterChange} className="mt-1 px-3 py-2 border rounded-md"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block">End Date</label><input type="date" name="endDate" value={filters.endDate} onChange={handleFilterChange} className="mt-1 px-3 py-2 border rounded-md"/></div>
+                <div><label className="text-sm font-semibold text-gray-600 block">Venue</label><select name="venueId" value={filters.venueId} onChange={handleFilterChange} className="mt-1 px-3 py-2 border rounded-md w-full"><option value="all">All Venues</option>{venues.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}</select></div>
+            </div>
+
+            <div className="flex border-b mb-6">
+                <button onClick={() => setActiveTab('overview')} className={`px-6 py-3 font-semibold ${activeTab === 'overview' ? 'border-b-2 border-indigo-500 text-indigo-600' : 'text-gray-500'}`}>Overview</button>
+                <button onClick={() => setActiveTab('aiInsights')} className={`px-6 py-3 font-semibold ${activeTab === 'aiInsights' ? 'border-b-2 border-indigo-500 text-indigo-600' : 'text-gray-500'}`}>AI Package Insights</button>
+            </div>
+
+            {!reportData && activeTab === 'overview' ? (
+                <div className="text-center text-gray-500 py-16">
+                    <BarChart className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+                    <h3 className="text-xl font-semibold">No Data Available</h3>
+                    <p>There is no booking data for the selected filters. Try adjusting the date range or venue.</p>
+                </div>
+            ) : renderTabContent()}
+        </div>
+    );
+};
+
+const AIPackageSuggester = ({ bookings, onPackageCreate }) => {
+    const { services } = useAppContext();
+    const [isLoading, setIsLoading] = useState(false);
+    const [suggestions, setSuggestions] = useState([]);
+
+    const handleGenerate = async () => {
+        setIsLoading(true);
+        await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate AI analysis
+
+        const serviceCounts = {};
+        bookings.forEach(booking => {
+            const allServices = [...(booking.addOns || [])];
+            if (booking.packageId) {
+                // In a real scenario, you'd look up the package's services.
+                // For this mock, we'll just track the package as a single item.
+            }
+            const uniqueServices = [...new Set(allServices)];
+            for (let i = 0; i < uniqueServices.length; i++) {
+                for (let j = i + 1; j < uniqueServices.length; j++) {
+                    const pair = [uniqueServices[i], uniqueServices[j]].sort().join(',');
+                    serviceCounts[pair] = (serviceCounts[pair] || 0) + 1;
+                }
+            }
+        });
+
+        const sortedPairs = Object.entries(serviceCounts).sort(([,a],[,b]) => b-a);
+        const topSuggestions = sortedPairs.slice(0, 3).map(([pair, count]) => {
+            const serviceIds = pair.split(',');
+            const serviceNames = serviceIds.map(id => services.find(s => s.id === id)?.name).filter(Boolean);
+            if (serviceNames.length < 2) return null;
+            return {
+                name: `${serviceNames.join(' & ')} Package`,
+                description: `A popular combination including ${serviceNames.join(', ')}.`,
+                includedServiceIds: serviceIds,
+                count: count,
+            };
+        }).filter(Boolean);
+        
+        setSuggestions(topSuggestions);
+        setIsLoading(false);
+    };
+
+    const handleCreate = (suggestion) => {
+        const newPackage = {
+            name: suggestion.name,
+            description: suggestion.description,
+            includedServiceIds: suggestion.includedServiceIds,
+            price: 500, // Default price
+            pricingModel: 'fixed',
+            applicableSpaceIds: []
+        };
+        onPackageCreate(newPackage);
+    };
+
+    return (
+        <div className="bg-white p-6 rounded-lg shadow-md">
+            <h3 className="font-bold text-lg mb-2">AI Package Insights</h3>
+            <p className="text-sm text-gray-600 mb-4">Discover new revenue opportunities. Our AI analyzes your most frequently booked services to suggest profitable new packages.</p>
+            <button onClick={handleGenerate} disabled={isLoading} className="px-6 py-3 rounded-md bg-indigo-600 text-white font-semibold hover:bg-indigo-700 flex items-center justify-center disabled:bg-indigo-300">
+                <BrainCircuit className="w-5 h-5 mr-2"/>
+                {isLoading ? 'Analyzing Data...' : 'Generate Suggestions'}
+            </button>
+
+            {suggestions.length > 0 && (
+                <div className="mt-6 space-y-4">
+                    <h4 className="font-semibold">Top Suggestions:</h4>
+                    {suggestions.map((s, i) => (
+                        <div key={i} className="p-4 border rounded-lg bg-gray-50 flex justify-between items-center">
+                            <div>
+                                <p className="font-bold text-indigo-700">{s.name}</p>
+                                <p className="text-xs text-gray-500">Based on {s.count} joint bookings.</p>
+                            </div>
+                            <button onClick={() => handleCreate(s)} className="text-sm flex items-center px-3 py-1.5 rounded-md bg-green-500 text-white hover:bg-green-600">
+                                <PlusCircle className="w-4 h-4 mr-2"/>Create Package
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+
+// --- Other Modals and Controls ---
+const CloneConfigModal = ({ activeSlot, otherSlots, onClone, onClose }) => {
+    const [targets, setTargets] = useState([]);
+    const handleToggleTarget = (slotId) => setTargets(prev => prev.includes(slotId) ? prev.filter(id => id !== slotId) : [...prev, slotId]);
+    return (<div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-[60] p-4"><div className="bg-white rounded-lg shadow-xl w-full max-w-lg"><div className="p-4 border-b flex justify-between items-center"><h3 className="text-lg font-bold">Copy Configuration</h3><button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200"><X className="w-5 h-5"/></button></div><div className="p-6"><p className="text-sm mb-4">Apply config from <span className="font-semibold">{formatDate(activeSlot.startTime, {weekday:'short', month:'short', day:'numeric'})}</span> to:</p><div className="max-h-60 overflow-y-auto space-y-2 pr-2">{otherSlots.map(slot => { const slotId = generateSlotId(slot); const isSelected = targets.includes(slotId); return (<div key={slotId} onClick={() => handleToggleTarget(slotId)} className={`flex items-center p-3 border rounded-lg cursor-pointer ${isSelected ? 'bg-indigo-50' : 'hover:bg-gray-50'}`}><div className={`w-5 h-5 rounded border-2 shrink-0 mr-3 ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'}`}>{isSelected && <CheckCircle className="w-full h-full text-white p-0.5" />}</div><div><p className="font-medium">{formatDate(slot.startTime, {weekday: 'long'})}</p><p className="text-xs text-gray-500">{slot.space.name} at {formatTime(slot.startTime)}</p></div></div>)})}</div></div><div className="p-4 bg-gray-50 flex justify-between items-center rounded-b-lg"><button onClick={() => setTargets(otherSlots.map(generateSlotId))} className="text-sm font-medium text-indigo-600 hover:underline">Select All</button><div><button onClick={onClose} className="px-4 py-2 rounded-md mr-2">Cancel</button><button onClick={() => onClone(targets)} disabled={targets.length === 0} className="px-4 py-2 rounded-md bg-indigo-600 text-white font-semibold disabled:bg-indigo-300">Apply to {targets.length} Slot(s)</button></div></div></div></div>);
+}
+const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, confirmText = "Confirm", confirmIcon: Icon = Trash2 }) => {
+    if (!isOpen) return null;
+    return (<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4"><div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md"><h2 className="text-2xl font-bold mb-4">{title}</h2><p className="text-gray-600 mb-8">{message}</p><div className="flex justify-end space-x-4"><button onClick={onClose} className="px-6 py-2 rounded-md border font-semibold hover:bg-gray-100">Cancel</button><button onClick={onConfirm} className="flex items-center px-6 py-2 rounded-md bg-red-600 text-white font-semibold hover:bg-red-700"><Icon className="w-4 h-4 mr-2"/> {confirmText}</button></div></div></div>);
+};
+const Header = ({ user, auth, selectedVenue, setSelectedVenue, onManageSettings, onViewReports, currentUserRole, currentUserFeatures, onNewEvent }) => {
+    const { venues } = useAppContext();
+    return (
+        <header className="mb-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                <div><h1 className="text-3xl font-bold text-gray-900">{selectedVenue.name}</h1><p className="text-md text-gray-500 flex items-center mt-1"><Calendar className="w-4 h-4 mr-2" /> Booking Calendar</p></div>
+                <div className="mt-3 sm:mt-0 flex flex-col items-start sm:items-end">
+                    <div className="flex items-center space-x-2 mb-2">
+                        {currentUserRole !== USER_ROLES.STAFF && (
+                            <button onClick={onNewEvent} className="flex items-center text-sm px-3 py-2 rounded-md bg-indigo-600 text-white font-semibold hover:bg-indigo-700">
+                                <PlusCircle className="w-4 h-4 mr-2"/>New Event
+                            </button>
+                        )}
+                        {currentUserFeatures.includes('reporting') && (
+                            <button onClick={onViewReports} className="flex items-center text-sm px-3 py-2 rounded-md border hover:bg-gray-100"><BarChart2 className="w-4 h-4 mr-2"/>Reports</button>
+                        )}
+                        {currentUserRole !== USER_ROLES.STAFF && (
+                            <button onClick={onManageSettings} className="flex items-center text-sm px-3 py-2 rounded-md border hover:bg-gray-100"><Settings className="w-4 h-4 mr-2"/>Settings</button>
+                        )}
+                        <button onClick={() => signOut(auth)} className="flex items-center text-sm px-3 py-2 rounded-md border text-red-600 hover:bg-red-50"><LogOut className="w-4 h-4 mr-2"/>Logout</button>
+                    </div>
+                    <select value={selectedVenue.id} onChange={(e) => setSelectedVenue(venues.find(v => v.id === e.target.value))} className="mb-2 px-3 py-2 border rounded-md shadow-sm w-full sm:w-auto">{venues.map(venue => <option key={venue.id} value={venue.id}>{venue.name}</option>)}</select>
+                    <span className="text-xs text-gray-400">Logged in as: {user.email} ({currentUserRole})</span>
+                </div>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-600">{Object.values(EVENT_STATUSES).map(({color, label}) => (<div key={label} className="flex items-center"><div className={`w-3 h-3 rounded-full mr-2 ${color}`}></div>{label}</div>))}</div>
+        </header>
+    );
+};
+const CalendarControls = ({ currentDate, setCurrentDate, timeZone }) => (
+    <div className="flex items-center"><h2 className="text-xl font-semibold text-gray-700">{`${formatDate(startOfWeek(currentDate), {month: 'long', day: 'numeric'}, timeZone)} - ${formatDate(addDays(startOfWeek(currentDate), 6), {month: 'long', day: 'numeric', year: 'numeric'}, timeZone)}`}</h2><div className="flex items-center space-x-2 ml-auto"><button onClick={() => setCurrentDate(p => addDays(p, -7))} className="p-2 rounded-full hover:bg-gray-200"><ArrowLeft className="w-5 h-5" /></button><button onClick={() => setCurrentDate(new Date())} className="px-4 py-2 text-sm font-medium border rounded-md hover:bg-gray-100">Today</button><button onClick={() => setCurrentDate(p => addDays(p, 7))} className="p-2 rounded-full hover:bg-gray-200"><ArrowRight className="w-5 h-5" /></button></div></div>
+);
+
+const BookingDetailsModal = ({ booking, currentUserRole, onClose, onEdit }) => {
+    const { customers, venues, appSettings, db, appId, bookings, services, packages } = useAppContext();
+    const { handleUpdateContract } = useFirestoreActions();
+    const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+    const [isCommunicating, setIsCommunicating] = useState(false);
+    const [notes, setNotes] = useState(booking.notes || '');
+    const [activeTab, setActiveTab] = useState('details');
+    const canEdit = currentUserRole !== USER_ROLES.STAFF;
+    const timeZone = appSettings?.timeZone || 'UTC';
+    
+    const customer = customers.find(c => c.id === booking.customerId);
+
+    const contractBookings = useMemo(() => {
+        return bookings
+            .filter(b => b.contractId === booking.contractId)
+            .sort((a, b) => a.startTime - b.startTime);
+    }, [bookings, booking.contractId]);
+
+    const priceDetails = useMemo(() => {
+        const contractBookingsForPrice = bookings.filter(b => b.contractId === booking.contractId);
+        return calculatePriceBreakdown(contractBookingsForPrice, appSettings, services, packages);
+    }, [booking.contractId, bookings, appSettings, services, packages]);
+
+    const handleAddCommunication = async (communicationLog) => {
+        const updatedCommunications = [...(booking.communications || []), communicationLog];
+        await handleUpdateContract(booking.contractId, { communications: updatedCommunications });
+    };
+
+    const handleDelete = async () => {
+        const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'bookings'), where("contractId", "==", booking.contractId));
+        const querySnapshot = await getDocs(q);
+        const batch = writeBatch(db);
+        querySnapshot.forEach((doc) => { batch.delete(doc.ref); });
+        await batch.commit();
+        setIsConfirmingDelete(false);
+        onClose();
+    };
+
+    return (
+        <>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[90vh] flex flex-col">
+                    <div className="p-6 border-b flex justify-between items-start">
+                        <div>
+                            <h2 className="text-2xl font-bold">{booking.eventName}</h2>
+                             <div className="flex border-b mt-4">
+                                <button onClick={() => setActiveTab('details')} className={`px-4 py-2 text-sm font-semibold ${activeTab === 'details' ? 'border-b-2 border-indigo-500 text-indigo-600' : 'text-gray-500'}`}>Details</button>
+                                <button onClick={() => setActiveTab('timeline')} className={`px-4 py-2 text-sm font-semibold ${activeTab === 'timeline' ? 'border-b-2 border-indigo-500 text-indigo-600' : 'text-gray-500'}`}>Timeline</button>
+                            </div>
+                        </div>
+                        <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200"><X className="w-6 h-6"/></button>
+                    </div>
+                    <div className="flex-grow flex overflow-hidden">
+                        {activeTab === 'details' && (
+                            <>
+                                <div className="w-2/3 p-6 space-y-4 border-r overflow-y-auto">
+                                   <div className="grid grid-cols-2 gap-4 text-gray-600"><p><Users className="inline w-5 h-5 mr-3 text-gray-400" /> Booked for <strong>{customer?.name || 'N/A'}</strong></p><p><Building className="inline w-5 h-5 mr-3 text-gray-400" /> {booking.guests} guests</p></div>
+                                   <div className="grid grid-cols-2 gap-4">
+                                       <div className="bg-gray-50 p-4 rounded-md"><h3 className="font-semibold mb-2">Event Status</h3><select value={booking.eventStatus} onChange={e => handleUpdateContract(booking.contractId, { eventStatus: e.target.value })} disabled={!canEdit} className={`w-full p-2 border rounded-md font-bold ${EVENT_STATUSES[booking.eventStatus].color} ${EVENT_STATUSES[booking.eventStatus].textColor}`}><option disabled>Select Status</option>{Object.entries(EVENT_STATUSES).map(([key, {label}]) => <option key={key} value={key}>{label}</option>)}</select></div>
+                                       <div className="bg-gray-50 p-4 rounded-md"><h3 className="font-semibold mb-2">Payment Status</h3><select value={booking.paymentStatus} disabled={!canEdit} onChange={e => handleUpdateContract(booking.contractId, { paymentStatus: e.target.value })} className="w-full p-2 border rounded-md"><option value="unpaid">Unpaid</option><option value="paid">Paid</option></select></div>
+                                   </div>
+                                   <div>
+                                        <h3 className="font-semibold mb-2">Contracted Events</h3>
+                                        <div className="space-y-2">
+                                            {contractBookings.map(b => {
+                                                const v = venues.find(v => v.id === b.venueId);
+                                                const s = v?.spaces.find(s => s.id === b.spaceId);
+                                                return (
+                                                    <div key={b.id} className="p-3 bg-gray-50 rounded-md border">
+                                                        <p className="font-semibold">{s?.name || 'Unknown Space'}</p>
+                                                        <p className="text-sm text-gray-600">{formatDate(b.startTime, {weekday: 'short', month: 'short', day: 'numeric'}, timeZone)}</p>
+                                                        <p className="text-sm text-gray-600">{formatTime(b.startTime, {}, timeZone)} - {formatTime(b.endTime, {}, timeZone)}</p>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                   </div>
+                                   <div className="bg-gray-50 p-4 rounded-md"><h3 className="font-semibold mb-2">Pricing</h3><div className="text-right text-2xl font-bold">{formatCurrency(priceDetails.total)}</div></div>
+                                   <div><h3 className="font-semibold mb-2">Internal Notes</h3><textarea value={notes} onChange={e => setNotes(e.target.value)} onBlur={() => canEdit && handleUpdateContract(booking.contractId, { notes: notes })} disabled={!canEdit} className="w-full p-2 border rounded-md h-24" placeholder="Add notes..."></textarea></div>
+                                </div>
+                                <div className="w-1/3 p-6 flex flex-col bg-gray-50">
+                                    <h3 className="font-semibold text-lg mb-4">Communication Log</h3>
+                                    <div className="flex-grow space-y-3 overflow-y-auto pr-2">{booking.communications?.map((log, i) => (<div key={i} className="text-xs bg-white p-2 rounded-md border"><div className="flex justify-between mb-1"><span className="font-bold flex items-center">{log.type.toUpperCase()}</span><span className="text-gray-500">{formatDate(log.date, {month: 'short', day:'numeric'}, timeZone)}</span></div><p className="whitespace-pre-wrap">{log.message}</p></div>))}</div>
+                                </div>
+                            </>
+                        )}
+                        {activeTab === 'timeline' && (
+                            <AITimelineGenerator booking={booking} />
+                        )}
+                    </div>
+                    <div className="p-4 bg-gray-100 border-t flex justify-between items-center">
+                        <div>{canEdit && (<button onClick={() => setIsConfirmingDelete(true)} className="flex items-center px-4 py-2 rounded-md bg-red-100 text-red-700 font-semibold text-sm"><Trash2 className="w-4 h-4 mr-2"/> Cancel Event</button>)}</div>
+                        <div className="flex items-center space-x-2">
+                            {canEdit && (<button onClick={() => setIsCommunicating(true)} className="flex items-center px-4 py-2 rounded-md bg-blue-500 text-white font-semibold hover:bg-blue-600"><MessageSquare className="w-4 h-4 mr-2"/> Contact</button>)}
+                            {canEdit && (<button onClick={() => onEdit(booking)} className="flex items-center px-4 py-2 rounded-md bg-gray-200 font-semibold hover:bg-gray-300"><Edit className="w-4 h-4 mr-2"/> Edit</button>)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <ConfirmationModal isOpen={isConfirmingDelete} onClose={() => setIsConfirmingDelete(false)} onConfirm={handleDelete} title="Cancel Event?" message="Are you sure you want to cancel this event?" confirmText="Cancel Event" />
+            {isCommunicating && <CommunicationModal booking={booking} customer={customer} onClose={() => setIsCommunicating(false)} onAddCommunication={handleAddCommunication} />}
+        </>
+    );
+};
+
+const AITimelineGenerator = ({ booking }) => {
+    const { handleUpdateContract } = useFirestoreActions();
+    const { services } = useAppContext();
+    const [isLoading, setIsLoading] = useState(false);
+    const [timeline, setTimeline] = useState(booking.timeline);
+    const [newItem, setNewItem] = useState({ runOfShow: { time: '', task: '' }, task: { text: '', role: 'Staff' } });
+
+    const generateMockTimeline = () => {
+        const eventNameLower = booking.eventName.toLowerCase();
+        let runOfShow = [];
+        let tasks = [
+            { id: crypto.randomUUID(), text: 'Confirm final guest count with client', completed: false, role: 'Event Manager' },
+            { id: crypto.randomUUID(), text: 'Coordinate vendor arrival times', completed: false, role: 'Coordinator' },
+            { id: crypto.randomUUID(), text: 'Charge all staff radios', completed: false, role: 'Staff' },
+        ];
+
+        // Context-aware "Run of Show"
+        if (eventNameLower.includes('wedding')) {
+            runOfShow = [
+                { id: crypto.randomUUID(), time: '4h before', task: 'Bridal suite ready' },
+                { id: crypto.randomUUID(), time: '2h before', task: 'Ceremony space final check' },
+                { id: crypto.randomUUID(), time: '1h before', task: 'Guest arrival music starts' },
+                { id: crypto.randomUUID(), time: 'Event Start', task: 'Ceremony begins' },
+                { id: crypto.randomUUID(), time: '30m after start', task: 'Cocktail hour begins' },
+                { id: crypto.randomUUID(), time: '1h 30m after start', task: 'Dinner service' },
+            ];
+            tasks.push({ id: crypto.randomUUID(), text: 'Coordinate with wedding planner', completed: false, role: 'Event Manager' });
+        } else if (eventNameLower.includes('conference') || eventNameLower.includes('meeting')) {
+            runOfShow = [
+                { id: crypto.randomUUID(), time: '3h before', task: 'A/V and tech setup' },
+                { id: crypto.randomUUID(), time: '1h before', task: 'Registration desk opens' },
+                { id: crypto.randomUUID(), time: 'Event Start', task: 'Keynote speech begins' },
+                { id: crypto.randomUUID(), time: '2h after start', task: 'Breakout sessions' },
+                { id: crypto.randomUUID(), time: '4h after start', task: 'Networking lunch' },
+            ];
+            tasks.push({ id: crypto.randomUUID(), text: 'Prepare attendee badges', completed: false, role: 'Coordinator' });
+        } else { // Default/Party
+            runOfShow = [
+                { id: crypto.randomUUID(), time: '2h before', task: 'Staff briefing' },
+                { id: crypto.randomUUID(), time: '1h before', task: 'Final decor check' },
+                { id: crypto.randomUUID(), time: 'Event Start', task: 'Guest arrival' },
+                { id: crypto.randomUUID(), time: '1h after start', task: 'Main activity/food service' },
+                { id: crypto.randomUUID(), time: 'Event End', task: 'Guest departure' },
+            ];
+        }
+
+        // Smart Task Generation based on services
+        booking.addOns?.forEach(serviceId => {
+            const service = services.find(s => s.id === serviceId);
+            if (service) {
+                const category = service.category?.toLowerCase() || '';
+                if (category.includes('a/v')) tasks.push({ id: crypto.randomUUID(), text: `Confirm A/V requirements for "${service.name}"`, completed: false, role: 'A/V Tech' });
+                if (category.includes('catering')) tasks.push({ id: crypto.randomUUID(), text: `Finalize menu with catering for "${service.name}"`, completed: false, role: 'Event Manager' });
+                if (category.includes('decor')) tasks.push({ id: crypto.randomUUID(), text: `Confirm decor layout for "${service.name}"`, completed: false, role: 'Coordinator' });
+            }
+        });
+
+        return { runOfShow, tasks, generatedAt: Timestamp.now() };
+    };
+
+    const handleGenerate = async () => {
+        setIsLoading(true);
+        await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate AI thinking
+        const newTimeline = generateMockTimeline();
+        await handleUpdateContract(booking.contractId, { timeline: newTimeline });
+        setTimeline(newTimeline);
+        setIsLoading(false);
+    };
+
+    const updateTimeline = async (newTimeline) => {
+        await handleUpdateContract(booking.contractId, { timeline: newTimeline });
+        setTimeline(newTimeline);
+    };
+    
+    const handleAddItem = (type) => {
+        if (type === 'runOfShow' && newItem.runOfShow.task) {
+            const newRunOfShow = [...timeline.runOfShow, { ...newItem.runOfShow, id: crypto.randomUUID() }];
+            updateTimeline({ ...timeline, runOfShow: newRunOfShow });
+            setNewItem(prev => ({ ...prev, runOfShow: { time: '', task: '' } }));
+        } else if (type === 'task' && newItem.task.text) {
+            const newTasks = [...timeline.tasks, { ...newItem.task, id: crypto.randomUUID(), completed: false }];
+            updateTimeline({ ...timeline, tasks: newTasks });
+            setNewItem(prev => ({ ...prev, task: { text: '', role: 'Staff' } }));
+        }
+    };
+
+    const handleRemoveItem = (type, id) => {
+        if (type === 'runOfShow') {
+            const newRunOfShow = timeline.runOfShow.filter(item => item.id !== id);
+            updateTimeline({ ...timeline, runOfShow: newRunOfShow });
+        } else if (type === 'task') {
+            const newTasks = timeline.tasks.filter(item => item.id !== id);
+            updateTimeline({ ...timeline, tasks: newTasks });
+        }
+    };
+
+    const toggleTask = async (id) => {
+        const newTasks = timeline.tasks.map(task => task.id === id ? { ...task, completed: !task.completed } : task);
+        updateTimeline({ ...timeline, tasks: newTasks });
+    };
+
+    const isConfirmed = ['Confirmed', 'Deposit Paid', 'Paid in Full'].includes(booking.eventStatus);
+
+    if (!isConfirmed) {
+        return (
+            <div className="p-6 text-center text-gray-500">
+                <Info className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <h3 className="font-semibold text-lg">Confirm Booking to Generate Plan</h3>
+                <p>Once the event status is set to "Confirmed" or a payment is made, you can generate the AI operations plan here.</p>
+            </div>
+        );
+    }
+
+    if (isLoading) {
+        return (
+            <div className="p-6 text-center text-gray-500 animate-pulse">
+                <Zap className="w-12 h-12 mx-auto mb-4 text-indigo-400" />
+                <h3 className="font-semibold text-lg">AI is building your event plan...</h3>
+                <p>Analyzing schedule, services, and notes to create the perfect timeline.</p>
+            </div>
+        );
+    }
+
+    if (!timeline) {
+        return (
+            <div className="p-6 text-center">
+                <Zap className="w-12 h-12 mx-auto mb-4 text-indigo-500" />
+                <h3 className="font-semibold text-xl">Automate Your Event Plan</h3>
+                <p className="text-gray-600 mb-6">Let AI create a detailed "Run of Show" timeline and an internal task list based on your event's details.</p>
+                <button onClick={handleGenerate} className="px-6 py-3 rounded-md bg-indigo-600 text-white font-semibold hover:bg-indigo-700 flex items-center justify-center mx-auto">
+                    <Zap className="w-5 h-5 mr-2" /> Generate AI Operations Plan
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="p-6 w-full overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+                <div>
+                    <h3 className="font-bold text-xl">Event Operations Plan</h3>
+                    <p className="text-xs text-gray-500">AI Generated on: {formatDate(timeline.generatedAt, { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                </div>
+                <button onClick={handleGenerate} className="text-sm flex items-center px-3 py-1.5 rounded-md border text-indigo-600 hover:bg-indigo-50">
+                    <RefreshCw className="w-4 h-4 mr-2"/>Regenerate
+                </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <h4 className="font-semibold text-lg mb-2 flex items-center"><Clock className="w-5 h-5 mr-2 text-gray-500"/> Run of Show</h4>
+                    <ul className="space-y-2">
+                        {timeline.runOfShow.map((item) => (
+                            <li key={item.id} className="flex items-start p-2 bg-gray-50 rounded-md group">
+                                <span className="font-mono text-sm text-indigo-600 w-28 shrink-0">{item.time}</span>
+                                <span className="text-gray-800 flex-grow">{item.task}</span>
+                                <button onClick={() => handleRemoveItem('runOfShow', item.id)} className="ml-2 text-red-500 opacity-0 group-hover:opacity-100"><Trash2 className="w-4 h-4"/></button>
+                            </li>
+                        ))}
+                    </ul>
+                    <div className="mt-2 flex gap-2"><input value={newItem.runOfShow.time} onChange={e => setNewItem(p=>({...p, runOfShow: {...p.runOfShow, time: e.target.value}}))} placeholder="Time" className="p-1 border rounded-md w-24 text-sm" /><input value={newItem.runOfShow.task} onChange={e => setNewItem(p=>({...p, runOfShow: {...p.runOfShow, task: e.target.value}}))} placeholder="Task description" className="p-1 border rounded-md flex-grow text-sm" /><button onClick={() => handleAddItem('runOfShow')} className="px-2 py-1 bg-gray-200 rounded-md text-sm">Add</button></div>
+                </div>
+                <div>
+                    <h4 className="font-semibold text-lg mb-2 flex items-center"><ClipboardList className="w-5 h-5 mr-2 text-gray-500"/> Internal Task List</h4>
+                     <ul className="space-y-2">
+                        {timeline.tasks.map((item) => (
+                            <li key={item.id} className="flex items-start p-2 bg-white border rounded-md group">
+                                <CheckSquare onClick={() => toggleTask(item.id)} className={`w-5 h-5 mr-3 mt-1 shrink-0 cursor-pointer ${item.completed ? 'text-green-500' : 'text-gray-300'}`} />
+                                <div className="flex-grow">
+                                    <span className={`${item.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}>{item.text}</span>
+                                    <div className="text-xs text-white bg-gray-400 px-1.5 py-0.5 rounded-full inline-flex items-center ml-2"><UserCheck className="w-3 h-3 mr-1"/>{item.role}</div>
+                                </div>
+                                <button onClick={() => handleRemoveItem('task', item.id)} className="ml-2 text-red-500 opacity-0 group-hover:opacity-100"><Trash2 className="w-4 h-4"/></button>
+                            </li>
+                        ))}
+                    </ul>
+                    <div className="mt-2 flex gap-2"><input value={newItem.task.text} onChange={e => setNewItem(p=>({...p, task: {...p.task, text: e.target.value}}))} placeholder="New task..." className="p-1 border rounded-md flex-grow text-sm" /><select value={newItem.task.role} onChange={e => setNewItem(p=>({...p, task: {...p.task, role: e.target.value}}))} className="p-1 border rounded-md text-sm"><option>Staff</option><option>Coordinator</option><option>Event Manager</option><option>A/V Tech</option></select><button onClick={() => handleAddItem('task')} className="px-2 py-1 bg-gray-200 rounded-md text-sm">Add</button></div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const CommunicationModal = ({ booking, customer, onClose, onAddCommunication }) => {
+    const [type, setType] = useState('email');
+    const [message, setMessage] = useState('');
+    
+    const handleSend = () => {
+        if (!message) return;
+        onAddCommunication({ type, message, date: Timestamp.now() });
+        if (type === 'email') window.location.href = `mailto:${customer?.email}?subject=${encodeURIComponent(`Update for ${booking.eventName}`)}&body=${encodeURIComponent(message)}`;
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
+                <div className="p-6 border-b"><h2 className="text-2xl font-bold">Contact Customer</h2></div>
+                <div className="p-6 space-y-4">
+                    <p><strong>To:</strong> {customer.name} ({customer.email})</p>
+                    <div><span className="text-sm font-semibold">Method:</span><div className="flex mt-1"><button onClick={()=>setType('email')} className={`px-4 py-2 rounded-l-md border ${type==='email' ? 'bg-indigo-600 text-white' : ''}`}>Email</button><button onClick={()=>setType('sms')} className={`px-4 py-2 rounded-r-md border ${type==='sms' ? 'bg-indigo-600 text-white' : ''}`}>Log Call</button></div></div>
+                    <div><label className="text-sm font-semibold">Message</label><textarea value={message} onChange={e => setMessage(e.target.value)} className="w-full mt-1 p-2 border rounded-md h-40" placeholder="Type your message..."/></div>
+                </div>
+                <div className="p-4 bg-gray-50 flex justify-end items-center rounded-b-lg">
+                    <div className="flex space-x-2"><button onClick={onClose} className="px-4 py-2 rounded-md">Cancel</button><button onClick={handleSend} className="px-4 py-2 rounded-md bg-indigo-600 text-white font-semibold flex items-center"><Send className="w-4 h-4 mr-2"/>{type === 'email' ? 'Send' : 'Log'}</button></div>
+                </div>
+            </div>
+        </div>
+    )
+};
+
+const KanbanView = ({ onSelectBooking, currentUserRole, timeZone }) => {
+    const { bookings, customers } = useAppContext();
+    const { handleUpdateContract } = useFirestoreActions();
+    const [draggedContractId, setDraggedContractId] = useState(null);
+    const contracts = useMemo(() => Object.values(bookings.reduce((acc, b) => { acc[b.contractId] = acc[b.contractId] || { ...b, bookings: [], startDate: b.startTime, endDate: b.endTime }; acc[b.contractId].bookings.push(b); if (b.startTime < acc[b.contractId].startDate) acc[b.contractId].startDate = b.startTime; if (b.endTime > acc[b.contractId].endDate) acc[b.contractId].endDate = b.endTime; return acc; }, {})), [bookings]);
+    const canDrag = currentUserRole !== USER_ROLES.STAFF;
+    return (
+        <div className="flex gap-4 overflow-x-auto p-2 -mx-2">
+            {Object.keys(EVENT_STATUSES).map(statusKey => (
+                <div key={statusKey} className="w-80 bg-gray-100 rounded-lg shrink-0" onDragOver={e=>e.preventDefault()} onDrop={e => {e.preventDefault(); if(draggedContractId) handleUpdateContract(draggedContractId, { eventStatus: statusKey }); setDraggedContractId(null);}}>
+                    <div className={`p-3 font-bold text-lg text-center rounded-t-lg ${EVENT_STATUSES[statusKey].color} ${EVENT_STATUSES[statusKey].textColor}`}>{EVENT_STATUSES[statusKey].label}</div>
+                    <div className="p-2 space-y-3 h-full overflow-y-auto">{contracts.filter(c => c.eventStatus === statusKey).map(contract => (<div key={contract.contractId} draggable={canDrag} onDragStart={e => canDrag && setDraggedContractId(contract.contractId)} onClick={() => onSelectBooking(contract)} className={`bg-white p-3 rounded-md shadow-sm border-l-4 ${canDrag ? 'cursor-grab' : 'cursor-pointer'} hover:shadow-md`} style={{ borderColor: EVENT_STATUSES[contract.eventStatus].hex }}><h4 className="font-bold">{contract.eventName}</h4><p className="text-sm text-gray-600">{customers.find(c => c.id === contract.customerId)?.name}</p><p className="text-xs text-gray-500 mt-2">{formatDate(contract.startDate, {month: 'short', day: 'numeric'}, timeZone)} - {formatDate(contract.endDate, {month: 'short', day: 'numeric'}, timeZone)}</p></div>))}</div>
+                </div>
+            ))}
+        </div>
+    )
+};
+
+const TaskManager = () => {
+    const { bookings } = useAppContext();
+    const { handleUpdateContract } = useFirestoreActions();
+
+    const allTasks = useMemo(() => {
+        return bookings
+            .filter(b => b.timeline && b.timeline.tasks && b.startTime > new Date())
+            .flatMap(booking => 
+                booking.timeline.tasks.map(task => ({
+                    ...task,
+                    bookingId: booking.id,
+                    contractId: booking.contractId,
+                    eventName: booking.eventName,
+                    eventDate: booking.startTime,
+                }))
+            );
+    }, [bookings]);
+
+    const toggleTask = async (task) => {
+        const booking = bookings.find(b => b.id === task.bookingId);
+        if (!booking || !booking.timeline) return;
+        
+        const newTasks = booking.timeline.tasks.map(t => 
+            t.id === task.id ? { ...t, completed: !t.completed } : t
+        );
+        const newTimeline = { ...booking.timeline, tasks: newTasks };
+        await handleUpdateContract(task.contractId, { timeline: newTimeline });
+    };
+
+    return (
+        <div>
+            <h2 className="text-xl font-bold mb-4">Master Task List</h2>
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                <table className="w-full">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="p-3 text-left text-sm font-semibold text-gray-600">Status</th>
+                            <th className="p-3 text-left text-sm font-semibold text-gray-600">Task</th>
+                            <th className="p-3 text-left text-sm font-semibold text-gray-600">Event</th>
+                            <th className="p-3 text-left text-sm font-semibold text-gray-600">Event Date</th>
+                            <th className="p-3 text-left text-sm font-semibold text-gray-600">Assigned Role</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                        {allTasks.map(task => (
+                            <tr key={task.id} className="hover:bg-gray-50">
+                                <td className="p-3">
+                                    <CheckSquare onClick={() => toggleTask(task)} className={`w-5 h-5 cursor-pointer ${task.completed ? 'text-green-500' : 'text-gray-300'}`} />
+                                </td>
+                                <td className={`p-3 ${task.completed ? 'line-through text-gray-400' : ''}`}>{task.text}</td>
+                                <td className="p-3 text-sm text-gray-600">{task.eventName}</td>
+                                <td className="p-3 text-sm text-gray-600">{formatDate(task.eventDate, {month: 'short', day: 'numeric'})}</td>
+                                <td className="p-3"><span className="text-xs text-white bg-gray-400 px-2 py-1 rounded-full">{task.role}</span></td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
+const PolicyManager = () => {
+    const { policies } = useAppContext();
+    const { saveDoc } = useFirestoreActions();
+    const [editingItem, setEditingItem] = useState(null);
+    const [isCreating, setIsCreating] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(null);
+    const handleSave = (item) => { saveDoc('policies', item); setEditingItem(null); setIsCreating(false); };
+    const handleDelete = () => { if(confirmDelete) { saveDoc('policies', confirmDelete, true); setConfirmDelete(null); } };
+    if (editingItem || isCreating) return <PolicyEditor policy={editingItem} onSave={handleSave} onClose={() => { setEditingItem(null); setIsCreating(false); }} />;
+    return (
+        <div>
+            <div className="flex justify-end mb-4"><button onClick={() => setIsCreating(true)} className="flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white font-semibold"><PlusCircle className="w-5 h-5 mr-2"/>New Policy</button></div>
+            <div className="space-y-4">{policies.map(policy => (<div key={policy.id} className="p-4 border bg-white rounded-lg flex justify-between items-center"><div><h3 className="font-bold text-lg">{policy.title}</h3></div><div className="space-x-2"><button onClick={() => setEditingItem(policy)} className="p-2 rounded-md hover:bg-gray-200"><Edit className="w-5 h-5"/></button><button onClick={() => setConfirmDelete(policy)} className="p-2 rounded-md hover:bg-red-100 text-red-600"><Trash2 className="w-5 h-5"/></button></div></div>))}</div>
+            <ConfirmationModal isOpen={!!confirmDelete} onClose={() => setConfirmDelete(null)} onConfirm={handleDelete} title="Delete Policy?" message="Are you sure?" confirmText="Delete"/>
+        </div>
+    );
+};
+
+const PolicyEditor = ({ policy, onSave, onClose }) => {
+    const [formData, setFormData] = useState(policy || { title: '', content: '' });
+    const handleChange = e => setFormData({...formData, [e.target.name]: e.target.value });
+    const handleSubmit = e => { e.preventDefault(); onSave(formData); };
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
+            <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-xl w-full max-w-2xl h-[90vh] flex flex-col">
+                <div className="p-6 border-b"><h2 className="text-2xl font-bold">{policy ? 'Edit Policy' : 'New Policy'}</h2></div>
+                <div className="flex-grow p-6 space-y-4 flex flex-col">
+                    <div><label className="font-semibold">Policy Title</label><input type="text" name="title" value={formData.title} onChange={handleChange} required className="w-full mt-1 px-3 py-2 border rounded-md"/></div>
+                    <div className="flex-grow flex flex-col"><label className="font-semibold">Content</label><textarea name="content" value={formData.content} onChange={handleChange} className="w-full mt-1 px-3 py-2 border rounded-md flex-grow"/></div>
+                </div>
+                <div className="p-4 bg-gray-50 flex justify-end space-x-2 rounded-b-lg"><button type="button" onClick={onClose} className="px-4 py-2 rounded-md">Cancel</button><button type="submit" className="px-4 py-2 rounded-md bg-indigo-600 text-white font-semibold">Save Policy</button></div>
+            </form>
+        </div>
+    );
+};
+
+const BookingSettings = ({ settings, onSave }) => {
+    const [formData, setFormData] = useState(settings);
+    const handleChange = (e) => setFormData(p => ({...p, [e.target.name]: parseInt(e.target.value, 10) }));
+    return (
+        <div>
+            <h2 className="text-xl font-bold mb-4">Booking Settings</h2>
+            <div className="p-4 bg-white border rounded-md max-w-md space-y-4">
+                <div>
+                    <label className="font-semibold">Booking Window Start Hour</label>
+                    <input type="number" name="bookingWindowStart" value={formData.bookingWindowStart || 8} onChange={handleChange} min="0" max="23" className="w-full mt-1 p-2 border rounded-md"/>
+                </div>
+                <div>
+                    <label className="font-semibold">Booking Window End Hour</label>
+                    <input type="number" name="bookingWindowEnd" value={formData.bookingWindowEnd || 22} onChange={handleChange} min="1" max="24" className="w-full mt-1 p-2 border rounded-md"/>
+                </div>
+                <div>
+                    <label className="font-semibold">Booking Interval (minutes)</label>
+                    <select name="bookingInterval" value={formData.bookingInterval || 60} onChange={handleChange} className="w-full mt-1 p-2 border rounded-md">
+                        <option value={15}>15 minutes</option>
+                        <option value={30}>30 minutes</option>
+                        <option value={60}>1 hour</option>
+                        <option value={120}>2 hours</option>
+                    </select>
+                </div>
+            </div>
+            <div className="mt-6"><button onClick={() => onSave(formData)} className="px-6 py-2 rounded-md bg-indigo-600 text-white font-semibold">Save Settings</button></div>
+        </div>
+    )
+}

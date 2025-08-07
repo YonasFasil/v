@@ -109,10 +109,10 @@ export const packages = pgTable("packages", {
   name: text("name").notNull(),
   description: text("description"),
   category: text("category").notNull(), // wedding, corporate, social, etc.
-  basePrice: decimal("base_price", { precision: 10, scale: 2 }).notNull(),
-  includedServices: text("included_services").array(),
-  maxGuests: integer("max_guests"),
-  features: text("features").array(),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  pricingModel: text("pricing_model").notNull().default("fixed"), // "fixed" or "per_person"
+  applicableSpaceIds: text("applicable_space_ids").array(), // Which venues this applies to
+  includedServiceIds: text("included_service_ids").array(), // Which services are included
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -123,7 +123,7 @@ export const services = pgTable("services", {
   description: text("description"),
   category: text("category").notNull(), // catering, entertainment, decor, etc.
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  unit: text("unit").notNull().default("per person"), // per person, per hour, flat rate
+  pricingModel: text("pricing_model").notNull().default("fixed"), // "fixed" or "per_person"
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
