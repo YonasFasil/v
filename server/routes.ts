@@ -41,6 +41,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/venues", async (req, res) => {
+    try {
+      const venue = await storage.createVenue(req.body);
+      res.status(201).json(venue);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create venue" });
+    }
+  });
+
+  // Packages
+  app.get("/api/packages", async (req, res) => {
+    try {
+      const packages = await storage.getPackages();
+      res.json(packages);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch packages" });
+    }
+  });
+
+  app.post("/api/packages", async (req, res) => {
+    try {
+      const packageData = await storage.createPackage(req.body);
+      res.status(201).json(packageData);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create package" });
+    }
+  });
+
+  // Services
+  app.get("/api/services", async (req, res) => {
+    try {
+      const services = await storage.getServices();
+      res.json(services);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch services" });
+    }
+  });
+
+  app.post("/api/services", async (req, res) => {
+    try {
+      const service = await storage.createService(req.body);
+      res.status(201).json(service);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create service" });
+    }
+  });
+
   // Customers
   app.get("/api/customers", async (req, res) => {
     try {

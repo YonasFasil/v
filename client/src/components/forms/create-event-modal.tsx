@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ChevronLeft, ChevronRight, Plus, Minus, Check, Mic, MicOff, User } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Minus, Check, Mic, MicOff, User, X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
@@ -827,7 +827,7 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
                     onClick={() => setShowCustomerForm(false)}
                     className="h-6 w-6 p-0"
                   >
-                    <X className="w-4 h-4" />
+                    ×
                   </Button>
                 </div>
                 

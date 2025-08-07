@@ -6,6 +6,8 @@ import {
   FileText, 
   CreditCard, 
   CheckSquare,
+  MapPin,
+  Package,
   Zap,
   Mail,
   BarChart3,
@@ -20,6 +22,8 @@ const navigationItems = [
   { name: "Proposals & Contracts", href: "/proposals", icon: FileText },
   { name: "Payments", href: "/payments", icon: CreditCard },
   { name: "Tasks & Team", href: "/tasks", icon: CheckSquare },
+  { name: "Venues", href: "/venues", icon: MapPin },
+  { name: "Packages & Services", href: "/packages", icon: Package },
 ];
 
 const aiFeatures = [

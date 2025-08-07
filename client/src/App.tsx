@@ -9,6 +9,8 @@ import Customers from "@/pages/customers";
 import Proposals from "@/pages/proposals";
 import Payments from "@/pages/payments";
 import Tasks from "@/pages/tasks";
+import Venues from "@/pages/venues";
+import Packages from "@/pages/packages";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -20,6 +22,8 @@ function Router() {
       <Route path="/proposals" component={Proposals} />
       <Route path="/payments" component={Payments} />
       <Route path="/tasks" component={Tasks} />
+      <Route path="/venues" component={Venues} />
+      <Route path="/packages" component={Packages} />
       <Route component={NotFound} />
     </Switch>
   );

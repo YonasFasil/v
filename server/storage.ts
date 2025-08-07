@@ -60,6 +60,12 @@ export interface IStorage {
   getAiInsights(): Promise<AiInsight[]>;
   getActiveAiInsights(): Promise<AiInsight[]>;
   createAiInsight(insight: InsertAiInsight): Promise<AiInsight>;
+
+  // Packages & Services
+  getPackages(): Promise<any[]>;
+  createPackage(pkg: any): Promise<any>;
+  getServices(): Promise<any[]>;
+  createService(service: any): Promise<any>;
 }
 
 export class MemStorage implements IStorage {
@@ -71,6 +77,8 @@ export class MemStorage implements IStorage {
   private payments: Map<string, Payment>;
   private tasks: Map<string, Task>;
   private aiInsights: Map<string, AiInsight>;
+  private packages: Map<string, any>;
+  private services: Map<string, any>;
 
   constructor() {
     this.users = new Map();
@@ -81,6 +89,8 @@ export class MemStorage implements IStorage {
     this.payments = new Map();
     this.tasks = new Map();
     this.aiInsights = new Map();
+    this.packages = new Map();
+    this.services = new Map();
 
     this.initializeData();
   }
@@ -377,6 +387,38 @@ export class MemStorage implements IStorage {
     };
     this.aiInsights.set(id, insight);
     return insight;
+  }
+
+  // Packages
+  async getPackages(): Promise<any[]> {
+    return Array.from(this.packages.values());
+  }
+
+  async createPackage(pkg: any): Promise<any> {
+    const id = randomUUID();
+    const newPackage = {
+      id,
+      ...pkg,
+      createdAt: new Date()
+    };
+    this.packages.set(id, newPackage);
+    return newPackage;
+  }
+
+  // Services
+  async getServices(): Promise<any[]> {
+    return Array.from(this.services.values());
+  }
+
+  async createService(service: any): Promise<any> {
+    const id = randomUUID();
+    const newService = {
+      id,
+      ...service,
+      createdAt: new Date()
+    };
+    this.services.set(id, newService);
+    return newService;
   }
 }
 
