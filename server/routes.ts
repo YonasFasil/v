@@ -271,7 +271,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(booking);
     } catch (error) {
+      console.error('Booking update error:', error);
       res.status(500).json({ message: "Failed to update booking" });
+    }
+  });
+
+  app.delete("/api/bookings/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteBooking(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+      res.json({ message: "Booking deleted successfully" });
+    } catch (error) {
+      console.error('Booking delete error:', error);
+      res.status(500).json({ message: "Failed to delete booking" });
     }
   });
 

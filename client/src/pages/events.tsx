@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CreateEventModal } from "@/components/forms/create-event-modal";
+import { EditEventModal } from "@/components/forms/edit-event-modal";
 import { useBookings } from "@/hooks/use-bookings";
 import { Calendar, Clock, MapPin, Users } from "lucide-react";
 import { format } from "date-fns";
@@ -14,6 +15,7 @@ import { format } from "date-fns";
 export default function Events() {
   const { data: bookings, isLoading } = useBookings();
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingBooking, setEditingBooking] = useState<any>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const getStatusColor = (status: string) => {
@@ -84,6 +86,12 @@ export default function Events() {
             open={showCreateForm} 
             onOpenChange={setShowCreateForm} 
           />
+          
+          <EditEventModal 
+            open={!!editingBooking} 
+            onOpenChange={(open) => !open && setEditingBooking(null)} 
+            booking={editingBooking}
+          />
           {!bookings || bookings.length === 0 ? (
             <div className="text-center py-12">
               <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-4" />
@@ -99,7 +107,7 @@ export default function Events() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {bookings.map((booking) => (
-                <Card key={booking.id} className="hover:shadow-md transition-shadow">
+                <Card key={booking.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setEditingBooking(booking)}>
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div>
@@ -129,6 +137,9 @@ export default function Events() {
                         ${parseFloat(booking.totalAmount).toLocaleString()}
                       </div>
                     )}
+                    <div className="flex justify-end pt-2">
+                      <span className="text-xs text-blue-600 hover:text-blue-800">Click to edit →</span>
+                    </div>
                   </CardContent>
                 </Card>
               ))}

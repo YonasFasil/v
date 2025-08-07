@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -81,7 +81,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
     selectedServices.forEach(serviceId => {
       const service = services.find((s: any) => s.id === serviceId);
       if (service) {
-        total += parseFloat(service.price);
+        total += parseFloat(service.price) * guestCount; // Apply guest count to services
       }
     });
     return total;
@@ -194,7 +194,11 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl h-[80vh] p-0 overflow-hidden">
+      <DialogContent className="max-w-6xl h-[85vh] p-0 overflow-hidden" aria-describedby="create-event-description">
+        <DialogTitle className="sr-only">Create Event</DialogTitle>
+        <div id="create-event-description" className="sr-only">
+          Create a new event booking with date selection, venue configuration, and customer details.
+        </div>
         <div className="flex h-full">
           {/* Left sidebar - Event dates summary (Steps 2 & 3) */}
           {currentStep > 1 && (
@@ -222,7 +226,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                       {format(dateInfo.date, 'MMMM d, yyyy')}
                     </div>
                     <div className="text-sm text-blue-600 mt-1">
-                      {selectedVenueData?.spaces?.[0]?.name || selectedVenueData?.name} @ {dateInfo.startTime}
+                      {selectedVenueData?.name} - {selectedVenueData?.spaces?.[0]?.name || 'Main Hall'} @ {dateInfo.startTime}
                     </div>
                   </Card>
                 ))}
@@ -312,16 +316,29 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                       <Label className="text-base font-medium">Venue</Label>
                       <Select value={selectedVenue} onValueChange={setSelectedVenue}>
                         <SelectTrigger className="mt-2">
-                          <SelectValue placeholder="Select a venue" />
+                          <SelectValue placeholder="Select a venue (property)" />
                         </SelectTrigger>
                         <SelectContent>
                           {venues.map((venue: any) => (
                             <SelectItem key={venue.id} value={venue.id}>
-                              {venue.name}
+                              {venue.name} - {venue.spaces?.length || 0} spaces available
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      {selectedVenueData && (
+                        <div className="mt-2 p-3 bg-slate-50 rounded border">
+                          <p className="text-sm text-slate-600 mb-2">Available spaces in this venue:</p>
+                          <div className="space-y-1">
+                            {selectedVenueData.spaces?.map((space: any) => (
+                              <div key={space.id} className="text-sm">
+                                <span className="font-medium">{space.name}</span>
+                                <span className="text-slate-500 ml-2">• Capacity: {space.capacity}</span>
+                              </div>
+                            )) || <p className="text-sm text-slate-500">No spaces configured</p>}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -340,7 +357,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                             
                             <div className="space-y-2">
                               <div className="text-sm text-green-600 mb-2">
-                                {selectedVenueData?.spaces?.[0]?.name || 'Select venue first'}
+                                Space: {selectedVenueData?.spaces?.[0]?.name || 'Main Hall'} (Default space will be booked)
                               </div>
                               
                               <div className="flex items-center gap-2">
@@ -430,19 +447,32 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                             ))}
                           </SelectContent>
                         </Select>
+                        {selectedPackageData && (
+                          <div className="mt-2 p-3 bg-blue-50 rounded border border-blue-200">
+                            <p className="text-sm font-medium text-blue-900">Package includes:</p>
+                            <div className="text-xs text-blue-700 mt-1">
+                              Services bundled in this package will appear automatically
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div>
                         <div className="flex items-center justify-between mb-2">
                           <Label className="text-base font-medium">Add-on Services</Label>
                           <div className="flex gap-2">
-                            <Button variant="outline" size="sm">Apply guest count</Button>
+                            <Badge variant="secondary" className="bg-green-100 text-green-700">
+                              Auto-apply guest count: ON
+                            </Badge>
                             <Button variant="outline" size="sm">+ New Service</Button>
                           </div>
                         </div>
-                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                        <p className="text-xs text-slate-600 mb-3">
+                          Additional services beyond the selected package. Quantities will be automatically set to guest count ({guestCount}).
+                        </p>
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
                           {services.map((service: any) => (
-                            <label key={service.id} className="flex items-center gap-2 p-2 border rounded hover:bg-slate-50 cursor-pointer">
+                            <label key={service.id} className="flex items-center gap-2 p-3 border rounded hover:bg-slate-50 cursor-pointer">
                               <input
                                 type="checkbox"
                                 checked={selectedServices.includes(service.id)}
@@ -457,8 +487,13 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                               />
                               <div className="flex-1">
                                 <div className="font-medium">{service.name}</div>
-                                <div className="text-sm text-slate-600">${service.price}</div>
+                                <div className="text-sm text-slate-600">${service.price} each</div>
                               </div>
+                              {selectedServices.includes(service.id) && (
+                                <div className="text-sm font-medium text-blue-600">
+                                  Qty: {guestCount}
+                                </div>
+                              )}
                             </label>
                           ))}
                         </div>
@@ -478,8 +513,8 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                           const service = services.find((s: any) => s.id === serviceId);
                           return service ? (
                             <div key={serviceId} className="flex justify-between">
-                              <span>{service.name}</span>
-                              <span>${service.price}</span>
+                              <span>{service.name} (×{guestCount})</span>
+                              <span>${(parseFloat(service.price) * guestCount).toFixed(2)}</span>
                             </div>
                           ) : null;
                         })}

@@ -44,8 +44,12 @@ export function AdvancedCalendar() {
 
   // Fetch calendar data based on mode
   const { data: calendarData, isLoading } = useQuery({
-    queryKey: [`/api/calendar/events?mode=${viewMode}`],
-    select: (data: any) => data
+    queryKey: [`/api/calendar/events`, viewMode],
+    queryFn: async () => {
+      const response = await fetch(`/api/calendar/events?mode=${viewMode}`);
+      if (!response.ok) throw new Error('Failed to fetch calendar data');
+      return response.json();
+    }
   });
 
   const events = calendarData?.mode === 'events' ? calendarData.data as CalendarEvent[] : [];
@@ -341,15 +345,21 @@ export function AdvancedCalendar() {
                               <td key={dayIndex} className="border-r border-slate-200 p-1 align-top min-h-[80px] relative">
                                 <div className="h-20 relative">
                                   {dayBookings.map((booking: any, bookingIndex: number) => {
-                                    // Calculate position based on start time
-                                    const startHour = parseInt(booking.startTime.split(':')[0]);
-                                    const startMinute = parseInt(booking.startTime.split(':')[1]);
-                                    const endHour = parseInt(booking.endTime.split(':')[0]);
-                                    const endMinute = parseInt(booking.endTime.split(':')[1]);
+                                    // Calculate position based on start time (assuming 12 PM - 10 PM range)
+                                    const parseTime = (timeStr: string) => {
+                                      const [hours, minutes] = timeStr.split(':').map(Number);
+                                      return hours * 60 + minutes;
+                                    };
                                     
-                                    // Convert to percentage position (12PM = 0%, 10PM = 100%)
-                                    const startPos = Math.max(0, ((startHour - 12) * 60 + startMinute) / (10 * 60) * 100);
-                                    const duration = ((endHour - startHour) * 60 + (endMinute - startMinute)) / (10 * 60) * 100;
+                                    const startMinutes = parseTime(booking.startTime);
+                                    const endMinutes = parseTime(booking.endTime);
+                                    const dayStart = 12 * 60; // 12 PM
+                                    const dayEnd = 22 * 60; // 10 PM
+                                    
+                                    // Convert to percentage position within the day
+                                    const startPos = Math.max(0, Math.min(100, ((startMinutes - dayStart) / (dayEnd - dayStart)) * 100));
+                                    const endPos = Math.max(0, Math.min(100, ((endMinutes - dayStart) / (dayEnd - dayStart)) * 100));
+                                    const width = Math.max(5, endPos - startPos); // Minimum 5% width
                                     
                                     return (
                                       <div
@@ -357,8 +367,9 @@ export function AdvancedCalendar() {
                                         className="absolute rounded text-xs p-1 text-white cursor-pointer hover:opacity-80 shadow-sm"
                                         style={{
                                           left: `${startPos}%`,
-                                          width: `${Math.max(duration, 15)}%`,
-                                          top: `${bookingIndex * 20}px`,
+                                          width: `${width}%`,
+                                          top: `${bookingIndex * 22}px`,
+                                          height: '18px',
                                           backgroundColor: booking.status === 'confirmed' ? '#f59e0b' : 
                                                          booking.status === 'pending' ? '#6b7280' : '#ef4444',
                                           zIndex: 10
