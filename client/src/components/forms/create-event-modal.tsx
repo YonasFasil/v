@@ -396,40 +396,6 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
           Create a new event booking with date selection, venue configuration, and customer details.
         </DialogDescription>
         <div className="flex h-full overflow-hidden">
-          {/* Left sidebar - Event dates summary (Steps 2 & 3) */}
-          {currentStep > 1 && (
-            <div className="hidden lg:block w-80 bg-slate-50 border-r border-slate-200 p-6 overflow-y-auto flex-shrink-0">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-semibold text-slate-900">Event Dates</h3>
-                <Button variant="outline" size="sm" onClick={() => setCurrentStep(1)}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add
-                </Button>
-              </div>
-              
-              <div className="space-y-3">
-                {selectedDates.map((dateInfo, index) => (
-                  <Card key={index} className="p-3 bg-blue-50 border-blue-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-blue-900">
-                        {format(dateInfo.date, 'EEEE, MMMM d, yyyy')}
-                      </span>
-                      <Button variant="ghost" size="sm" onClick={() => setCurrentStep(1)}>
-                        <RotateCcw className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="text-sm text-blue-700">
-                      {format(dateInfo.date, 'MMMM d, yyyy')}
-                    </div>
-                    <div className="text-sm text-blue-600 mt-1">
-                      {selectedVenueData?.name} - {selectedVenueData?.spaces?.[0]?.name || 'Main Hall'} @ {dateInfo.startTime}
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Main content area */}
           <div className="flex-1 flex flex-col min-h-0">
             {/* Header */}
