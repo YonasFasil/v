@@ -292,9 +292,9 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
   };
 
   const renderStep1 = () => (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h3 className="text-lg font-medium mb-4">Venue</h3>
+        <h3 className="text-base sm:text-lg font-medium mb-3 sm:mb-4">Venue</h3>
         <Select defaultValue="yonas-salelew">
           <SelectTrigger>
             <SelectValue placeholder="Select venue" />
@@ -311,28 +311,33 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
       </div>
 
       <div>
-        <h3 className="text-lg font-medium mb-4">Configure Dates ({selectedDates.length})</h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <h3 className="text-base sm:text-lg font-medium mb-3 sm:mb-4">Configure Dates ({selectedDates.length})</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           <div>
             <Calendar
               mode="multiple"
               selected={selectedDates}
               onSelect={(dates) => setSelectedDates(dates || [])}
-              className="rounded-md border"
+              className="rounded-md border mx-auto"
               disabled={(date) => date < new Date()}
             />
           </div>
           
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {selectedDates.map((date) => {
               const dateKey = date.toISOString().split('T')[0];
               const timeSettings = selectedTimes[dateKey] || {};
               
               return (
-                <Card key={dateKey} className="p-4">
+                <Card key={dateKey} className="p-3 sm:p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <div className="font-medium">
-                      {date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                    <div className="font-medium text-sm sm:text-base">
+                      {date.toLocaleDateString('en-US', { 
+                        weekday: 'short', 
+                        month: 'short', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                      })}
                     </div>
                     <Badge variant="secondary" className="bg-green-100 text-green-800">
                       Available
@@ -359,23 +364,23 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
                       </Select>
                     </div>
                     
-                    <div className="flex gap-3">
+                    <div className="flex gap-2 sm:gap-3">
                       <div className="flex-1">
-                        <Label className="text-sm font-medium">Start</Label>
+                        <Label className="text-xs sm:text-sm font-medium">Start</Label>
                         <Input 
                           type="time" 
                           value={timeSettings.start || "9:00"} 
                           onChange={(e) => updateTimeForDate(date, 'start', e.target.value)}
-                          className="mt-1"
+                          className="mt-1 text-sm"
                         />
                       </div>
                       <div className="flex-1">
-                        <Label className="text-sm font-medium">End</Label>
+                        <Label className="text-xs sm:text-sm font-medium">End</Label>
                         <Input 
                           type="time" 
                           value={timeSettings.end || "17:00"} 
                           onChange={(e) => updateTimeForDate(date, 'end', e.target.value)}
-                          className="mt-1"
+                          className="mt-1 text-sm"
                         />
                       </div>
                     </div>
@@ -390,7 +395,7 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
       <div className="flex justify-end">
         <Button 
           onClick={handleGenerateEventSlots}
-          className="bg-blue-600 hover:bg-blue-700"
+          className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
           disabled={selectedDates.length === 0}
         >
           Generate 1 Event Slot(s)
@@ -400,17 +405,17 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
   );
 
   const renderStep2 = () => (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-medium">Event Dates</h3>
-          <Button variant="ghost" size="sm" className="text-blue-600 p-0 h-auto">
+          <h3 className="text-base sm:text-lg font-medium">Event Dates</h3>
+          <Button variant="ghost" size="sm" className="text-blue-600 p-0 h-auto text-xs sm:text-sm">
             + Add
           </Button>
         </div>
         <div>
-          <h3 className="text-lg font-medium">Configure Event</h3>
-          <p className="text-sm text-gray-600">For {selectedDates[0]?.toLocaleDateString()} in 10</p>
+          <h3 className="text-base sm:text-lg font-medium">Configure Event</h3>
+          <p className="text-xs sm:text-sm text-gray-600">For {selectedDates[0]?.toLocaleDateString()} in 10</p>
         </div>
       </div>
 
@@ -475,14 +480,14 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
                 return (
                   <div key={service.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex-1">
-                      <div className="font-medium">{service.name}</div>
+                      <div className="font-medium text-sm sm:text-base">{service.name}</div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3">
                       <div className="text-right">
-                        <div className="font-medium">${service.price}</div>
+                        <div className="font-medium text-sm sm:text-base">${service.price}</div>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Label className="text-sm">Qty:</Label>
+                        <Label className="text-xs sm:text-sm">Qty:</Label>
                         <Button
                           variant="outline"
                           size="sm"
@@ -516,11 +521,11 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
 
       <Separator />
       
-      <div className="flex items-center justify-between">
-        <div className="text-lg font-semibold">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="text-base sm:text-lg font-semibold">
           Grand Total: ${calculateTotal().toFixed(2)}
         </div>
-        <Button onClick={handleNext} className="bg-blue-600 hover:bg-blue-700">
+        <Button onClick={handleNext} className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto">
           Next
         </Button>
       </div>
@@ -620,15 +625,15 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
 
       <Separator />
       
-      <div className="flex items-center justify-between">
-        <div className="text-lg font-semibold">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="text-base sm:text-lg font-semibold">
           Grand Total: ${calculateTotal().toFixed(2)}
         </div>
-        <div className="flex gap-3">
-          <Button type="button" variant="outline" onClick={handleBack}>
+        <div className="flex gap-3 w-full sm:w-auto">
+          <Button type="button" variant="outline" onClick={handleBack} className="flex-1 sm:flex-none">
             Back
           </Button>
-          <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700">
+          <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700 flex-1 sm:flex-none">
             {isSubmitting ? "Saving..." : "Save Changes"}
           </Button>
         </div>
@@ -638,10 +643,10 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full p-3 sm:p-6">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
               {currentStep > 1 && (
                 <Button variant="ghost" size="sm" onClick={handleBack} className="p-1">
                   <ChevronLeft className="h-4 w-4" />
@@ -656,16 +661,16 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
         </DialogHeader>
 
         {/* Progress indicator */}
-        <div className="flex justify-center mb-6">
-          <div className="flex items-center space-x-2">
+        <div className="flex justify-center mb-4 sm:mb-6">
+          <div className="flex items-center space-x-1 sm:space-x-2">
             {[1, 2, 3].map((step) => (
               <div key={step} className="flex items-center">
                 <div 
-                  className={`w-3 h-3 rounded-full ${
+                  className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full ${
                     step <= currentStep ? 'bg-blue-600' : 'bg-gray-300'
                   }`}
                 />
-                {step < 3 && <div className="w-12 h-px bg-gray-300 mx-2" />}
+                {step < 3 && <div className="w-8 sm:w-12 h-px bg-gray-300 mx-1 sm:mx-2" />}
               </div>
             ))}
           </div>
