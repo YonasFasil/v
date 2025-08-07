@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -94,11 +94,11 @@ export function EditPackageModal({ open, onOpenChange, package: pkg }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl p-0 max-h-[90vh] overflow-y-auto" aria-describedby="edit-package-description">
+      <DialogContent className="max-w-3xl p-0 max-h-[90vh] overflow-y-auto">
         <DialogTitle className="sr-only">Edit Package</DialogTitle>
-        <div id="edit-package-description" className="sr-only">
+        <DialogDescription className="sr-only">
           Edit package information including name, price, and included services.
-        </div>
+        </DialogDescription>
         
         <div className="border-b border-slate-200 p-6 flex items-center gap-3">
           <Edit className="h-5 w-5 text-blue-600" />

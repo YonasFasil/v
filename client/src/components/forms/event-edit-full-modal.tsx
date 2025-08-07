@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -390,11 +390,11 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-[95vw] sm:max-w-6xl max-h-[90vh] p-0 flex flex-col mx-2 sm:mx-4 overflow-hidden" aria-describedby="edit-event-description">
+      <DialogContent className="w-full max-w-[95vw] sm:max-w-6xl max-h-[90vh] p-0 flex flex-col mx-2 sm:mx-4 overflow-hidden">
         <DialogTitle className="sr-only">Edit Event</DialogTitle>
-        <div id="edit-event-description" className="sr-only">
+        <DialogDescription className="sr-only">
           Edit event booking with date selection, venue configuration, and customer details.
-        </div>
+        </DialogDescription>
 
         <div className="flex h-full overflow-hidden">
           {/* Sidebar - Steps */}

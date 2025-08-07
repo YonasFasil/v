@@ -390,11 +390,11 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-[95vw] sm:max-w-6xl max-h-[90vh] p-0 flex flex-col mx-2 sm:mx-4 overflow-hidden" aria-describedby="create-event-description">
+      <DialogContent className="w-full max-w-[95vw] sm:max-w-6xl max-h-[90vh] p-0 flex flex-col mx-2 sm:mx-4 overflow-hidden">
         <DialogTitle className="sr-only">Create Event</DialogTitle>
-        <div id="create-event-description" className="sr-only">
+        <DialogDescription className="sr-only">
           Create a new event booking with date selection, venue configuration, and customer details.
-        </div>
+        </DialogDescription>
         <div className="flex h-full overflow-hidden">
           {/* Left sidebar - Event dates summary (Steps 2 & 3) */}
           {currentStep > 1 && (

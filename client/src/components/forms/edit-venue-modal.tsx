@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -152,11 +152,11 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl p-0 max-h-[90vh] overflow-hidden flex flex-col" aria-describedby="edit-venue-description">
+      <DialogContent className="max-w-2xl p-0 max-h-[90vh] overflow-hidden flex flex-col">
         <DialogTitle className="sr-only">Edit Venue</DialogTitle>
-        <div id="edit-venue-description" className="sr-only">
+        <DialogDescription className="sr-only">
           Edit venue property information including name, capacity, spaces, and amenities.
-        </div>
+        </DialogDescription>
         
         <div className="border-b border-slate-200 p-6 flex items-center gap-3">
           <Edit className="h-5 w-5 text-blue-600" />

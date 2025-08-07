@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, CheckCircle, Send, Eye, FileText, ArrowRight, X } from "lucide-react";
@@ -76,11 +76,11 @@ export function ProposalActionsModal({ open, onOpenChange, proposal }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg p-0" aria-describedby="proposal-actions-description">
+      <DialogContent className="max-w-lg p-0">
         <DialogTitle className="sr-only">Proposal Actions</DialogTitle>
-        <div id="proposal-actions-description" className="sr-only">
+        <DialogDescription className="sr-only">
           Manage proposal status and convert accepted proposals to bookings.
-        </div>
+        </DialogDescription>
         
         <div className="border-b border-slate-200 p-6 flex items-center gap-3">
           <FileText className="h-5 w-5 text-blue-600" />
