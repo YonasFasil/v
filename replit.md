@@ -7,6 +7,8 @@ This is a comprehensive event venue management system called "Venuine" built wit
 ## Recent Updates (August 2025)
 
 ### Latest Completed Features:
+- ✅ **Enhanced Package Creation with Service Selection**: When creating packages, users can now select which services are included in the package base price with visual selection interface, real-time summary, and proper data persistence
+- ✅ **Inline Customer Creation in Event Modal**: Added "New Customer" button to event creation modal that reveals an inline form for creating customers without leaving the event creation workflow
 - ✅ **Clean Slate for User Data**: Removed all dummy/sample data for packages and services - users can now create their own real data from scratch
 - ✅ **Two-Step Event Editing System**: Comprehensive event editing with summary view first (click event card) then full edit modal (click "Edit Event" button) - matches creation modal exactly
 - ✅ **Fixed Modal UI Issues**: Resolved button positioning problems where action buttons were getting pushed down or hidden - modals now use proper flex layout with fixed footers

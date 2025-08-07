@@ -48,6 +48,15 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   const [eventName, setEventName] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState("");
   const [eventStatus, setEventStatus] = useState("inquiry");
+  
+  // Customer creation
+  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    company: ""
+  });
 
   // Data queries
   const { data: venues = [] } = useQuery({ queryKey: ["/api/venues-with-spaces"] });
@@ -116,6 +125,24 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   }, [selectedServices, services, guestCount]);
 
   const totalPrice = packagePrice + servicesPrice;
+
+  // Create customer mutation
+  const createCustomer = useMutation({
+    mutationFn: async (customerData: any) => {
+      const response = await apiRequest("POST", "/api/customers", customerData);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      setSelectedCustomer(data.id);
+      setShowNewCustomerForm(false);
+      setNewCustomer({ name: "", email: "", phone: "", company: "" });
+      toast({ title: "Customer created successfully!" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to create customer", description: error.message, variant: "destructive" });
+    }
+  });
 
   const updateBooking = useMutation({
     mutationFn: async (bookingData: any) => {
@@ -221,6 +248,20 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
     setEventName("");
     setSelectedCustomer("");
     setEventStatus("inquiry");
+    setShowNewCustomerForm(false);
+    setNewCustomer({ name: "", email: "", phone: "", company: "" });
+  };
+
+  const handleCreateCustomer = () => {
+    if (!newCustomer.name || !newCustomer.email) {
+      toast({
+        title: "Required fields missing",
+        description: "Please provide customer name and email",
+        variant: "destructive"
+      });
+      return;
+    }
+    createCustomer.mutate(newCustomer);
   };
 
   return (
@@ -595,19 +636,87 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                     </div>
 
                     <div>
-                      <Label className="text-base font-medium">Customer *</Label>
-                      <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-                        <SelectTrigger className="mt-2">
-                          <SelectValue placeholder="Select customer" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {customers.map((customer: any) => (
-                            <SelectItem key={customer.id} value={customer.id}>
-                              {customer.name} - {customer.email}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label className="text-base font-medium">Customer *</Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowNewCustomerForm(!showNewCustomerForm)}
+                          className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                        >
+                          <Plus className="w-4 h-4 mr-1" />
+                          {showNewCustomerForm ? "Cancel" : "New Customer"}
+                        </Button>
+                      </div>
+                      
+                      {!showNewCustomerForm ? (
+                        <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select customer" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {customers.map((customer: any) => (
+                              <SelectItem key={customer.id} value={customer.id}>
+                                {customer.name} - {customer.email}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Card className="p-4 border-blue-200 bg-blue-50">
+                          <div className="space-y-4">
+                            <h4 className="font-medium text-sm">Create New Customer</h4>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label className="text-sm">Name *</Label>
+                                <Input
+                                  value={newCustomer.name}
+                                  onChange={(e) => setNewCustomer(prev => ({...prev, name: e.target.value}))}
+                                  placeholder="Customer name"
+                                  className="mt-1"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-sm">Email *</Label>
+                                <Input
+                                  type="email"
+                                  value={newCustomer.email}
+                                  onChange={(e) => setNewCustomer(prev => ({...prev, email: e.target.value}))}
+                                  placeholder="customer@example.com"
+                                  className="mt-1"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-sm">Phone</Label>
+                                <Input
+                                  value={newCustomer.phone}
+                                  onChange={(e) => setNewCustomer(prev => ({...prev, phone: e.target.value}))}
+                                  placeholder="(555) 123-4567"
+                                  className="mt-1"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-sm">Company</Label>
+                                <Input
+                                  value={newCustomer.company}
+                                  onChange={(e) => setNewCustomer(prev => ({...prev, company: e.target.value}))}
+                                  placeholder="Company name"
+                                  className="mt-1"
+                                />
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              onClick={handleCreateCustomer}
+                              disabled={createCustomer.isPending || !newCustomer.name || !newCustomer.email}
+                              className="w-full bg-blue-600 hover:bg-blue-700"
+                            >
+                              {createCustomer.isPending ? "Creating..." : "Create Customer"}
+                            </Button>
+                          </div>
+                        </Card>
+                      )}
                     </div>
 
                     <div>
