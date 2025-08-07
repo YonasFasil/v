@@ -1,570 +1,321 @@
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-
-// Speech Recognition API types
-declare global {
-  interface Window {
-    SpeechRecognition: any;
-    webkitSpeechRecognition: any;
-  }
-}
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useState, useMemo } from "react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { ChevronLeft, ChevronRight, Plus, Minus, Check, Mic, MicOff, User, X, Sparkles, Bot, Calendar as CalendarIcon, MapPin, Users as UsersIcon, Clock } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, getDay } from "date-fns";
+import { ChevronLeft, ChevronRight, X, Plus, RotateCcw } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
-import { useQuery } from "@tanstack/react-query";
 
-interface CreateEventModalProps {
+interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-interface EventPackage {
-  id: string;
-  name: string;
-  basePrice: number;
-  description: string;
+interface SelectedDate {
+  date: Date;
+  startTime: string;
+  endTime: string;
+  spaceId?: string;
 }
 
-interface AddOnService {
-  id: string;
-  name: string;
-  price: number;
-  quantity?: number;
-}
-
-const eventFormSchema = z.object({
-  eventName: z.string().min(1, "Event name is required"),
-  customerId: z.string().optional(),
-  customerName: z.string().optional(),
-  customerEmail: z.string().email().optional(),
-  eventStatus: z.string().default("inquiry"),
-});
-
-type EventFormData = z.infer<typeof eventFormSchema>;
-
-export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) {
-  console.log('CreateEventModal render - open:', open);
+export function CreateEventModal({ open, onOpenChange }: Props) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  // Step management
   const [currentStep, setCurrentStep] = useState(1);
-  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
-  const [selectedTimes, setSelectedTimes] = useState<{ [date: string]: { start: string; end: string; space: string } }>({});
-  const [selectedPackage, setSelectedPackage] = useState<EventPackage | null>(null);
-  const [addOnServices, setAddOnServices] = useState<AddOnService[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [voiceTranscript, setVoiceTranscript] = useState("");
-  const [showCustomerForm, setShowCustomerForm] = useState(false);
-  const [newCustomer, setNewCustomer] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    company: ""
-  });
+  const [currentDate, setCurrentDate] = useState(new Date());
+  
+  // Step 1: Date & Venue Selection
+  const [selectedVenue, setSelectedVenue] = useState("");
+  const [selectedDates, setSelectedDates] = useState<SelectedDate[]>([]);
+  
+  // Step 2: Event Configuration  
+  const [guestCount, setGuestCount] = useState(1);
+  const [selectedPackage, setSelectedPackage] = useState("");
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  
+  // Step 3: Final Details
+  const [eventName, setEventName] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState("");
+  const [eventStatus, setEventStatus] = useState("inquiry");
 
-  // AI Assistant state
-  const [aiAssistantMode, setAiAssistantMode] = useState(false);
-  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
-  const [isProcessingAI, setIsProcessingAI] = useState(false);
+  // Data queries
+  const { data: venues = [] } = useQuery({ queryKey: ["/api/venues-with-spaces"] });
+  const { data: packages = [] } = useQuery({ queryKey: ["/api/packages"] });
+  const { data: services = [] } = useQuery({ queryKey: ["/api/services"] });
+  const { data: customers = [] } = useQuery({ queryKey: ["/api/customers"] });
 
-  const { data: venues } = useQuery({
-    queryKey: ["/api/venues"],
-  });
+  // Calendar calculations
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
+  const calendarDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  
+  // Pad calendar to show full weeks
+  const startDay = getDay(monthStart);
+  const paddedDays = [
+    ...Array(startDay).fill(null).map((_, i) => {
+      const date = new Date(monthStart);
+      date.setDate(date.getDate() - (startDay - i));
+      return date;
+    }),
+    ...calendarDays
+  ];
 
-  const { data: customers } = useQuery({
-    queryKey: ["/api/customers"],
-  });
+  const selectedVenueData = venues.find((v: any) => v.id === selectedVenue);
+  const selectedPackageData = packages.find((p: any) => p.id === selectedPackage);
+  
+  // Calculate total price
+  const totalPrice = useMemo(() => {
+    let total = 0;
+    if (selectedPackageData) {
+      total += parseFloat(selectedPackageData.price) * selectedDates.length;
+    }
+    selectedServices.forEach(serviceId => {
+      const service = services.find((s: any) => s.id === serviceId);
+      if (service) {
+        total += parseFloat(service.price);
+      }
+    });
+    return total;
+  }, [selectedPackageData, selectedServices, services, selectedDates.length]);
 
-  const form = useForm<EventFormData>({
-    resolver: zodResolver(eventFormSchema),
-    defaultValues: {
-      eventName: "",
-      eventStatus: "inquiry",
+  // Handle date selection
+  const handleDateClick = (date: Date) => {
+    if (!isSameMonth(date, currentDate)) return;
+    
+    const existingIndex = selectedDates.findIndex(d => isSameDay(d.date, date));
+    if (existingIndex >= 0) {
+      setSelectedDates(prev => prev.filter((_, i) => i !== existingIndex));
+    } else {
+      setSelectedDates(prev => [...prev, {
+        date,
+        startTime: "09:00 AM",
+        endTime: "05:00 PM"
+      }]);
+    }
+  };
+
+  // Update time for a selected date
+  const updateDateTime = (index: number, field: 'startTime' | 'endTime', value: string) => {
+    setSelectedDates(prev => prev.map((date, i) => 
+      i === index ? { ...date, [field]: value } : date
+    ));
+  };
+
+  // Create booking mutation
+  const createBooking = useMutation({
+    mutationFn: async (bookingData: any) => {
+      const response = await apiRequest("POST", "/api/bookings", bookingData);
+      return response.json();
     },
-  });
-
-  // Mock packages and services - in real app these would come from API
-  const packages: EventPackage[] = [
-    { id: "1", name: "A La Carte", basePrice: 0, description: "Build your own package" },
-    { id: "2", name: "Silver Package", basePrice: 2500, description: "Standard package with essentials" },
-    { id: "3", name: "Gold Package", basePrice: 3500, description: "Premium package with extras" },
-    { id: "4", name: "Platinum Package", basePrice: 5000, description: "All-inclusive luxury package" },
-  ];
-
-  const availableServices: AddOnService[] = [
-    { id: "1", name: "Breakfast", price: 100 },
-    { id: "2", name: "Lunch", price: 150 },
-    { id: "3", name: "Dinner", price: 200 },
-    { id: "4", name: "Cocktail Hour", price: 120 },
-    { id: "5", name: "DJ Service", price: 300 },
-    { id: "6", name: "Photography", price: 500 },
-    { id: "7", name: "Floral Arrangements", price: 250 },
-  ];
-
-  const handleDateSelect = (date: Date | undefined) => {
-    if (!date) return;
-    
-    const dateKey = date.toISOString().split('T')[0];
-    setSelectedDates(prev => {
-      const exists = prev.some(d => d.toISOString().split('T')[0] === dateKey);
-      if (exists) {
-        // Remove date and its time settings
-        setSelectedTimes(prev => {
-          const newTimes = { ...prev };
-          delete newTimes[dateKey];
-          return newTimes;
-        });
-        return prev.filter(d => d.toISOString().split('T')[0] !== dateKey);
-      } else {
-        return [...prev, date];
-      }
-    });
-  };
-
-  const updateTimeForDate = async (date: Date, field: 'start' | 'end' | 'space', value: string) => {
-    const dateKey = date.toISOString().split('T')[0];
-    setSelectedTimes(prev => ({
-      ...prev,
-      [dateKey]: {
-        ...prev[dateKey],
-        [field]: value,
-      }
-    }));
-    
-    // Check for conflicts when both start time, end time, and space are set
-    const currentSettings = selectedTimes[dateKey] || {};
-    const newSettings = { ...currentSettings, [field]: value };
-    
-    if (newSettings.start && newSettings.end && newSettings.space) {
-      // Fetch existing bookings to check for conflicts
-      try {
-        const bookingsResponse = await fetch('/api/bookings');
-        const existingBookings = await bookingsResponse.json();
-        
-        const conflict = existingBookings.find((booking: any) => {
-          if (booking.status === 'cancelled') return false;
-          if (booking.venueId !== newSettings.space) return false;
-          if (new Date(booking.eventDate).toDateString() !== date.toDateString()) return false;
-          
-          const parseTime = (timeStr: string) => {
-            const [hours, minutes] = timeStr.split(':').map(Number);
-            return hours * 60 + minutes;
-          };
-          
-          const newStart = parseTime(newSettings.start);
-          const newEnd = parseTime(newSettings.end);
-          const existingStart = parseTime(booking.startTime);
-          const existingEnd = parseTime(booking.endTime);
-          
-          return (newStart < existingEnd && newEnd > existingStart);
-        });
-        
-        if (conflict) {
-          toast({
-            title: "Time Conflict Warning",
-            description: `This time slot conflicts with "${conflict.eventName}" (${conflict.startTime} - ${conflict.endTime})`,
-            variant: "destructive",
-          });
-        }
-      } catch (error) {
-        console.error('Error checking conflicts:', error);
-      }
-    }
-  };
-
-  const updateServiceQuantity = (serviceId: string, change: number) => {
-    setAddOnServices(prev => {
-      const existing = prev.find(s => s.id === serviceId);
-      if (existing) {
-        const newQuantity = Math.max(0, existing.quantity! + change);
-        if (newQuantity === 0) {
-          return prev.filter(s => s.id !== serviceId);
-        }
-        return prev.map(s => s.id === serviceId ? { ...s, quantity: newQuantity } : s);
-      } else if (change > 0) {
-        const service = availableServices.find(s => s.id === serviceId);
-        if (service) {
-          return [...prev, { ...service, quantity: 1 }];
-        }
-      }
-      return prev;
-    });
-  };
-
-  const getServiceQuantity = (serviceId: string) => {
-    return addOnServices.find(s => s.id === serviceId)?.quantity || 0;
-  };
-
-  const calculateTotal = () => {
-    const packagePrice = selectedPackage?.basePrice || 0;
-    const servicesTotal = addOnServices.reduce((sum, service) => sum + (service.price * (service.quantity || 0)), 0);
-    return packagePrice + servicesTotal;
-  };
-
-  const handleGenerateEventSlots = () => {
-    if (selectedDates.length === 0) {
-      toast({
-        title: "Select Dates",
-        description: "Please select at least one date for your event",
-        variant: "destructive",
-      });
-      return;
-    }
-    setCurrentStep(2);
-  };
-
-  const handleNext = () => {
-    setCurrentStep(3);
-  };
-
-  const handleBack = () => {
-    setCurrentStep(currentStep - 1);
-  };
-
-  const handleSubmit = async (data: EventFormData) => {
-    try {
-      setIsSubmitting(true);
-
-      // Create customer if new
-      let customerId = data.customerId;
-      if (!customerId && data.customerName && data.customerEmail) {
-        const customerResponse = await apiRequest("POST", "/api/customers", {
-          name: data.customerName,
-          email: data.customerEmail,
-          status: "customer"
-        });
-        const customerData = await customerResponse.json();
-        customerId = customerData.id;
-      }
-
-      // Create bookings for each selected date
-      for (const date of selectedDates) {
-        const dateKey = date.toISOString().split('T')[0];
-        const timeSettings = selectedTimes[dateKey];
-        
-        if (timeSettings) {
-          const bookingData = {
-            eventName: data.eventName,
-            eventType: selectedPackage?.name || "Custom Event",
-            customerId,
-            venueId: timeSettings.space,
-            eventDate: date,
-            startTime: timeSettings.start,
-            endTime: timeSettings.end,
-            guestCount: 1, // Default, will be updated later
-            status: data.eventStatus,
-            totalAmount: calculateTotal(),
-            notes: `Package: ${selectedPackage?.name || 'Custom'}\nServices: ${addOnServices.map(s => `${s.name} (${s.quantity})`).join(', ')}`,
-          };
-
-          try {
-            await apiRequest("POST", "/api/bookings", bookingData);
-          } catch (error: any) {
-            if (error.status === 409) {
-              const errorData = await error.json();
-              if (errorData?.message === "Time slot conflict") {
-                toast({
-                  title: "Time Conflict",
-                  description: `Time slot conflicts with existing booking: ${errorData.conflictingBooking?.eventName} (${errorData.conflictingBooking?.startTime} - ${errorData.conflictingBooking?.endTime})`,
-                  variant: "destructive",
-                });
-                setIsSubmitting(false);
-                return;
-              }
-            }
-            throw error;
-          }
-        }
-      }
-
-      await queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
-      
-      toast({
-        title: "Success",
-        description: "Event created successfully",
-      });
-      
-      // Reset form
-      form.reset();
-      setCurrentStep(1);
-      setSelectedDates([]);
-      setSelectedTimes({});
-      setSelectedPackage(null);
-      setAddOnServices([]);
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/metrics"] });
+      toast({ title: "Event created successfully!" });
       onOpenChange(false);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create event",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Voice recognition functionality
-  const startVoiceRecording = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      toast({
-        title: "Voice not supported",
-        description: "Your browser doesn't support voice recognition",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
-
-    setIsListening(true);
-
-    recognition.onresult = (event) => {
-      let transcript = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
-      }
-      setVoiceTranscript(transcript);
-    };
-
-    recognition.onerror = () => {
-      setIsListening(false);
-      toast({
-        title: "Voice error",
-        description: "Error occurred during voice recognition",
-        variant: "destructive"
-      });
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognition.start();
-  };
-
-  const stopVoiceRecording = () => {
-    setIsListening(false);
-  };
-
-  // Parse voice transcript and populate fields using Gemini AI
-  const parseVoiceInput = async () => {
-    if (!voiceTranscript.trim()) return;
-
-    try {
-      const response = await apiRequest("POST", "/api/ai/parse-voice", {
-        transcript: voiceTranscript
-      });
-
-      if (response.eventName) {
-        form.setValue("eventName", response.eventName);
-      }
-      if (response.customerName) {
-        form.setValue("customerName", response.customerName);
-      }
-      if (response.customerEmail) {
-        form.setValue("customerEmail", response.customerEmail);
-      }
-      if (response.dates && response.dates.length > 0) {
-        const parsedDates = response.dates.map((dateStr: string) => new Date(dateStr));
-        setSelectedDates(parsedDates);
-      }
-      if (response.times) {
-        setSelectedTimes(response.times);
-      }
-
-      toast({
-        title: "Voice input processed",
-        description: "Event details populated from your voice input"
-      });
-    } catch (error) {
-      toast({
-        title: "Processing failed",
-        description: "Could not process voice input",
-        variant: "destructive"
+      resetForm();
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to create event", 
+        description: error.message,
+        variant: "destructive" 
       });
     }
-  };
-
-  // Create new customer
-  const createCustomer = async () => {
-    if (!newCustomer.name || !newCustomer.email) {
-      toast({
-        title: "Required fields missing",
-        description: "Please provide at least name and email",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      const customer = await apiRequest("POST", "/api/customers", newCustomer);
-      await queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
-      
-      // Set the new customer as selected
-      form.setValue("customerId", customer.id);
-      form.setValue("customerName", customer.name);
-      form.setValue("customerEmail", customer.email);
-      
-      setShowCustomerForm(false);
-      setNewCustomer({ name: "", email: "", phone: "", company: "" });
-      
-      toast({
-        title: "Customer created",
-        description: `${customer.name} has been added successfully`
-      });
-    } catch (error) {
-      toast({
-        title: "Creation failed",
-        description: "Could not create customer",
-        variant: "destructive"
-      });
-    }
-  };
+  });
 
   const resetForm = () => {
     setCurrentStep(1);
+    setSelectedVenue("");
     setSelectedDates([]);
-    setSelectedTimes({});
-    setSelectedPackage(null);
-    setAddOnServices([]);
-    setVoiceTranscript("");
-    setShowCustomerForm(false);
-    setNewCustomer({ name: "", email: "", phone: "", company: "" });
-    form.reset();
+    setGuestCount(1);
+    setSelectedPackage("");
+    setSelectedServices([]);
+    setEventName("");
+    setSelectedCustomer("");
+    setEventStatus("inquiry");
   };
 
-  const renderStep1 = () => (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Voice Booking Section */}
-      <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
-        <h3 className="text-base sm:text-lg font-semibold mb-3 flex items-center text-blue-800">
-          <Mic className="w-5 h-5 mr-2" />
-          Voice Booking Assistant
-        </h3>
-        <p className="text-sm text-blue-600 mb-3">
-          Speak your event details and we'll populate the form automatically. Try saying something like: "Book a wedding for Sarah Johnson on December 15th from 2 PM to 8 PM"
-        </p>
-        
-        <div className="flex flex-col sm:flex-row gap-3">
-          <Button
-            type="button"
-            variant={isListening ? "destructive" : "default"}
-            onClick={isListening ? stopVoiceRecording : startVoiceRecording}
-            className="flex items-center gap-2"
-          >
-            {isListening ? (
-              <>
-                <MicOff className="w-4 h-4" />
-                Stop Recording
-              </>
-            ) : (
-              <>
-                <Mic className="w-4 h-4" />
-                Start Voice Booking
-              </>
-            )}
-          </Button>
-          
-          {voiceTranscript && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={parseVoiceInput}
-              className="flex items-center gap-2"
-            >
-              <Check className="w-4 h-4" />
-              Process Voice Input
-            </Button>
-          )}
-        </div>
+  const handleSubmit = () => {
+    if (!eventName || !selectedCustomer || selectedDates.length === 0) {
+      toast({ title: "Please fill in all required fields", variant: "destructive" });
+      return;
+    }
 
-        {voiceTranscript && (
-          <div className="mt-3 p-3 bg-white rounded border">
-            <p className="text-sm font-medium text-gray-700 mb-1">Voice transcript:</p>
-            <p className="text-sm text-gray-600 italic">"{voiceTranscript}"</p>
-          </div>
-        )}
-      </div>
+    // Create booking for first selected date (extend for multiple dates if needed)
+    const firstDate = selectedDates[0];
+    const bookingData = {
+      eventName,
+      eventType: "corporate",
+      eventDate: firstDate.date,
+      startTime: firstDate.startTime.replace(/\s(AM|PM)/g, '').replace(/(\d+):(\d+)/, (_, h, m) => {
+        const hour = parseInt(h);
+        const isAM = firstDate.startTime.includes('AM');
+        const hour24 = isAM ? (hour === 12 ? 0 : hour) : (hour === 12 ? 12 : hour + 12);
+        return `${hour24.toString().padStart(2, '0')}:${m}`;
+      }),
+      endTime: firstDate.endTime.replace(/\s(AM|PM)/g, '').replace(/(\d+):(\d+)/, (_, h, m) => {
+        const hour = parseInt(h);
+        const isAM = firstDate.endTime.includes('AM');
+        const hour24 = isAM ? (hour === 12 ? 0 : hour) : (hour === 12 ? 12 : hour + 12);
+        return `${hour24.toString().padStart(2, '0')}:${m}`;
+      }),
+      guestCount,
+      status: eventStatus,
+      customerId: selectedCustomer,
+      venueId: selectedVenue,
+      spaceId: selectedVenueData?.spaces?.[0]?.id,
+      totalAmount: totalPrice.toString(),
+      notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${selectedServices.length} selected`
+    };
 
-      <div>
-        <h3 className="text-base sm:text-lg font-medium mb-3 sm:mb-4">Venue</h3>
-        <Select defaultValue="yonas-salelew">
-          <SelectTrigger>
-            <SelectValue placeholder="Select venue" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="yonas-salelew">Yonas Salelew</SelectItem>
-            {Array.isArray(venues) && venues.map((venue: any) => (
-              <SelectItem key={venue.id} value={venue.id}>
-                {venue.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+    createBooking.mutate(bookingData);
+  };
 
-      <div>
-        <h3 className="text-base sm:text-lg font-medium mb-3 sm:mb-4">Configure Dates ({selectedDates.length})</h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-          <div>
-            <Calendar
-              mode="multiple"
-              selected={selectedDates}
-              onSelect={(dates) => setSelectedDates(dates || [])}
-              className="rounded-md border mx-auto"
-              disabled={(date) => date < new Date()}
-            />
-          </div>
-          
-          <div className="space-y-3 sm:space-y-4">
-            {selectedDates.map((date) => {
-              const dateKey = date.toISOString().split('T')[0];
-              const timeSettings = selectedTimes[dateKey] || {};
+  const nextStep = () => {
+    if (currentStep === 1 && (!selectedVenue || selectedDates.length === 0)) {
+      toast({ title: "Please select a venue and at least one date", variant: "destructive" });
+      return;
+    }
+    if (currentStep < 3) setCurrentStep(currentStep + 1);
+  };
+
+  const prevStep = () => {
+    if (currentStep > 1) setCurrentStep(currentStep - 1);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl h-[80vh] p-0 overflow-hidden">
+        <div className="flex h-full">
+          {/* Left sidebar - Event dates summary (Steps 2 & 3) */}
+          {currentStep > 1 && (
+            <div className="w-80 bg-slate-50 border-r border-slate-200 p-6 overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-semibold text-slate-900">Event Dates</h3>
+                <Button variant="outline" size="sm" onClick={() => setCurrentStep(1)}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add
+                </Button>
+              </div>
               
-              return (
-                <Card key={dateKey} className="p-3 sm:p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="font-medium text-sm sm:text-base">
-                      {date.toLocaleDateString('en-US', { 
-                        weekday: 'short', 
-                        month: 'short', 
-                        day: 'numeric', 
-                        year: 'numeric' 
+              <div className="space-y-3">
+                {selectedDates.map((dateInfo, index) => (
+                  <Card key={index} className="p-3 bg-blue-50 border-blue-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium text-blue-900">
+                        {format(dateInfo.date, 'EEEE, MMMM d, yyyy')}
+                      </span>
+                      <Button variant="ghost" size="sm" onClick={() => setCurrentStep(1)}>
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="text-sm text-blue-700">
+                      {format(dateInfo.date, 'MMMM d, yyyy')}
+                    </div>
+                    <div className="text-sm text-blue-600 mt-1">
+                      {selectedVenueData?.spaces?.[0]?.name || selectedVenueData?.name} @ {dateInfo.startTime}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Main content area */}
+          <div className="flex-1 flex flex-col">
+            {/* Header */}
+            <div className="border-b border-slate-200 p-6 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                {currentStep > 1 && (
+                  <Button variant="ghost" size="sm" onClick={prevStep}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                )}
+                <h2 className="text-xl font-semibold">Create Event</h2>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Step Content */}
+            <div className="flex-1 p-6 overflow-y-auto">
+              {/* Step 1: Date & Venue Selection */}
+              {currentStep === 1 && (
+                <div className="grid grid-cols-2 gap-8 h-full">
+                  {/* Left: Calendar */}
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <Button
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setCurrentDate(subMonths(currentDate, 1))}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <h3 className="text-lg font-semibold">
+                        {format(currentDate, 'MMMM yyyy')}
+                      </h3>
+                      <Button
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setCurrentDate(addMonths(currentDate, 1))}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-1 mb-2">
+                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                        <div key={day} className="p-2 text-center text-sm font-medium text-slate-600">
+                          {day}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-1">
+                      {paddedDays.map((day, index) => {
+                        const isCurrentMonth = isSameMonth(day, currentDate);
+                        const isSelected = selectedDates.some(d => isSameDay(d.date, day));
+                        
+                        return (
+                          <button
+                            key={index}
+                            onClick={() => handleDateClick(day)}
+                            className={cn(
+                              "h-12 w-12 rounded-full flex items-center justify-center text-sm font-medium transition-colors",
+                              isCurrentMonth 
+                                ? "text-slate-900 hover:bg-slate-100" 
+                                : "text-slate-400",
+                              isSelected && "bg-blue-600 text-white hover:bg-blue-700"
+                            )}
+                          >
+                            {format(day, 'd')}
+                          </button>
+                        );
                       })}
                     </div>
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
-                      Available
-                    </Badge>
                   </div>
-                  
-                  <div className="space-y-3">
+
+                  {/* Right: Venue & Time Configuration */}
+                  <div className="space-y-6">
                     <div>
-                      <Label className="text-sm font-medium">Select Space</Label>
-                      <Select 
-                        value={timeSettings.space || ""} 
-                        onValueChange={(value) => updateTimeForDate(date, 'space', value)}
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Choose space" />
+                      <Label className="text-base font-medium">Venue</Label>
+                      <Select value={selectedVenue} onValueChange={setSelectedVenue}>
+                        <SelectTrigger className="mt-2">
+                          <SelectValue placeholder="Select a venue" />
                         </SelectTrigger>
                         <SelectContent>
-                          {Array.isArray(venues) && venues.map((venue: any) => (
+                          {venues.map((venue: any) => (
                             <SelectItem key={venue.id} value={venue.id}>
                               {venue.name}
                             </SelectItem>
@@ -572,404 +323,303 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
                         </SelectContent>
                       </Select>
                     </div>
-                    
-                    <div className="flex gap-2 sm:gap-3">
-                      <div className="flex-1">
-                        <Label className="text-xs sm:text-sm font-medium">Start</Label>
-                        <Input 
-                          type="time" 
-                          value={timeSettings.start || "9:00"} 
-                          onChange={(e) => updateTimeForDate(date, 'start', e.target.value)}
-                          className="mt-1 text-sm"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <Label className="text-xs sm:text-sm font-medium">End</Label>
-                        <Input 
-                          type="time" 
-                          value={timeSettings.end || "17:00"} 
-                          onChange={(e) => updateTimeForDate(date, 'end', e.target.value)}
-                          className="mt-1 text-sm"
-                        />
+
+                    <div>
+                      <Label className="text-base font-medium">Configure Dates ({selectedDates.length})</Label>
+                      <div className="mt-3 space-y-3 max-h-64 overflow-y-auto">
+                        {selectedDates.map((dateInfo, index) => (
+                          <Card key={index} className="p-4 border border-green-200 bg-green-50">
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="font-medium text-green-900">
+                                {format(dateInfo.date, 'EEEE, MMMM d, yyyy')}
+                              </span>
+                              <Badge variant="secondary" className="bg-green-100 text-green-700">
+                                Available
+                              </Badge>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <div className="text-sm text-green-600 mb-2">
+                                {selectedVenueData?.spaces?.[0]?.name || 'Select venue first'}
+                              </div>
+                              
+                              <div className="flex items-center gap-2">
+                                <Select
+                                  value={dateInfo.startTime}
+                                  onValueChange={(value) => updateDateTime(index, 'startTime', value)}
+                                >
+                                  <SelectTrigger className="w-32">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {Array.from({length: 24}, (_, i) => {
+                                      const hour = i === 0 ? 12 : i <= 12 ? i : i - 12;
+                                      const ampm = i < 12 ? 'AM' : 'PM';
+                                      const time = `${hour.toString().padStart(2, '0')}:00 ${ampm}`;
+                                      return (
+                                        <SelectItem key={time} value={time}>{time}</SelectItem>
+                                      );
+                                    })}
+                                  </SelectContent>
+                                </Select>
+                                
+                                <span className="text-slate-500">to</span>
+                                
+                                <Select
+                                  value={dateInfo.endTime}
+                                  onValueChange={(value) => updateDateTime(index, 'endTime', value)}
+                                >
+                                  <SelectTrigger className="w-32">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {Array.from({length: 24}, (_, i) => {
+                                      const hour = i === 0 ? 12 : i <= 12 ? i : i - 12;
+                                      const ampm = i < 12 ? 'AM' : 'PM';
+                                      const time = `${hour.toString().padStart(2, '0')}:00 ${ampm}`;
+                                      return (
+                                        <SelectItem key={time} value={time}>{time}</SelectItem>
+                                      );
+                                    })}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
                       </div>
                     </div>
                   </div>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex justify-end">
-        <Button 
-          onClick={handleGenerateEventSlots}
-          className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
-          disabled={selectedDates.length === 0}
-        >
-          Generate 1 Event Slot(s)
-        </Button>
-      </div>
-    </div>
-  );
-
-  const renderStep2 = () => (
-    <div className="space-y-4 sm:space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-base sm:text-lg font-medium">Event Dates</h3>
-          <Button variant="ghost" size="sm" className="text-blue-600 p-0 h-auto text-xs sm:text-sm">
-            + Add
-          </Button>
-        </div>
-        <div>
-          <h3 className="text-base sm:text-lg font-medium">Configure Event</h3>
-          <p className="text-xs sm:text-sm text-gray-600">For {selectedDates[0]?.toLocaleDateString()} in 10</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="space-y-4">
-          {selectedDates.map((date) => {
-            const dateKey = date.toISOString().split('T')[0];
-            const timeSettings = selectedTimes[dateKey];
-            
-            return (
-              <Card key={dateKey} className="p-4 bg-blue-50">
-                <div className="font-medium">
-                  {date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
                 </div>
-                <div className="text-sm text-gray-600 mt-1">
-                  {date.getFullYear()}
-                </div>
-                <div className="text-sm text-gray-600">
-                  {timeSettings?.start} @ {timeSettings?.end}
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-
-        <div className="space-y-6">
-          <div>
-            <Label className="text-sm font-medium">Number of Guests</Label>
-            <Input type="number" placeholder="1" className="mt-1" />
-          </div>
-
-          <div>
-            <Label className="text-sm font-medium">Package</Label>
-            <Select 
-              value={selectedPackage?.id || ""} 
-              onValueChange={(value) => setSelectedPackage(packages.find(p => p.id === value) || null)}
-            >
-              <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select package" />
-              </SelectTrigger>
-              <SelectContent>
-                {packages.map((pkg) => (
-                  <SelectItem key={pkg.id} value={pkg.id}>
-                    {pkg.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <Label className="text-sm font-medium">Add-on Services</Label>
-              <Button variant="ghost" size="sm" className="text-blue-600">
-                Apply guest count
-              </Button>
-            </div>
-            
-            <div className="space-y-3">
-              {availableServices.map((service) => {
-                const quantity = getServiceQuantity(service.id);
-                return (
-                  <div key={service.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="font-medium text-sm sm:text-base">{service.name}</div>
-                    </div>
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <div className="text-right">
-                        <div className="font-medium text-sm sm:text-base">${service.price}</div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Label className="text-xs sm:text-sm">Qty:</Label>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => updateServiceQuantity(service.id, -1)}
-                          disabled={quantity === 0}
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="w-8 text-center text-sm">{quantity}</span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => updateServiceQuantity(service.id, 1)}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      {quantity > 0 && (
-                        <Check className="h-4 w-4 text-green-600" />
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <Separator />
-      
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="text-base sm:text-lg font-semibold">
-          Grand Total: ${calculateTotal().toFixed(2)}
-        </div>
-        <Button onClick={handleNext} className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto">
-          Next
-        </Button>
-      </div>
-    </div>
-  );
-
-  const renderStep3 = () => (
-    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-medium">Event Dates</h3>
-          <Button variant="ghost" size="sm" className="text-blue-600 p-0 h-auto">
-            + Add
-          </Button>
-        </div>
-        <div>
-          <h3 className="text-lg font-medium">Confirm Details</h3>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="space-y-4">
-          {selectedDates.map((date) => {
-            const dateKey = date.toISOString().split('T')[0];
-            const timeSettings = selectedTimes[dateKey];
-            
-            return (
-              <Card key={dateKey} className="p-4 bg-blue-50">
-                <div className="font-medium">
-                  {date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-                </div>
-                <div className="text-sm text-gray-600 mt-1">
-                  {date.getFullYear()}
-                </div>
-                <div className="text-sm text-gray-600">
-                  {timeSettings?.start} @ {timeSettings?.end}
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <Label className="text-sm font-medium">Event Name</Label>
-            <Input 
-              placeholder='e.g., "Annual Conference 2025"' 
-              {...form.register("eventName")}
-              className="mt-1"
-            />
-            {form.formState.errors.eventName && (
-              <p className="text-sm text-red-600 mt-1">{form.formState.errors.eventName.message}</p>
-            )}
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <Label className="text-sm font-medium">Customer</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowCustomerForm(!showCustomerForm)}
-                className="flex items-center gap-1 text-xs"
-              >
-                <Plus className="w-3 h-3" />
-                Create New
-              </Button>
-            </div>
-            
-            {!showCustomerForm ? (
-              <Select onValueChange={(value) => form.setValue("customerId", value)}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="-- Select a Customer --" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.isArray(customers) && customers.map((customer: any) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name} - {customer.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <Card className="p-4 bg-gray-50 border-2 border-blue-200">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-medium text-sm text-blue-800 flex items-center gap-2">
-                    <User className="w-4 h-4" />
-                    Create New Customer
-                  </h4>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowCustomerForm(false)}
-                    className="h-6 w-6 p-0"
-                  >
-                    ×
-                  </Button>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs font-medium">Name *</Label>
-                    <Input
-                      placeholder="Customer name"
-                      value={newCustomer.name}
-                      onChange={(e) => setNewCustomer(prev => ({ ...prev, name: e.target.value }))}
-                      className="text-sm"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs font-medium">Email *</Label>
-                    <Input
-                      type="email"
-                      placeholder="customer@email.com"
-                      value={newCustomer.email}
-                      onChange={(e) => setNewCustomer(prev => ({ ...prev, email: e.target.value }))}
-                      className="text-sm"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs font-medium">Phone</Label>
-                    <Input
-                      placeholder="Phone number"
-                      value={newCustomer.phone}
-                      onChange={(e) => setNewCustomer(prev => ({ ...prev, phone: e.target.value }))}
-                      className="text-sm"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs font-medium">Company</Label>
-                    <Input
-                      placeholder="Company name"
-                      value={newCustomer.company}
-                      onChange={(e) => setNewCustomer(prev => ({ ...prev, company: e.target.value }))}
-                      className="text-sm"
-                    />
-                  </div>
-                </div>
-                
-                <Button
-                  type="button"
-                  onClick={createCustomer}
-                  className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-sm"
-                  disabled={!newCustomer.name || !newCustomer.email}
-                >
-                  Create Customer & Select
-                </Button>
-              </Card>
-            )}
-          </div>
-
-          <div>
-            <Label className="text-sm font-medium">Event Status</Label>
-            <Select 
-              value={form.watch("eventStatus")} 
-              onValueChange={(value) => form.setValue("eventStatus", value)}
-            >
-              <SelectTrigger className="mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="inquiry">Inquiry</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="confirmed">Confirmed</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label className="text-sm font-medium">Applicable Policies</Label>
-            <div className="mt-2 p-3 bg-gray-50 rounded border text-sm text-gray-600">
-              Standard venue policies apply. Cancellation and payment terms as per venue agreement.
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <Separator />
-      
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="text-base sm:text-lg font-semibold">
-          Grand Total: ${calculateTotal().toFixed(2)}
-        </div>
-        <div className="flex gap-3 w-full sm:w-auto">
-          <Button type="button" variant="outline" onClick={handleBack} className="flex-1 sm:flex-none">
-            Back
-          </Button>
-          <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700 flex-1 sm:flex-none">
-            {isSubmitting ? "Saving..." : "Save Changes"}
-          </Button>
-        </div>
-      </div>
-    </form>
-  );
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full p-3 sm:p-6">
-        <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
-              {currentStep > 1 && (
-                <Button variant="ghost" size="sm" onClick={handleBack} className="p-1">
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
               )}
-              Create Event
-            </DialogTitle>
-            <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-              ✕
-            </Button>
-          </div>
-        </DialogHeader>
 
-        {/* Progress indicator */}
-        <div className="flex justify-center mb-4 sm:mb-6">
-          <div className="flex items-center space-x-1 sm:space-x-2">
-            {[1, 2, 3].map((step) => (
-              <div key={step} className="flex items-center">
-                <div 
-                  className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full ${
-                    step <= currentStep ? 'bg-blue-600' : 'bg-gray-300'
-                  }`}
-                />
-                {step < 3 && <div className="w-8 sm:w-12 h-px bg-gray-300 mx-1 sm:mx-2" />}
+              {/* Step 2: Event Configuration */}
+              {currentStep === 2 && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Configure Event</h3>
+                    <p className="text-slate-600">
+                      For {selectedDates.map(d => format(d.date, 'EEEE, MMMM d, yyyy')).join(', ')} in {selectedVenueData?.spaces?.[0]?.name || selectedVenueData?.name}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                      <div>
+                        <Label className="text-base font-medium">Number of Guests</Label>
+                        <Input
+                          type="number"
+                          value={guestCount}
+                          onChange={(e) => setGuestCount(parseInt(e.target.value) || 1)}
+                          min="1"
+                          className="mt-2"
+                        />
+                      </div>
+
+                      <div>
+                        <Label className="text-base font-medium">Package</Label>
+                        <Select value={selectedPackage} onValueChange={setSelectedPackage}>
+                          <SelectTrigger className="mt-2">
+                            <SelectValue placeholder="Select a package" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {packages.map((pkg: any) => (
+                              <SelectItem key={pkg.id} value={pkg.id}>
+                                {pkg.name} - ${pkg.price}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <Label className="text-base font-medium">Add-on Services</Label>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm">Apply guest count</Button>
+                            <Button variant="outline" size="sm">+ New Service</Button>
+                          </div>
+                        </div>
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          {services.map((service: any) => (
+                            <label key={service.id} className="flex items-center gap-2 p-2 border rounded hover:bg-slate-50 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={selectedServices.includes(service.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedServices(prev => [...prev, service.id]);
+                                  } else {
+                                    setSelectedServices(prev => prev.filter(id => id !== service.id));
+                                  }
+                                }}
+                                className="rounded"
+                              />
+                              <div className="flex-1">
+                                <div className="font-medium">{service.name}</div>
+                                <div className="text-sm text-slate-600">${service.price}</div>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-50 p-6 rounded-lg">
+                      <h4 className="font-semibold mb-4">Summary</h4>
+                      <div className="space-y-2">
+                        {selectedPackageData && (
+                          <div className="flex justify-between">
+                            <span>{selectedPackageData.name}</span>
+                            <span>${selectedPackageData.price}</span>
+                          </div>
+                        )}
+                        {selectedServices.map(serviceId => {
+                          const service = services.find((s: any) => s.id === serviceId);
+                          return service ? (
+                            <div key={serviceId} className="flex justify-between">
+                              <span>{service.name}</span>
+                              <span>${service.price}</span>
+                            </div>
+                          ) : null;
+                        })}
+                        <div className="border-t pt-2 mt-4">
+                          <div className="flex justify-between font-semibold">
+                            <span>Grand Total</span>
+                            <span>${totalPrice.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Final Details */}
+              {currentStep === 3 && (
+                <div className="space-y-6">
+                  <h3 className="text-lg font-semibold">Confirm Details</h3>
+
+                  <div className="grid grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                      <div>
+                        <Label className="text-base font-medium">Event Name</Label>
+                        <Input
+                          value={eventName}
+                          onChange={(e) => setEventName(e.target.value)}
+                          placeholder="e.g., 'Annual Conference 2025'"
+                          className="mt-2"
+                        />
+                      </div>
+
+                      <div>
+                        <Label className="text-base font-medium">Customer</Label>
+                        <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
+                          <SelectTrigger className="mt-2">
+                            <SelectValue placeholder="-- Select a Customer --" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {customers.map((customer: any) => (
+                              <SelectItem key={customer.id} value={customer.id}>
+                                {customer.name} - {customer.email}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label className="text-base font-medium">Event Status</Label>
+                        <Select value={eventStatus} onValueChange={setEventStatus}>
+                          <SelectTrigger className="mt-2">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="inquiry">Inquiry</SelectItem>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="confirmed">Confirmed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label className="text-base font-medium">Applicable Policies</Label>
+                        <div className="mt-2 p-3 bg-slate-50 rounded border text-sm text-slate-600">
+                          Standard venue policies apply. Cancellation and refund terms will be included in the final contract.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-50 p-6 rounded-lg">
+                      <h4 className="font-semibold mb-4">Final Summary</h4>
+                      <div className="space-y-3">
+                        <div>
+                          <span className="text-sm text-slate-600">Dates</span>
+                          <div className="font-medium">
+                            {selectedDates.map(d => format(d.date, 'MMM d, yyyy')).join(', ')}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-sm text-slate-600">Venue</span>
+                          <div className="font-medium">{selectedVenueData?.name}</div>
+                        </div>
+                        <div>
+                          <span className="text-sm text-slate-600">Guests</span>
+                          <div className="font-medium">{guestCount}</div>
+                        </div>
+                        {selectedPackageData && (
+                          <div>
+                            <span className="text-sm text-slate-600">Package</span>
+                            <div className="font-medium">{selectedPackageData.name}</div>
+                          </div>
+                        )}
+                        <div className="border-t pt-3 mt-4">
+                          <div className="flex justify-between font-semibold text-lg">
+                            <span>Grand Total</span>
+                            <span>${totalPrice.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-slate-200 p-6 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-600">Grand Total</span>
+                <span className="text-lg font-semibold">${totalPrice.toFixed(2)}</span>
               </div>
-            ))}
+              
+              <div className="flex gap-3">
+                {currentStep === 3 && (
+                  <Button variant="outline" onClick={prevStep}>
+                    Back
+                  </Button>
+                )}
+                {currentStep < 3 ? (
+                  <Button 
+                    onClick={nextStep}
+                    className="bg-blue-600 hover:bg-blue-700"
+                    disabled={currentStep === 1 && selectedDates.length === 0}
+                  >
+                    {currentStep === 1 ? `Generate ${selectedDates.length} Event Slot(s)` : 'Next'}
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={handleSubmit}
+                    className="bg-blue-600 hover:bg-blue-700"
+                    disabled={createBooking.isPending}
+                  >
+                    {createBooking.isPending ? 'Creating...' : 'Save Changes'}
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-
-        {currentStep === 1 && renderStep1()}
-        {currentStep === 2 && renderStep2()}
-        {currentStep === 3 && renderStep3()}
       </DialogContent>
     </Dialog>
   );
