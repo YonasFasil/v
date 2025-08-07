@@ -19,12 +19,14 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import { EditCustomerModal } from "@/components/forms/edit-customer-modal";
 
 export default function Customers() {
   const { data: customers, isLoading } = useLeads();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const { toast } = useToast();
 
   const form = useForm({
@@ -264,7 +266,7 @@ export default function Customers() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {customers.map((customer) => (
-                <Card key={customer.id} className="hover:shadow-md transition-shadow">
+                <Card key={customer.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setEditingCustomer(customer)}>
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div>
@@ -303,11 +305,20 @@ export default function Customers() {
                     {customer.notes && (
                       <p className="text-sm text-gray-600 italic">"{customer.notes}"</p>
                     )}
+                    <div className="flex justify-end pt-2">
+                      <span className="text-xs text-blue-600 hover:text-blue-800">Click to edit →</span>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
           )}
+          
+          <EditCustomerModal 
+            open={!!editingCustomer} 
+            onOpenChange={(open) => !open && setEditingCustomer(null)} 
+            customer={editingCustomer}
+          />
         </main>
       </div>
     </div>

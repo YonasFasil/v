@@ -289,6 +289,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Venues
+  app.patch("/api/venues/:id", async (req, res) => {
+    try {
+      const venue = await storage.updateVenue(req.params.id, req.body);
+      if (!venue) {
+        return res.status(404).json({ message: "Venue not found" });
+      }
+      res.json(venue);
+    } catch (error) {
+      console.error('Venue update error:', error);
+      res.status(500).json({ message: "Failed to update venue" });
+    }
+  });
+
+  app.delete("/api/venues/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteVenue(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Venue not found" });
+      }
+      res.json({ message: "Venue deleted successfully" });
+    } catch (error) {
+      console.error('Venue delete error:', error);
+      res.status(500).json({ message: "Failed to delete venue" });
+    }
+  });
+
+  app.delete("/api/customers/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteCustomer(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      res.json({ message: "Customer deleted successfully" });
+    } catch (error) {
+      console.error('Customer delete error:', error);
+      res.status(500).json({ message: "Failed to delete customer" });
+    }
+  });
+
+  // Packages
+  app.patch("/api/packages/:id", async (req, res) => {
+    try {
+      const packageData = await storage.updatePackage(req.params.id, req.body);
+      if (!packageData) {
+        return res.status(404).json({ message: "Package not found" });
+      }
+      res.json(packageData);
+    } catch (error) {
+      console.error('Package update error:', error);
+      res.status(500).json({ message: "Failed to update package" });
+    }
+  });
+
+  app.delete("/api/packages/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deletePackage(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Package not found" });
+      }
+      res.json({ message: "Package deleted successfully" });
+    } catch (error) {
+      console.error('Package delete error:', error);
+      res.status(500).json({ message: "Failed to delete package" });
+    }
+  });
+
+  // Services
+  app.patch("/api/services/:id", async (req, res) => {
+    try {
+      const service = await storage.updateService(req.params.id, req.body);
+      if (!service) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+      res.json(service);
+    } catch (error) {
+      console.error('Service update error:', error);
+      res.status(500).json({ message: "Failed to update service" });
+    }
+  });
+
+  app.delete("/api/services/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteService(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+      res.json({ message: "Service deleted successfully" });
+    } catch (error) {
+      console.error('Service delete error:', error);
+      res.status(500).json({ message: "Failed to delete service" });
+    }
+  });
+
   // Proposals
   app.get("/api/proposals", async (req, res) => {
     try {

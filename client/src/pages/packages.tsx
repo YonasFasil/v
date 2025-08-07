@@ -15,11 +15,15 @@ import { Package, Plus, Edit, Trash2, DollarSign, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
+import { EditPackageModal } from "@/components/forms/edit-package-modal";
+import { EditServiceModal } from "@/components/forms/edit-service-modal";
 
 export default function Packages() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showCreatePackageForm, setShowCreatePackageForm] = useState(false);
   const [showCreateServiceForm, setShowCreateServiceForm] = useState(false);
+  const [editingPackage, setEditingPackage] = useState<any>(null);
+  const [editingService, setEditingService] = useState<any>(null);
   const { toast } = useToast();
 
   const { data: packages, isLoading: packagesLoading } = useQuery({
@@ -342,7 +346,7 @@ export default function Packages() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {Array.isArray(packages) && packages.map((pkg: any) => (
-                <Card key={pkg.id} className="hover:shadow-lg transition-shadow">
+                <Card key={pkg.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setEditingPackage(pkg)}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">{pkg.name}</CardTitle>
@@ -378,14 +382,8 @@ export default function Packages() {
                       </div>
                     )}
                     
-                    <div className="flex gap-2 pt-2">
-                      <Button variant="outline" size="sm" className="flex-1">
-                        <Edit className="w-3 h-3 mr-1" />
-                        Edit
-                      </Button>
-                      <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
+                    <div className="flex justify-end pt-2">
+                      <span className="text-xs text-blue-600 hover:text-blue-800">Click to edit →</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -404,7 +402,7 @@ export default function Packages() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {Array.isArray(services) && services.map((service: any) => (
-                <Card key={service.id} className="hover:shadow-md transition-shadow">
+                <Card key={service.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setEditingService(service)}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-medium text-sm">{service.name}</h3>
@@ -426,20 +424,26 @@ export default function Packages() {
                       </div>
                     </div>
                     
-                    <div className="flex gap-1">
-                      <Button variant="outline" size="sm" className="flex-1 text-xs">
-                        <Edit className="w-3 h-3 mr-1" />
-                        Edit
-                      </Button>
-                      <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
+                    <div className="flex justify-end pt-2">
+                      <span className="text-xs text-blue-600 hover:text-blue-800">Click to edit →</span>
                     </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
           </div>
+          
+          <EditPackageModal 
+            open={!!editingPackage} 
+            onOpenChange={(open) => !open && setEditingPackage(null)} 
+            package={editingPackage}
+          />
+          
+          <EditServiceModal 
+            open={!!editingService} 
+            onOpenChange={(open) => !open && setEditingService(null)} 
+            service={editingService}
+          />
         </main>
       </div>
     </div>

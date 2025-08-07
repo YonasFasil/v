@@ -1,0 +1,211 @@
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { X, Edit, Save, Trash2, Plus } from "lucide-react";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Card } from "@/components/ui/card";
+
+interface Props {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  venue: any;
+}
+
+export function EditVenueModal({ open, onOpenChange, venue }: Props) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [capacity, setCapacity] = useState("");
+  const [address, setAddress] = useState("");
+  const [amenities, setAmenities] = useState("");
+
+  // Get spaces for this venue
+  const { data: spaces = [] } = useQuery({
+    queryKey: [`/api/venues/${venue?.id}/spaces`],
+    enabled: !!venue?.id && open
+  });
+
+  useEffect(() => {
+    if (venue && open) {
+      setName(venue.name || "");
+      setDescription(venue.description || "");
+      setCapacity(venue.capacity?.toString() || "");
+      setAddress(venue.address || "");
+      setAmenities(venue.amenities || "");
+    }
+  }, [venue, open]);
+
+  const updateVenue = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("PATCH", `/api/venues/${venue.id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/venues"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/venues-with-spaces"] });
+      toast({ title: "Venue updated successfully!" });
+      onOpenChange(false);
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to update venue", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const deleteVenue = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("DELETE", `/api/venues/${venue.id}`, {});
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/venues"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/venues-with-spaces"] });
+      toast({ title: "Venue deleted successfully!" });
+      onOpenChange(false);
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to delete venue", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const handleSave = () => {
+    updateVenue.mutate({
+      name,
+      description,
+      capacity: capacity ? parseInt(capacity) : null,
+      address,
+      amenities
+    });
+  };
+
+  const handleDelete = () => {
+    if (confirm("Are you sure you want to delete this venue? This will also delete all associated spaces and may affect existing bookings.")) {
+      deleteVenue.mutate();
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl p-0 max-h-[90vh] overflow-y-auto" aria-describedby="edit-venue-description">
+        <DialogTitle className="sr-only">Edit Venue</DialogTitle>
+        <div id="edit-venue-description" className="sr-only">
+          Edit venue property information including name, capacity, spaces, and amenities.
+        </div>
+        
+        <div className="border-b border-slate-200 p-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Edit className="h-5 w-5 text-blue-600" />
+            <h2 className="text-xl font-semibold">Edit Venue Property</h2>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Venue Name *</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" />
+            </div>
+            
+            <div>
+              <Label>Total Capacity</Label>
+              <Input 
+                type="number" 
+                value={capacity} 
+                onChange={(e) => setCapacity(e.target.value)} 
+                className="mt-1"
+                placeholder="Maximum guests"
+              />
+            </div>
+          </div>
+          
+          <div>
+            <Label>Description</Label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full p-3 border rounded-md mt-1 h-20 resize-none text-sm"
+              placeholder="Describe this venue property..."
+            />
+          </div>
+          
+          <div>
+            <Label>Address</Label>
+            <textarea
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="w-full p-3 border rounded-md mt-1 h-16 resize-none text-sm"
+              placeholder="Full venue address..."
+            />
+          </div>
+          
+          <div>
+            <Label>Amenities & Features</Label>
+            <textarea
+              value={amenities}
+              onChange={(e) => setAmenities(e.target.value)}
+              className="w-full p-3 border rounded-md mt-1 h-16 resize-none text-sm"
+              placeholder="Parking, WiFi, AV equipment, catering kitchen, etc."
+            />
+          </div>
+
+          {/* Spaces Section */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <Label className="text-base font-medium">Spaces in this Venue</Label>
+              <Button variant="outline" size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Space
+              </Button>
+            </div>
+            
+            {spaces.length > 0 ? (
+              <div className="space-y-2">
+                {spaces.map((space: any) => (
+                  <Card key={space.id} className="p-3 cursor-pointer hover:bg-slate-50">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <div className="font-medium">{space.name}</div>
+                        <div className="text-sm text-slate-600">
+                          Capacity: {space.capacity} • {space.description || 'No description'}
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="sm">Edit</Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center p-6 bg-slate-50 rounded-lg">
+                <p className="text-slate-600">No spaces configured for this venue</p>
+                <p className="text-sm text-slate-500 mt-1">Add spaces (halls, rooms) that can be booked within this property</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="border-t border-slate-200 p-6 flex justify-between">
+          <Button variant="destructive" onClick={handleDelete} disabled={deleteVenue.isPending}>
+            <Trash2 className="h-4 w-4 mr-2" />
+            {deleteVenue.isPending ? 'Deleting...' : 'Delete Venue'}
+          </Button>
+          
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button onClick={handleSave} disabled={updateVenue.isPending || !name.trim()}>
+              <Save className="h-4 w-4 mr-2" />
+              {updateVenue.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

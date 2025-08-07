@@ -73,6 +73,17 @@ export interface IStorage {
 
   // Packages & Services
   getPackages(): Promise<Package[]>;
+  updatePackage(id: string, packageData: any): Promise<Package | null>;
+  deletePackage(id: string): Promise<boolean>;
+  getServices(): Promise<Service[]>;
+  updateService(id: string, serviceData: any): Promise<Service | null>;
+  deleteService(id: string): Promise<boolean>;
+  
+  // Additional CRUD operations
+  deleteCustomer(id: string): Promise<boolean>;
+  updateVenue(id: string, venueData: Partial<Venue>): Promise<Venue | null>;
+  deleteVenue(id: string): Promise<boolean>;
+  deleteBooking(id: string): Promise<boolean>;
   getPackage(id: string): Promise<Package | undefined>;
   createPackage(pkg: InsertPackage): Promise<Package>;
   updatePackage(id: string, pkg: Partial<InsertPackage>): Promise<Package | undefined>;

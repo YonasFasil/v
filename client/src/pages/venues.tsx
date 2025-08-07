@@ -14,11 +14,12 @@ import { MapPin, Users, Plus, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
+import { EditVenueModal } from "@/components/forms/edit-venue-modal";
 
 export default function Venues() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [editingVenue, setEditingVenue] = useState(null);
+  const [editingVenue, setEditingVenue] = useState<any>(null);
   const { toast } = useToast();
 
   const { data: venues, isLoading } = useQuery({
@@ -210,7 +211,7 @@ export default function Venues() {
         <main className="flex-1 overflow-y-auto p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.isArray(venues) && venues.map((venue: any) => (
-              <Card key={venue.id} className="hover:shadow-lg transition-shadow">
+              <Card key={venue.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setEditingVenue(venue)}>
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">{venue.name}</CardTitle>
@@ -257,11 +258,20 @@ export default function Venues() {
                     <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
                       <Trash2 className="w-3 h-3" />
                     </Button>
+                    <div className="flex justify-end pt-2">
+                      <span className="text-xs text-blue-600 hover:text-blue-800">Click to edit →</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
+          
+          <EditVenueModal 
+            open={!!editingVenue} 
+            onOpenChange={(open) => !open && setEditingVenue(null)} 
+            venue={editingVenue}
+          />
         </main>
       </div>
     </div>
