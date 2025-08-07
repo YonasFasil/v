@@ -664,6 +664,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Packages
+  app.get("/api/packages", async (req, res) => {
+    try {
+      const packages = await storage.getPackages();
+      res.json(packages);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/packages", async (req, res) => {
+    try {
+      const pkg = await storage.createPackage(req.body);
+      res.json(pkg);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Services
+  app.get("/api/services", async (req, res) => {
+    try {
+      const services = await storage.getServices();
+      res.json(services);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/services", async (req, res) => {
+    try {
+      const service = await storage.createService(req.body);
+      res.json(service);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

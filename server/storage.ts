@@ -96,6 +96,7 @@ export class MemStorage implements IStorage {
   }
 
   private initializeData() {
+    this.initializeSamplePackagesAndServices();
     // Initialize with some default venues
     const defaultVenues: InsertVenue[] = [
       {
@@ -128,6 +129,105 @@ export class MemStorage implements IStorage {
     ];
 
     defaultVenues.forEach(venue => this.createVenue(venue));
+  }
+
+  private initializeSamplePackagesAndServices() {
+    // Sample packages
+    const samplePackages = [
+      {
+        id: "pkg-1",
+        name: "Silver Package",
+        description: "Perfect for intimate gatherings and small events",
+        category: "wedding",
+        basePrice: "2500.00",
+        includedServices: ["basic-catering", "standard-decor", "sound-system"],
+        maxGuests: 50,
+        features: ["Basic sound system", "Standard table settings", "Coordinator for 4 hours"],
+        isActive: true,
+        createdAt: new Date()
+      },
+      {
+        id: "pkg-2", 
+        name: "Gold Package",
+        description: "Premium experience with enhanced amenities",
+        category: "corporate",
+        basePrice: "4500.00",
+        includedServices: ["premium-catering", "deluxe-decor", "av-system", "photography"],
+        maxGuests: 100,
+        features: ["Premium AV system", "Elegant decor", "Professional photography", "Coordinator for 8 hours"],
+        isActive: true,
+        createdAt: new Date()
+      },
+      {
+        id: "pkg-3",
+        name: "Platinum Package", 
+        description: "Luxury all-inclusive experience",
+        category: "wedding",
+        basePrice: "7500.00",
+        includedServices: ["luxury-catering", "premium-decor", "full-av", "photography", "videography", "floral"],
+        maxGuests: 200,
+        features: ["Luxury catering", "Premium floral arrangements", "Full AV setup", "Photo & video", "Full-day coordinator"],
+        isActive: true,
+        createdAt: new Date()
+      }
+    ];
+
+    // Sample services
+    const sampleServices = [
+      {
+        id: "svc-1",
+        name: "Premium Bar Service",
+        description: "Full bar service with premium spirits and cocktails", 
+        category: "beverage",
+        price: "25.00",
+        unit: "per person",
+        isActive: true,
+        createdAt: new Date()
+      },
+      {
+        id: "svc-2",
+        name: "Live DJ Entertainment",
+        description: "Professional DJ with sound system and lighting",
+        category: "entertainment", 
+        price: "800.00",
+        unit: "flat rate",
+        isActive: true,
+        createdAt: new Date()
+      },
+      {
+        id: "svc-3",
+        name: "Floral Centerpieces",
+        description: "Custom floral arrangements for tables",
+        category: "decor",
+        price: "75.00", 
+        unit: "per table",
+        isActive: true,
+        createdAt: new Date()
+      },
+      {
+        id: "svc-4",
+        name: "Additional Catering Hour", 
+        description: "Extend catering service by one hour",
+        category: "catering",
+        price: "200.00",
+        unit: "per hour",
+        isActive: true,
+        createdAt: new Date()
+      },
+      {
+        id: "svc-5",
+        name: "Valet Parking Service",
+        description: "Professional valet parking for guests",
+        category: "service",
+        price: "15.00",
+        unit: "per person", 
+        isActive: true,
+        createdAt: new Date()
+      }
+    ];
+
+    samplePackages.forEach(pkg => this.packages.set(pkg.id, pkg));
+    sampleServices.forEach(svc => this.services.set(svc.id, svc));
   }
 
   // Users

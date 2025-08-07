@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { EnhancedEventModal } from "@/components/forms/enhanced-event-modal";
+import { MultiDateEventModal } from "@/components/forms/multi-date-event-modal";
 import { useBookings } from "@/hooks/use-bookings";
 import { Calendar, Clock, MapPin, Users } from "lucide-react";
 import { format } from "date-fns";
@@ -80,7 +80,7 @@ export default function Events() {
         />
         
         <main className="flex-1 overflow-y-auto p-6">
-          <EnhancedEventModal 
+          <MultiDateEventModal 
             open={showCreateForm} 
             onOpenChange={setShowCreateForm} 
           />

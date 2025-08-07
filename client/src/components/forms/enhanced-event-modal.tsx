@@ -54,8 +54,9 @@ const eventFormSchema = z.object({
   budget: z.number().optional(),
   specialRequests: z.string().optional(),
   isMultiDay: z.boolean().default(false),
-  startDate: z.date(),
-  endDate: z.date().optional()
+  selectedDates: z.array(z.date()).min(1, "At least one date must be selected"),
+  packageId: z.string().optional(),
+  additionalServices: z.array(z.string()).optional()
 });
 
 type EventFormData = z.infer<typeof eventFormSchema>;
@@ -63,12 +64,13 @@ type EventFormData = z.infer<typeof eventFormSchema>;
 export function EnhancedEventModal({ open, onOpenChange }: EnhancedEventModalProps) {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
-  const [selectedDate, setSelectedDate] = useState<Date>();
-  const [selectedEndDate, setSelectedEndDate] = useState<Date>();
+  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [selectedTimes, setSelectedTimes] = useState({ start: "", end: "" });
   const [selectedVenue, setSelectedVenue] = useState("");
+  const [selectedPackage, setSelectedPackage] = useState("");
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isMultiDay, setIsMultiDay] = useState(false);
+  const [totalCost, setTotalCost] = useState(0);
   
   // AI Assistant state
   const [aiAssistantMode, setAiAssistantMode] = useState(false);
@@ -89,6 +91,14 @@ export function EnhancedEventModal({ open, onOpenChange }: EnhancedEventModalPro
     queryKey: ["/api/customers"],
   });
 
+  const { data: packages } = useQuery({
+    queryKey: ["/api/packages"],
+  });
+
+  const { data: services } = useQuery({
+    queryKey: ["/api/services"],
+  });
+
   const form = useForm<EventFormData>({
     resolver: zodResolver(eventFormSchema),
     defaultValues: {
@@ -98,8 +108,9 @@ export function EnhancedEventModal({ open, onOpenChange }: EnhancedEventModalPro
       budget: 0,
       specialRequests: "",
       isMultiDay: false,
-      startDate: new Date(),
-      endDate: undefined
+      selectedDates: [],
+      packageId: "",
+      additionalServices: []
     },
   });
 
