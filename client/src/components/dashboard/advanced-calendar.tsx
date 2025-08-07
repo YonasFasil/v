@@ -312,47 +312,64 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
                 <p>No venues found.</p>
               </div>
             ) : (
-              <div className="border border-slate-200 rounded-lg overflow-hidden">
+              <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[800px]">
-                    {/* Header with dates */}
-                    <thead className="bg-slate-50">
+                  <table className="w-full min-w-[900px]">
+                    {/* Header with dates - matching your app design */}
+                    <thead className="bg-slate-50 border-b border-slate-200">
                       <tr>
-                        <th className="sticky left-0 bg-slate-50 border-r border-slate-200 p-3 text-left font-semibold text-slate-700 min-w-[180px] z-10">
-                          Spaces
+                        <th className="sticky left-0 bg-slate-50 border-r border-slate-200 p-4 text-left font-semibold text-slate-800 min-w-[220px] z-10">
+                          Event Spaces
                         </th>
-                        {calendarDays.slice(0, 31).map((day, index) => (
-                          <th key={index} className="border-r border-slate-200 p-2 text-center min-w-[120px]">
-                            <div className="text-sm font-medium text-slate-600">
-                              {format(day, 'EEE')}
-                            </div>
-                            <div className="text-lg font-bold text-slate-900">
-                              {format(day, 'd')}
-                            </div>
-                          </th>
-                        ))}
+                        {calendarDays.slice(0, 31).map((day, index) => {
+                          const isToday = isSameDay(day, new Date());
+                          const isCurrentMonth = isSameMonth(day, currentDate);
+                          
+                          return (
+                            <th 
+                              key={index} 
+                              className={`border-r border-slate-200 p-3 text-center min-w-[140px] ${
+                                isToday ? 'bg-blue-50' : ''
+                              }`}
+                            >
+                              <div className={`text-sm font-medium ${
+                                isCurrentMonth ? 'text-slate-700' : 'text-slate-400'
+                              }`}>
+                                {format(day, 'EEE')}
+                              </div>
+                              <div className={`text-lg font-bold ${
+                                isToday ? 'text-blue-600' : 
+                                isCurrentMonth ? 'text-slate-900' : 'text-slate-400'
+                              }`}>
+                                {format(day, 'd')}
+                              </div>
+                            </th>
+                          );
+                        })}
                       </tr>
                     </thead>
                     
-                    {/* Space rows */}
+                    {/* Space rows - exactly like your design */}
                     <tbody>
                       {venueData.map((venueItem) => 
                         venueItem.venue.spaces ? venueItem.venue.spaces.map((space: any) => (
-                          <tr key={space.id} className="border-b border-slate-200 hover:bg-slate-25">
-                            <td className="sticky left-0 bg-white border-r border-slate-200 p-3 z-10">
-                              <div className="flex items-center gap-2">
-                                <MapPin className="h-4 w-4 text-slate-400" />
-                                <div>
-                                  <div className="font-medium text-slate-900">{space.name}</div>
-                                  <div className="text-xs text-slate-500">
-                                    {venueItem.venue.name} • Cap {space.capacity}
-                                  </div>
+                          <tr key={space.id} className="border-b border-slate-200 hover:bg-slate-50/50 transition-colors">
+                            <td className="sticky left-0 bg-white border-r border-slate-200 p-4 z-10">
+                              <div className="flex flex-col gap-1">
+                                <div className="font-semibold text-slate-900 text-sm">
+                                  {venueItem.venue.name} - {space.name}
+                                </div>
+                                <div className="text-xs text-slate-500">
+                                  Capacity: {space.capacity} guests
                                 </div>
                               </div>
                             </td>
                             
-                            {/* Date cells for this space */}
+                            {/* Date cells for this space - clean boxes like your design */}
                             {calendarDays.slice(0, 31).map((day, dayIndex) => {
+                              const isToday = isSameDay(day, new Date());
+                              const isCurrentMonth = isSameMonth(day, currentDate);
+                              
                               const dayBookings = venueItem.bookings.filter((booking: any) => 
                                 booking.spaceId === space.id && isSameDay(new Date(booking.eventDate), day)
                               );
@@ -367,40 +384,43 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
                               });
                               
                               return (
-                                <td key={dayIndex} className="border-r border-slate-200 p-2 align-top min-h-[100px]">
-                                  <div className="space-y-1">
+                                <td 
+                                  key={dayIndex} 
+                                  className={`border-r border-slate-200 p-2 align-top min-h-[120px] ${
+                                    isToday ? 'bg-blue-50/30' : 
+                                    !isCurrentMonth ? 'bg-slate-50' : 'bg-white'
+                                  } transition-colors hover:bg-slate-50`}
+                                >
+                                  <div className="space-y-2 min-h-[100px]">
                                     {sortedBookings.map((booking: any) => (
                                       <div
                                         key={booking.id}
-                                        className="p-2 rounded-lg text-white cursor-pointer hover:opacity-80 transition-all shadow-sm text-xs"
-                                        style={{
-                                          backgroundColor: booking.status === 'confirmed' ? '#f59e0b' : 
-                                                         booking.status === 'pending' ? '#6b7280' : '#ef4444'
-                                        }}
+                                        className="bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-lg cursor-pointer transition-all shadow-sm text-sm border-l-4 border-blue-700"
                                         onClick={() => onEventClick?.(booking)}
-                                        title={`${booking.eventName} - ${booking.customerName} (${booking.startTime}-${booking.endTime})`}
                                       >
-                                        <div className="font-semibold truncate mb-1">
+                                        {/* Event date and space info like your design */}
+                                        <div className="font-medium text-xs opacity-90 mb-1">
+                                          {format(new Date(booking.eventDate), 'MMMM d, yyyy')}
+                                        </div>
+                                        <div className="font-semibold text-sm mb-1 leading-tight">
+                                          {space.name} @ {booking.startTime}
+                                        </div>
+                                        <div className="text-xs opacity-90 truncate">
                                           {booking.eventName}
                                         </div>
-                                        <div className="text-xs opacity-90 mb-1 truncate">
-                                          {booking.customerName}
-                                        </div>
-                                        <div className="flex items-center justify-between text-xs opacity-90">
-                                          <div className="flex items-center gap-1">
-                                            <Clock className="h-2.5 w-2.5" />
-                                            <span>{booking.startTime}</span>
-                                          </div>
-                                          <div className="flex items-center gap-1">
-                                            <Users className="h-2.5 w-2.5" />
-                                            <span>{booking.guestCount}</span>
-                                          </div>
+                                        <div className="text-xs opacity-80 mt-1">
+                                          {booking.customerName} • {booking.guestCount} guests
                                         </div>
                                       </div>
                                     ))}
-                                    {sortedBookings.length === 0 && (
-                                      <div className="h-16 flex items-center justify-center text-slate-300">
-                                        <div className="text-xs">Available</div>
+                                    
+                                    {/* Show available state for empty cells */}
+                                    {sortedBookings.length === 0 && isCurrentMonth && (
+                                      <div className="h-full min-h-[80px] flex items-center justify-center">
+                                        <div className="text-slate-300 text-xs text-center">
+                                          <div className="w-6 h-6 mx-auto mb-1 rounded-full border-2 border-dashed border-slate-200"></div>
+                                          Available
+                                        </div>
                                       </div>
                                     )}
                                   </div>
