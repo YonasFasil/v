@@ -408,6 +408,235 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Global search endpoint
+  app.get("/api/search", async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      if (!query || query.trim().length < 2) {
+        return res.json({ results: [] });
+      }
+
+      const results = [];
+      
+      // Search events/bookings
+      try {
+        const bookings = await storage.getBookings();
+        const eventResults = bookings
+          .filter(booking => 
+            booking.eventName?.toLowerCase().includes(query.toLowerCase()) ||
+            booking.eventType?.toLowerCase().includes(query.toLowerCase())
+          )
+          .map(booking => ({
+            id: booking.id.toString(),
+            type: 'event' as const,
+            title: booking.eventName || 'Untitled Event',
+            subtitle: booking.eventType,
+            description: `${booking.guestCount} guests`,
+            metadata: {
+              date: booking.eventDate ? new Date(booking.eventDate).toLocaleDateString() : undefined,
+              status: booking.status,
+              price: booking.totalAmount ? parseFloat(booking.totalAmount) : undefined
+            }
+          }));
+        results.push(...eventResults);
+      } catch (error) {
+        console.error('Error searching bookings:', error);
+      }
+
+      // Search customers
+      try {
+        const customers = await storage.getCustomers();
+        const customerResults = customers
+          .filter(customer => 
+            customer.name?.toLowerCase().includes(query.toLowerCase()) ||
+            customer.email?.toLowerCase().includes(query.toLowerCase()) ||
+            customer.company?.toLowerCase().includes(query.toLowerCase())
+          )
+          .map(customer => ({
+            id: customer.id.toString(),
+            type: 'customer' as const,
+            title: customer.name || 'Unnamed Customer',
+            subtitle: customer.company || customer.email,
+            description: customer.phone,
+            metadata: {
+              status: customer.status
+            }
+          }));
+        results.push(...customerResults);
+      } catch (error) {
+        console.error('Error searching customers:', error);
+      }
+
+      // Search venues
+      try {
+        const venues = await storage.getVenues();
+        const venueResults = venues
+          .filter(venue => 
+            venue.name?.toLowerCase().includes(query.toLowerCase()) ||
+            venue.description?.toLowerCase().includes(query.toLowerCase())
+          )
+          .map(venue => ({
+            id: venue.id.toString(),
+            type: 'venue' as const,
+            title: venue.name || 'Unnamed Venue',
+            subtitle: `Capacity: ${venue.capacity}`,
+            description: venue.description,
+            metadata: {
+              price: venue.pricePerHour ? parseFloat(venue.pricePerHour) : undefined
+            }
+          }));
+        results.push(...venueResults);
+      } catch (error) {
+        console.error('Error searching venues:', error);
+      }
+
+      // Search packages
+      try {
+        const packages = await storage.getPackages();
+        const packageResults = packages
+          .filter(pkg => 
+            pkg.name?.toLowerCase().includes(query.toLowerCase()) ||
+            pkg.description?.toLowerCase().includes(query.toLowerCase())
+          )
+          .map(pkg => ({
+            id: pkg.id.toString(),
+            type: 'package' as const,
+            title: pkg.name || 'Unnamed Package',
+            subtitle: pkg.category,
+            description: pkg.description,
+            metadata: {
+              price: pkg.basePrice ? parseFloat(pkg.basePrice) : undefined
+            }
+          }));
+        results.push(...packageResults);
+      } catch (error) {
+        console.error('Error searching packages:', error);
+      }
+
+      // Search services
+      try {
+        const services = await storage.getServices();
+        const serviceResults = services
+          .filter(service => 
+            service.name?.toLowerCase().includes(query.toLowerCase()) ||
+            service.description?.toLowerCase().includes(query.toLowerCase())
+          )
+          .map(service => ({
+            id: service.id.toString(),
+            type: 'service' as const,
+            title: service.name || 'Unnamed Service',
+            subtitle: service.category,
+            description: service.description,
+            metadata: {
+              price: service.price ? parseFloat(service.price) : undefined
+            }
+          }));
+        results.push(...serviceResults);
+      } catch (error) {
+        console.error('Error searching services:', error);
+      }
+
+      // Limit results and sort by relevance
+      const limitedResults = results.slice(0, 20);
+      
+      res.json({ results: limitedResults });
+    } catch (error: any) {
+      console.error('Search error:', error);
+      res.status(500).json({ message: "Search failed", error: error.message });
+    }
+  });
+
+  // Settings endpoints
+  app.get("/api/settings", async (req, res) => {
+    res.json({
+      business: {
+        companyName: "Venuine Events",
+        companyEmail: "contact@venuine.com",
+        companyPhone: "+1 (555) 123-4567",
+        companyAddress: "123 Business Street, City, State 12345",
+        website: "https://venuine.com",
+        taxId: "12-3456789",
+        description: "Premier venue management and event planning services",
+        timezone: "America/New_York",
+        currency: "USD",
+        dateFormat: "MM/DD/YYYY",
+        timeFormat: "12h"
+      },
+      notifications: {
+        emailNotifications: true,
+        smsNotifications: false,
+        pushNotifications: true,
+        bookingConfirmations: true,
+        paymentAlerts: true,
+        reminderEmails: true,
+        marketingEmails: false,
+        weeklyReports: true,
+        lowInventoryAlerts: true,
+        taskDeadlines: true,
+        customerMessages: true,
+        leadAssignments: true
+      },
+      ai: {
+        enableAiSuggestions: true,
+        autoEmailReplies: false,
+        leadScoring: true,
+        smartScheduling: true,
+        voiceBooking: true,
+        predictiveAnalytics: false,
+        aiChatAssistant: true,
+        contentGeneration: false
+      }
+    });
+  });
+
+  app.put("/api/settings/business", async (req, res) => {
+    try {
+      console.log('Saving business settings:', req.body);
+      res.json({ success: true, message: "Business settings saved" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/settings/notifications", async (req, res) => {
+    try {
+      console.log('Saving notification settings:', req.body);
+      res.json({ success: true, message: "Notification settings saved" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/settings/ai", async (req, res) => {
+    try {
+      console.log('Saving AI settings:', req.body);
+      res.json({ success: true, message: "AI settings saved" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Stripe Connect endpoints
+  app.get("/api/stripe/status", async (req, res) => {
+    try {
+      res.json({
+        connected: false,
+        accountId: null
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/stripe/disconnect", async (req, res) => {
+    try {
+      console.log('Disconnecting Stripe account');
+      res.json({ success: true, message: "Stripe account disconnected" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

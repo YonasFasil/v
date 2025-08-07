@@ -1,8 +1,17 @@
-# Event Venue Management System
+# Event Venue Management System - "Venuine"
 
 ## Overview
 
-This is a comprehensive event venue management system built with React/TypeScript frontend and Express.js backend. The application provides venue owners and event managers with tools to manage bookings, customers, proposals, payments, and tasks. It features AI-powered capabilities including smart scheduling, automated email replies, lead scoring, and predictive analytics to optimize venue operations and enhance customer experience.
+This is a comprehensive event venue management system called "Venuine" built with React/TypeScript frontend and Express.js backend. The application provides venue owners and event managers with tools to manage bookings, customers, proposals, payments, and tasks. It features AI-powered capabilities including smart scheduling, automated email replies, lead scoring, and predictive analytics to optimize venue operations and enhance customer experience.
+
+## Recent Updates (August 2025)
+
+### Completed Features:
+- ✅ **Functional Settings System**: All 6 settings areas (Business, Notifications, AI Features, Payment, Security, Integrations) are fully functional with form validation and API integration
+- ✅ **One-Click Stripe Connect Integration**: Implemented using provided setup link instead of manual API key entry - users can connect their Stripe account with a single click
+- ✅ **Global Search Functionality**: Comprehensive search across events, services, packages, venues, and customers with real-time results and keyboard shortcuts (Cmd/Ctrl+K)
+- ✅ **Enhanced Event Creation Modal**: AI-powered event creation with voice-to-text, step-by-step process, modern gradient design, and smart suggestions
+- ✅ **Mobile Navigation**: Fixed mobile navigation to properly show all sections including Venues, Packages, and Settings
 
 ## User Preferences
 

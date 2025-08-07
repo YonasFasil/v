@@ -1,7 +1,8 @@
 import { Search, Bell, Plus, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { GlobalSearch } from "@/components/search/global-search";
 
 interface HeaderProps {
   title: string;
@@ -10,14 +11,34 @@ interface HeaderProps {
   onMobileMenuToggle?: () => void;
 }
 
-export function Header({ title, subtitle, action, onMobileMenuToggle }: HeaderProps) {
+interface HeaderPropsWithMobile extends HeaderProps {
+  mobileNavOpen?: boolean;
+  setMobileNavOpen?: (open: boolean) => void;
+}
+
+export function Header({ title, subtitle, action, onMobileMenuToggle, mobileNavOpen, setMobileNavOpen }: HeaderPropsWithMobile) {
+  const [searchOpen, setSearchOpen] = useState(false);
+  
+  // Keyboard shortcut for search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+  
   return (
     <header className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3 flex-1 min-w-0">
           {/* Mobile Menu Button */}
           <button 
-            onClick={onMobileMenuToggle}
+            onClick={onMobileMenuToggle || (() => setMobileNavOpen && setMobileNavOpen(true))}
             className="lg:hidden p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
           >
             <Menu className="w-5 h-5" />
@@ -32,22 +53,19 @@ export function Header({ title, subtitle, action, onMobileMenuToggle }: HeaderPr
         </div>
         
         <div className="flex items-center space-x-2 sm:space-x-4">
-          {/* Search Bar - Hidden on mobile */}
-          <div className="relative hidden md:block">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-slate-400" />
-            </div>
-            <Input
-              type="text"
-              className="block w-64 lg:w-80 pl-10 pr-3 py-2 border border-slate-300 rounded-lg leading-5 bg-white placeholder-slate-500 focus:outline-none focus:placeholder-slate-400 focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
-              placeholder="Search events, customers, or venues..."
-            />
-          </div>
-
-          {/* Mobile Search Button */}
-          <button className="md:hidden p-2 text-slate-400 hover:text-slate-600 transition-colors">
-            <Search className="w-5 h-5" />
-          </button>
+          {/* Search Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSearchOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <Search className="w-4 h-4" />
+            <span className="hidden md:inline">Search...</span>
+            <kbd className="hidden lg:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100">
+              <span className="text-xs">⌘</span>K
+            </kbd>
+          </Button>
 
           {/* Custom Action */}
           {action || (
@@ -70,6 +88,8 @@ export function Header({ title, subtitle, action, onMobileMenuToggle }: HeaderPr
           </button>
         </div>
       </div>
+      
+      <GlobalSearch isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
     </header>
   );
 }
