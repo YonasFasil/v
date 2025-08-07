@@ -131,7 +131,11 @@ export class MemStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = randomUUID();
-    const user: User = { ...insertUser, id };
+    const user: User = { 
+      ...insertUser, 
+      id,
+      role: insertUser.role || "manager"
+    };
     this.users.set(id, user);
     return user;
   }
@@ -147,7 +151,15 @@ export class MemStorage implements IStorage {
 
   async createVenue(insertVenue: InsertVenue): Promise<Venue> {
     const id = randomUUID();
-    const venue: Venue = { ...insertVenue, id };
+    const venue: Venue = { 
+      ...insertVenue, 
+      id,
+      description: insertVenue.description || null,
+      pricePerHour: insertVenue.pricePerHour || null,
+      amenities: insertVenue.amenities || null,
+      imageUrl: insertVenue.imageUrl || null,
+      isActive: insertVenue.isActive ?? true
+    };
     this.venues.set(id, venue);
     return venue;
   }
@@ -171,7 +183,16 @@ export class MemStorage implements IStorage {
 
   async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
     const id = randomUUID();
-    const customer: Customer = { ...insertCustomer, id, createdAt: new Date() };
+    const customer: Customer = { 
+      ...insertCustomer, 
+      id, 
+      createdAt: new Date(),
+      notes: insertCustomer.notes || null,
+      status: insertCustomer.status || "lead",
+      phone: insertCustomer.phone || null,
+      company: insertCustomer.company || null,
+      leadScore: insertCustomer.leadScore || 0
+    };
     this.customers.set(id, customer);
     return customer;
   }
@@ -199,7 +220,17 @@ export class MemStorage implements IStorage {
 
   async createBooking(insertBooking: InsertBooking): Promise<Booking> {
     const id = randomUUID();
-    const booking: Booking = { ...insertBooking, id, createdAt: new Date() };
+    const booking: Booking = { 
+      ...insertBooking, 
+      id, 
+      createdAt: new Date(),
+      customerId: insertBooking.customerId || null,
+      venueId: insertBooking.venueId || null,
+      totalAmount: insertBooking.totalAmount || null,
+      depositAmount: insertBooking.depositAmount || null,
+      depositPaid: insertBooking.depositPaid ?? false,
+      notes: insertBooking.notes || null
+    };
     this.bookings.set(id, booking);
     return booking;
   }
@@ -232,7 +263,12 @@ export class MemStorage implements IStorage {
       id, 
       createdAt: new Date(),
       sentAt: null,
-      viewedAt: null
+      viewedAt: null,
+      customerId: insertProposal.customerId || null,
+      bookingId: insertProposal.bookingId || null,
+      status: insertProposal.status || "draft",
+      totalAmount: insertProposal.totalAmount || null,
+      validUntil: insertProposal.validUntil || null
     };
     this.proposals.set(id, proposal);
     return proposal;
@@ -265,7 +301,10 @@ export class MemStorage implements IStorage {
       ...insertPayment, 
       id, 
       createdAt: new Date(),
-      processedAt: null
+      processedAt: null,
+      status: insertPayment.status || "pending",
+      bookingId: insertPayment.bookingId || null,
+      transactionId: insertPayment.transactionId || null
     };
     this.payments.set(id, payment);
     return payment;
@@ -294,7 +333,17 @@ export class MemStorage implements IStorage {
 
   async createTask(insertTask: InsertTask): Promise<Task> {
     const id = randomUUID();
-    const task: Task = { ...insertTask, id, createdAt: new Date() };
+    const task: Task = { 
+      ...insertTask, 
+      id, 
+      createdAt: new Date(),
+      status: insertTask.status || "pending",
+      priority: insertTask.priority || "medium",
+      description: insertTask.description || null,
+      assignedTo: insertTask.assignedTo || null,
+      bookingId: insertTask.bookingId || null,
+      dueDate: insertTask.dueDate || null
+    };
     this.tasks.set(id, task);
     return task;
   }
@@ -318,7 +367,14 @@ export class MemStorage implements IStorage {
 
   async createAiInsight(insertAiInsight: InsertAiInsight): Promise<AiInsight> {
     const id = randomUUID();
-    const insight: AiInsight = { ...insertAiInsight, id, createdAt: new Date() };
+    const insight: AiInsight = { 
+      ...insertAiInsight, 
+      id, 
+      createdAt: new Date(),
+      priority: insertAiInsight.priority || "medium",
+      isActive: insertAiInsight.isActive ?? true,
+      data: insertAiInsight.data || null
+    };
     this.aiInsights.set(id, insight);
     return insight;
   }
