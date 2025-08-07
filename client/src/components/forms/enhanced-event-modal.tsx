@@ -52,7 +52,10 @@ const eventFormSchema = z.object({
   eventType: z.string().min(1, "Event type is required"),
   guestCount: z.number().min(1, "Guest count must be at least 1"),
   budget: z.number().optional(),
-  specialRequests: z.string().optional()
+  specialRequests: z.string().optional(),
+  isMultiDay: z.boolean().default(false),
+  startDate: z.date(),
+  endDate: z.date().optional()
 });
 
 type EventFormData = z.infer<typeof eventFormSchema>;
@@ -61,9 +64,11 @@ export function EnhancedEventModal({ open, onOpenChange }: EnhancedEventModalPro
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date>();
+  const [selectedEndDate, setSelectedEndDate] = useState<Date>();
   const [selectedTimes, setSelectedTimes] = useState({ start: "", end: "" });
   const [selectedVenue, setSelectedVenue] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMultiDay, setIsMultiDay] = useState(false);
   
   // AI Assistant state
   const [aiAssistantMode, setAiAssistantMode] = useState(false);
@@ -91,7 +96,10 @@ export function EnhancedEventModal({ open, onOpenChange }: EnhancedEventModalPro
       eventType: "",
       guestCount: 50,
       budget: 0,
-      specialRequests: ""
+      specialRequests: "",
+      isMultiDay: false,
+      startDate: new Date(),
+      endDate: undefined
     },
   });
 
@@ -248,34 +256,55 @@ export function EnhancedEventModal({ open, onOpenChange }: EnhancedEventModalPro
       return;
     }
 
+    // Multi-day validation
+    if (isMultiDay && (!selectedEndDate || selectedEndDate <= selectedDate)) {
+      toast({
+        title: "Invalid Date Range",
+        description: "End date must be after start date for multi-day events",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const eventData = {
-        ...data,
-        date: selectedDate,
+        eventName: data.eventName,
+        eventType: data.eventType,
+        eventDate: selectedDate.toISOString(),
+        endDate: isMultiDay && selectedEndDate ? selectedEndDate.toISOString() : null,
         startTime: selectedTimes.start,
         endTime: selectedTimes.end,
-        venueId: selectedVenue
+        guestCount: data.guestCount,
+        venueId: selectedVenue,
+        customerId: data.customerId,
+        isMultiDay: isMultiDay,
+        notes: data.specialRequests,
+        totalAmount: data.budget?.toString() || "0"
       };
 
+      console.log('Submitting event data:', eventData);
       await apiRequest("POST", "/api/bookings", eventData);
       await queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
 
       toast({
         title: "Event Created",
-        description: "Your event has been created successfully"
+        description: `Your ${isMultiDay ? 'multi-day ' : ''}event has been created successfully`
       });
 
       onOpenChange(false);
       form.reset();
       setCurrentStep(1);
       setSelectedDate(undefined);
+      setSelectedEndDate(undefined);
       setSelectedTimes({ start: "", end: "" });
       setSelectedVenue("");
-    } catch (error) {
+      setIsMultiDay(false);
+    } catch (error: any) {
+      console.error('Event creation error:', error);
       toast({
         title: "Error",
-        description: "Failed to create event",
+        description: error?.response?.data?.message || "Failed to create event",
         variant: "destructive"
       });
     } finally {
@@ -431,9 +460,25 @@ export function EnhancedEventModal({ open, onOpenChange }: EnhancedEventModalPro
 
   const renderStep2 = () => (
     <div className="space-y-6">
+      {/* Multi-day toggle */}
+      <div className="flex items-center space-x-2">
+        <input
+          type="checkbox"
+          id="multiDay"
+          checked={isMultiDay}
+          onChange={(e) => setIsMultiDay(e.target.checked)}
+          className="rounded border-gray-300 focus:ring-blue-500"
+        />
+        <Label htmlFor="multiDay" className="text-sm font-medium cursor-pointer">
+          Multi-day event
+        </Label>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
-          <Label className="text-sm font-medium mb-3 block">Select Date</Label>
+          <Label className="text-sm font-medium mb-3 block">
+            {isMultiDay ? "Start Date" : "Event Date"}
+          </Label>
           <Calendar
             mode="single"
             selected={selectedDate}
@@ -441,6 +486,19 @@ export function EnhancedEventModal({ open, onOpenChange }: EnhancedEventModalPro
             disabled={(date) => date < new Date()}
             className="rounded-md border border-gray-200"
           />
+          
+          {isMultiDay && (
+            <div className="mt-4">
+              <Label className="text-sm font-medium mb-3 block">End Date</Label>
+              <Calendar
+                mode="single"
+                selected={selectedEndDate}
+                onSelect={setSelectedEndDate}
+                disabled={(date) => date < new Date() || (selectedDate && date <= selectedDate)}
+                className="rounded-md border border-gray-200"
+              />
+            </div>
+          )}
         </div>
 
         <div className="space-y-4">

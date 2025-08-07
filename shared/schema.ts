@@ -42,6 +42,7 @@ export const bookings = pgTable("bookings", {
   customerId: varchar("customer_id").references(() => customers.id),
   venueId: varchar("venue_id").references(() => venues.id),
   eventDate: timestamp("event_date").notNull(),
+  endDate: timestamp("end_date"), // For multi-day events
   startTime: text("start_time").notNull(),
   endTime: text("end_time").notNull(),
   guestCount: integer("guest_count").notNull(),
@@ -49,6 +50,7 @@ export const bookings = pgTable("bookings", {
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
   depositAmount: decimal("deposit_amount", { precision: 10, scale: 2 }),
   depositPaid: boolean("deposit_paid").default(false),
+  isMultiDay: boolean("is_multi_day").default(false),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
 });

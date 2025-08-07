@@ -132,13 +132,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/bookings", async (req, res) => {
     try {
-      // Convert eventDate string to Date object if it's a string
+      console.log('Creating booking with data:', req.body);
+      
+      // Convert date strings to Date objects if they're strings
       const bookingData = {
         ...req.body,
         eventDate: typeof req.body.eventDate === 'string' 
           ? new Date(req.body.eventDate) 
-          : req.body.eventDate
+          : req.body.eventDate,
+        endDate: req.body.endDate && typeof req.body.endDate === 'string'
+          ? new Date(req.body.endDate)
+          : req.body.endDate,
+        guestCount: typeof req.body.guestCount === 'string' 
+          ? parseInt(req.body.guestCount, 10)
+          : req.body.guestCount,
+        totalAmount: req.body.totalAmount && typeof req.body.totalAmount === 'string'
+          ? req.body.totalAmount
+          : req.body.totalAmount,
+        depositAmount: req.body.depositAmount && typeof req.body.depositAmount === 'string'
+          ? req.body.depositAmount
+          : req.body.depositAmount,
       };
+      
+      // Validate required fields
+      if (!bookingData.eventName || !bookingData.eventType || !bookingData.eventDate || 
+          !bookingData.startTime || !bookingData.endTime || !bookingData.guestCount) {
+        return res.status(400).json({ 
+          message: "Missing required fields", 
+          required: ["eventName", "eventType", "eventDate", "startTime", "endTime", "guestCount"]
+        });
+      }
       
       const validatedData = insertBookingSchema.parse(bookingData);
       
@@ -187,8 +210,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const booking = await storage.createBooking(validatedData);
       res.json(booking);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid booking data" });
+    } catch (error: any) {
+      console.error('Booking creation error:', error);
+      res.status(400).json({ 
+        message: error?.message || "Invalid booking data",
+        details: error?.issues || error?.stack 
+      });
     }
   });
 
