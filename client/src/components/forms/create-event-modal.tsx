@@ -390,7 +390,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-[95vw] sm:max-w-6xl h-[95vh] sm:h-[90vh] p-0 flex flex-col mx-2 sm:mx-4" aria-describedby="create-event-description">
+      <DialogContent className="w-full max-w-[95vw] sm:max-w-6xl max-h-[90vh] p-0 flex flex-col mx-2 sm:mx-4 overflow-hidden" aria-describedby="create-event-description">
         <DialogTitle className="sr-only">Create Event</DialogTitle>
         <div id="create-event-description" className="sr-only">
           Create a new event booking with date selection, venue configuration, and customer details.
@@ -448,7 +448,8 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
             </div>
 
             {/* Step Content */}
-            <div className="flex-1 p-3 sm:p-6 overflow-y-auto min-h-0">
+            <div className="flex-1 overflow-hidden">
+              <div className="h-full p-3 sm:p-6 overflow-y-auto">
               {/* Step 1: Date & Venue Selection */}
               {currentStep === 1 && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
@@ -869,7 +870,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                 <div className="space-y-6 pb-4">
                   <h3 className="text-lg font-semibold">Confirm Details</h3>
 
-                  <div className="grid grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
                     <div className="space-y-6">
                       <div>
                         <Label className="text-base font-medium">Event Name</Label>
@@ -1027,6 +1028,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                   </div>
                 </div>
               )}
+              </div>
             </div>
 
             {/* Fixed Footer */}

@@ -390,7 +390,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-[95vw] sm:max-w-6xl h-[95vh] sm:h-[90vh] p-0 flex flex-col mx-2 sm:mx-4" aria-describedby="edit-event-description">
+      <DialogContent className="w-full max-w-[95vw] sm:max-w-6xl max-h-[90vh] p-0 flex flex-col mx-2 sm:mx-4 overflow-hidden" aria-describedby="edit-event-description">
         <DialogTitle className="sr-only">Edit Event</DialogTitle>
         <div id="edit-event-description" className="sr-only">
           Edit event booking with date selection, venue configuration, and customer details.
@@ -481,8 +481,9 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
             </div>
 
             {/* Step Content */}
-            <div className="flex-1 p-3 sm:p-6 overflow-y-auto min-h-0">
-              {/* Step 1: Date & Venue Selection */}
+            <div className="flex-1 overflow-hidden">
+              <div className="h-full p-3 sm:p-6 overflow-y-auto">
+                {/* Step 1: Date & Venue Selection */}
               {currentStep === 1 && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8 h-full">
                   {/* Left: Calendar */}
@@ -1143,7 +1144,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                     </div>
                   </div>
                 </div>
-              )}
+                )}
+              </div>
             </div>
 
             {/* Fixed Footer */}
