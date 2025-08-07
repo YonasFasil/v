@@ -312,115 +312,105 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
                 <p>No venues found.</p>
               </div>
             ) : (
-              <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+              <div className="bg-white rounded-lg shadow-md overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[1000px]">
-                    {/* Header row with dates - exact match to your app */}
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        <th className="sticky left-0 bg-gray-50 border-r border-gray-200 p-3 text-left font-medium text-gray-700 min-w-[200px] z-10">
-                          Space
-                        </th>
-                        {calendarDays.slice(0, 31).map((day, index) => {
+                  <div className="grid grid-cols-[250px_repeat(31,120px)] min-w-max">
+                    {/* Header row - dates */}
+                    <div className="bg-gray-50 p-3 border-b border-gray-200 font-semibold text-gray-700 sticky left-0 z-10">
+                      Space
+                    </div>
+                    {calendarDays.slice(0, 31).map((day, index) => {
+                      const isToday = isSameDay(day, new Date());
+                      const isCurrentMonth = isSameMonth(day, currentDate);
+                      
+                      return (
+                        <div 
+                          key={index} 
+                          className={`bg-gray-50 p-2 border-b border-r border-gray-200 text-center text-xs ${
+                            isToday ? 'bg-blue-100' : ''
+                          }`}
+                        >
+                          <div className={`font-medium ${
+                            isCurrentMonth ? 'text-gray-600' : 'text-gray-400'
+                          }`}>
+                            {format(day, 'EEE')}
+                          </div>
+                          <div className={`text-sm font-semibold ${
+                            isToday ? 'text-blue-600' : 
+                            isCurrentMonth ? 'text-gray-900' : 'text-gray-400'
+                          }`}>
+                            {format(day, 'd')}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    
+                    {/* Space rows and event cells */}
+                    {venueData.map((venueItem) => 
+                      venueItem.venue.spaces ? venueItem.venue.spaces.map((space: any) => {
+                        // Create the row for each space
+                        const rowItems = [];
+                        
+                        // Space name cell
+                        rowItems.push(
+                          <div key={`${space.id}-name`} className="p-3 border-b border-gray-200 font-medium text-gray-900 bg-white sticky left-0 z-10">
+                            {venueItem.venue.name} - {space.name}
+                          </div>
+                        );
+                        
+                        // Date cells for this space
+                        calendarDays.slice(0, 31).forEach((day, dayIndex) => {
                           const isToday = isSameDay(day, new Date());
                           const isCurrentMonth = isSameMonth(day, currentDate);
                           
-                          return (
-                            <th 
-                              key={index} 
-                              className={`border-r border-gray-200 p-2 text-center min-w-[120px] ${
-                                isToday ? 'bg-blue-50' : ''
+                          const dayBookings = venueItem.bookings.filter((booking: any) => 
+                            booking.spaceId === space.id && isSameDay(new Date(booking.eventDate), day)
+                          );
+                          
+                          // Sort bookings by start time (earliest first)
+                          const sortedBookings = dayBookings.sort((a, b) => {
+                            const parseTime = (timeStr: string) => {
+                              const [hours, minutes] = timeStr.split(':').map(Number);
+                              return hours * 60 + minutes;
+                            };
+                            return parseTime(a.startTime) - parseTime(b.startTime);
+                          });
+                          
+                          rowItems.push(
+                            <div 
+                              key={`${space.id}-${dayIndex}`}
+                              className={`p-1 border-b border-r border-gray-200 min-h-[60px] ${
+                                isToday ? 'bg-blue-50/30' : 
+                                !isCurrentMonth ? 'bg-gray-50' : 'bg-white'
                               }`}
                             >
-                              <div className={`text-xs font-medium ${
-                                isCurrentMonth ? 'text-gray-600' : 'text-gray-400'
-                              }`}>
-                                {format(day, 'EEE')}
-                              </div>
-                              <div className={`text-sm font-semibold ${
-                                isToday ? 'text-blue-600' : 
-                                isCurrentMonth ? 'text-gray-900' : 'text-gray-400'
-                              }`}>
-                                {format(day, 'd')}
-                              </div>
-                            </th>
-                          );
-                        })}
-                      </tr>
-                    </thead>
-                    
-                    {/* Space rows - exactly matching your previous app */}
-                    <tbody className="divide-y divide-gray-200">
-                      {venueData.map((venueItem) => 
-                        venueItem.venue.spaces ? venueItem.venue.spaces.map((space: any) => (
-                          <tr key={space.id} className="hover:bg-gray-50">
-                            <td className="sticky left-0 bg-white border-r border-gray-200 p-3 z-10">
-                              <div className="text-sm font-medium text-gray-900">
-                                {venueItem.venue.name} - {space.name}
-                              </div>
-                            </td>
-                            
-                            {/* Date cells - clean format like your app */}
-                            {calendarDays.slice(0, 31).map((day, dayIndex) => {
-                              const isToday = isSameDay(day, new Date());
-                              const isCurrentMonth = isSameMonth(day, currentDate);
-                              
-                              const dayBookings = venueItem.bookings.filter((booking: any) => 
-                                booking.spaceId === space.id && isSameDay(new Date(booking.eventDate), day)
-                              );
-                              
-                              // Sort bookings by start time (earliest first)
-                              const sortedBookings = dayBookings.sort((a, b) => {
-                                const parseTime = (timeStr: string) => {
-                                  const [hours, minutes] = timeStr.split(':').map(Number);
-                                  return hours * 60 + minutes;
-                                };
-                                return parseTime(a.startTime) - parseTime(b.startTime);
-                              });
-                              
-                              return (
-                                <td 
-                                  key={dayIndex} 
-                                  className={`border-r border-gray-200 p-2 align-top min-h-[80px] ${
-                                    isToday ? 'bg-blue-50/50' : 
-                                    !isCurrentMonth ? 'bg-gray-50' : 'bg-white'
-                                  }`}
-                                >
-                                  <div className="space-y-2">
-                                    {sortedBookings.map((booking: any) => (
-                                      <div
-                                        key={booking.id}
-                                        className="bg-blue-100 border-l-4 border-blue-500 p-2 rounded cursor-pointer hover:bg-blue-200 transition-colors"
-                                        onClick={() => onEventClick?.(booking)}
-                                      >
-                                        {/* Format exactly like your previous app */}
-                                        <div className="text-xs text-gray-600 mb-1">
-                                          {format(new Date(booking.eventDate), 'MMMM d, yyyy')}
-                                        </div>
-                                        <div className="text-sm font-semibold text-blue-800 mb-1">
-                                          {space.name} @ {booking.startTime}
-                                        </div>
-                                        <div className="text-xs text-gray-700">
-                                          {booking.eventName}
-                                        </div>
-                                      </div>
-                                    ))}
-                                    
-                                    {/* Empty state */}
-                                    {sortedBookings.length === 0 && isCurrentMonth && (
-                                      <div className="h-12 flex items-center justify-center text-gray-300 text-xs">
-                                        Available
-                                      </div>
-                                    )}
+                              <div className="space-y-1">
+                                {sortedBookings.map((booking: any) => (
+                                  <div
+                                    key={booking.id}
+                                    className="bg-blue-100 border-l-2 border-blue-500 p-1 text-xs rounded cursor-pointer hover:bg-blue-200 transition-colors"
+                                    onClick={() => onEventClick?.(booking)}
+                                  >
+                                    <div className="text-gray-600 mb-1">
+                                      {format(new Date(booking.eventDate), 'MMM d, yyyy')}
+                                    </div>
+                                    <div className="font-semibold text-blue-800">
+                                      {space.name} @ {booking.startTime}
+                                    </div>
+                                    <div className="text-gray-700 truncate">
+                                      {booking.eventName}
+                                    </div>
                                   </div>
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        )) : []
-                      )}
-                    </tbody>
-                  </table>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        });
+                        
+                        return rowItems;
+                      }).flat() : []
+                    )}
+                  </div>
                 </div>
               </div>
             )}
