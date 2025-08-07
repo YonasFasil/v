@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { MobileNav } from "@/components/layout/mobile-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,7 @@ import { format } from "date-fns";
 export default function Proposals() {
   const { data: proposals, isLoading } = useProposals();
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -59,12 +61,20 @@ export default function Proposals() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
-      <Sidebar />
+      <div className="hidden lg:block">
+        <Sidebar />
+      </div>
+      
+      <MobileNav 
+        isOpen={mobileNavOpen} 
+        onClose={() => setMobileNavOpen(false)} 
+      />
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header 
           title="Proposals & Contracts" 
           subtitle="Create and manage client proposals"
+          onMobileMenuToggle={() => setMobileNavOpen(true)}
           action={
             <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
               <DialogTrigger asChild>

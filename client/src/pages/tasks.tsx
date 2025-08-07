@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { MobileNav } from "@/components/layout/mobile-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,7 @@ export default function Tasks() {
     queryKey: ["/api/tasks"],
   });
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const { toast } = useToast();
 
   const form = useForm({

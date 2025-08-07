@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { MobileNav } from "@/components/layout/mobile-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +10,7 @@ import { CreditCard, DollarSign, TrendingUp, AlertCircle, CheckCircle } from "lu
 import { format } from "date-fns";
 
 export default function Payments() {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const { data: payments, isLoading } = useQuery({
     queryKey: ["/api/payments"],
   });
@@ -71,12 +74,20 @@ export default function Payments() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
-      <Sidebar />
+      <div className="hidden lg:block">
+        <Sidebar />
+      </div>
+      
+      <MobileNav 
+        isOpen={mobileNavOpen} 
+        onClose={() => setMobileNavOpen(false)} 
+      />
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header 
           title="Payments" 
           subtitle="Track and manage all payments"
+          onMobileMenuToggle={() => setMobileNavOpen(true)}
           action={
             <Button className="bg-blue-600 hover:bg-blue-700">
               + Process Payment
