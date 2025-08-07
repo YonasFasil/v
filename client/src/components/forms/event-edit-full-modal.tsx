@@ -25,6 +25,14 @@ interface SelectedDate {
   startTime: string;
   endTime: string;
   spaceId?: string;
+  packageId?: string;
+  selectedServices?: string[];
+  guestCount?: number;
+  itemQuantities?: Record<string, number>;
+  pricingOverrides?: {
+    packagePrice?: number;
+    servicePrices?: Record<string, number>;
+  };
 }
 
 export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
@@ -39,10 +47,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   const [selectedVenue, setSelectedVenue] = useState("");
   const [selectedDates, setSelectedDates] = useState<SelectedDate[]>([]);
   
-  // Step 2: Event Configuration  
-  const [guestCount, setGuestCount] = useState(1);
-  const [selectedPackage, setSelectedPackage] = useState("");
-  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  // Step 2: Event Configuration - now managed per date
+  const [activeTabIndex, setActiveTabIndex] = useState(0);
   
   // Step 3: Final Details
   const [eventName, setEventName] = useState("");
@@ -69,21 +75,24 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
     if (booking && open) {
       setEventName(booking.eventName || "");
       setEventStatus(booking.status || "inquiry");
-      setGuestCount(booking.guestCount || 1);
       setSelectedVenue(booking.venueId || "");
-      setSelectedPackage(booking.packageId || "");
-      setSelectedServices(booking.selectedServices || []);
       setSelectedCustomer(booking.customerId || "");
       
-      // Set the date and time from the booking
-      if (booking.eventDate && booking.startTime && booking.endTime) {
-        setSelectedDates([{
-          date: new Date(booking.eventDate),
-          startTime: booking.startTime,
-          endTime: booking.endTime,
-          spaceId: booking.spaceId || ""
-        }]);
-      }
+      // Initialize dates with existing booking data
+      const bookingDate: SelectedDate = {
+        date: new Date(booking.eventDate),
+        startTime: booking.startTime || "09:00 AM",
+        endTime: booking.endTime || "05:00 PM", 
+        spaceId: booking.spaceId,
+        packageId: booking.packageId || "",
+        selectedServices: booking.selectedServices || [],
+        guestCount: booking.guestCount || 1,
+        itemQuantities: booking.itemQuantities || {},
+        pricingOverrides: booking.pricingOverrides || {}
+      };
+      
+      setSelectedDates([bookingDate]);
+      setActiveTabIndex(0);
     }
   }, [booking, open]);
 
@@ -103,28 +112,57 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
     ...calendarDays
   ];
 
+  // Per-date configuration helpers (same as create modal)
+  const updateDateTime = (index: number, field: keyof SelectedDate, value: any) => {
+    setSelectedDates(prev => prev.map((date, i) => 
+      i === index ? { ...date, [field]: value } : date
+    ));
+  };
+
+  const updateDateConfig = (field: keyof SelectedDate, value: any) => {
+    if (activeDate) {
+      updateDateTime(activeTabIndex, field, value);
+    }
+  };
+
+  // Get active date configuration
+  const activeDate = selectedDates[activeTabIndex];
   const selectedVenueData = (venues as any[]).find((v: any) => v.id === selectedVenue);
-  const selectedPackageData = (packages as any[]).find((p: any) => p.id === selectedPackage);
-  
-  // Calculate total price
-  const packagePrice = useMemo(() => {
-    if (!selectedPackageData) return 0;
-    return selectedPackageData.pricingModel === 'per_person' 
-      ? parseFloat(selectedPackageData.price) * guestCount 
-      : parseFloat(selectedPackageData.price);
-  }, [selectedPackageData, guestCount]);
+  const selectedPackageData = (packages as any[]).find((p: any) => p.id === activeDate?.packageId);
 
-  const servicesPrice = useMemo(() => {
-    return selectedServices.reduce((total, serviceId) => {
-      const service = (services as any[]).find((s: any) => s.id === serviceId);
-      if (!service) return total;
-      return total + (service.pricingModel === 'per_person' 
-        ? parseFloat(service.price) * guestCount 
-        : parseFloat(service.price));
+  // Calculate total price across all dates (same as create modal)
+  const totalPrice = useMemo(() => {
+    return selectedDates.reduce((total, dateConfig) => {
+      let dateTotal = 0;
+      
+      // Package price
+      if (dateConfig.packageId) {
+        const pkg = (packages as any[]).find((p: any) => p.id === dateConfig.packageId);
+        if (pkg) {
+          const packagePrice = dateConfig.pricingOverrides?.packagePrice ?? parseFloat(pkg.price || 0);
+          dateTotal += pkg.pricingModel === 'per_person' 
+            ? packagePrice * (dateConfig.guestCount || 1)
+            : packagePrice;
+        }
+      }
+      
+      // Services price
+      dateConfig.selectedServices?.forEach(serviceId => {
+        const service = (services as any[]).find((s: any) => s.id === serviceId);
+        if (service) {
+          const servicePrice = dateConfig.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
+          if (service.pricingModel === 'per_person') {
+            dateTotal += servicePrice * (dateConfig.guestCount || 1);
+          } else {
+            const quantity = dateConfig.itemQuantities?.[serviceId] || 1;
+            dateTotal += servicePrice * quantity;
+          }
+        }
+      });
+      
+      return total + dateTotal;
     }, 0);
-  }, [selectedServices, services, guestCount]);
-
-  const totalPrice = packagePrice + servicesPrice;
+  }, [selectedDates, packages, services]);
 
   // Create customer mutation
   const createCustomer = useMutation({
@@ -182,14 +220,25 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
 
   const handleDateClick = (day: Date) => {
-    if (selectedDates.some(d => isSameDay(d.date, day))) {
-      setSelectedDates(prev => prev.filter(d => !isSameDay(d.date, day)));
+    if (!isSameMonth(day, currentDate)) return;
+    
+    const existingIndex = selectedDates.findIndex(d => isSameDay(d.date, day));
+    if (existingIndex >= 0) {
+      setSelectedDates(prev => prev.filter((_, i) => i !== existingIndex));
+      if (activeTabIndex >= selectedDates.length - 1) {
+        setActiveTabIndex(Math.max(0, selectedDates.length - 2));
+      }
     } else {
       setSelectedDates(prev => [...prev, {
         date: day,
-        startTime: "09:00",
-        endTime: "17:00",
-        spaceId: selectedVenueData?.spaces?.[0]?.id || ""
+        startTime: "09:00 AM",
+        endTime: "05:00 PM",
+        spaceId: selectedVenueData?.spaces?.[0]?.id || "",
+        guestCount: 1,
+        packageId: "",
+        selectedServices: [],
+        itemQuantities: {},
+        pricingOverrides: {}
       }]);
     }
   };
@@ -210,23 +259,27 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
       return;
     }
 
+    // For multi-date events, we'll submit the primary date
+    const primaryDate = selectedDates[0];
     const bookingData = {
       eventName,
       eventType: selectedPackageData?.name || "Custom Event",
-      eventDate: selectedDates[0].date,
-      startTime: selectedDates[0].startTime,
-      endTime: selectedDates[0].endTime,
-      guestCount,
+      eventDate: primaryDate.date,
+      startTime: primaryDate.startTime,
+      endTime: primaryDate.endTime,
+      guestCount: primaryDate.guestCount || 1,
       venueId: selectedVenue,
-      spaceId: selectedDates[0].spaceId,
-      packageId: selectedPackage || null,
-      selectedServices: selectedServices,
+      spaceId: primaryDate.spaceId,
+      packageId: primaryDate.packageId || null,
+      selectedServices: primaryDate.selectedServices || [],
       customerId: selectedCustomer,
       status: eventStatus,
       totalAmount: totalPrice.toString(),
       depositAmount: (totalPrice * 0.3).toString(),
       depositPaid: false,
-      notes: ""
+      notes: "",
+      itemQuantities: primaryDate.itemQuantities || {},
+      pricingOverrides: primaryDate.pricingOverrides || {}
     };
 
     updateBooking.mutate(bookingData);
@@ -501,121 +554,209 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
 
               {/* Step 2: Event Configuration */}
               {currentStep === 2 && (
-                <div className="space-y-8">
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4">Event Configuration</h3>
-                    
-                    <div className="grid grid-cols-2 gap-6">
-                      <div>
-                        <Label className="text-base font-medium">Guest Count</Label>
-                        <div className="mt-2 flex items-center gap-3">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setGuestCount(Math.max(1, guestCount - 1))}
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                          <span className="text-lg font-medium px-4">{guestCount}</span>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setGuestCount(guestCount + 1)}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Configure Each Event Date</h3>
+                    {selectedDates.length > 1 && (
+                      <span className="text-sm text-slate-600">
+                        {selectedDates.length} dates selected
+                      </span>
+                    )}
                   </div>
 
-                  {/* Package Selection */}
-                  <div>
-                    <Label className="text-base font-medium">Event Package</Label>
-                    <div className="mt-3 grid grid-cols-1 gap-4 max-h-60 overflow-y-auto">
-                      <div className="grid grid-cols-1 gap-3">
-                        <div
-                          className={cn(
-                            "p-4 border rounded-lg cursor-pointer transition-all",
-                            !selectedPackage ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
-                          )}
-                          onClick={() => setSelectedPackage("")}
-                        >
-                          <div className="font-medium">No Package</div>
-                          <div className="text-sm text-slate-600">Build custom event with individual services</div>
-                          <div className="text-lg font-semibold text-green-600 mt-2">$0.00</div>
+                  {/* Date Configuration Tabs */}
+                  {selectedDates.length > 0 && (
+                    <div className="space-y-6">
+                      {/* Tab Navigation */}
+                      {selectedDates.length > 1 && (
+                        <div className="flex gap-2 p-1 bg-slate-100 rounded-lg overflow-x-auto">
+                          {selectedDates.map((date, index) => (
+                            <button
+                              key={index}
+                              onClick={() => setActiveTabIndex(index)}
+                              className={cn(
+                                "px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors",
+                                activeTabIndex === index 
+                                  ? "bg-white text-slate-900 shadow-sm" 
+                                  : "text-slate-600 hover:text-slate-900"
+                              )}
+                            >
+                              {format(date.date, 'MMM d')}
+                            </button>
+                          ))}
                         </div>
-                        
-                        {(packages as any[]).map((pkg: any) => (
-                          <div
-                            key={pkg.id}
-                            className={cn(
-                              "p-4 border rounded-lg cursor-pointer transition-all",
-                              selectedPackage === pkg.id ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
-                            )}
-                            onClick={() => setSelectedPackage(pkg.id)}
-                          >
-                            <div className="font-medium">{pkg.name}</div>
-                            <div className="text-sm text-slate-600">{pkg.description}</div>
-                            <div className="text-lg font-semibold text-green-600 mt-2">
-                              ${pkg.pricingModel === 'per_person' 
-                                ? `${parseFloat(pkg.price)} per person` 
-                                : parseFloat(pkg.price).toFixed(2)}
+                      )}
+
+                      {/* Active Date Configuration */}
+                      {activeDate && (
+                        <div className="bg-white border rounded-lg p-6 space-y-6">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-semibold">
+                              {format(activeDate.date, 'EEEE, MMMM d, yyyy')}
+                            </h4>
+                            <div className="text-sm text-slate-600">
+                              {activeDate.startTime} - {activeDate.endTime}
                             </div>
-                            {pkg.pricingModel === 'per_person' && (
-                              <div className="text-sm text-slate-500">
-                                Total: ${(parseFloat(pkg.price) * guestCount).toFixed(2)} for {guestCount} guests
-                              </div>
-                            )}
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Services Selection */}
-                  <div>
-                    <Label className="text-base font-medium">Additional Services</Label>
-                    <div className="mt-3 grid grid-cols-2 gap-4 max-h-60 overflow-y-auto">
-                      {(services as any[]).map((service: any) => {
-                        const isSelected = selectedServices.includes(service.id);
-                        const servicePrice = service.pricingModel === 'per_person' 
-                          ? parseFloat(service.price) * guestCount 
-                          : parseFloat(service.price);
-                        
-                        return (
-                          <div
-                            key={service.id}
-                            className={cn(
-                              "p-3 border rounded-lg cursor-pointer transition-all",
-                              isSelected ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
-                            )}
-                            onClick={() => {
-                              if (isSelected) {
-                                setSelectedServices(prev => prev.filter(id => id !== service.id));
-                              } else {
-                                setSelectedServices(prev => [...prev, service.id]);
-                              }
-                            }}
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="font-medium text-sm">{service.name}</div>
-                                <div className="text-xs text-slate-600 mt-1">{service.description}</div>
-                                <div className="text-sm font-semibold text-green-600 mt-2">
-                                  ${servicePrice.toFixed(2)}
-                                  {service.pricingModel === 'per_person' && (
-                                    <span className="text-xs text-slate-500"> (${service.price}/person)</span>
-                                  )}
+                          <div className="grid grid-cols-2 gap-8">
+                            {/* Left Column: Package & Services */}
+                            <div className="space-y-6">
+                              {/* Guest Count */}
+                              <div>
+                                <Label className="text-base font-medium">Guest Count</Label>
+                                <div className="mt-2 flex items-center gap-3">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => updateDateConfig('guestCount', Math.max(1, (activeDate.guestCount || 1) - 1))}
+                                  >
+                                    <Minus className="h-4 w-4" />
+                                  </Button>
+                                  <span className="text-lg font-medium px-4">{activeDate.guestCount || 1}</span>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => updateDateConfig('guestCount', (activeDate.guestCount || 1) + 1)}
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                  </Button>
                                 </div>
                               </div>
-                              <Checkbox checked={isSelected} className="ml-2" />
+
+                              {/* Package Selection */}
+                              <div>
+                                <Label className="text-base font-medium">Event Package</Label>
+                                <div className="mt-3 max-h-60 overflow-y-auto">
+                                  <div className="grid grid-cols-1 gap-3">
+                                    <div
+                                      className={cn(
+                                        "p-4 border rounded-lg cursor-pointer transition-all",
+                                        !activeDate.packageId ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
+                                      )}
+                                      onClick={() => updateDateConfig('packageId', "")}
+                                    >
+                                      <div className="font-medium">No Package</div>
+                                      <div className="text-sm text-slate-600">Build custom event with individual services</div>
+                                      <div className="text-lg font-semibold text-green-600 mt-2">$0.00</div>
+                                    </div>
+                                    
+                                    {(packages as any[]).map((pkg: any) => (
+                                      <div
+                                        key={pkg.id}
+                                        className={cn(
+                                          "p-4 border rounded-lg cursor-pointer transition-all",
+                                          activeDate.packageId === pkg.id ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
+                                        )}
+                                        onClick={() => updateDateConfig('packageId', pkg.id)}
+                                      >
+                                        <div className="font-medium">{pkg.name}</div>
+                                        <div className="text-sm text-slate-600">{pkg.description}</div>
+                                        <div className="text-lg font-semibold text-green-600 mt-2">
+                                          ${pkg.pricingModel === 'per_person' 
+                                            ? `${parseFloat(pkg.price)} per person` 
+                                            : parseFloat(pkg.price).toFixed(2)}
+                                        </div>
+                                        {pkg.pricingModel === 'per_person' && (
+                                          <div className="text-sm text-slate-500">
+                                            Total: ${(parseFloat(pkg.price) * (activeDate.guestCount || 1)).toFixed(2)} for {activeDate.guestCount || 1} guests
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Services Selection */}
+                              <div>
+                                <Label className="text-base font-medium">Additional Services</Label>
+                                <div className="mt-3 space-y-3 max-h-60 overflow-y-auto">
+                                  {(services as any[]).map((service: any) => {
+                                    const isSelected = activeDate.selectedServices?.includes(service.id) || false;
+                                    const basePrice = parseFloat(service.price || 0);
+                                    const overridePrice = activeDate.pricingOverrides?.servicePrices?.[service.id];
+                                    const displayPrice = overridePrice ?? basePrice;
+                                    
+                                    return (
+                                      <label key={service.id} className="block">
+                                        <div className={cn(
+                                          "p-3 border rounded-lg cursor-pointer transition-all",
+                                          isSelected ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
+                                        )}>
+                                          <div className="flex items-start gap-3">
+                                            <Checkbox 
+                                              checked={isSelected}
+                                              onChange={() => {
+                                                const currentServices = activeDate.selectedServices || [];
+                                                const newServices = isSelected 
+                                                  ? currentServices.filter(id => id !== service.id)
+                                                  : [...currentServices, service.id];
+                                                updateDateConfig('selectedServices', newServices);
+                                              }}
+                                            />
+                                            <div className="flex-1">
+                                              <div className="font-medium text-sm">{service.name}</div>
+                                              <div className="text-xs text-slate-600 mt-1">{service.description}</div>
+                                            </div>
+                                          </div>
+                                          
+                                          {isSelected && (
+                                            <div className="mt-3 pt-3 border-t border-slate-200 flex items-center gap-4">
+                                              {service.pricingModel !== 'per_person' && (
+                                                <div className="flex items-center gap-2">
+                                                  <span className="text-sm">Qty:</span>
+                                                  <Input
+                                                    type="number"
+                                                    min="1"
+                                                    value={activeDate.itemQuantities?.[service.id] || 1}
+                                                    onChange={(e) => {
+                                                      const newQuantities = {
+                                                        ...activeDate.itemQuantities,
+                                                        [service.id]: Math.max(1, parseInt(e.target.value, 10) || 1)
+                                                      };
+                                                      updateDateConfig('itemQuantities', newQuantities);
+                                                    }}
+                                                    className="w-16 h-8 text-xs"
+                                                  />
+                                                </div>
+                                              )}
+                                              <div className="flex items-center gap-1">
+                                                <span className="text-sm">$</span>
+                                                <Input
+                                                  type="number"
+                                                  step="0.01"
+                                                  value={activeDate.pricingOverrides?.servicePrices?.[service.id] ?? ''}
+                                                  onChange={(e) => {
+                                                    const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                                    updateDateConfig('pricingOverrides', {
+                                                      ...activeDate.pricingOverrides,
+                                                      servicePrices: {
+                                                        ...activeDate.pricingOverrides?.servicePrices,
+                                                        [service.id]: value
+                                                      }
+                                                    });
+                                                  }}
+                                                  className="w-20 h-8 text-xs"
+                                                  placeholder={service.price}
+                                                />
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        );
-                      })}
+                        </div>
+                      )}
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
 
