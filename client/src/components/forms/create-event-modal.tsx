@@ -586,7 +586,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
 
                   {/* Right: Configuration for Active Date */}
                   <div className="w-2/3 flex flex-col overflow-y-auto">
-                    {activeDate ? (
+                    {activeDate && (
                       <div className="p-6 flex-grow">
                         <div className="flex justify-between items-center mb-1">
                           <h3 className="text-xl font-semibold">Configure Event</h3>
@@ -615,11 +615,12 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                           <div>
                             <h4 className="font-semibold text-gray-700 mb-2">Package</h4>
                             <Select 
-                              value={activeDate.packageId || ""} 
+                              value={activeDate.packageId || "none"} 
                               onValueChange={(value) => {
-                                updateDateConfig('packageId', value);
+                                const packageId = value === "none" ? "" : value;
+                                updateDateConfig('packageId', packageId);
                                 // Auto-include package services
-                                const pkg = (packages as any[]).find((p: any) => p.id === value);
+                                const pkg = (packages as any[]).find((p: any) => p.id === packageId);
                                 if (pkg?.includedServiceIds) {
                                   updateDateConfig('selectedServices', [...(pkg.includedServiceIds || [])]);
                                 }
@@ -629,7 +630,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                 <SelectValue placeholder="A La Carte" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="">A La Carte</SelectItem>
+                                <SelectItem value="none">A La Carte</SelectItem>
                                 {(packages as any[]).map((pkg: any) => (
                                   <SelectItem key={pkg.id} value={pkg.id}>
                                     {pkg.name} - ${pkg.price}
