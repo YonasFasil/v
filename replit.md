@@ -7,16 +7,16 @@ This is a comprehensive event venue management system called "Venuine" built wit
 ## Recent Updates (August 2025)
 
 ### Latest Completed Features:
+- ✅ **Comprehensive Event Editing Modal**: Enhanced event editing to match creation modal functionality with complete component editing capabilities including Copy Config, New Service creation, advanced pricing calculations, and multi-date management
+- ✅ **Copy Config Functionality**: Added "Copy to Other Dates" button that copies booking configurations between multiple event dates in both creation and editing modals
+- ✅ **New Service Creation**: Added "+ New Service" button in event modals to create services directly during booking process without leaving the workflow
+- ✅ **Enhanced Per-Guest Calculation**: Replaced "Apply guest count" with automatic package calculation that shows total price based on guest count
+- ✅ **Tax and Fees System**: Created comprehensive tax/fee management section in settings with percentage and fixed-rate options
+- ✅ **API Infrastructure**: Added complete backend support for tax settings with CRUD operations and storage interface
 - ✅ **Enhanced Package Creation with Service Selection**: When creating packages, users can now select which services are included in the package base price with visual selection interface, real-time summary, and proper data persistence
 - ✅ **Inline Customer Creation in Event Modal**: Added "New Customer" button to event creation modal that reveals an inline form for creating customers without leaving the event creation workflow
 - ✅ **Clean Slate for User Data**: Removed all dummy/sample data for packages and services - users can now create their own real data from scratch
 - ✅ **Two-Step Event Editing System**: Comprehensive event editing with summary view first (click event card) then full edit modal (click "Edit Event" button) - matches creation modal exactly
-- ✅ **Fixed Modal UI Issues**: Resolved button positioning problems where action buttons were getting pushed down or hidden - modals now use proper flex layout with fixed footers
-- ✅ **Universal Edit System**: All major entities (customers, venues, packages, services, bookings) are now fully editable - click any card to open the edit modal with comprehensive CRUD operations
-- ✅ **Venue/Space Architecture**: Clarified that venues are properties containing spaces (halls), with spaces being the actual bookable units - matches hotel structure (e.g., Ramada hotel with multiple halls)
-- ✅ **Enhanced Event Creation Modal**: Redesigned with wider layout (max-w-6xl), proper venue-space relationship display, and improved packages/services workflow
-- ✅ **Smart Package/Service Logic**: Packages are composed of services, with automatic guest count application to quantities and clear add-on service selection
-- ✅ **Fixed Venues Calendar**: Properly functional table-style calendar with venues listed vertically, dates horizontally, and bookings positioned as time-slot cards
 
 ### Previously Completed Features:
 - ✅ **Functional Settings System**: All 6 settings areas (Business, Notifications, AI Features, Payment, Security, Integrations) are fully functional with form validation and API integration
