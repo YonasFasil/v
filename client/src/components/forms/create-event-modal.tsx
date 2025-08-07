@@ -2,6 +2,14 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+
+// Speech Recognition API types
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -11,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ChevronLeft, ChevronRight, Plus, Minus, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Minus, Check, Mic, MicOff, User } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
@@ -55,6 +63,15 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
   const [selectedPackage, setSelectedPackage] = useState<EventPackage | null>(null);
   const [addOnServices, setAddOnServices] = useState<AddOnService[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState("");
+  const [showCustomerForm, setShowCustomerForm] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    company: ""
+  });
 
   const { data: venues } = useQuery({
     queryKey: ["/api/venues"],
@@ -292,8 +309,194 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
     }
   };
 
+  // Voice recognition functionality
+  const startVoiceRecording = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      toast({
+        title: "Voice not supported",
+        description: "Your browser doesn't support voice recognition",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    setIsListening(true);
+
+    recognition.onresult = (event) => {
+      let transcript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      setVoiceTranscript(transcript);
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+      toast({
+        title: "Voice error",
+        description: "Error occurred during voice recognition",
+        variant: "destructive"
+      });
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+  };
+
+  const stopVoiceRecording = () => {
+    setIsListening(false);
+  };
+
+  // Parse voice transcript and populate fields using Gemini AI
+  const parseVoiceInput = async () => {
+    if (!voiceTranscript.trim()) return;
+
+    try {
+      const response = await apiRequest("POST", "/api/ai/parse-voice", {
+        transcript: voiceTranscript
+      });
+
+      if (response.eventName) {
+        form.setValue("eventName", response.eventName);
+      }
+      if (response.customerName) {
+        form.setValue("customerName", response.customerName);
+      }
+      if (response.customerEmail) {
+        form.setValue("customerEmail", response.customerEmail);
+      }
+      if (response.dates && response.dates.length > 0) {
+        const parsedDates = response.dates.map((dateStr: string) => new Date(dateStr));
+        setSelectedDates(parsedDates);
+      }
+      if (response.times) {
+        setSelectedTimes(response.times);
+      }
+
+      toast({
+        title: "Voice input processed",
+        description: "Event details populated from your voice input"
+      });
+    } catch (error) {
+      toast({
+        title: "Processing failed",
+        description: "Could not process voice input",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Create new customer
+  const createCustomer = async () => {
+    if (!newCustomer.name || !newCustomer.email) {
+      toast({
+        title: "Required fields missing",
+        description: "Please provide at least name and email",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const customer = await apiRequest("POST", "/api/customers", newCustomer);
+      await queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      
+      // Set the new customer as selected
+      form.setValue("customerId", customer.id);
+      form.setValue("customerName", customer.name);
+      form.setValue("customerEmail", customer.email);
+      
+      setShowCustomerForm(false);
+      setNewCustomer({ name: "", email: "", phone: "", company: "" });
+      
+      toast({
+        title: "Customer created",
+        description: `${customer.name} has been added successfully`
+      });
+    } catch (error) {
+      toast({
+        title: "Creation failed",
+        description: "Could not create customer",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const resetForm = () => {
+    setCurrentStep(1);
+    setSelectedDates([]);
+    setSelectedTimes({});
+    setSelectedPackage(null);
+    setAddOnServices([]);
+    setVoiceTranscript("");
+    setShowCustomerForm(false);
+    setNewCustomer({ name: "", email: "", phone: "", company: "" });
+    form.reset();
+  };
+
   const renderStep1 = () => (
     <div className="space-y-4 sm:space-y-6">
+      {/* Voice Booking Section */}
+      <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
+        <h3 className="text-base sm:text-lg font-semibold mb-3 flex items-center text-blue-800">
+          <Mic className="w-5 h-5 mr-2" />
+          Voice Booking Assistant
+        </h3>
+        <p className="text-sm text-blue-600 mb-3">
+          Speak your event details and we'll populate the form automatically. Try saying something like: "Book a wedding for Sarah Johnson on December 15th from 2 PM to 8 PM"
+        </p>
+        
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Button
+            type="button"
+            variant={isListening ? "destructive" : "default"}
+            onClick={isListening ? stopVoiceRecording : startVoiceRecording}
+            className="flex items-center gap-2"
+          >
+            {isListening ? (
+              <>
+                <MicOff className="w-4 h-4" />
+                Stop Recording
+              </>
+            ) : (
+              <>
+                <Mic className="w-4 h-4" />
+                Start Voice Booking
+              </>
+            )}
+          </Button>
+          
+          {voiceTranscript && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={parseVoiceInput}
+              className="flex items-center gap-2"
+            >
+              <Check className="w-4 h-4" />
+              Process Voice Input
+            </Button>
+          )}
+        </div>
+
+        {voiceTranscript && (
+          <div className="mt-3 p-3 bg-white rounded border">
+            <p className="text-sm font-medium text-gray-700 mb-1">Voice transcript:</p>
+            <p className="text-sm text-gray-600 italic">"{voiceTranscript}"</p>
+          </div>
+        )}
+      </div>
+
       <div>
         <h3 className="text-base sm:text-lg font-medium mb-3 sm:mb-4">Venue</h3>
         <Select defaultValue="yonas-salelew">
@@ -583,19 +786,101 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
           </div>
 
           <div>
-            <Label className="text-sm font-medium">Customer</Label>
-            <Select onValueChange={(value) => form.setValue("customerId", value)}>
-              <SelectTrigger className="mt-1">
-                <SelectValue placeholder="-- Select a Customer --" />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.isArray(customers) && customers.map((customer: any) => (
-                  <SelectItem key={customer.id} value={customer.id}>
-                    {customer.name} - {customer.email}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-sm font-medium">Customer</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowCustomerForm(!showCustomerForm)}
+                className="flex items-center gap-1 text-xs"
+              >
+                <Plus className="w-3 h-3" />
+                Create New
+              </Button>
+            </div>
+            
+            {!showCustomerForm ? (
+              <Select onValueChange={(value) => form.setValue("customerId", value)}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="-- Select a Customer --" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.isArray(customers) && customers.map((customer: any) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.name} - {customer.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Card className="p-4 bg-gray-50 border-2 border-blue-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium text-sm text-blue-800 flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    Create New Customer
+                  </h4>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowCustomerForm(false)}
+                    className="h-6 w-6 p-0"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs font-medium">Name *</Label>
+                    <Input
+                      placeholder="Customer name"
+                      value={newCustomer.name}
+                      onChange={(e) => setNewCustomer(prev => ({ ...prev, name: e.target.value }))}
+                      className="text-sm"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-medium">Email *</Label>
+                    <Input
+                      type="email"
+                      placeholder="customer@email.com"
+                      value={newCustomer.email}
+                      onChange={(e) => setNewCustomer(prev => ({ ...prev, email: e.target.value }))}
+                      className="text-sm"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-medium">Phone</Label>
+                    <Input
+                      placeholder="Phone number"
+                      value={newCustomer.phone}
+                      onChange={(e) => setNewCustomer(prev => ({ ...prev, phone: e.target.value }))}
+                      className="text-sm"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-medium">Company</Label>
+                    <Input
+                      placeholder="Company name"
+                      value={newCustomer.company}
+                      onChange={(e) => setNewCustomer(prev => ({ ...prev, company: e.target.value }))}
+                      className="text-sm"
+                    />
+                  </div>
+                </div>
+                
+                <Button
+                  type="button"
+                  onClick={createCustomer}
+                  className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-sm"
+                  disabled={!newCustomer.name || !newCustomer.email}
+                >
+                  Create Customer & Select
+                </Button>
+              </Card>
+            )}
           </div>
 
           <div>

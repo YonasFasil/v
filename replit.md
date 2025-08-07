@@ -37,12 +37,14 @@ Preferred communication style: Simple, everyday language.
 - **Security**: Secure session handling with proper cookie configuration
 
 ### AI Integration
-- **Provider**: OpenAI API integration for AI-powered features
+- **Provider**: Google Gemini API integration for AI-powered features
+- **Voice-to-Text Booking**: Speech recognition for hands-free event creation with automatic field population
 - **Smart Scheduling**: AI-driven optimal booking time suggestions based on venue utilization and event patterns
 - **Email Automation**: Automated email reply generation with contextual understanding
 - **Lead Scoring**: Intelligent lead prioritization using machine learning algorithms
 - **Predictive Analytics**: Revenue forecasting and booking trend analysis
 - **Content Generation**: AI-powered proposal generation based on customer and event data
+- **Natural Language Processing**: Voice transcript parsing to extract booking details automatically
 
 ## External Dependencies
 
@@ -52,8 +54,9 @@ Preferred communication style: Simple, everyday language.
 - **ORM**: Drizzle ORM for type-safe database operations
 
 ### AI & Machine Learning
-- **OpenAI API**: GPT-4o model for natural language processing and content generation
-- **Smart Features**: Scheduling optimization, email automation, and predictive analytics
+- **Google Gemini API**: Gemini 2.5 Flash model for natural language processing and content generation
+- **Voice Recognition**: Browser Web Speech API for voice-to-text functionality
+- **Smart Features**: Voice booking, scheduling optimization, email automation, and predictive analytics
 
 ### Frontend Libraries
 - **UI Framework**: Radix UI component primitives for accessible design system

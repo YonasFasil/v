@@ -277,6 +277,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Voice parsing endpoint
+  app.post("/api/ai/parse-voice", async (req, res) => {
+    try {
+      const { transcript } = req.body;
+      
+      if (!transcript) {
+        return res.status(400).json({ error: "Transcript is required" });
+      }
+
+      // Use Gemini to parse the voice transcript
+      const geminiResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': process.env.GEMINI_API_KEY || ''
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `Parse this voice booking transcript and extract event details. Return a JSON response with the following fields:
+              - eventName: string (name of the event)
+              - customerName: string (customer name if mentioned)
+              - customerEmail: string (email if mentioned)
+              - dates: array of strings in YYYY-MM-DD format
+              - times: object with date keys and {start: "HH:MM", end: "HH:MM", space: "venue-id"} values
+              - eventType: string (type of event like wedding, conference, etc.)
+              - guestCount: number (number of guests if mentioned)
+              
+              Transcript: "${transcript}"
+              
+              Important: Only extract information that is clearly mentioned. Use null for missing information. For dates, convert relative dates like "next Friday" to actual dates. For times, convert to 24-hour format.`
+            }]
+          }],
+          generationConfig: {
+            response_mime_type: "application/json"
+          }
+        })
+      });
+
+      if (!geminiResponse.ok) {
+        throw new Error('Failed to parse voice input with Gemini');
+      }
+
+      const geminiData = await geminiResponse.json();
+      const parsedData = JSON.parse(geminiData.candidates[0].content.parts[0].text);
+
+      res.json(parsedData);
+    } catch (error) {
+      console.error("Error parsing voice input:", error);
+      res.status(500).json({ error: "Failed to parse voice input" });
+    }
+  });
+
   // Dashboard metrics
   app.get("/api/dashboard/metrics", async (req, res) => {
     try {
