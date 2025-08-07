@@ -152,7 +152,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl p-0 max-h-[80vh] overflow-hidden" aria-describedby="edit-venue-description">
+      <DialogContent className="max-w-2xl p-0 max-h-[90vh] overflow-hidden flex flex-col" aria-describedby="edit-venue-description">
         <DialogTitle className="sr-only">Edit Venue</DialogTitle>
         <div id="edit-venue-description" className="sr-only">
           Edit venue property information including name, capacity, spaces, and amenities.
@@ -314,7 +314,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
           </div>
         </div>
 
-        <div className="border-t border-slate-200 p-6 flex justify-between">
+        <div className="border-t border-slate-200 p-6 flex justify-between bg-white flex-shrink-0">
           <Button variant="destructive" onClick={handleDelete} disabled={deleteVenue.isPending}>
             <Trash2 className="h-4 w-4 mr-2" />
             {deleteVenue.isPending ? 'Deleting...' : 'Delete Venue'}

@@ -9,7 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreateEventModal } from "@/components/forms/create-event-modal";
-import { EventEditModal } from "@/components/forms/event-edit-modal";
+import { EventSummaryModal } from "@/components/forms/event-summary-modal";
+import { EventEditFullModal } from "@/components/forms/event-edit-full-modal";
 import { useBookings } from "@/hooks/use-bookings";
 import { Calendar, Clock, MapPin, Users, Table as TableIcon, Grid3X3, DollarSign } from "lucide-react";
 import { format } from "date-fns";
@@ -18,6 +19,7 @@ export default function Events() {
   const { data: bookings, isLoading } = useBookings();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -217,10 +219,21 @@ export default function Events() {
           onOpenChange={setShowCreateForm}
         />
 
-        {/* Event Edit Modal */}
-        <EventEditModal 
-          open={!!selectedBooking} 
+        {/* Event Summary Modal */}
+        <EventSummaryModal 
+          open={!!selectedBooking && !showEditModal} 
           onOpenChange={(open) => !open && setSelectedBooking(null)}
+          booking={selectedBooking}
+          onEditClick={() => setShowEditModal(true)}
+        />
+
+        {/* Event Edit Full Modal */}
+        <EventEditFullModal 
+          open={showEditModal && !!selectedBooking} 
+          onOpenChange={(open) => {
+            setShowEditModal(false);
+            if (!open) setSelectedBooking(null);
+          }}
           booking={selectedBooking}
         />
       </div>

@@ -216,7 +216,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl h-[85vh] p-0 overflow-hidden" aria-describedby="create-event-description">
+      <DialogContent className="max-w-6xl max-h-[90vh] p-0 overflow-hidden flex flex-col" aria-describedby="create-event-description">
         <DialogTitle className="sr-only">Create Event</DialogTitle>
         <div id="create-event-description" className="sr-only">
           Create a new event booking with date selection, venue configuration, and customer details.
@@ -658,8 +658,8 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
               )}
             </div>
 
-            {/* Footer */}
-            <div className="border-t border-slate-200 p-6 flex justify-between items-center">
+            {/* Fixed Footer */}
+            <div className="border-t border-slate-200 p-6 flex justify-between items-center bg-white flex-shrink-0">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-slate-600">Grand Total</span>
                 <span className="text-lg font-semibold">${totalPrice.toFixed(2)}</span>
