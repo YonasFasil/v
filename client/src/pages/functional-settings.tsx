@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { Sidebar } from "@/components/layout/sidebar";
+import { CollapsibleSidebar, MobileSidebar } from "@/components/layout/collapsible-sidebar";
 import { Header } from "@/components/layout/header";
-import { MobileNav } from "@/components/layout/mobile-nav";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,6 +81,7 @@ type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
 
 export default function FunctionalSettings() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState("business");
   const [stripeConnected, setStripeConnected] = useState(false);
   const [stripeAccountId, setStripeAccountId] = useState("");
@@ -244,7 +244,7 @@ export default function FunctionalSettings() {
         <CardContent>
           <Form {...businessForm}>
             <form onSubmit={businessForm.handleSubmit((data) => saveBusinessSettings.mutate(data))} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={businessForm.control}
                   name="companyName"
@@ -311,7 +311,7 @@ export default function FunctionalSettings() {
                   </FormItem>
                 )}
               />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={businessForm.control}
                   name="timezone"
@@ -385,7 +385,7 @@ export default function FunctionalSettings() {
         <CardContent>
           <Form {...notificationForm}>
             <form onSubmit={notificationForm.handleSubmit((data) => saveNotificationSettings.mutate(data))} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <h4 className="font-medium">General Notifications</h4>
                   <FormField
@@ -507,7 +507,7 @@ export default function FunctionalSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-4">
               <h4 className="font-medium">Smart Booking</h4>
               <div className="flex items-center justify-between">
@@ -656,7 +656,7 @@ export default function FunctionalSettings() {
           </div>
 
           {stripeConnected && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm">Payment Methods</CardTitle>
@@ -718,7 +718,7 @@ export default function FunctionalSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-4">
               <h4 className="font-medium">Authentication</h4>
               <div className="flex items-center justify-between">
@@ -788,7 +788,7 @@ export default function FunctionalSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="border rounded-lg p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -853,10 +853,21 @@ export default function FunctionalSettings() {
   if (isLoading) {
     return (
       <div className="flex h-screen overflow-hidden bg-slate-50">
-        <Sidebar />
+        <CollapsibleSidebar 
+          isCollapsed={sidebarCollapsed} 
+          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          className="hidden lg:flex"
+        />
+        <MobileSidebar isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+        
         <div className="flex-1 flex flex-col overflow-hidden">
-          <Header title="Settings" subtitle="Configure your venue management preferences" />
-          <main className="flex-1 overflow-y-auto p-6">
+          <Header 
+            title="Settings" 
+            subtitle="Configure your venue management preferences"
+            mobileNavOpen={mobileNavOpen}
+            setMobileNavOpen={setMobileNavOpen}
+          />
+          <main className="flex-1 overflow-y-auto p-3 sm:p-6">
             <div className="animate-pulse space-y-4">
               <div className="h-8 bg-gray-200 rounded w-1/4"></div>
               <div className="h-32 bg-gray-200 rounded"></div>
@@ -870,8 +881,12 @@ export default function FunctionalSettings() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
-      <Sidebar />
-      <MobileNav isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+      <CollapsibleSidebar 
+        isCollapsed={sidebarCollapsed} 
+        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        className="hidden lg:flex"
+      />
+      <MobileSidebar isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header 
@@ -881,32 +896,32 @@ export default function FunctionalSettings() {
           setMobileNavOpen={setMobileNavOpen}
         />
         
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-6">
-              <TabsTrigger value="business" className="flex items-center gap-1">
-                <Building2 className="w-4 h-4" />
-                <span className="hidden sm:inline">Business</span>
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1">
+              <TabsTrigger value="business" className="flex items-center gap-1 text-xs sm:text-sm px-2 sm:px-4">
+                <Building2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden xs:inline">Business</span>
               </TabsTrigger>
-              <TabsTrigger value="notifications" className="flex items-center gap-1">
-                <Bell className="w-4 h-4" />
-                <span className="hidden sm:inline">Notifications</span>
+              <TabsTrigger value="notifications" className="flex items-center gap-1 text-xs sm:text-sm px-2 sm:px-4">
+                <Bell className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden xs:inline">Notifications</span>
               </TabsTrigger>
-              <TabsTrigger value="ai" className="flex items-center gap-1">
-                <Sparkles className="w-4 h-4" />
-                <span className="hidden sm:inline">AI Features</span>
+              <TabsTrigger value="ai" className="flex items-center gap-1 text-xs sm:text-sm px-2 sm:px-4">
+                <Sparkles className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden xs:inline">AI</span>
               </TabsTrigger>
-              <TabsTrigger value="payment" className="flex items-center gap-1">
-                <CreditCard className="w-4 h-4" />
-                <span className="hidden sm:inline">Payment</span>
+              <TabsTrigger value="payment" className="flex items-center gap-1 text-xs sm:text-sm px-2 sm:px-4">
+                <CreditCard className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden xs:inline">Payment</span>
               </TabsTrigger>
-              <TabsTrigger value="security" className="flex items-center gap-1">
-                <Shield className="w-4 h-4" />
-                <span className="hidden sm:inline">Security</span>
+              <TabsTrigger value="security" className="flex items-center gap-1 text-xs sm:text-sm px-2 sm:px-4">
+                <Shield className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden xs:inline">Security</span>
               </TabsTrigger>
-              <TabsTrigger value="integrations" className="flex items-center gap-1">
-                <Globe className="w-4 h-4" />
-                <span className="hidden sm:inline">Integrations</span>
+              <TabsTrigger value="integrations" className="flex items-center gap-1 text-xs sm:text-sm px-2 sm:px-4">
+                <Globe className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden xs:inline">Integrations</span>
               </TabsTrigger>
             </TabsList>
 
