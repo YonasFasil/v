@@ -242,67 +242,186 @@ export function AdvancedCalendar() {
             )}
           </>
         ) : (
-          // Venue Mode
+          // Venue Mode - Table-style calendar with venues vertically and dates horizontally
           <div className="space-y-6">
-            <h4 className="font-semibold">Bookings by Venue</h4>
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold">Venues Schedule</h4>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={previousMonth}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm font-medium">
+                  {format(currentDate, 'MMMM yyyy')}
+                </span>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={nextMonth}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
             
             {venueData.length === 0 ? (
               <div className="text-center py-8 text-slate-500">
                 <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-slate-300" />
-                <p>No venue bookings found.</p>
+                <p>No venues found.</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {venueData.map((venueItem) => (
-                  <Card key={venueItem.venue.id} className="p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h5 className="font-semibold">{venueItem.venue.name}</h5>
-                        <p className="text-sm text-slate-600">
-                          {venueItem.spaces.length} spaces • {venueItem.bookings.length} bookings
-                        </p>
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[800px]">
+                    {/* Header with dates */}
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="sticky left-0 bg-slate-50 border-r border-slate-200 p-3 text-left font-semibold text-slate-700 min-w-[150px]">
+                          Venues
+                        </th>
+                        {calendarDays.slice(0, 7).map((day, index) => (
+                          <th key={index} className="border-r border-slate-200 p-2 text-center min-w-[120px]">
+                            <div className="text-sm font-medium text-slate-600">
+                              {format(day, 'EEE')}
+                            </div>
+                            <div className="text-lg font-bold text-slate-900">
+                              {format(day, 'd')}
+                            </div>
+                          </th>
+                        ))}
+                      </tr>
+                      {/* Time slots header */}
+                      <tr className="bg-slate-25">
+                        <td className="sticky left-0 bg-slate-25 border-r border-slate-200 p-2"></td>
+                        {calendarDays.slice(0, 7).map((day, index) => (
+                          <td key={index} className="border-r border-slate-200 p-1">
+                            <div className="flex justify-between text-xs text-slate-500 px-1">
+                              <span>12:00 PM</span>
+                              <span>1:00 PM</span>
+                              <span>2:00 PM</span>
+                              <span>3:00 PM</span>
+                              <span>4:00 PM</span>
+                              <span>5:00 PM</span>
+                              <span>6:00 PM</span>
+                              <span>7:00 PM</span>
+                              <span>8:00 PM</span>
+                              <span>9:00 PM</span>
+                            </div>
+                          </td>
+                        ))}
+                      </tr>
+                    </thead>
+                    
+                    {/* Venue rows */}
+                    <tbody>
+                      {venueData.map((venueItem) => (
+                        <tr key={venueItem.venue.id} className="border-b border-slate-200 hover:bg-slate-25">
+                          <td className="sticky left-0 bg-white border-r border-slate-200 p-3">
+                            <div className="flex items-center gap-2">
+                              <MapPin className="h-4 w-4 text-slate-400" />
+                              <div>
+                                <div className="font-medium text-slate-900">{venueItem.venue.name}</div>
+                                <div className="text-xs text-slate-500">
+                                  Cap {venueItem.venue.capacity}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          
+                          {/* Date cells for this venue */}
+                          {calendarDays.slice(0, 7).map((day, dayIndex) => {
+                            const dayBookings = venueItem.bookings.filter((booking: any) => 
+                              isSameDay(new Date(booking.eventDate), day)
+                            );
+                            
+                            return (
+                              <td key={dayIndex} className="border-r border-slate-200 p-1 align-top min-h-[80px] relative">
+                                <div className="h-20 relative">
+                                  {dayBookings.map((booking: any, bookingIndex: number) => {
+                                    // Calculate position based on start time
+                                    const startHour = parseInt(booking.startTime.split(':')[0]);
+                                    const startMinute = parseInt(booking.startTime.split(':')[1]);
+                                    const endHour = parseInt(booking.endTime.split(':')[0]);
+                                    const endMinute = parseInt(booking.endTime.split(':')[1]);
+                                    
+                                    // Convert to percentage position (12PM = 0%, 10PM = 100%)
+                                    const startPos = Math.max(0, ((startHour - 12) * 60 + startMinute) / (10 * 60) * 100);
+                                    const duration = ((endHour - startHour) * 60 + (endMinute - startMinute)) / (10 * 60) * 100;
+                                    
+                                    return (
+                                      <div
+                                        key={booking.id}
+                                        className="absolute rounded text-xs p-1 text-white cursor-pointer hover:opacity-80 shadow-sm"
+                                        style={{
+                                          left: `${startPos}%`,
+                                          width: `${Math.max(duration, 15)}%`,
+                                          top: `${bookingIndex * 20}px`,
+                                          backgroundColor: booking.status === 'confirmed' ? '#f59e0b' : 
+                                                         booking.status === 'pending' ? '#6b7280' : '#ef4444',
+                                          zIndex: 10
+                                        }}
+                                        title={`${booking.eventName} - ${booking.customerName}`}
+                                      >
+                                        <div className="font-medium truncate">{booking.eventName}</div>
+                                        <div className="text-xs opacity-90">#{booking.id.slice(-4)}</div>
+                                      </div>
+                                    );
+                                  })}
+                                  
+                                  {/* Time grid lines */}
+                                  {[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((pos, i) => (
+                                    <div
+                                      key={i}
+                                      className="absolute top-0 bottom-0 border-l border-slate-100"
+                                      style={{ left: `${pos}%` }}
+                                    />
+                                  ))}
+                                </div>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            
+            {/* Booking Details Below */}
+            {venueData.some(v => v.bookings.length > 0) && (
+              <Card className="p-4">
+                <h5 className="font-semibold mb-3">Recent Bookings</h5>
+                <div className="space-y-2">
+                  {venueData.flatMap(v => v.bookings).slice(0, 5).map((booking: any) => (
+                    <div key={booking.id} className="flex items-center justify-between p-2 bg-slate-50 rounded">
+                      <div className="flex-1">
+                        <div className="font-medium">{booking.eventName}</div>
+                        <div className="text-sm text-slate-600">
+                          {booking.venueName} • {booking.customerName} • {booking.guestCount} guests
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {format(new Date(booking.eventDate), 'MMM d, yyyy')} • {booking.startTime} - {booking.endTime}
+                        </div>
                       </div>
-                      <div className="text-sm text-slate-500">
-                        Capacity: {venueItem.venue.capacity}
+                      <div className="text-right">
+                        <Badge 
+                          variant={booking.status === 'confirmed' ? 'default' : 'secondary'}
+                          className="mb-1"
+                        >
+                          {booking.status}
+                        </Badge>
+                        <div className="text-sm font-medium">
+                          ${parseFloat(booking.totalAmount || '0').toLocaleString()}
+                        </div>
                       </div>
                     </div>
-                    
-                    {/* Venue Bookings */}
-                    {venueItem.bookings.length > 0 ? (
-                      <div className="space-y-2">
-                        {venueItem.bookings.map((booking: any) => (
-                          <div key={booking.id} className="flex items-center justify-between p-2 bg-slate-50 rounded">
-                            <div className="flex-1">
-                              <div className="font-medium">{booking.eventName}</div>
-                              <div className="text-sm text-slate-600">
-                                {booking.spaceName} • {booking.customerName} • {booking.guestCount} guests
-                              </div>
-                              <div className="text-xs text-slate-500">
-                                {format(new Date(booking.eventDate), 'MMM d, yyyy')} • {booking.startTime} - {booking.endTime}
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <Badge 
-                                variant={booking.status === 'confirmed' ? 'default' : 'secondary'}
-                                className="mb-1"
-                              >
-                                {booking.status}
-                              </Badge>
-                              <div className="text-sm font-medium">
-                                ${parseFloat(booking.totalAmount || '0').toLocaleString()}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-4 text-slate-400">
-                        No bookings for this venue
-                      </div>
-                    )}
-                  </Card>
-                ))}
-              </div>
+                  ))}
+                </div>
+              </Card>
             )}
           </div>
         )}
