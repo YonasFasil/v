@@ -451,7 +451,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
             <div className="flex-1 p-3 sm:p-6 overflow-y-auto min-h-0">
               {/* Step 1: Date & Venue Selection */}
               {currentStep === 1 && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8 h-full">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
                   {/* Left: Calendar */}
                   <div>
                     <div className="flex items-center justify-between mb-4">
@@ -623,7 +623,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
 
               {/* Step 2: Per-Date Configuration */}
               {currentStep === 2 && (
-                <div className="flex flex-col lg:flex-row h-full">
+                <div className="flex flex-col lg:flex-row min-h-0 pb-4">
                   {/* Left: Date Tabs */}
                   <div className="w-full lg:w-1/3 border-r lg:border-b-0 border-b overflow-y-auto bg-gray-50 max-h-40 lg:max-h-none">
                     <div className="p-4 font-semibold text-lg border-b bg-white sticky top-0">
@@ -655,7 +655,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                   </div>
 
                   {/* Right: Configuration for Active Date */}
-                  <div className="w-full lg:w-2/3 flex flex-col overflow-y-auto">
+                  <div className="w-full lg:w-2/3 flex flex-col overflow-y-auto min-h-0">
                     {activeDate && (
                       <div className="p-3 sm:p-6 flex-grow">
                         <div className="flex justify-between items-center mb-1">
@@ -866,7 +866,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
 
               {/* Step 3: Final Details */}
               {currentStep === 3 && (
-                <div className="space-y-6">
+                <div className="space-y-6 pb-4">
                   <h3 className="text-lg font-semibold">Confirm Details</h3>
 
                   <div className="grid grid-cols-2 gap-8">
