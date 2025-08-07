@@ -92,12 +92,13 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
     ));
   };
 
-  // Get active date configuration
-  const activeDate = selectedDates[activeTabIndex];
+  // Get active date configuration (with bounds checking)
+  const activeDate = selectedDates[activeTabIndex] || selectedDates[0];
   
   const updateDateConfig = (field: keyof SelectedDate, value: any) => {
-    if (activeDate) {
-      updateDateTime(activeTabIndex, field, value);
+    const index = activeTabIndex < selectedDates.length ? activeTabIndex : 0;
+    if (selectedDates[index]) {
+      updateDateTime(index, field, value);
     }
   };
   
@@ -306,6 +307,9 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
         });
         return;
       }
+
+      // Reset active tab index to first date when moving to step 2
+      setActiveTabIndex(0);
     }
     if (currentStep < 3) setCurrentStep(currentStep + 1);
   };
@@ -582,7 +586,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
 
                   {/* Right: Configuration for Active Date */}
                   <div className="w-2/3 flex flex-col overflow-y-auto">
-                    {activeDate && (
+                    {activeDate ? (
                       <div className="p-6 flex-grow">
                         <div className="flex justify-between items-center mb-1">
                           <h3 className="text-xl font-semibold">Configure Event</h3>
