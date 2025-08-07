@@ -1,8 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { X, Calendar, Clock, Users, Package, Plus, Copy, Check, Trash2 } from "lucide-react";
+import { X, Calendar, Clock, Users, Package, Plus, Copy, Check, Trash2, PlusCircle, Building, CheckCircle, RefreshCw } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,20 +11,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
-const eventDetailsSchema = z.object({
-  eventName: z.string().min(1, "Event name is required"),
-  eventType: z.string().min(1, "Event type is required"),
-  description: z.string().optional(),
-  customerId: z.string().optional(),
-});
-
 interface EventSlot {
-  id: string;
-  venueId: string;
-  venueName: string;
-  date: Date;
-  startTime: string;
-  endTime: string;
+  venue: any;
+  space: any;
+  startTime: Date;
+  endTime: Date;
 }
 
 interface SlotConfiguration {
@@ -38,10 +26,23 @@ interface SlotConfiguration {
   itemQuantities: Record<string, number>; // For services that need quantities
 }
 
+interface EventDetails {
+  eventName: string;
+  customerId: string;
+  eventStatus: string;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialSlots?: EventSlot[];
+  initialBookings?: any[];
 }
+
+const generateSlotId = (slot: EventSlot) => 
+  slot?.space?.id && slot.startTime 
+    ? `${slot.space.id}@${slot.startTime.toISOString()}` 
+    : null;
 
 const calculatePriceForSlot = (
   config: SlotConfiguration, 
@@ -77,41 +78,293 @@ const calculatePriceForSlot = (
   return total;
 };
 
-export default function SlotBasedEventModal({ open, onOpenChange }: Props) {
+const EventSlotGenerator = ({ onSlotsGenerated }: { onSlotsGenerated: (slots: EventSlot[]) => void }) => {
+  const { data: venues = [] } = useQuery({ queryKey: ["/api/venues"] });
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  const [slotConfigs, setSlotConfigs] = useState<any[]>([]);
+  const [selectedVenueId, setSelectedVenueId] = useState('');
+  const [currentMonthDate, setCurrentMonthDate] = useState(new Date());
+  
+  const selectedVenue = useMemo(() => venues.find((v: any) => v.id === selectedVenueId), [venues, selectedVenueId]);
+
+  useEffect(() => {
+    setSlotConfigs(selectedDates.map(date => ({
+      date,
+      spaceId: selectedVenue?.spaces?.[0]?.id || '',
+      startTime: '09:00',
+      endTime: '17:00'
+    })));
+  }, [selectedDates, selectedVenue]);
+
+  const handleDateClick = (day: Date) => {
+    const dayString = day.toISOString().split('T')[0];
+    setSelectedDates(prev => 
+      prev.includes(dayString) 
+        ? prev.filter(d => d !== dayString) 
+        : [...prev, dayString].sort()
+    );
+  };
+
+  const handleConfigChange = (index: number, field: string, value: string) => {
+    setSlotConfigs(prev => prev.map((config, i) => 
+      i === index ? { ...config, [field]: value } : config
+    ));
+  };
+
+  const handleGenerate = () => {
+    const slots: EventSlot[] = slotConfigs.map(config => {
+      const venue = selectedVenue;
+      const space = venue?.spaces?.find((s: any) => s.id === config.spaceId);
+      const date = new Date(config.date + 'T00:00:00Z');
+      
+      const [startHour, startMinute] = config.startTime.split(':').map(Number);
+      const [endHour, endMinute] = config.endTime.split(':').map(Number);
+      
+      const startTime = new Date(date);
+      startTime.setUTCHours(startHour, startMinute, 0, 0);
+      
+      const endTime = new Date(date);
+      endTime.setUTCHours(endHour, endMinute, 0, 0);
+
+      return { venue, space, startTime, endTime };
+    }).filter(slot => slot.venue && slot.space);
+
+    onSlotsGenerated(slots);
+  };
+
+  // Generate calendar days for current month
+  const monthStart = new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth(), 1);
+  const monthEnd = new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth() + 1, 0);
+  const startDate = new Date(monthStart);
+  startDate.setDate(startDate.getDate() - monthStart.getDay());
+  
+  const days = [];
+  const current = new Date(startDate);
+  while (current <= monthEnd || current.getDay() !== 0) {
+    days.push(new Date(current));
+    current.setDate(current.getDate() + 1);
+  }
+
+  return (
+    <div className="flex-grow flex overflow-hidden">
+      <div className="w-1/2 p-4 border-r">
+        <h3 className="font-semibold mb-4">Select Dates</h3>
+        
+        <div className="mb-4">
+          <Label>Venue</Label>
+          <Select value={selectedVenueId} onValueChange={setSelectedVenueId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a venue" />
+            </SelectTrigger>
+            <SelectContent>
+              {venues.map((venue: any) => (
+                <SelectItem key={venue.id} value={venue.id}>
+                  {venue.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Calendar */}
+        <div className="bg-white border rounded-lg p-4">
+          <div className="flex justify-between items-center mb-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentMonthDate(new Date(currentMonthDate.setMonth(currentMonthDate.getMonth() - 1)))}
+            >
+              ‹
+            </Button>
+            <h4 className="font-medium">
+              {currentMonthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </h4>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentMonthDate(new Date(currentMonthDate.setMonth(currentMonthDate.getMonth() + 1)))}
+            >
+              ›
+            </Button>
+          </div>
+          
+          <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-gray-500 mb-2">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+              <div key={day} className="py-2">{day}</div>
+            ))}
+          </div>
+          
+          <div className="grid grid-cols-7 gap-1">
+            {days.map((day, i) => {
+              const dayString = day.toISOString().split('T')[0];
+              const isCurrentMonth = day.getMonth() === currentMonthDate.getMonth();
+              const isSelected = selectedDates.includes(dayString);
+              const isPast = day < new Date();
+              
+              return (
+                <button
+                  key={i}
+                  onClick={() => !isPast && isCurrentMonth && handleDateClick(day)}
+                  disabled={isPast || !isCurrentMonth}
+                  className={`
+                    h-8 text-sm rounded transition-colors
+                    ${isCurrentMonth ? 'text-gray-900' : 'text-gray-300'}
+                    ${isPast ? 'bg-gray-100 cursor-not-allowed' : 'hover:bg-gray-100'}
+                    ${isSelected ? 'bg-indigo-600 text-white hover:bg-indigo-700' : ''}
+                  `}
+                >
+                  {day.getDate()}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="w-1/2 p-4">
+        <h3 className="font-semibold mb-4">Configure Selected Dates</h3>
+        
+        {slotConfigs.length === 0 ? (
+          <p className="text-gray-500 text-center py-8">Select dates from the calendar</p>
+        ) : (
+          <>
+            <div className="space-y-4 max-h-64 overflow-y-auto">
+              {slotConfigs.map((config, index) => (
+                <div key={config.date} className="p-3 border rounded-lg">
+                  <div className="font-medium text-sm mb-2">
+                    {new Date(config.date).toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })}
+                  </div>
+                  
+                  <div className="grid grid-cols-1 gap-2">
+                    <div>
+                      <Label className="text-xs">Space</Label>
+                      <Select
+                        value={config.spaceId}
+                        onValueChange={(value) => handleConfigChange(index, 'spaceId', value)}
+                      >
+                        <SelectTrigger className="h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {selectedVenue?.spaces?.map((space: any) => (
+                            <SelectItem key={space.id} value={space.id}>
+                              {space.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">Start</Label>
+                        <Input
+                          type="time"
+                          value={config.startTime}
+                          onChange={(e) => handleConfigChange(index, 'startTime', e.target.value)}
+                          className="h-8"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">End</Label>
+                        <Input
+                          type="time"
+                          value={config.endTime}
+                          onChange={(e) => handleConfigChange(index, 'endTime', e.target.value)}
+                          className="h-8"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <Button 
+              onClick={handleGenerate}
+              className="w-full mt-4"
+              disabled={!selectedVenueId || slotConfigs.some(c => !c.spaceId)}
+            >
+              Generate {slotConfigs.length} Slot{slotConfigs.length !== 1 ? 's' : ''}
+            </Button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default function SlotBasedEventModal({ 
+  open, 
+  onOpenChange, 
+  initialSlots = [], 
+  initialBookings 
+}: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
-  // Form for event details
-  const form = useForm<z.infer<typeof eventDetailsSchema>>({
-    resolver: zodResolver(eventDetailsSchema),
-    defaultValues: {
-      eventName: "",
-      eventType: "",
-      description: "",
-      customerId: "",
-    },
-  });
 
-  // State management
-  const [currentStep, setCurrentStep] = useState(1); // 1: Details, 2: Slots, 3: Configure
-  const [slots, setSlots] = useState<EventSlot[]>([]);
-  const [activeSlotId, setActiveSlotId] = useState<string>("");
-  const [configurations, setConfigurations] = useState<Record<string, SlotConfiguration>>({});
-  const [isAddingSlot, setIsAddingSlot] = useState(false);
-
-  // New slot form
-  const [newSlot, setNewSlot] = useState({
-    venueId: "",
-    date: "",
-    startTime: "",
-    endTime: "",
-  });
-
-  // Data queries
+  // Data queries first
   const { data: venues = [] } = useQuery({ queryKey: ["/api/venues"] });
   const { data: customers = [] } = useQuery({ queryKey: ["/api/customers"] });
   const { data: packages = [] } = useQuery({ queryKey: ["/api/packages"] });
   const { data: services = [] } = useQuery({ queryKey: ["/api/services"] });
+
+  // State management following the exact structure from your previous app
+  const [generatedSlots, setGeneratedSlots] = useState<EventSlot[]>([]);
+  const isEditMode = !!initialBookings;
+  const [isAddingSlots, setIsAddingSlots] = useState(!isEditMode && (!initialSlots || initialSlots.length === 0));
+  const [isAddingService, setIsAddingService] = useState(false);
+
+  const wizardSlots = useMemo(() => {
+    const slotsFromInitial = initialSlots || [];
+    const slotsFromBookings = (initialBookings || []).map((b: any) => ({ 
+      ...b, 
+      venue: venues.find((v: any) => v.id === b.venueId), 
+      space: venues.find((v: any) => v.id === b.venueId)?.spaces?.find((s: any) => s.id === b.spaceId) 
+    }));
+    const allSlots = isEditMode ? [...slotsFromBookings, ...generatedSlots] : [...slotsFromInitial, ...generatedSlots];
+    return allSlots.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  }, [initialSlots, initialBookings, generatedSlots, venues, isEditMode]);
+
+  const [step, setStep] = useState(1);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const [configurations, setConfigurations] = useState<Record<string, SlotConfiguration>>({});
+  const [pricingOverrides, setPricingOverrides] = useState<Record<string, any>>({});
+  const [eventDetails, setEventDetails] = useState<EventDetails>(() => 
+    isEditMode && wizardSlots.length > 0 
+      ? { 
+          eventName: wizardSlots[0].eventName, 
+          customerId: wizardSlots[0].customerId, 
+          eventStatus: wizardSlots[0].eventStatus 
+        } 
+      : { 
+          eventName: '', 
+          customerId: '', 
+          eventStatus: 'Inquiry' 
+        }
+  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCloning, setIsCloning] = useState(false);
+
+  // Initialize pricing overrides for edit mode
+  useEffect(() => {
+    if (isEditMode && initialBookings) {
+      const initialOverrides: Record<string, any> = {};
+      initialBookings.forEach((b: any) => {
+        if (b.pricingOverrides) {
+          const slotId = generateSlotId(b);
+          if (slotId) {
+            initialOverrides[slotId] = b.pricingOverrides;
+          }
+        }
+      });
+      setPricingOverrides(initialOverrides);
+    }
+  }, [isEditMode, initialBookings]);
 
   // Create booking mutation
   const createBookingMutation = useMutation({
@@ -133,28 +386,34 @@ export default function SlotBasedEventModal({ open, onOpenChange }: Props) {
     },
   });
 
-  // Initialize configurations when slots change
+  // Initialize configurations when slots change - exactly like your previous app
   useEffect(() => {
-    if (slots.length > 0 && !activeSlotId) {
-      setActiveSlotId(slots[0].id);
-    }
-    
-    setConfigurations(prev => {
-      const newConfigs = { ...prev };
-      slots.forEach(slot => {
-        if (!newConfigs[slot.id]) {
-          newConfigs[slot.id] = {
-            packageId: "",
-            addOns: [],
-            guests: 1,
-            pricingModel: 'fixed',
-            itemQuantities: {},
-          };
-        }
+    if (wizardSlots.length > 0) {
+      setActiveTabId(prev => {
+        const prevSlotExists = wizardSlots.some(s => generateSlotId(s) === prev);
+        return prevSlotExists ? prev : generateSlotId(wizardSlots[0]);
       });
-      return newConfigs;
-    });
-  }, [slots, activeSlotId]);
+      
+      setConfigurations(prevConfigs => {
+        const newConfigs = { ...prevConfigs };
+        wizardSlots.forEach(slot => {
+          const slotId = generateSlotId(slot);
+          if (slotId && !newConfigs[slotId]) {
+            const booking = isEditMode ? initialBookings?.find((b: any) => generateSlotId(b) === slotId) : null;
+            const pkg = packages.find((p: any) => p.id === booking?.packageId);
+            newConfigs[slotId] = { 
+              packageId: booking?.packageId || '', 
+              addOns: booking?.addOns || [], 
+              itemQuantities: booking?.itemQuantities || {}, 
+              guests: booking?.guests || 1,
+              pricingModel: booking?.pricingModel || pkg?.pricingModel || 'fixed'
+            };
+          }
+        });
+        return newConfigs;
+      });
+    }
+  }, [wizardSlots, isEditMode, initialBookings, packages]);
 
   const handleAddSlot = () => {
     if (!newSlot.venueId || !newSlot.date || !newSlot.startTime || !newSlot.endTime) {
