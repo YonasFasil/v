@@ -7,13 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ProposalForm } from "@/components/forms/proposal-form";
+import { ProposalActionsModal } from "@/components/forms/proposal-actions-modal";
 import { useProposals } from "@/hooks/use-proposals";
-import { FileText, Eye, Send, Calendar, DollarSign } from "lucide-react";
+import { FileText, Eye, Send, Calendar, DollarSign, MoreVertical } from "lucide-react";
 import { format } from "date-fns";
 
 export default function Proposals() {
   const { data: proposals, isLoading } = useProposals();
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [selectedProposal, setSelectedProposal] = useState<any>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const getStatusColor = (status: string) => {
@@ -154,15 +156,28 @@ export default function Proposals() {
                     )}
 
                     <div className="flex justify-between items-center pt-2">
-                      <Button variant="outline" size="sm">
-                        View Details
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setSelectedProposal(proposal)}
+                      >
+                        Manage Proposal
                       </Button>
-                      {proposal.status === "draft" && (
-                        <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                          Send Proposal
-                        </Button>
-                      )}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setSelectedProposal(proposal)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
                     </div>
+                    
+                    {proposal.status === 'accepted' && (
+                      <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-center">
+                        <p className="text-xs text-green-700 font-medium">🎉 Ready to convert to booking!</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
@@ -170,6 +185,13 @@ export default function Proposals() {
           )}
         </main>
       </div>
+
+      {/* Proposal Actions Modal */}
+      <ProposalActionsModal
+        open={!!selectedProposal}
+        onOpenChange={(open) => !open && setSelectedProposal(null)}
+        proposal={selectedProposal}
+      />
     </div>
   );
 }

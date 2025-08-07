@@ -441,6 +441,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Proposals
+  app.patch("/api/proposals/:id", async (req, res) => {
+    try {
+      const proposal = await storage.updateProposal(req.params.id, req.body);
+      if (!proposal) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+      res.json(proposal);
+    } catch (error) {
+      console.error('Proposal update error:', error);
+      res.status(500).json({ message: "Failed to update proposal" });
+    }
+  });
+
+  app.post("/api/proposals/:id/convert-to-booking", async (req, res) => {
+    try {
+      const proposal = await storage.getProposal(req.params.id);
+      if (!proposal) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+
+      if (proposal.status !== 'accepted') {
+        return res.status(400).json({ message: "Only accepted proposals can be converted to bookings" });
+      }
+
+      // Extract event details from proposal content (assuming structured data)
+      let eventData = {};
+      try {
+        eventData = JSON.parse(proposal.content || '{}');
+      } catch {
+        eventData = {};
+      }
+
+      // Create booking from proposal
+      const booking = await storage.createBooking({
+        eventName: proposal.title || `Event from Proposal ${proposal.id}`,
+        eventType: (eventData as any).eventType || "corporate",
+        eventDate: (eventData as any).eventDate || new Date(),
+        startTime: (eventData as any).startTime || "18:00",
+        endTime: (eventData as any).endTime || "23:00",
+        guestCount: (eventData as any).guestCount || 50,
+        customerId: proposal.customerId,
+        venueId: (eventData as any).venueId || null,
+        spaceId: (eventData as any).spaceId || null,
+        status: "confirmed",
+        totalAmount: proposal.totalAmount,
+        depositAmount: proposal.totalAmount ? String(Number(proposal.totalAmount) * 0.3) : null,
+        depositPaid: false,
+        notes: `Converted from proposal "${proposal.title}" on ${new Date().toDateString()}`
+      });
+
+      // Update proposal status to indicate it's been converted
+      await storage.updateProposal(req.params.id, { 
+        status: 'converted',
+        bookingId: booking.id
+      });
+
+      res.json(booking);
+    } catch (error) {
+      console.error('Proposal conversion error:', error);
+      res.status(500).json({ message: "Failed to convert proposal to booking" });
+    }
+  });
+
+  // Proposals
   app.get("/api/proposals", async (req, res) => {
     try {
       const proposals = await storage.getProposals();

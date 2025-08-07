@@ -683,6 +683,14 @@ export class MemStorage implements IStorage {
     return updated;
   }
 
+  async updateProposal(id: string, proposal: Partial<InsertProposal>): Promise<Proposal | undefined> {
+    const existing = this.proposals.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...proposal };
+    this.proposals.set(id, updated);
+    return updated;
+  }
+
   // Payments
   async getPayments(): Promise<Payment[]> {
     return Array.from(this.payments.values());

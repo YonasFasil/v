@@ -81,11 +81,19 @@ export const proposals = pgTable("proposals", {
   title: text("title").notNull(),
   content: text("content").notNull(),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
-  status: text("status").notNull().default("draft"), // draft, sent, viewed, accepted, rejected
+  status: text("status").notNull().default("draft"), // draft, sent, viewed, accepted, rejected, converted
   validUntil: timestamp("valid_until"),
   sentAt: timestamp("sent_at"),
   viewedAt: timestamp("viewed_at"),
   createdAt: timestamp("created_at").defaultNow(),
+  // Additional fields to store event details for conversion
+  eventType: text("event_type"),
+  eventDate: timestamp("event_date"),
+  startTime: text("start_time"), 
+  endTime: text("end_time"),
+  guestCount: integer("guest_count"),
+  venueId: varchar("venue_id").references(() => venues.id),
+  spaceId: varchar("space_id").references(() => spaces.id),
 });
 
 export const payments = pgTable("payments", {
