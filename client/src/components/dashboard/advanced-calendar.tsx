@@ -119,7 +119,7 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
                 }`}
               >
                 <List className="h-4 w-4 mr-1 inline" />
-                Venues
+                Spaces
               </button>
             </div>
           </div>
@@ -279,25 +279,27 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
             )}
           </>
         ) : (
-          // Venue Mode - Table-style calendar with venues vertically and dates horizontally
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h4 className="font-semibold">Venues Schedule</h4>
-              <div className="flex items-center gap-2">
+          // Spaces Mode - Show spaces with events stacked by date
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+              <h4 className="text-lg sm:text-xl font-semibold">Spaces Schedule</h4>
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-center sm:justify-end">
                 <Button 
                   variant="outline" 
                   size="sm"
                   onClick={previousMonth}
+                  className="px-3 py-2"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <span className="text-sm font-medium">
+                <span className="text-base sm:text-lg font-semibold px-3">
                   {format(currentDate, 'MMMM yyyy')}
                 </span>
                 <Button 
                   variant="outline" 
                   size="sm"
                   onClick={nextMonth}
+                  className="px-3 py-2"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -310,108 +312,141 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
                 <p>No venues found.</p>
               </div>
             ) : (
-              <div className="border border-slate-200 rounded-lg overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[800px]">
-                    {/* Header with dates */}
-                    <thead className="bg-slate-50">
-                      <tr>
-                        <th className="sticky left-0 bg-slate-50 border-r border-slate-200 p-3 text-left font-semibold text-slate-700 min-w-[180px] z-10">
-                          Venues
-                        </th>
-                        {calendarDays.slice(0, 31).map((day, index) => (
-                          <th key={index} className="border-r border-slate-200 p-2 text-center min-w-[100px]">
-                            <div className="text-sm font-medium text-slate-600">
-                              {format(day, 'EEE')}
-                            </div>
-                            <div className="text-lg font-bold text-slate-900">
-                              {format(day, 'd')}
-                            </div>
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
+              // Mobile-optimized spaces view
+              <div className="space-y-4">
+                {venueData.map((venueItem) => (
+                  <div key={venueItem.venue.id} className="space-y-4">
+                    {/* Venue Header */}
+                    <div className="bg-slate-100 rounded-lg p-3">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-5 w-5 text-slate-600" />
+                        <h5 className="font-semibold text-slate-900">{venueItem.venue.name}</h5>
+                        <Badge variant="secondary" className="text-xs">
+                          Cap {venueItem.venue.capacity}
+                        </Badge>
+                      </div>
+                    </div>
                     
-                    {/* Venue rows */}
-                    <tbody>
-                      {venueData.map((venueItem) => (
-                        <tr key={venueItem.venue.id} className="border-b border-slate-200 hover:bg-slate-25">
-                          <td className="sticky left-0 bg-white border-r border-slate-200 p-3">
-                            <div className="flex items-center gap-2">
-                              <MapPin className="h-4 w-4 text-slate-400" />
-                              <div>
-                                <div className="font-medium text-slate-900">{venueItem.venue.name}</div>
-                                <div className="text-xs text-slate-500">
-                                  Cap {venueItem.venue.capacity}
-                                </div>
+                    {/* Spaces in this venue */}
+                    {venueItem.venue.spaces ? venueItem.venue.spaces.map((space: any) => {
+                      // Get all bookings for this specific space across the month
+                      const spaceBookings = venueItem.bookings.filter((booking: any) => 
+                        booking.spaceId === space.id
+                      );
+                      
+                      // Group bookings by date
+                      const bookingsByDate: { [key: string]: any[] } = {};
+                      spaceBookings.forEach((booking: any) => {
+                        const dateKey = format(new Date(booking.eventDate), 'yyyy-MM-dd');
+                        if (!bookingsByDate[dateKey]) {
+                          bookingsByDate[dateKey] = [];
+                        }
+                        bookingsByDate[dateKey].push(booking);
+                      });
+                      
+                      // Sort bookings by time within each date
+                      Object.keys(bookingsByDate).forEach(dateKey => {
+                        bookingsByDate[dateKey].sort((a, b) => {
+                          const parseTime = (timeStr: string) => {
+                            const [hours, minutes] = timeStr.split(':').map(Number);
+                            return hours * 60 + minutes;
+                          };
+                          return parseTime(a.startTime) - parseTime(b.startTime);
+                        });
+                      });
+                      
+                      return (
+                        <div key={space.id} className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+                          {/* Space Header */}
+                          <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                            <div className="flex items-center justify-between">
+                              <h6 className="font-medium text-slate-900">{space.name}</h6>
+                              <div className="text-sm text-slate-500">
+                                Cap {space.capacity} • {Object.keys(bookingsByDate).length} days booked
                               </div>
                             </div>
-                          </td>
+                          </div>
                           
-                          {/* Date cells for this venue */}
-                          {calendarDays.slice(0, 31).map((day, dayIndex) => {
-                            const dayBookings = venueItem.bookings.filter((booking: any) => 
-                              isSameDay(new Date(booking.eventDate), day)
-                            );
-                            
-                            return (
-                              <td key={dayIndex} className="border-r border-slate-200 p-1 align-top min-h-[80px] relative">
-                                <div className="h-20 relative">
-                                  {dayBookings.map((booking: any, bookingIndex: number) => {
-                                    // Calculate position based on start time (assuming 12 PM - 10 PM range)
-                                    const parseTime = (timeStr: string) => {
-                                      const [hours, minutes] = timeStr.split(':').map(Number);
-                                      return hours * 60 + minutes;
-                                    };
-                                    
-                                    const startMinutes = parseTime(booking.startTime);
-                                    const endMinutes = parseTime(booking.endTime);
-                                    const dayStart = 12 * 60; // 12 PM
-                                    const dayEnd = 22 * 60; // 10 PM
-                                    
-                                    // Convert to percentage position within the day
-                                    const startPos = Math.max(0, Math.min(100, ((startMinutes - dayStart) / (dayEnd - dayStart)) * 100));
-                                    const endPos = Math.max(0, Math.min(100, ((endMinutes - dayStart) / (dayEnd - dayStart)) * 100));
-                                    const width = Math.max(5, endPos - startPos); // Minimum 5% width
-                                    
-                                    return (
+                          {/* Events by date */}
+                          <div className="p-4 space-y-4">
+                            {Object.keys(bookingsByDate).length === 0 ? (
+                              <div className="text-center py-4 text-slate-500">
+                                <CalendarIcon className="h-8 w-8 mx-auto mb-2 text-slate-300" />
+                                <p className="text-sm">No bookings this month</p>
+                              </div>
+                            ) : (
+                              Object.entries(bookingsByDate).map(([dateKey, dayBookings]) => (
+                                <div key={dateKey} className="space-y-2">
+                                  {/* Date header */}
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <div className="font-semibold text-slate-900">
+                                      {format(new Date(dateKey), 'EEE, MMM d')}
+                                    </div>
+                                    <div className="h-px bg-slate-200 flex-1"></div>
+                                    <Badge variant="outline" className="text-xs">
+                                      {dayBookings.length} event{dayBookings.length > 1 ? 's' : ''}
+                                    </Badge>
+                                  </div>
+                                  
+                                  {/* Stacked events for this date */}
+                                  <div className="space-y-2">
+                                    {dayBookings.map((booking: any) => (
                                       <div
                                         key={booking.id}
-                                        className="absolute rounded text-xs p-1 text-white cursor-pointer hover:opacity-80 shadow-sm"
+                                        className="p-4 rounded-lg border-l-4 bg-slate-50 hover:bg-slate-100 cursor-pointer transition-colors"
                                         style={{
-                                          left: `${startPos}%`,
-                                          width: `${width}%`,
-                                          top: `${bookingIndex * 22}px`,
-                                          height: '18px',
-                                          backgroundColor: booking.status === 'confirmed' ? '#f59e0b' : 
-                                                         booking.status === 'pending' ? '#6b7280' : '#ef4444',
-                                          zIndex: 10
+                                          borderLeftColor: booking.status === 'confirmed' ? '#f59e0b' : 
+                                                          booking.status === 'pending' ? '#6b7280' : '#ef4444'
                                         }}
-                                        title={`${booking.eventName} - ${booking.customerName}`}
+                                        onClick={() => onEventClick?.(booking)}
                                       >
-                                        <div className="font-medium truncate">{booking.eventName}</div>
-                                        <div className="text-xs opacity-90">#{booking.id.slice(-4)}</div>
+                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                          <div className="flex-1">
+                                            <div className="font-semibold text-slate-900 mb-1">
+                                              {booking.eventName}
+                                            </div>
+                                            <div className="text-sm text-slate-600 mb-2">
+                                              {booking.customerName}
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+                                              <div className="flex items-center gap-1">
+                                                <Clock className="h-3 w-3" />
+                                                <span>{booking.startTime} - {booking.endTime}</span>
+                                              </div>
+                                              <div className="flex items-center gap-1">
+                                                <Users className="h-3 w-3" />
+                                                <span>{booking.guestCount} guests</span>
+                                              </div>
+                                              <Badge 
+                                                variant={booking.status === 'confirmed' ? 'default' : 'secondary'} 
+                                                className="text-xs"
+                                              >
+                                                {booking.status}
+                                              </Badge>
+                                            </div>
+                                          </div>
+                                          <div className="text-right">
+                                            <div className="font-semibold text-green-600 text-sm">
+                                              ${parseFloat(booking.totalAmount || '0').toLocaleString()}
+                                            </div>
+                                          </div>
+                                        </div>
                                       </div>
-                                    );
-                                  })}
-                                  
-                                  {/* Time grid lines */}
-                                  {[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((pos, i) => (
-                                    <div
-                                      key={i}
-                                      className="absolute top-0 bottom-0 border-l border-slate-100"
-                                      style={{ left: `${pos}%` }}
-                                    />
-                                  ))}
+                                    ))}
+                                  </div>
                                 </div>
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }) : (
+                      <div className="text-center py-4 text-slate-500">
+                        <p className="text-sm">No spaces configured for this venue</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
             
