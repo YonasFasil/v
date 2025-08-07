@@ -33,7 +33,7 @@ export function Header({ title, subtitle, action, onMobileMenuToggle, mobileNavO
   }, []);
   
   return (
-    <header className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-4">
+    <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 sm:py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3 flex-1 min-w-0">
           {/* Mobile Menu Button */}

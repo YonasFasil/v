@@ -120,3 +120,54 @@
     border-radius: 2px;
   }
 }
+
+/* Mobile scroll improvements */
+@media (max-width: 640px) {
+  .tabs-list {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .card {
+    border-radius: 12px;
+    margin-bottom: 1rem;
+  }
+  
+  .form-field {
+    margin-bottom: 1rem;
+  }
+  
+  /* Better spacing for mobile forms */
+  [data-radix-collection-item] {
+    min-height: 44px;
+    padding: 8px 12px;
+  }
+  
+  /* Improve input height on mobile */
+  input, select, textarea {
+    min-height: 44px;
+    padding: 12px;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  
+  /* Better button spacing */
+  button {
+    min-height: 44px;
+    padding: 12px 16px;
+  }
+  
+  /* Card padding adjustments */
+  .card-content {
+    padding: 20px;
+  }
+}
+
+/* Improved mobile tab styling */
+.mobile-tabs {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.mobile-tabs::-webkit-scrollbar {
+  display: none;
+}
