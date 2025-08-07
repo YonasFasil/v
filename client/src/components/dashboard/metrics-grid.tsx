@@ -31,7 +31,9 @@ export function MetricsGrid() {
             <div>
               <p className="text-sm font-medium text-slate-600">Total Bookings</p>
               <p className="text-3xl font-bold text-slate-900">{metrics?.totalBookings || 0}</p>
-              <p className="text-sm text-green-600 font-medium">+12% from last month</p>
+              <p className="text-sm text-green-600 font-medium">
+                {metrics?.confirmedBookings || 0} confirmed, {metrics?.pendingBookings || 0} pending
+              </p>
             </div>
             <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
               <Calendar className="w-6 h-6 text-blue-600" />
@@ -48,7 +50,9 @@ export function MetricsGrid() {
               <p className="text-3xl font-bold text-slate-900">
                 ${metrics?.revenue ? Math.round(metrics.revenue).toLocaleString() : "0"}
               </p>
-              <p className="text-sm text-green-600 font-medium">+8% from last month</p>
+              <p className="text-sm text-green-600 font-medium">
+                +{metrics?.revenueGrowth || 0}% growth
+              </p>
             </div>
             <div className="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center">
               <DollarSign className="w-6 h-6 text-green-600" />
@@ -80,7 +84,9 @@ export function MetricsGrid() {
             <div>
               <p className="text-sm font-medium text-slate-600">Venue Utilization</p>
               <p className="text-3xl font-bold text-slate-900">{metrics?.utilization || 0}%</p>
-              <p className="text-sm text-green-600 font-medium">Above average</p>
+              <p className="text-sm text-blue-600 font-medium">
+                {metrics?.totalVenues || 0} venues, {metrics?.totalCustomers || 0} customers
+              </p>
             </div>
             <div className="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center">
               <BarChart3 className="w-6 h-6 text-purple-600" />

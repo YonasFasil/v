@@ -230,6 +230,126 @@ export class MemStorage implements IStorage {
     this.packages.forEach(pkg => {
       pkg.applicableSpaceIds = spaceIds; // Make packages available for all spaces
     });
+
+    // Add sample bookings to demonstrate the calendar functionality
+    this.initializeSampleBookings();
+  }
+
+  private initializeSampleBookings() {
+    const customers = Array.from(this.customers.values());
+    const venues = Array.from(this.venues.values());
+    const spaces = Array.from(this.spaces.values());
+
+    // Create some sample customers if none exist
+    if (customers.length === 0) {
+      const sampleCustomers = [
+        {
+          name: "Sarah Johnson",
+          email: "sarah.johnson@email.com",
+          phone: "555-0123",
+          company: "Johnson Events",
+          status: "active" as const,
+          leadScore: 85
+        },
+        {
+          name: "Michael Chen", 
+          email: "michael.chen@techcorp.com",
+          phone: "555-0456",
+          company: "TechCorp",
+          status: "lead" as const,
+          leadScore: 72
+        },
+        {
+          name: "Emily Rodriguez",
+          email: "emily@creativestudio.com", 
+          phone: "555-0789",
+          company: "Creative Studio",
+          status: "active" as const,
+          leadScore: 90
+        }
+      ];
+      
+      sampleCustomers.forEach(customer => this.createCustomer(customer));
+    }
+
+    // Create sample bookings
+    const updatedCustomers = Array.from(this.customers.values());
+    const today = new Date();
+    
+    if (venues.length > 0 && spaces.length > 0 && updatedCustomers.length > 0) {
+      const sampleBookings = [
+        {
+          eventName: "Corporate Annual Gala",
+          eventType: "corporate",
+          eventDate: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000), // Next week
+          startTime: "18:00",
+          endTime: "23:00",
+          guestCount: 150,
+          status: "confirmed",
+          customerId: updatedCustomers[0]?.id,
+          venueId: venues[0]?.id,
+          spaceId: spaces[0]?.id,
+          totalAmount: "8500.00",
+          depositAmount: "2550.00",
+          depositPaid: true,
+          notes: "Premium catering and entertainment package"
+        },
+        {
+          eventName: "Wedding Reception",
+          eventType: "wedding", 
+          eventDate: new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000), // Two weeks
+          startTime: "17:00",
+          endTime: "22:00",
+          guestCount: 80,
+          status: "pending",
+          customerId: updatedCustomers[1]?.id,
+          venueId: venues[0]?.id,
+          spaceId: spaces[1]?.id,
+          totalAmount: "6200.00",
+          depositAmount: "1860.00",
+          depositPaid: false,
+          notes: "Garden ceremony with indoor reception"
+        },
+        {
+          eventName: "Product Launch Event",
+          eventType: "corporate",
+          eventDate: new Date(today.getTime() + 21 * 24 * 60 * 60 * 1000), // Three weeks
+          startTime: "19:00", 
+          endTime: "21:30",
+          guestCount: 45,
+          status: "confirmed" as const,
+          customerId: updatedCustomers[2]?.id,
+          venueId: venues[1]?.id,
+          spaceId: spaces[2]?.id,
+          totalAmount: "3200.00",
+          depositAmount: "960.00",
+          depositPaid: true,
+          notes: "Tech presentation with networking reception"
+        },
+        {
+          eventName: "Birthday Celebration",
+          eventType: "private",
+          eventDate: new Date(today.getTime() + 28 * 24 * 60 * 60 * 1000), // Four weeks
+          startTime: "15:00",
+          endTime: "18:00", 
+          guestCount: 25,
+          status: "confirmed" as const,
+          customerId: updatedCustomers[0]?.id,
+          venueId: venues[2]?.id,
+          spaceId: spaces[4]?.id,
+          totalAmount: "1800.00",
+          depositAmount: "540.00",
+          depositPaid: true,
+          notes: "Intimate family gathering with custom menu"
+        }
+      ];
+
+      sampleBookings.forEach(booking => {
+        if (booking.customerId && booking.venueId && booking.spaceId) {
+          this.createBooking(booking);
+        }
+      });
+    }
   }
 
   private initializeSamplePackagesAndServices() {
@@ -301,7 +421,7 @@ export class MemStorage implements IStorage {
         description: "Basic sound system with microphone",
         category: "audio",
         price: "300.00",
-        pricingModel: "fixed",
+        pricingModel: "fixed" as const,
         isActive: true,
         createdAt: new Date()
       }
@@ -315,7 +435,7 @@ export class MemStorage implements IStorage {
         description: "Perfect for intimate gatherings and small events",
         category: "wedding",
         price: "2500.00",
-        pricingModel: "fixed",
+        pricingModel: "fixed" as const,
         applicableSpaceIds: [], // Will apply to all spaces for now
         includedServiceIds: ["svc-6", "svc-7"], // Basic catering + sound system
         isActive: true,

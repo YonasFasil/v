@@ -3,7 +3,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { MetricsGrid } from "@/components/dashboard/metrics-grid";
-import { CalendarWidget } from "@/components/dashboard/calendar-widget";
+import { AdvancedCalendar } from "@/components/dashboard/advanced-calendar";
 import { RecentBookings } from "@/components/dashboard/recent-bookings";
 import { AIRecommendations } from "@/components/dashboard/ai-recommendations";
 import { ActiveLeads } from "@/components/dashboard/active-leads";
@@ -64,7 +64,7 @@ export default function Dashboard() {
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-              <CalendarWidget />
+              <AdvancedCalendar />
               <RecentBookings />
             </div>
             
