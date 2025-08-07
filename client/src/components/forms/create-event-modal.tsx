@@ -588,246 +588,114 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                 </div>
               )}
 
-              {/* Step 2: Per-Date Configuration */}
+              {/* Step 2: Event Configuration */}
               {currentStep === 2 && (
-                <div className="flex flex-col lg:flex-row min-h-0 pb-4">
-                  {/* Left: Date Tabs */}
-                  <div className="w-full lg:w-1/3 border-r lg:border-b-0 border-b overflow-y-auto bg-gray-50 max-h-40 lg:max-h-none">
-                    <div className="p-4 font-semibold text-lg border-b bg-white sticky top-0">
-                      Event Dates
-                    </div>
-                    {selectedDates.map((dateInfo, index) => (
-                      <div 
-                        key={index} 
-                        onClick={() => setActiveTabIndex(index)}
-                        className={cn(
-                          "p-4 cursor-pointer border-b transition-colors",
-                          activeTabIndex === index 
-                            ? "bg-indigo-100 border-l-4 border-indigo-500" 
-                            : "hover:bg-gray-100"
-                        )}
+                <div className="space-y-6 pb-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-xl font-semibold">Event Configuration</h3>
+                    {selectedDates.length > 1 && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setShowCopyModal(true)}
                       >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-semibold">{format(dateInfo.date, 'EEEE')}</p>
-                            <p className="text-sm text-gray-600">{format(dateInfo.date, 'MMMM d, yyyy')}</p>
-                            <p className="text-sm text-gray-600">
-                              {selectedVenueData?.spaces?.find((s: any) => s.id === dateInfo.spaceId)?.name || 'No space selected'} 
-                              @ {dateInfo.startTime}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                        Copy to Other Dates
+                      </Button>
+                    )}
                   </div>
 
-                  {/* Right: Configuration for Active Date */}
-                  <div className="w-full lg:w-2/3 flex flex-col overflow-y-auto min-h-0">
-                    {activeDate && (
-                      <div className="p-3 sm:p-6 flex-grow">
-                        <div className="flex justify-between items-center mb-1">
-                          <h3 className="text-xl font-semibold">Configure Event</h3>
-                          {selectedDates.length > 1 && (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => setShowCopyModal(true)}
-                            >
-                              Copy to Other Dates
-                            </Button>
+                  {/* Event Date Cards with Controls */}
+                  <div className="space-y-4">
+                    {selectedDates.map((dateInfo, index) => {
+                      const isActive = activeTabIndex === index;
+                      return (
+                        <Card 
+                          key={index} 
+                          className={cn(
+                            "p-4 cursor-pointer transition-colors",
+                            isActive ? "border-green-500 bg-green-50" : "hover:bg-gray-50"
                           )}
-                        </div>
-                        <p className="text-sm text-gray-500 mb-4">
-                          For {format(activeDate.date, 'EEEE, MMMM d')} in {selectedVenueData?.spaces?.find((s: any) => s.id === activeDate.spaceId)?.name || 'selected space'}
-                        </p>
+                          onClick={() => setActiveTabIndex(index)}
+                        >
+                          <div className="flex flex-col space-y-4">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-semibold text-lg">{format(dateInfo.date, 'EEEE, MMMM d, yyyy')}</h4>
+                                <p className="text-sm text-gray-600">{dateInfo.startTime} - {dateInfo.endTime}</p>
+                              </div>
+                              <Badge variant={isActive ? "default" : "outline"}>
+                                {isActive ? "Active" : "Click to Edit"}
+                              </Badge>
+                            </div>
 
-                        <div className="space-y-4">
-                          <div>
-                            <Label className="font-semibold text-gray-700">Number of Guests</Label>
-                            <Input
-                              type="number"
-                              min="1"
-                              value={activeDate.guestCount || 1}
-                              onChange={(e) => updateDateConfig('guestCount', parseInt(e.target.value, 10) || 1)}
-                              className="w-full mt-1 px-3 py-2 border rounded-md"
-                            />
-                          </div>
+                            {isActive && (
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div>
+                                    <Label className="text-sm font-medium">Space</Label>
+                                    <Select
+                                      value={dateInfo.spaceId}
+                                      onValueChange={(value) => updateDateTime(index, 'spaceId', value)}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select space" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {selectedVenueData?.spaces?.map((space: any) => (
+                                          <SelectItem key={space.id} value={space.id}>
+                                            {space.name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
 
-                          <div>
-                            <h4 className="font-semibold text-gray-700 mb-2">Package</h4>
-                            <Select 
-                              value={activeDate.packageId || "none"} 
-                              onValueChange={(value) => {
-                                const packageId = value === "none" ? "" : value;
-                                updateDateConfig('packageId', packageId);
-                                // Auto-include package services
-                                const pkg = (packages as any[]).find((p: any) => p.id === packageId);
-                                if (pkg?.includedServiceIds) {
-                                  updateDateConfig('selectedServices', [...(pkg.includedServiceIds || [])]);
-                                }
-                              }}
-                            >
-                              <SelectTrigger className="w-full px-3 py-2 border rounded-md">
-                                <SelectValue placeholder="A La Carte" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">A La Carte</SelectItem>
-                                {(packages as any[]).map((pkg: any) => (
-                                  <SelectItem key={pkg.id} value={pkg.id}>
-                                    {pkg.name} - ${pkg.price}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            
-                            {selectedPackageData && (
-                              <div className="p-3 bg-gray-100 rounded-md mt-2">
-                                <div className="flex items-center">
-                                  <span className="text-gray-700 font-medium">Price:</span>
-                                  <span className="text-lg font-semibold mx-2">$</span>
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    value={activeDate.pricingOverrides?.packagePrice ?? ''}
-                                    onChange={(e) => {
-                                      const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
-                                      updateDateConfig('pricingOverrides', {
-                                        ...activeDate.pricingOverrides,
-                                        packagePrice: value
-                                      });
-                                    }}
-                                    className="w-32 p-1 border rounded-md"
-                                    placeholder={selectedPackageData.price}
-                                  />
-                                </div>
-                                <div className="mt-2 flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <Checkbox
-                                      checked={selectedPackageData.pricingModel === 'per_person'}
-                                      onCheckedChange={(checked) => {
-                                        // Toggle between per_person and fixed pricing for this package
-                                        const newPricingModel = checked ? 'per_person' : 'fixed';
-                                        // This would require updating the package configuration
-                                      }}
+                                  <div>
+                                    <Label className="text-sm font-medium">Guest Count</Label>
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      value={dateInfo.guestCount || 1}
+                                      onChange={(e) => updateDateTime(index, 'guestCount', parseInt(e.target.value, 10) || 1)}
                                     />
-                                    <span className="text-sm text-gray-600">
-                                      Calculate per guest ({activeDate.guestCount || 1} guests)
-                                    </span>
                                   </div>
-                                  {selectedPackageData.pricingModel === 'per_person' && (
-                                    <span className="text-sm font-medium">
-                                      Total: ${((activeDate.pricingOverrides?.packagePrice ?? parseFloat(selectedPackageData.price || 0)) * (activeDate.guestCount || 1)).toFixed(2)}
-                                    </span>
-                                  )}
                                 </div>
-                                {selectedPackageData.includedServiceIds?.length > 0 && (
-                                  <div className="mt-2">
-                                    <p className="text-sm font-medium">Included services:</p>
-                                    <div className="flex flex-wrap gap-1 mt-1">
-                                      {selectedPackageData.includedServiceIds.map((serviceId: string) => {
-                                        const service = (services as any[]).find((s: any) => s.id === serviceId);
-                                        return service ? (
-                                          <Badge key={serviceId} variant="secondary" className="text-xs">
-                                            {service.name}
-                                          </Badge>
-                                        ) : null;
-                                      })}
-                                    </div>
-                                  </div>
-                                )}
+
+                                <div>
+                                  <Label className="text-sm font-medium">Package</Label>
+                                  <Select 
+                                    value={dateInfo.packageId || "none"} 
+                                    onValueChange={(value) => {
+                                      const packageId = value === "none" ? "" : value;
+                                      updateDateTime(index, 'packageId', packageId);
+                                      // Auto-include package services
+                                      const pkg = (packages as any[]).find((p: any) => p.id === packageId);
+                                      if (pkg?.includedServiceIds) {
+                                        updateDateTime(index, 'selectedServices', [...(pkg.includedServiceIds || [])]);
+                                      }
+                                    }}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="A La Carte" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="none">A La Carte</SelectItem>
+                                      {(packages as any[]).map((pkg: any) => (
+                                        <SelectItem key={pkg.id} value={pkg.id}>
+                                          {pkg.name} - ${pkg.price}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
                               </div>
                             )}
                           </div>
-
-                          <div>
-                            <div className="flex items-center justify-between mb-2">
-                              <h4 className="font-semibold text-gray-700">Add-on Services</h4>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => setShowNewServiceForm(true)}
-                              >
-                                + New Service
-                              </Button>
-                            </div>
-                            <div className="space-y-2 max-h-60 overflow-y-auto">
-                              {(services as any[]).map((service: any) => {
-                                const isSelected = activeDate.selectedServices?.includes(service.id) || false;
-                                const quantity = activeDate.itemQuantities?.[service.id] || 1;
-                                const hasOverride = activeDate.pricingOverrides?.servicePrices?.[service.id] !== undefined;
-                                
-                                return (
-                                  <div key={service.id} className="p-3 border rounded hover:bg-gray-50">
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                      <Checkbox
-                                        checked={isSelected}
-                                        onCheckedChange={(checked) => {
-                                          const currentServices = activeDate.selectedServices || [];
-                                          const newServices = checked 
-                                            ? [...currentServices, service.id]
-                                            : currentServices.filter(id => id !== service.id);
-                                          updateDateConfig('selectedServices', newServices);
-                                        }}
-                                      />
-                                      <div className="flex-1">
-                                        <div className="font-medium">{service.name}</div>
-                                        <div className="text-sm text-gray-600">
-                                          ${hasOverride ? activeDate.pricingOverrides?.servicePrices?.[service.id] : service.price} 
-                                          {service.pricingModel === 'per_person' ? ' per person' : ' each'}
-                                        </div>
-                                      </div>
-                                      {isSelected && (
-                                        <div className="flex items-center gap-2">
-                                          {service.pricingModel !== 'per_person' && (
-                                            <div className="flex items-center gap-1">
-                                              <span className="text-sm">Qty:</span>
-                                              <Input
-                                                type="number"
-                                                min="1"
-                                                value={quantity}
-                                                onChange={(e) => {
-                                                  const newQuantities = {
-                                                    ...activeDate.itemQuantities,
-                                                    [service.id]: Math.max(1, parseInt(e.target.value, 10) || 1)
-                                                  };
-                                                  updateDateConfig('itemQuantities', newQuantities);
-                                                }}
-                                                className="w-16 h-8 text-xs"
-                                              />
-                                            </div>
-                                          )}
-                                          <div className="flex items-center gap-1">
-                                            <span className="text-sm">$</span>
-                                            <Input
-                                              type="number"
-                                              step="0.01"
-                                              value={activeDate.pricingOverrides?.servicePrices?.[service.id] ?? ''}
-                                              onChange={(e) => {
-                                                const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
-                                                updateDateConfig('pricingOverrides', {
-                                                  ...activeDate.pricingOverrides,
-                                                  servicePrices: {
-                                                    ...activeDate.pricingOverrides?.servicePrices,
-                                                    [service.id]: value
-                                                  }
-                                                });
-                                              }}
-                                              className="w-20 h-8 text-xs"
-                                              placeholder={service.price}
-                                            />
-                                          </div>
-                                        </div>
-                                      )}
-                                    </label>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                        </Card>
+                      );
+                    })}
                   </div>
+
                 </div>
               )}
 
