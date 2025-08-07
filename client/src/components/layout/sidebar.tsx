@@ -1,0 +1,160 @@
+import { Link, useLocation } from "wouter";
+import { 
+  LayoutDashboard, 
+  Calendar, 
+  Users, 
+  FileText, 
+  CreditCard, 
+  CheckSquare,
+  Zap,
+  Mail,
+  BarChart3,
+  Star,
+  Settings
+} from "lucide-react";
+
+const navigationItems = [
+  { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Events & Bookings", href: "/events", icon: Calendar },
+  { name: "Customers & Leads", href: "/customers", icon: Users },
+  { name: "Proposals & Contracts", href: "/proposals", icon: FileText },
+  { name: "Payments", href: "/payments", icon: CreditCard },
+  { name: "Tasks & Team", href: "/tasks", icon: CheckSquare },
+];
+
+const aiFeatures = [
+  { name: "Smart Scheduling", href: "/ai/scheduling", icon: Zap },
+  { name: "Auto Email Replies", href: "/ai/emails", icon: Mail },
+  { name: "Predictive Analytics", href: "/ai/analytics", icon: BarChart3 },
+  { name: "Lead Scoring", href: "/ai/leads", icon: Star },
+];
+
+const analyticsItems = [
+  { name: "Reports & Insights", href: "/reports", icon: BarChart3 },
+  { name: "Settings", href: "/settings", icon: Settings },
+];
+
+export function Sidebar() {
+  const [location] = useLocation();
+
+  const isActive = (href: string) => {
+    if (href === "/") {
+      return location === "/";
+    }
+    return location.startsWith(href);
+  };
+
+  return (
+    <div className="w-64 bg-white border-r border-slate-200 flex flex-col">
+      {/* Logo and Brand */}
+      <div className="flex items-center px-6 py-4 border-b border-slate-200">
+        <div className="flex items-center space-x-2">
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+            <span className="text-white font-bold text-sm">V</span>
+          </div>
+          <span className="text-xl font-semibold text-slate-900">Venuine</span>
+        </div>
+      </div>
+
+      {/* Navigation Menu */}
+      <nav className="flex-1 px-4 py-4 space-y-1 sidebar-scroll overflow-y-auto">
+        {/* Main Navigation */}
+        <div className="space-y-1">
+          {navigationItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
+            
+            return (
+              <Link key={item.name} href={item.href}>
+                <a
+                  className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    active
+                      ? "bg-blue-600 text-white"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                  }`}
+                >
+                  <Icon className="w-5 h-5 mr-3" />
+                  {item.name}
+                </a>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* AI Features Section */}
+        <div className="pt-4">
+          <div className="px-3 mb-2">
+            <div className="flex items-center">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                AI Features
+              </span>
+              <div className="ml-2 px-2 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full">
+                <span className="text-xs text-white font-medium">NEW</span>
+              </div>
+            </div>
+          </div>
+          {aiFeatures.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
+            
+            return (
+              <Link key={item.name} href={item.href}>
+                <a
+                  className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    active
+                      ? "bg-blue-600 text-white"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                  }`}
+                >
+                  <Icon className="w-5 h-5 mr-3" />
+                  {item.name}
+                </a>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Analytics Section */}
+        <div className="pt-4">
+          <div className="px-3 mb-2">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Analytics
+            </span>
+          </div>
+          {analyticsItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
+            
+            return (
+              <Link key={item.name} href={item.href}>
+                <a
+                  className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    active
+                      ? "bg-blue-600 text-white"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                  }`}
+                >
+                  <Icon className="w-5 h-5 mr-3" />
+                  {item.name}
+                </a>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* User Profile */}
+      <div className="border-t border-slate-200 p-4">
+        <div className="flex items-center space-x-3">
+          <div className="w-8 h-8 bg-slate-300 rounded-full flex items-center justify-center">
+            <span className="text-sm font-medium text-slate-700">JD</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-slate-900 truncate">John Doe</p>
+            <p className="text-xs text-slate-500 truncate">Venue Manager</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,327 @@
+import { 
+  type User, type InsertUser,
+  type Venue, type InsertVenue,
+  type Customer, type InsertCustomer,
+  type Booking, type InsertBooking,
+  type Proposal, type InsertProposal,
+  type Payment, type InsertPayment,
+  type Task, type InsertTask,
+  type AiInsight, type InsertAiInsight
+} from "@shared/schema";
+import { randomUUID } from "crypto";
+
+export interface IStorage {
+  // Users
+  getUser(id: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+
+  // Venues
+  getVenues(): Promise<Venue[]>;
+  getVenue(id: string): Promise<Venue | undefined>;
+  createVenue(venue: InsertVenue): Promise<Venue>;
+  updateVenue(id: string, venue: Partial<InsertVenue>): Promise<Venue | undefined>;
+
+  // Customers
+  getCustomers(): Promise<Customer[]>;
+  getCustomer(id: string): Promise<Customer | undefined>;
+  createCustomer(customer: InsertCustomer): Promise<Customer>;
+  updateCustomer(id: string, customer: Partial<InsertCustomer>): Promise<Customer | undefined>;
+
+  // Bookings
+  getBookings(): Promise<Booking[]>;
+  getBooking(id: string): Promise<Booking | undefined>;
+  getBookingsByCustomer(customerId: string): Promise<Booking[]>;
+  createBooking(booking: InsertBooking): Promise<Booking>;
+  updateBooking(id: string, booking: Partial<InsertBooking>): Promise<Booking | undefined>;
+
+  // Proposals
+  getProposals(): Promise<Proposal[]>;
+  getProposal(id: string): Promise<Proposal | undefined>;
+  getProposalsByCustomer(customerId: string): Promise<Proposal[]>;
+  createProposal(proposal: InsertProposal): Promise<Proposal>;
+  updateProposal(id: string, proposal: Partial<InsertProposal>): Promise<Proposal | undefined>;
+
+  // Payments
+  getPayments(): Promise<Payment[]>;
+  getPayment(id: string): Promise<Payment | undefined>;
+  getPaymentsByBooking(bookingId: string): Promise<Payment[]>;
+  createPayment(payment: InsertPayment): Promise<Payment>;
+  updatePayment(id: string, payment: Partial<InsertPayment>): Promise<Payment | undefined>;
+
+  // Tasks
+  getTasks(): Promise<Task[]>;
+  getTask(id: string): Promise<Task | undefined>;
+  getTasksByUser(userId: string): Promise<Task[]>;
+  createTask(task: InsertTask): Promise<Task>;
+  updateTask(id: string, task: Partial<InsertTask>): Promise<Task | undefined>;
+
+  // AI Insights
+  getAiInsights(): Promise<AiInsight[]>;
+  getActiveAiInsights(): Promise<AiInsight[]>;
+  createAiInsight(insight: InsertAiInsight): Promise<AiInsight>;
+}
+
+export class MemStorage implements IStorage {
+  private users: Map<string, User>;
+  private venues: Map<string, Venue>;
+  private customers: Map<string, Customer>;
+  private bookings: Map<string, Booking>;
+  private proposals: Map<string, Proposal>;
+  private payments: Map<string, Payment>;
+  private tasks: Map<string, Task>;
+  private aiInsights: Map<string, AiInsight>;
+
+  constructor() {
+    this.users = new Map();
+    this.venues = new Map();
+    this.customers = new Map();
+    this.bookings = new Map();
+    this.proposals = new Map();
+    this.payments = new Map();
+    this.tasks = new Map();
+    this.aiInsights = new Map();
+
+    this.initializeData();
+  }
+
+  private initializeData() {
+    // Initialize with some default venues
+    const defaultVenues: InsertVenue[] = [
+      {
+        name: "Grand Ballroom",
+        description: "Perfect for weddings and large corporate events",
+        capacity: 200,
+        pricePerHour: "500.00",
+        amenities: ["Audio/Visual Equipment", "Dance Floor", "Catering Kitchen"],
+        imageUrl: "https://images.unsplash.com/photo-1464207687429-7505649dae38?ixlib=rb-4.0.3",
+        isActive: true
+      },
+      {
+        name: "Conference Center",
+        description: "Ideal for business meetings and presentations",
+        capacity: 50,
+        pricePerHour: "200.00",
+        amenities: ["Projector", "Conference Table", "WiFi"],
+        imageUrl: "https://images.unsplash.com/photo-1431540015161-0bf868a2d407?ixlib=rb-4.0.3",
+        isActive: true
+      },
+      {
+        name: "Private Dining",
+        description: "Intimate setting for special celebrations",
+        capacity: 25,
+        pricePerHour: "150.00",
+        amenities: ["Private Bar", "Fireplace", "Garden View"],
+        imageUrl: "https://images.unsplash.com/photo-1555244162-803834f70033?ixlib=rb-4.0.3",
+        isActive: true
+      }
+    ];
+
+    defaultVenues.forEach(venue => this.createVenue(venue));
+  }
+
+  // Users
+  async getUser(id: string): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(user => user.username === username);
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const id = randomUUID();
+    const user: User = { ...insertUser, id };
+    this.users.set(id, user);
+    return user;
+  }
+
+  // Venues
+  async getVenues(): Promise<Venue[]> {
+    return Array.from(this.venues.values());
+  }
+
+  async getVenue(id: string): Promise<Venue | undefined> {
+    return this.venues.get(id);
+  }
+
+  async createVenue(insertVenue: InsertVenue): Promise<Venue> {
+    const id = randomUUID();
+    const venue: Venue = { ...insertVenue, id };
+    this.venues.set(id, venue);
+    return venue;
+  }
+
+  async updateVenue(id: string, venue: Partial<InsertVenue>): Promise<Venue | undefined> {
+    const existing = this.venues.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...venue };
+    this.venues.set(id, updated);
+    return updated;
+  }
+
+  // Customers
+  async getCustomers(): Promise<Customer[]> {
+    return Array.from(this.customers.values());
+  }
+
+  async getCustomer(id: string): Promise<Customer | undefined> {
+    return this.customers.get(id);
+  }
+
+  async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
+    const id = randomUUID();
+    const customer: Customer = { ...insertCustomer, id, createdAt: new Date() };
+    this.customers.set(id, customer);
+    return customer;
+  }
+
+  async updateCustomer(id: string, customer: Partial<InsertCustomer>): Promise<Customer | undefined> {
+    const existing = this.customers.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...customer };
+    this.customers.set(id, updated);
+    return updated;
+  }
+
+  // Bookings
+  async getBookings(): Promise<Booking[]> {
+    return Array.from(this.bookings.values());
+  }
+
+  async getBooking(id: string): Promise<Booking | undefined> {
+    return this.bookings.get(id);
+  }
+
+  async getBookingsByCustomer(customerId: string): Promise<Booking[]> {
+    return Array.from(this.bookings.values()).filter(booking => booking.customerId === customerId);
+  }
+
+  async createBooking(insertBooking: InsertBooking): Promise<Booking> {
+    const id = randomUUID();
+    const booking: Booking = { ...insertBooking, id, createdAt: new Date() };
+    this.bookings.set(id, booking);
+    return booking;
+  }
+
+  async updateBooking(id: string, booking: Partial<InsertBooking>): Promise<Booking | undefined> {
+    const existing = this.bookings.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...booking };
+    this.bookings.set(id, updated);
+    return updated;
+  }
+
+  // Proposals
+  async getProposals(): Promise<Proposal[]> {
+    return Array.from(this.proposals.values());
+  }
+
+  async getProposal(id: string): Promise<Proposal | undefined> {
+    return this.proposals.get(id);
+  }
+
+  async getProposalsByCustomer(customerId: string): Promise<Proposal[]> {
+    return Array.from(this.proposals.values()).filter(proposal => proposal.customerId === customerId);
+  }
+
+  async createProposal(insertProposal: InsertProposal): Promise<Proposal> {
+    const id = randomUUID();
+    const proposal: Proposal = { 
+      ...insertProposal, 
+      id, 
+      createdAt: new Date(),
+      sentAt: null,
+      viewedAt: null
+    };
+    this.proposals.set(id, proposal);
+    return proposal;
+  }
+
+  async updateProposal(id: string, proposal: Partial<InsertProposal>): Promise<Proposal | undefined> {
+    const existing = this.proposals.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...proposal };
+    this.proposals.set(id, updated);
+    return updated;
+  }
+
+  // Payments
+  async getPayments(): Promise<Payment[]> {
+    return Array.from(this.payments.values());
+  }
+
+  async getPayment(id: string): Promise<Payment | undefined> {
+    return this.payments.get(id);
+  }
+
+  async getPaymentsByBooking(bookingId: string): Promise<Payment[]> {
+    return Array.from(this.payments.values()).filter(payment => payment.bookingId === bookingId);
+  }
+
+  async createPayment(insertPayment: InsertPayment): Promise<Payment> {
+    const id = randomUUID();
+    const payment: Payment = { 
+      ...insertPayment, 
+      id, 
+      createdAt: new Date(),
+      processedAt: null
+    };
+    this.payments.set(id, payment);
+    return payment;
+  }
+
+  async updatePayment(id: string, payment: Partial<InsertPayment>): Promise<Payment | undefined> {
+    const existing = this.payments.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...payment };
+    this.payments.set(id, updated);
+    return updated;
+  }
+
+  // Tasks
+  async getTasks(): Promise<Task[]> {
+    return Array.from(this.tasks.values());
+  }
+
+  async getTask(id: string): Promise<Task | undefined> {
+    return this.tasks.get(id);
+  }
+
+  async getTasksByUser(userId: string): Promise<Task[]> {
+    return Array.from(this.tasks.values()).filter(task => task.assignedTo === userId);
+  }
+
+  async createTask(insertTask: InsertTask): Promise<Task> {
+    const id = randomUUID();
+    const task: Task = { ...insertTask, id, createdAt: new Date() };
+    this.tasks.set(id, task);
+    return task;
+  }
+
+  async updateTask(id: string, task: Partial<InsertTask>): Promise<Task | undefined> {
+    const existing = this.tasks.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...task };
+    this.tasks.set(id, updated);
+    return updated;
+  }
+
+  // AI Insights
+  async getAiInsights(): Promise<AiInsight[]> {
+    return Array.from(this.aiInsights.values());
+  }
+
+  async getActiveAiInsights(): Promise<AiInsight[]> {
+    return Array.from(this.aiInsights.values()).filter(insight => insight.isActive);
+  }
+
+  async createAiInsight(insertAiInsight: InsertAiInsight): Promise<AiInsight> {
+    const id = randomUUID();
+    const insight: AiInsight = { ...insertAiInsight, id, createdAt: new Date() };
+    this.aiInsights.set(id, insight);
+    return insight;
+  }
+}
+
+export const storage = new MemStorage();
