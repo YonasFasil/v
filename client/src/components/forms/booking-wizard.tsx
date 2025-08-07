@@ -57,7 +57,7 @@ const formatTime = (date: Date, options?: Intl.DateTimeFormatOptions) => {
 };
 
 const EventSlotGenerator = ({ onSlotsGenerated }: { onSlotsGenerated: (slots: EventSlot[]) => void }) => {
-  const { data: venues = [] } = useQuery<any[]>({ queryKey: ["/api/venues"] });
+  const { data: venues = [] } = useQuery<any[]>({ queryKey: ["/api/venues-with-spaces"] });
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [slotConfigs, setSlotConfigs] = useState<any[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState('');
@@ -285,8 +285,8 @@ export default function BookingWizard({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Data queries first
-  const { data: venues = [] } = useQuery<any[]>({ queryKey: ["/api/venues"] });
+  // Data queries first - using venues-with-spaces for proper space-based architecture
+  const { data: venues = [] } = useQuery<any[]>({ queryKey: ["/api/venues-with-spaces"] });
   const { data: customers = [] } = useQuery<any[]>({ queryKey: ["/api/customers"] });
   const { data: packages = [] } = useQuery<any[]>({ queryKey: ["/api/packages"] });
   const { data: services = [] } = useQuery<any[]>({ queryKey: ["/api/services"] });
@@ -385,6 +385,126 @@ export default function BookingWizard({
     });
   };
 
+  // Price override handlers matching your previous app
+  const handlePriceOverride = (slotId: string, type: 'package' | 'service', id: string, value: string) => {
+    const numericValue = value === '' ? null : parseFloat(value);
+    if (value !== '' && isNaN(numericValue)) return;
+
+    setPricingOverrides(prev => {
+      const newOverrides = JSON.parse(JSON.stringify(prev)); // Deep copy
+      if (!newOverrides[slotId]) {
+        newOverrides[slotId] = { packagePrice: null, servicePrices: {} };
+      }
+      if (type === 'package') {
+        newOverrides[slotId].packagePrice = numericValue;
+      } else if (type === 'service') {
+        if (!newOverrides[slotId].servicePrices) {
+          newOverrides[slotId].servicePrices = {};
+        }
+        newOverrides[slotId].servicePrices[id] = numericValue;
+      }
+      return newOverrides;
+    });
+  };
+
+  const handleItemQuantityChange = (slotId: string, serviceId: string, quantity: string) => {
+    const q = Math.max(1, parseInt(quantity, 10) || 1);
+    updateConfig(slotId, { 
+      itemQuantities: { 
+        ...configurations[slotId]?.itemQuantities, 
+        [serviceId]: q 
+      } 
+    });
+  };
+
+  const handleApplyGuestCount = (slotId: string) => {
+    const currentConfig = configurations[slotId];
+    if (!currentConfig) return;
+    
+    const newItemQuantities = { ...currentConfig.itemQuantities };
+    services.forEach((service: any) => {
+      if (service.pricingModel === 'per_person') {
+        newItemQuantities[service.id] = currentConfig.guests;
+      }
+    });
+    updateConfig(slotId, { itemQuantities: newItemQuantities });
+  };
+
+  const handleApplyClone = (targetSlotIds: string[]) => {
+    if (!activeTabId) return;
+    
+    const sourceConfig = configurations[activeTabId];
+    const sourceOverrides = pricingOverrides[activeTabId];
+    
+    setConfigurations(prev => {
+      const newConfigs = { ...prev };
+      targetSlotIds.forEach(id => {
+        if (newConfigs[id]) {
+          newConfigs[id] = { ...sourceConfig };
+        }
+      });
+      return newConfigs;
+    });
+    
+    setPricingOverrides(prev => {
+      const newOverrides = { ...prev };
+      targetSlotIds.forEach(id => {
+        if (newOverrides[id]) {
+          newOverrides[id] = { ...sourceOverrides };
+        }
+      });
+      return newOverrides;
+    });
+    
+    setIsCloning(false);
+  };
+
+  // Price calculation matching your previous app
+  const calculateSlotPrice = (slotId: string) => {
+    const config = configurations[slotId];
+    const overrides = pricingOverrides[slotId];
+    if (!config) return 0;
+
+    let total = 0;
+
+    // Package price
+    if (config.packageId) {
+      const pkg = packages.find((p: any) => p.id === config.packageId);
+      if (pkg) {
+        const packagePrice = overrides?.packagePrice ?? pkg.price;
+        if (config.pricingModel === 'per_person') {
+          total += packagePrice * config.guests;
+        } else {
+          total += packagePrice;
+        }
+      }
+    }
+
+    // Service prices
+    config.addOns.forEach((serviceId: string) => {
+      const service = services.find((s: any) => s.id === serviceId);
+      if (service) {
+        const servicePrice = overrides?.servicePrices?.[serviceId] ?? service.price;
+        const quantity = config.itemQuantities[serviceId] || 1;
+        
+        if (service.pricingModel === 'per_person') {
+          total += servicePrice * config.guests;
+        } else {
+          total += servicePrice * quantity;
+        }
+      }
+    });
+
+    return total;
+  };
+
+  const totalEventPrice = useMemo(() => {
+    return wizardSlots.reduce((total, slot) => {
+      const slotId = generateSlotId(slot);
+      return slotId ? total + calculateSlotPrice(slotId) : total;
+    }, 0);
+  }, [wizardSlots, configurations, pricingOverrides, packages, services]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -394,10 +514,11 @@ export default function BookingWizard({
       const bookingsToCreate = wizardSlots.map(slot => {
         const slotId = generateSlotId(slot);
         const config = configurations[slotId!] || { packageId: '', addOns: [], guests: 1, pricingModel: 'fixed', itemQuantities: {} };
+        const slotTotal = calculateSlotPrice(slotId!);
         
         return {
           eventName: eventDetails.eventName,
-          customerId: eventDetails.customerId,
+          customerId: eventDetails.customerId || null,
           venueId: slot.venue.id,
           spaceId: slot.space.id,
           eventDate: slot.startTime.toISOString().split('T')[0],
@@ -407,6 +528,9 @@ export default function BookingWizard({
           packageId: config.packageId || null,
           selectedServices: config.addOns,
           pricingModel: config.pricingModel,
+          itemQuantities: config.itemQuantities,
+          pricingOverrides: pricingOverrides[slotId!] || null,
+          totalAmount: slotTotal.toFixed(2),
           status: eventDetails.eventStatus,
         };
       });
@@ -418,7 +542,7 @@ export default function BookingWizard({
       queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
       toast({
         title: "Success",
-        description: `Created ${bookingsToCreate.length} booking${bookingsToCreate.length !== 1 ? 's' : ''}`,
+        description: `Created ${bookingsToCreate.length} booking${bookingsToCreate.length !== 1 ? 's' : ''} - Total: $${totalEventPrice.toFixed(2)}`,
       });
       onOpenChange(false);
     } catch (error) {
@@ -534,14 +658,45 @@ export default function BookingWizard({
 
               {/* Configuration Panel */}
               <div className="flex-grow p-6 overflow-y-auto">
-                {activeSlot && (
+                {activeSlot && configurations[activeTabId!] && (
                   <div>
-                    <h3 className="font-semibold mb-4">
-                      Configure {formatDate(activeSlot.startTime, {weekday: 'long', month: 'short', day: 'numeric'})}
-                    </h3>
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-semibold">
+                        Configure {formatDate(activeSlot.startTime, {weekday: 'long', month: 'short', day: 'numeric'})}
+                      </h3>
+                      {wizardSlots.length > 1 && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setIsCloning(true)}
+                        >
+                          <Copy className="w-4 h-4 mr-2" />
+                          Copy Config
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-500 mb-4">
+                      For {formatDate(activeSlot.startTime, { weekday: 'long' })} in {activeSlot.space?.name}
+                    </p>
                     
                     <div className="space-y-6">
-                      {/* Packages */}
+                      {/* Guest Count */}
+                      <div>
+                        <Label htmlFor="guests">Number of Guests</Label>
+                        <Input
+                          id="guests"
+                          type="number"
+                          min="1"
+                          max={activeSlot.space?.capacity || 1000}
+                          value={configurations[activeTabId!]?.guests || 1}
+                          onChange={(e) => updateConfig(activeTabId!, { guests: parseInt(e.target.value) || 1 })}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Max capacity: {activeSlot.space?.capacity || 'Unlimited'}
+                        </p>
+                      </div>
+
+                      {/* Package Selection */}
                       <div>
                         <Label>Package</Label>
                         <Select 
@@ -549,52 +704,140 @@ export default function BookingWizard({
                           onValueChange={(value) => handleSelectPackage(activeTabId!, value)}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Select a package" />
+                            <SelectValue placeholder="A La Carte (No Package)" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">No Package</SelectItem>
-                            {packages.map((pkg: any) => (
+                            <SelectItem value="">A La Carte</SelectItem>
+                            {packages.filter((pkg: any) => 
+                              !pkg.applicableSpaceIds || pkg.applicableSpaceIds.includes(activeSlot.space?.id)
+                            ).map((pkg: any) => (
                               <SelectItem key={pkg.id} value={pkg.id}>
                                 {pkg.name} - ${pkg.price}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
+
+                        {/* Package Price Override */}
+                        {configurations[activeTabId!]?.packageId && (
+                          <div className="mt-2 space-y-2">
+                            <div className="flex items-center space-x-2">
+                              <Label className="text-xs">Price Override:</Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="Leave blank for default"
+                                value={pricingOverrides[activeTabId!]?.packagePrice || ''}
+                                onChange={(e) => handlePriceOverride(activeTabId!, 'package', configurations[activeTabId!]?.packageId, e.target.value)}
+                                className="w-24 h-7 text-xs"
+                              />
+                            </div>
+                            <div className="flex items-center space-x-4 text-xs">
+                              <label className="flex items-center">
+                                <input
+                                  type="radio"
+                                  name={`pricingModel-${activeTabId}`}
+                                  value="fixed"
+                                  checked={configurations[activeTabId!]?.pricingModel === 'fixed'}
+                                  onChange={() => updateConfig(activeTabId!, { pricingModel: 'fixed' })}
+                                  className="mr-1"
+                                />
+                                Flat Fee
+                              </label>
+                              <label className="flex items-center">
+                                <input
+                                  type="radio"
+                                  name={`pricingModel-${activeTabId}`}
+                                  value="per_person"
+                                  checked={configurations[activeTabId!]?.pricingModel === 'per_person'}
+                                  onChange={() => updateConfig(activeTabId!, { pricingModel: 'per_person' })}
+                                  className="mr-1"
+                                />
+                                Per Person
+                              </label>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Services */}
+                      {/* Add-on Services */}
                       <div>
-                        <Label>Additional Services</Label>
-                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                        <div className="flex justify-between items-center mb-2">
+                          <Label>Add-on Services</Label>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleApplyGuestCount(activeTabId!)}
+                          >
+                            Apply Guest Count
+                          </Button>
+                        </div>
+                        <div className="space-y-3 max-h-60 overflow-y-auto">
                           {services.map((service: any) => {
                             const isChecked = configurations[activeTabId!]?.addOns?.includes(service.id) || false;
+                            const quantity = configurations[activeTabId!]?.itemQuantities?.[service.id] || 1;
+                            const overridePrice = pricingOverrides[activeTabId!]?.servicePrices?.[service.id];
+                            
                             return (
-                              <div key={service.id} className="flex items-center space-x-2">
-                                <Checkbox
-                                  id={service.id}
-                                  checked={isChecked}
-                                  onCheckedChange={() => handleToggleAddOn(activeTabId!, service.id)}
-                                />
-                                <Label htmlFor={service.id} className="text-sm">
-                                  {service.name} - ${service.price}
-                                  {service.pricingModel === 'per_person' && ' (per person)'}
-                                </Label>
+                              <div key={service.id} className="border rounded p-3">
+                                <div className="flex items-start space-x-3">
+                                  <Checkbox
+                                    id={service.id}
+                                    checked={isChecked}
+                                    onCheckedChange={() => handleToggleAddOn(activeTabId!, service.id)}
+                                  />
+                                  <div className="flex-grow">
+                                    <Label htmlFor={service.id} className="font-medium">
+                                      {service.name}
+                                    </Label>
+                                    <p className="text-xs text-gray-600 mb-2">
+                                      ${service.price} {service.pricingModel === 'per_person' ? '(per person)' : ''}
+                                    </p>
+                                    
+                                    {isChecked && (
+                                      <div className="flex items-center space-x-2 text-xs">
+                                        {service.pricingModel !== 'per_person' && (
+                                          <>
+                                            <Label>Qty:</Label>
+                                            <Input
+                                              type="number"
+                                              min="1"
+                                              value={quantity}
+                                              onChange={(e) => handleItemQuantityChange(activeTabId!, service.id, e.target.value)}
+                                              className="w-16 h-6"
+                                            />
+                                          </>
+                                        )}
+                                        <Label>Override:</Label>
+                                        <Input
+                                          type="number"
+                                          step="0.01"
+                                          placeholder={service.price}
+                                          value={overridePrice || ''}
+                                          onChange={(e) => handlePriceOverride(activeTabId!, 'service', service.id, e.target.value)}
+                                          className="w-20 h-6"
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                             );
                           })}
                         </div>
                       </div>
 
-                      {/* Guest Count */}
-                      <div>
-                        <Label htmlFor="guests">Guest Count</Label>
-                        <Input
-                          id="guests"
-                          type="number"
-                          min="1"
-                          value={configurations[activeTabId!]?.guests || 1}
-                          onChange={(e) => updateConfig(activeTabId!, { guests: parseInt(e.target.value) || 1 })}
-                        />
+                      {/* Price Summary */}
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <Label className="font-semibold">Slot Total</Label>
+                        <p className="text-2xl font-bold text-green-600">
+                          ${calculateSlotPrice(activeTabId!).toFixed(2)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {configurations[activeTabId!]?.pricingModel === 'per_person' && 
+                            `(Based on ${configurations[activeTabId!]?.guests} guests)`
+                          }
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -606,14 +849,36 @@ export default function BookingWizard({
 
         {/* Footer */}
         <div className="p-4 bg-gray-50 border-t flex justify-between items-center">
-          <div>
+          <div className="flex items-center space-x-4">
             {step > 1 && (
               <Button variant="outline" onClick={() => setStep(step - 1)}>
                 Back
               </Button>
             )}
+            {step === 2 && !isAddingSlots && wizardSlots.length > 0 && (
+              <Button 
+                variant="outline"
+                onClick={() => setIsAddingSlots(true)}
+              >
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Add More Slots
+              </Button>
+            )}
           </div>
-          <div>
+          <div className="flex items-center space-x-4">
+            {step === 3 && wizardSlots.length > 0 && (
+              <div className="text-right">
+                <p className="text-sm text-gray-600">Total Event Cost</p>
+                <p className="text-2xl font-bold text-green-600">
+                  ${totalEventPrice.toFixed(2)}
+                </p>
+              </div>
+            )}
+            {step === 2 && !isAddingSlots && wizardSlots.length > 0 && (
+              <Button onClick={() => setStep(3)}>
+                Configure Slots
+              </Button>
+            )}
             {step === 3 && (
               <Button 
                 onClick={handleSubmit}
@@ -624,6 +889,48 @@ export default function BookingWizard({
             )}
           </div>
         </div>
+
+        {/* Clone Configuration Modal */}
+        {isCloning && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <h3 className="font-semibold mb-4">Copy Configuration</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Copy settings from {formatDate(activeSlot?.startTime || new Date(), {weekday: 'long', month: 'short', day: 'numeric'})} to:
+              </p>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {wizardSlots.filter(s => generateSlotId(s) !== activeTabId).map(slot => {
+                  const slotId = generateSlotId(slot);
+                  return (
+                    <label key={slotId} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={slotId!}
+                        onChange={(checked) => {
+                          // Handle multiple selection
+                        }}
+                      />
+                      <span className="text-sm">
+                        {formatDate(slot.startTime, {weekday: 'long', month: 'short', day: 'numeric'})} - {slot.space?.name}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              <div className="flex justify-end space-x-2 mt-6">
+                <Button variant="outline" onClick={() => setIsCloning(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={() => {
+                  // Get selected slots and apply clone
+                  const selectedSlots = wizardSlots.filter(s => generateSlotId(s) !== activeTabId).map(s => generateSlotId(s)).filter(Boolean) as string[];
+                  handleApplyClone(selectedSlots);
+                }}>
+                  Copy to All
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

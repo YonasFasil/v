@@ -50,6 +50,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Spaces
+  app.get("/api/spaces", async (req, res) => {
+    try {
+      const spaces = await storage.getSpaces();
+      res.json(spaces);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch spaces" });
+    }
+  });
+
+  app.get("/api/venues/:venueId/spaces", async (req, res) => {
+    try {
+      const spaces = await storage.getSpacesByVenue(req.params.venueId);
+      res.json(spaces);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch venue spaces" });
+    }
+  });
+
+  app.post("/api/spaces", async (req, res) => {
+    try {
+      const space = await storage.createSpace(req.body);
+      res.status(201).json(space);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create space" });
+    }
+  });
+
+  // Enhanced venues API that includes spaces
+  app.get("/api/venues-with-spaces", async (req, res) => {
+    try {
+      const venues = await storage.getVenues();
+      const venuesWithSpaces = await Promise.all(
+        venues.map(async (venue) => {
+          const spaces = await storage.getSpacesByVenue(venue.id);
+          return { ...venue, spaces };
+        })
+      );
+      res.json(venuesWithSpaces);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch venues with spaces" });
+    }
+  });
+
   // Packages
   app.get("/api/packages", async (req, res) => {
     try {

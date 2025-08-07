@@ -1,12 +1,15 @@
 import { 
   type User, type InsertUser,
   type Venue, type InsertVenue,
+  type Space, type InsertSpace,
   type Customer, type InsertCustomer,
   type Booking, type InsertBooking,
   type Proposal, type InsertProposal,
   type Payment, type InsertPayment,
   type Task, type InsertTask,
-  type AiInsight, type InsertAiInsight
+  type AiInsight, type InsertAiInsight,
+  type Package, type InsertPackage,
+  type Service, type InsertService
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -21,6 +24,13 @@ export interface IStorage {
   getVenue(id: string): Promise<Venue | undefined>;
   createVenue(venue: InsertVenue): Promise<Venue>;
   updateVenue(id: string, venue: Partial<InsertVenue>): Promise<Venue | undefined>;
+
+  // Spaces
+  getSpaces(): Promise<Space[]>;
+  getSpace(id: string): Promise<Space | undefined>;
+  getSpacesByVenue(venueId: string): Promise<Space[]>;
+  createSpace(space: InsertSpace): Promise<Space>;
+  updateSpace(id: string, space: Partial<InsertSpace>): Promise<Space | undefined>;
 
   // Customers
   getCustomers(): Promise<Customer[]>;
@@ -62,27 +72,33 @@ export interface IStorage {
   createAiInsight(insight: InsertAiInsight): Promise<AiInsight>;
 
   // Packages & Services
-  getPackages(): Promise<any[]>;
-  createPackage(pkg: any): Promise<any>;
-  getServices(): Promise<any[]>;
-  createService(service: any): Promise<any>;
+  getPackages(): Promise<Package[]>;
+  getPackage(id: string): Promise<Package | undefined>;
+  createPackage(pkg: InsertPackage): Promise<Package>;
+  updatePackage(id: string, pkg: Partial<InsertPackage>): Promise<Package | undefined>;
+  getServices(): Promise<Service[]>;
+  getService(id: string): Promise<Service | undefined>;
+  createService(service: InsertService): Promise<Service>;
+  updateService(id: string, service: Partial<InsertService>): Promise<Service | undefined>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private venues: Map<string, Venue>;
+  private spaces: Map<string, Space>;
   private customers: Map<string, Customer>;
   private bookings: Map<string, Booking>;
   private proposals: Map<string, Proposal>;
   private payments: Map<string, Payment>;
   private tasks: Map<string, Task>;
   private aiInsights: Map<string, AiInsight>;
-  private packages: Map<string, any>;
-  private services: Map<string, any>;
+  private packages: Map<string, Package>;
+  private services: Map<string, Service>;
 
   constructor() {
     this.users = new Map();
     this.venues = new Map();
+    this.spaces = new Map();
     this.customers = new Map();
     this.bookings = new Map();
     this.proposals = new Map();
@@ -129,6 +145,91 @@ export class MemStorage implements IStorage {
     ];
 
     defaultVenues.forEach(venue => this.createVenue(venue));
+    
+    // Initialize spaces for the venues
+    this.initializeSpaces();
+  }
+
+  private initializeSpaces() {
+    // Get all venue IDs to create spaces for them
+    const venueIds = Array.from(this.venues.keys());
+    
+    // Create spaces for Grand Ballroom (first venue)
+    if (venueIds[0]) {
+      const grandBallroomSpaces: InsertSpace[] = [
+        {
+          venueId: venueIds[0],
+          name: "Main Ballroom",
+          description: "Large elegant space for grand events",
+          capacity: 200,
+          pricePerHour: "500.00",
+          amenities: ["Stage", "Dance Floor", "Crystal Chandeliers"],
+          imageUrl: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?ixlib=rb-4.0.3",
+          isActive: true
+        },
+        {
+          venueId: venueIds[0],
+          name: "VIP Lounge",
+          description: "Exclusive private area within the ballroom",
+          capacity: 50,
+          pricePerHour: "200.00",
+          amenities: ["Private Bar", "Lounge Seating", "City View"],
+          imageUrl: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3",
+          isActive: true
+        }
+      ];
+      grandBallroomSpaces.forEach(space => this.createSpace(space));
+    }
+
+    // Conference Center spaces
+    if (venueIds[1]) {
+      const conferenceSpaces: InsertSpace[] = [
+        {
+          venueId: venueIds[1],
+          name: "Boardroom A",
+          description: "Executive boardroom for meetings",
+          capacity: 20,
+          pricePerHour: "150.00",
+          amenities: ["Conference Table", "Video Conferencing", "Whiteboard"],
+          imageUrl: "https://images.unsplash.com/photo-1497366216548-37526070297c?ixlib=rb-4.0.3",
+          isActive: true
+        },
+        {
+          venueId: venueIds[1],
+          name: "Training Room",
+          description: "Flexible training and presentation space",
+          capacity: 30,
+          pricePerHour: "100.00",
+          amenities: ["Projector", "Flip Chart", "Sound System"],
+          imageUrl: "https://images.unsplash.com/photo-1497215728101-856f4ea42174?ixlib=rb-4.0.3",
+          isActive: true
+        }
+      ];
+      conferenceSpaces.forEach(space => this.createSpace(space));
+    }
+
+    // Private Dining spaces
+    if (venueIds[2]) {
+      const diningSpaces: InsertSpace[] = [
+        {
+          venueId: venueIds[2],
+          name: "Garden Room",
+          description: "Intimate dining with garden views",
+          capacity: 25,
+          pricePerHour: "150.00",
+          amenities: ["Fireplace", "Garden View", "Wine Cellar Access"],
+          imageUrl: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?ixlib=rb-4.0.3",
+          isActive: true
+        }
+      ];
+      diningSpaces.forEach(space => this.createSpace(space));
+    }
+
+    // Update package applicableSpaceIds to match spaces
+    const spaceIds = Array.from(this.spaces.keys());
+    this.packages.forEach(pkg => {
+      pkg.applicableSpaceIds = spaceIds; // Make packages available for all spaces
+    });
   }
 
   private initializeSamplePackagesAndServices() {
@@ -299,6 +400,44 @@ export class MemStorage implements IStorage {
     if (!existing) return undefined;
     const updated = { ...existing, ...venue };
     this.venues.set(id, updated);
+    return updated;
+  }
+
+  // Spaces
+  async getSpaces(): Promise<Space[]> {
+    return Array.from(this.spaces.values());
+  }
+
+  async getSpace(id: string): Promise<Space | undefined> {
+    return this.spaces.get(id);
+  }
+
+  async getSpacesByVenue(venueId: string): Promise<Space[]> {
+    return Array.from(this.spaces.values()).filter(space => space.venueId === venueId);
+  }
+
+  async createSpace(insertSpace: InsertSpace): Promise<Space> {
+    const id = randomUUID();
+    const space: Space = { 
+      ...insertSpace, 
+      id,
+      description: insertSpace.description || null,
+      pricePerHour: insertSpace.pricePerHour || null,
+      amenities: insertSpace.amenities || null,
+      imageUrl: insertSpace.imageUrl || null,
+      isActive: insertSpace.isActive ?? true,
+      createdAt: new Date()
+    };
+    this.spaces.set(id, space);
+    return space;
+  }
+
+  async updateSpace(id: string, updates: Partial<InsertSpace>): Promise<Space | undefined> {
+    const space = this.spaces.get(id);
+    if (!space) return undefined;
+    
+    const updated: Space = { ...space, ...updates };
+    this.spaces.set(id, updated);
     return updated;
   }
 
@@ -509,36 +648,67 @@ export class MemStorage implements IStorage {
     return insight;
   }
 
-  // Packages
-  async getPackages(): Promise<any[]> {
+  // Packages & Services  
+  async getPackages(): Promise<Package[]> {
     return Array.from(this.packages.values());
   }
 
-  async createPackage(pkg: any): Promise<any> {
-    const id = randomUUID();
-    const newPackage = {
-      id,
-      ...pkg,
-      createdAt: new Date()
-    };
-    this.packages.set(id, newPackage);
-    return newPackage;
+  async getPackage(id: string): Promise<Package | undefined> {
+    return this.packages.get(id);
   }
 
-  // Services
-  async getServices(): Promise<any[]> {
+  async createPackage(insertPackage: InsertPackage): Promise<Package> {
+    const id = randomUUID();
+    const pkg: Package = { 
+      ...insertPackage, 
+      id, 
+      createdAt: new Date(),
+      description: insertPackage.description || null,
+      applicableSpaceIds: insertPackage.applicableSpaceIds || null,
+      includedServiceIds: insertPackage.includedServiceIds || null,
+      isActive: insertPackage.isActive ?? true
+    };
+    this.packages.set(id, pkg);
+    return pkg;
+  }
+
+  async updatePackage(id: string, updates: Partial<InsertPackage>): Promise<Package | undefined> {
+    const pkg = this.packages.get(id);
+    if (!pkg) return undefined;
+    
+    const updated: Package = { ...pkg, ...updates };
+    this.packages.set(id, updated);
+    return updated;
+  }
+
+  async getServices(): Promise<Service[]> {
     return Array.from(this.services.values());
   }
 
-  async createService(service: any): Promise<any> {
+  async getService(id: string): Promise<Service | undefined> {
+    return this.services.get(id);
+  }
+
+  async createService(insertService: InsertService): Promise<Service> {
     const id = randomUUID();
-    const newService = {
-      id,
-      ...service,
-      createdAt: new Date()
+    const service: Service = { 
+      ...insertService, 
+      id, 
+      createdAt: new Date(),
+      description: insertService.description || null,
+      isActive: insertService.isActive ?? true
     };
-    this.services.set(id, newService);
-    return newService;
+    this.services.set(id, service);
+    return service;
+  }
+
+  async updateService(id: string, updates: Partial<InsertService>): Promise<Service | undefined> {
+    const service = this.services.get(id);
+    if (!service) return undefined;
+    
+    const updated: Service = { ...service, ...updates };
+    this.services.set(id, updated);
+    return updated;
   }
 }
 

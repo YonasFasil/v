@@ -23,6 +23,19 @@ export const venues = pgTable("venues", {
   isActive: boolean("is_active").default(true),
 });
 
+export const spaces = pgTable("spaces", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  venueId: varchar("venue_id").references(() => venues.id).notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  capacity: integer("capacity").notNull(),
+  pricePerHour: decimal("price_per_hour", { precision: 10, scale: 2 }),
+  amenities: text("amenities").array(),
+  imageUrl: text("image_url"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const customers = pgTable("customers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
@@ -41,11 +54,17 @@ export const bookings = pgTable("bookings", {
   eventType: text("event_type").notNull(),
   customerId: varchar("customer_id").references(() => customers.id),
   venueId: varchar("venue_id").references(() => venues.id),
+  spaceId: varchar("space_id").references(() => spaces.id),
   eventDate: timestamp("event_date").notNull(),
   endDate: timestamp("end_date"), // For multi-day events
   startTime: text("start_time").notNull(),
   endTime: text("end_time").notNull(),
   guestCount: integer("guest_count").notNull(),
+  packageId: varchar("package_id").references(() => packages.id),
+  selectedServices: text("selected_services").array(),
+  pricingModel: text("pricing_model").default("fixed"),
+  itemQuantities: jsonb("item_quantities"),
+  pricingOverrides: jsonb("pricing_overrides"),
   status: text("status").notNull().default("pending"), // pending, confirmed, cancelled
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
   depositAmount: decimal("deposit_amount", { precision: 10, scale: 2 }),
@@ -139,6 +158,7 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, creat
 export const insertAiInsightSchema = createInsertSchema(aiInsights).omit({ id: true, createdAt: true });
 export const insertPackageSchema = createInsertSchema(packages).omit({ id: true, createdAt: true });
 export const insertServiceSchema = createInsertSchema(services).omit({ id: true, createdAt: true });
+export const insertSpaceSchema = createInsertSchema(spaces).omit({ id: true, createdAt: true });
 
 // Types
 export type User = typeof users.$inferSelect;
@@ -161,3 +181,5 @@ export type Package = typeof packages.$inferSelect;
 export type InsertPackage = z.infer<typeof insertPackageSchema>;
 export type Service = typeof services.$inferSelect;
 export type InsertService = z.infer<typeof insertServiceSchema>;
+export type Space = typeof spaces.$inferSelect;
+export type InsertSpace = z.infer<typeof insertSpaceSchema>;
