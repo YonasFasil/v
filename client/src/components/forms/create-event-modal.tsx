@@ -47,6 +47,7 @@ const eventFormSchema = z.object({
 type EventFormData = z.infer<typeof eventFormSchema>;
 
 export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) {
+  console.log('CreateEventModal render - open:', open);
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);

@@ -66,8 +66,8 @@ export function Sidebar() {
             
             return (
               <Link key={item.name} href={item.href}>
-                <a
-                  className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                <div
+                  className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
                     active
                       ? "bg-blue-600 text-white"
                       : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
@@ -75,7 +75,7 @@ export function Sidebar() {
                 >
                   <Icon className="w-5 h-5 mr-3" />
                   {item.name}
-                </a>
+                </div>
               </Link>
             );
           })}
@@ -99,8 +99,8 @@ export function Sidebar() {
             
             return (
               <Link key={item.name} href={item.href}>
-                <a
-                  className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                <div
+                  className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
                     active
                       ? "bg-blue-600 text-white"
                       : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
@@ -108,7 +108,7 @@ export function Sidebar() {
                 >
                   <Icon className="w-5 h-5 mr-3" />
                   {item.name}
-                </a>
+                </div>
               </Link>
             );
           })}
@@ -127,8 +127,8 @@ export function Sidebar() {
             
             return (
               <Link key={item.name} href={item.href}>
-                <a
-                  className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                <div
+                  className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
                     active
                       ? "bg-blue-600 text-white"
                       : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
@@ -136,7 +136,7 @@ export function Sidebar() {
                 >
                   <Icon className="w-5 h-5 mr-3" />
                   {item.name}
-                </a>
+                </div>
               </Link>
             );
           })}

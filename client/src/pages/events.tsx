@@ -60,7 +60,10 @@ export default function Events() {
           subtitle="Manage your venue bookings and events"
           action={
             <Button 
-              onClick={() => setShowCreateForm(true)}
+              onClick={() => {
+                console.log('New Event button clicked');
+                setShowCreateForm(true);
+              }}
               className="bg-blue-600 hover:bg-blue-700"
             >
               + New Event
@@ -78,7 +81,10 @@ export default function Events() {
               <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No bookings yet</h3>
               <p className="text-gray-600 mb-6">Get started by creating your first event booking.</p>
-              <Button onClick={() => setShowCreateForm(true)} className="bg-blue-600 hover:bg-blue-700">
+              <Button onClick={() => {
+                console.log('Create First Booking button clicked');
+                setShowCreateForm(true);
+              }} className="bg-blue-600 hover:bg-blue-700">
                 Create First Booking
               </Button>
             </div>
