@@ -8,6 +8,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
+import { CreateSpaceModal } from "@/components/forms/create-space-modal";
 
 interface Props {
   open: boolean;
@@ -24,6 +25,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
   const [capacity, setCapacity] = useState("");
   const [address, setAddress] = useState("");
   const [amenities, setAmenities] = useState("");
+  const [showCreateSpaceModal, setShowCreateSpaceModal] = useState(false);
 
   // Get spaces for this venue
   const { data: spaces = [] } = useQuery({
@@ -160,7 +162,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
           <div>
             <div className="flex items-center justify-between mb-3">
               <Label className="text-base font-medium">Spaces in this Venue</Label>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => setShowCreateSpaceModal(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Space
               </Button>
@@ -205,6 +207,13 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
             </Button>
           </div>
         </div>
+        
+        <CreateSpaceModal
+          open={showCreateSpaceModal}
+          onOpenChange={setShowCreateSpaceModal}
+          venueId={venue?.id || ""}
+          venueName={venue?.name || ""}
+        />
       </DialogContent>
     </Dialog>
   );

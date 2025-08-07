@@ -250,17 +250,8 @@ export default function Venues() {
                     </div>
                   )}
                   
-                  <div className="flex gap-2 pt-2">
-                    <Button variant="outline" size="sm" className="flex-1">
-                      <Edit className="w-3 h-3 mr-1" />
-                      Edit
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                    <div className="flex justify-end pt-2">
-                      <span className="text-xs text-blue-600 hover:text-blue-800">Click to edit →</span>
-                    </div>
+                  <div className="flex justify-end pt-2">
+                    <span className="text-xs text-blue-600 hover:text-blue-800">Click to edit →</span>
                   </div>
                 </CardContent>
               </Card>

@@ -83,6 +83,7 @@ export interface IStorage {
   deleteCustomer(id: string): Promise<boolean>;
   updateVenue(id: string, venueData: Partial<Venue>): Promise<Venue | null>;
   deleteVenue(id: string): Promise<boolean>;
+  deleteSpace(id: string): Promise<boolean>;
   deleteBooking(id: string): Promise<boolean>;
   getPackage(id: string): Promise<Package | undefined>;
   createPackage(pkg: InsertPackage): Promise<Package>;
@@ -839,6 +840,58 @@ export class MemStorage implements IStorage {
     
     const updated: Service = { ...service, ...updates };
     this.services.set(id, updated);
+    return updated;
+  }
+
+  // Delete operations
+  async deleteCustomer(id: string): Promise<boolean> {
+    return this.customers.delete(id);
+  }
+
+  async deleteVenue(id: string): Promise<boolean> {
+    return this.venues.delete(id);
+  }
+
+  async deleteSpace(id: string): Promise<boolean> {
+    return this.spaces.delete(id);
+  }
+
+  async deleteBooking(id: string): Promise<boolean> {
+    return this.bookings.delete(id);
+  }
+
+  async deletePackage(id: string): Promise<boolean> {
+    return this.packages.delete(id);
+  }
+
+  async deleteService(id: string): Promise<boolean> {
+    return this.services.delete(id);
+  }
+
+  async updatePackage(id: string, packageData: any): Promise<Package | null> {
+    const pkg = this.packages.get(id);
+    if (!pkg) return null;
+    
+    const updated = { ...pkg, ...packageData };
+    this.packages.set(id, updated);
+    return updated;
+  }
+
+  async updateService(id: string, serviceData: any): Promise<Service | null> {
+    const service = this.services.get(id);
+    if (!service) return null;
+    
+    const updated = { ...service, ...serviceData };
+    this.services.set(id, updated);
+    return updated;
+  }
+
+  async updateVenue(id: string, venueData: Partial<Venue>): Promise<Venue | null> {
+    const venue = this.venues.get(id);
+    if (!venue) return null;
+    
+    const updated = { ...venue, ...venueData };
+    this.venues.set(id, updated);
     return updated;
   }
 }

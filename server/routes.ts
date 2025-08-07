@@ -383,6 +383,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Spaces
+  app.get("/api/spaces", async (req, res) => {
+    try {
+      const spaces = await storage.getSpaces();
+      res.json(spaces);
+    } catch (error) {
+      console.error('Spaces fetch error:', error);
+      res.status(500).json({ message: "Failed to fetch spaces" });
+    }
+  });
+
+  app.get("/api/venues/:venueId/spaces", async (req, res) => {
+    try {
+      const spaces = await storage.getSpacesByVenue(req.params.venueId);
+      res.json(spaces);
+    } catch (error) {
+      console.error('Venue spaces fetch error:', error);
+      res.status(500).json({ message: "Failed to fetch venue spaces" });
+    }
+  });
+
+  app.post("/api/spaces", async (req, res) => {
+    try {
+      const space = await storage.createSpace(req.body);
+      res.status(201).json(space);
+    } catch (error) {
+      console.error('Space creation error:', error);
+      res.status(500).json({ message: "Failed to create space" });
+    }
+  });
+
+  app.patch("/api/spaces/:id", async (req, res) => {
+    try {
+      const space = await storage.updateSpace(req.params.id, req.body);
+      if (!space) {
+        return res.status(404).json({ message: "Space not found" });
+      }
+      res.json(space);
+    } catch (error) {
+      console.error('Space update error:', error);
+      res.status(500).json({ message: "Failed to update space" });
+    }
+  });
+
+  app.delete("/api/spaces/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteSpace(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Space not found" });
+      }
+      res.json({ message: "Space deleted successfully" });
+    } catch (error) {
+      console.error('Space delete error:', error);
+      res.status(500).json({ message: "Failed to delete space" });
+    }
+  });
+
   // Proposals
   app.get("/api/proposals", async (req, res) => {
     try {
