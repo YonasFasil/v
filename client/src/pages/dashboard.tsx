@@ -8,7 +8,7 @@ import { RecentBookings } from "@/components/dashboard/recent-bookings";
 import { AIRecommendations } from "@/components/dashboard/ai-recommendations";
 import { ActiveLeads } from "@/components/dashboard/active-leads";
 import { QuickActions } from "@/components/dashboard/quick-actions";
-import { EventDetailsModal } from "@/components/forms/event-details-modal";
+import { EventEditModal } from "@/components/forms/event-edit-modal";
 
 export default function Dashboard() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -78,8 +78,8 @@ export default function Dashboard() {
           </div>
         </main>
 
-        {/* Event Details Modal */}
-        <EventDetailsModal 
+        {/* Event Edit Modal */}
+        <EventEditModal 
           open={!!selectedEvent} 
           onOpenChange={(open) => !open && setSelectedEvent(null)}
           booking={selectedEvent}

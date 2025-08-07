@@ -1,12 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { 
   X, 
   User, 
@@ -19,12 +24,16 @@ import {
   MessageSquare, 
   Edit3, 
   Phone,
-  Mail
+  Mail,
+  CalendarIcon,
+  Plus,
+  Minus
 } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface Props {
   open: boolean;
@@ -37,12 +46,70 @@ export function EventDetailsModal({ open, onOpenChange, booking }: Props) {
   const queryClient = useQueryClient();
   
   const [activeTab, setActiveTab] = useState("details");
-  const [eventStatus, setEventStatus] = useState(booking?.status || "confirmed");
-  const [paymentStatus, setPaymentStatus] = useState(booking?.depositPaid ? "paid" : "unpaid");
-  const [notes, setNotes] = useState(booking?.notes || "");
+  const [isEditing, setIsEditing] = useState(false);
+  
+  // Editable fields
+  const [eventName, setEventName] = useState("");
+  const [eventType, setEventType] = useState("");
+  const [eventDate, setEventDate] = useState<Date | undefined>(undefined);
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const [guestCount, setGuestCount] = useState(1);
+  const [selectedVenue, setSelectedVenue] = useState("");
+  const [selectedSpace, setSelectedSpace] = useState("");
+  const [selectedPackage, setSelectedPackage] = useState("");
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState("");
+  const [eventStatus, setEventStatus] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("unpaid");
+  const [totalAmount, setTotalAmount] = useState("");
+  const [depositAmount, setDepositAmount] = useState("");
+  const [notes, setNotes] = useState("");
+  
+  // Communication
   const [showContactModal, setShowContactModal] = useState(false);
   const [contactMethod, setContactMethod] = useState("email");
   const [contactMessage, setContactMessage] = useState("");
+
+  // Data queries
+  const { data: venues = [] } = useQuery({ queryKey: ["/api/venues-with-spaces"] });
+  const { data: packages = [] } = useQuery({ queryKey: ["/api/packages"] });
+  const { data: services = [] } = useQuery({ queryKey: ["/api/services"] });
+  const { data: customers = [] } = useQuery({ queryKey: ["/api/customers"] });
+
+  // Initialize form data when booking changes
+  useEffect(() => {
+    if (booking) {
+      setEventName(booking.eventName || "");
+      setEventType(booking.eventType || "");
+      setEventDate(booking.eventDate ? new Date(booking.eventDate) : undefined);
+      setStartTime(booking.startTime || "");
+      setEndTime(booking.endTime || "");
+      setGuestCount(booking.guestCount || 1);
+      setSelectedVenue(booking.venueId || "");
+      setSelectedSpace(booking.spaceId || "");
+      setSelectedPackage(booking.packageId || "");
+      setSelectedServices(booking.serviceIds || []);
+      setSelectedCustomer(booking.customerId || "");
+      setEventStatus(booking.status || "confirmed");
+      setPaymentStatus(booking.depositPaid ? "paid" : "unpaid");
+      setTotalAmount(booking.totalAmount || "");
+      setDepositAmount(booking.depositAmount || "");
+      setNotes(booking.notes || "");
+    }
+  }, [booking]);
+
+  const selectedVenueData = venues.find((v: any) => v.id === selectedVenue);
+  const selectedPackageData = packages.find((p: any) => p.id === selectedPackage);
+  const selectedCustomerData = customers.find((c: any) => c.id === selectedCustomer);
+
+  // Calculate pricing
+  const packagePrice = selectedPackageData ? parseFloat(selectedPackageData.price) * guestCount : 0;
+  const servicesPrice = selectedServices.reduce((total, serviceId) => {
+    const service = services.find((s: any) => s.id === serviceId);
+    return total + (service ? parseFloat(service.price) * guestCount : 0);
+  }, 0);
+  const calculatedTotal = packagePrice + servicesPrice;
 
   const updateBooking = useMutation({
     mutationFn: async (updates: any) => {
@@ -53,11 +120,65 @@ export function EventDetailsModal({ open, onOpenChange, booking }: Props) {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/calendar/events"] });
       toast({ title: "Event updated successfully!" });
+      setIsEditing(false);
     },
     onError: (error: any) => {
       toast({ title: "Failed to update event", description: error.message, variant: "destructive" });
     }
   });
+
+  const handleSave = () => {
+    const updates = {
+      eventName,
+      eventType,
+      eventDate,
+      startTime,
+      endTime,
+      guestCount,
+      venueId: selectedVenue,
+      spaceId: selectedSpace,
+      packageId: selectedPackage,
+      serviceIds: selectedServices,
+      customerId: selectedCustomer,
+      status: eventStatus,
+      depositPaid: paymentStatus === "paid",
+      totalAmount: totalAmount || calculatedTotal.toString(),
+      depositAmount,
+      notes,
+    };
+    updateBooking.mutate(updates);
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    // Reset form to original values
+    if (booking) {
+      setEventName(booking.eventName || "");
+      setEventType(booking.eventType || "");
+      setEventDate(booking.eventDate ? new Date(booking.eventDate) : undefined);
+      setStartTime(booking.startTime || "");
+      setEndTime(booking.endTime || "");
+      setGuestCount(booking.guestCount || 1);
+      setSelectedVenue(booking.venueId || "");
+      setSelectedSpace(booking.spaceId || "");
+      setSelectedPackage(booking.packageId || "");
+      setSelectedServices(booking.serviceIds || []);
+      setSelectedCustomer(booking.customerId || "");
+      setEventStatus(booking.status || "confirmed");
+      setPaymentStatus(booking.depositPaid ? "paid" : "unpaid");
+      setTotalAmount(booking.totalAmount || "");
+      setDepositAmount(booking.depositAmount || "");
+      setNotes(booking.notes || "");
+    }
+  };
+
+  const handleServiceToggle = (serviceId: string) => {
+    setSelectedServices(prev => 
+      prev.includes(serviceId) 
+        ? prev.filter(id => id !== serviceId)
+        : [...prev, serviceId]
+    );
+  };
 
   const deleteBooking = useMutation({
     mutationFn: async () => {

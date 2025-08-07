@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreateEventModal } from "@/components/forms/create-event-modal";
-import { EventDetailsModal } from "@/components/forms/event-details-modal";
+import { EventEditModal } from "@/components/forms/event-edit-modal";
 import { useBookings } from "@/hooks/use-bookings";
 import { Calendar, Clock, MapPin, Users, Table as TableIcon, Grid3X3, DollarSign } from "lucide-react";
 import { format } from "date-fns";
@@ -217,8 +217,8 @@ export default function Events() {
           onOpenChange={setShowCreateForm}
         />
 
-        {/* Event Details Modal */}
-        <EventDetailsModal 
+        {/* Event Edit Modal */}
+        <EventEditModal 
           open={!!selectedBooking} 
           onOpenChange={(open) => !open && setSelectedBooking(null)}
           booking={selectedBooking}
