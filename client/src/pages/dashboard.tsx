@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { MobileNav } from "@/components/layout/mobile-nav";
 import { MetricsGrid } from "@/components/dashboard/metrics-grid";
 import { CalendarWidget } from "@/components/dashboard/calendar-widget";
 import { RecentBookings } from "@/components/dashboard/recent-bookings";
@@ -8,16 +10,24 @@ import { ActiveLeads } from "@/components/dashboard/active-leads";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 
 export default function Dashboard() {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
       <div className="hidden lg:block">
         <Sidebar />
       </div>
       
+      <MobileNav 
+        isOpen={mobileNavOpen} 
+        onClose={() => setMobileNavOpen(false)} 
+      />
+      
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header 
           title="Dashboard" 
-          subtitle="Welcome back! Here's what's happening at your venues today." 
+          subtitle="Welcome back! Here's what's happening at your venues today."
+          onMobileMenuToggle={() => setMobileNavOpen(true)}
         />
         
         <main className="flex-1 overflow-y-auto p-3 sm:p-6">

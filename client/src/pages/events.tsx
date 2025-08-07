@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { MobileNav } from "@/components/layout/mobile-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,7 @@ import { format } from "date-fns";
 export default function Events() {
   const { data: bookings, isLoading } = useBookings();
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -54,10 +56,16 @@ export default function Events() {
         <Sidebar />
       </div>
       
+      <MobileNav 
+        isOpen={mobileNavOpen} 
+        onClose={() => setMobileNavOpen(false)} 
+      />
+      
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header 
           title="Events & Bookings" 
           subtitle="Manage your venue bookings and events"
+          onMobileMenuToggle={() => setMobileNavOpen(true)}
           action={
             <Button 
               onClick={() => {

@@ -1,22 +1,34 @@
-import { Search, Bell, Plus } from "lucide-react";
+import { Search, Bell, Plus, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useState } from "react";
 
 interface HeaderProps {
   title: string;
   subtitle?: string;
   action?: React.ReactNode;
+  onMobileMenuToggle?: () => void;
 }
 
-export function Header({ title, subtitle, action }: HeaderProps) {
+export function Header({ title, subtitle, action, onMobileMenuToggle }: HeaderProps) {
   return (
     <header className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-4">
       <div className="flex items-center justify-between">
-        <div className="flex-1 min-w-0">
-          <h1 className="text-lg sm:text-2xl font-semibold text-slate-900 truncate">{title}</h1>
-          {subtitle && (
-            <p className="text-xs sm:text-sm text-slate-600 mt-1 hidden sm:block">{subtitle}</p>
-          )}
+        <div className="flex items-center space-x-3 flex-1 min-w-0">
+          {/* Mobile Menu Button */}
+          <button 
+            onClick={onMobileMenuToggle}
+            className="lg:hidden p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg sm:text-2xl font-semibold text-slate-900 truncate">{title}</h1>
+            {subtitle && (
+              <p className="text-xs sm:text-sm text-slate-600 mt-1 hidden sm:block">{subtitle}</p>
+            )}
+          </div>
         </div>
         
         <div className="flex items-center space-x-2 sm:space-x-4">
