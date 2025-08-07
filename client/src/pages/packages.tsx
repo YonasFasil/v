@@ -39,7 +39,7 @@ export default function Packages() {
     description: "",
     basePrice: "",
     category: "wedding",
-    includedServices: []
+    includedServices: [] as string[]
   });
 
   const [newService, setNewService] = useState({
@@ -62,8 +62,12 @@ export default function Packages() {
 
     try {
       await apiRequest("POST", "/api/packages", {
-        ...newPackage,
-        basePrice: parseFloat(newPackage.basePrice)
+        name: newPackage.name,
+        description: newPackage.description,
+        category: newPackage.category,
+        price: parseFloat(newPackage.basePrice),
+        pricingModel: "fixed",
+        includedServiceIds: newPackage.includedServices
       });
       await queryClient.invalidateQueries({ queryKey: ["/api/packages"] });
       
@@ -73,7 +77,7 @@ export default function Packages() {
         description: "",
         basePrice: "",
         category: "wedding",
-        includedServices: []
+        includedServices: [] as string[]
       });
       
       toast({
@@ -271,56 +275,148 @@ export default function Packages() {
                     Add Package
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-md">
+                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Create New Package</DialogTitle>
                   </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium">Package Name *</Label>
-                      <Input
-                        placeholder="e.g., Premium Wedding Package"
-                        value={newPackage.name}
-                        onChange={(e) => setNewPackage(prev => ({ ...prev, name: e.target.value }))}
-                        className="mt-1"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium">Description</Label>
-                      <Textarea
-                        placeholder="Describe what's included in this package..."
-                        value={newPackage.description}
-                        onChange={(e) => setNewPackage(prev => ({ ...prev, description: e.target.value }))}
-                        className="mt-1"
-                      />
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-6">
+                    {/* Basic Package Info */}
+                    <div className="space-y-4">
                       <div>
-                        <Label className="text-sm font-medium">Base Price *</Label>
+                        <Label className="text-sm font-medium">Package Name *</Label>
                         <Input
-                          type="number"
-                          placeholder="2500"
-                          value={newPackage.basePrice}
-                          onChange={(e) => setNewPackage(prev => ({ ...prev, basePrice: e.target.value }))}
+                          placeholder="e.g., Premium Wedding Package"
+                          value={newPackage.name}
+                          onChange={(e) => setNewPackage(prev => ({ ...prev, name: e.target.value }))}
                           className="mt-1"
                         />
                       </div>
+                      
                       <div>
-                        <Label className="text-sm font-medium">Category</Label>
-                        <select
-                          value={newPackage.category}
-                          onChange={(e) => setNewPackage(prev => ({ ...prev, category: e.target.value }))}
-                          className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
-                        >
-                          <option value="wedding">Wedding</option>
-                          <option value="corporate">Corporate</option>
-                          <option value="social">Social</option>
-                          <option value="conference">Conference</option>
-                        </select>
+                        <Label className="text-sm font-medium">Description</Label>
+                        <Textarea
+                          placeholder="Describe what's included in this package..."
+                          value={newPackage.description}
+                          onChange={(e) => setNewPackage(prev => ({ ...prev, description: e.target.value }))}
+                          className="mt-1"
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-sm font-medium">Base Price *</Label>
+                          <Input
+                            type="number"
+                            placeholder="2500"
+                            value={newPackage.basePrice}
+                            onChange={(e) => setNewPackage(prev => ({ ...prev, basePrice: e.target.value }))}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium">Category</Label>
+                          <select
+                            value={newPackage.category}
+                            onChange={(e) => setNewPackage(prev => ({ ...prev, category: e.target.value }))}
+                            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          >
+                            <option value="wedding">Wedding</option>
+                            <option value="corporate">Corporate</option>
+                            <option value="social">Social</option>
+                            <option value="conference">Conference</option>
+                          </select>
+                        </div>
                       </div>
                     </div>
+
+                    <Separator />
+
+                    {/* Included Services Selection */}
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <Label className="text-base font-medium">Included Services</Label>
+                        <Badge variant="outline" className="text-xs">
+                          {newPackage.includedServices.length} selected
+                        </Badge>
+                      </div>
+                      
+                      {Array.isArray(services) && services.length > 0 ? (
+                        <div className="space-y-3 max-h-60 overflow-y-auto border rounded-lg p-3">
+                          {services.map((service: any) => {
+                            const isSelected = newPackage.includedServices.includes(service.id);
+                            return (
+                              <div
+                                key={service.id}
+                                className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                                  isSelected 
+                                    ? 'border-blue-500 bg-blue-50' 
+                                    : 'border-slate-200 hover:border-slate-300'
+                                }`}
+                                onClick={() => {
+                                  setNewPackage(prev => ({
+                                    ...prev,
+                                    includedServices: isSelected
+                                      ? prev.includedServices.filter((id: string) => id !== service.id)
+                                      : [...prev.includedServices, service.id]
+                                  }));
+                                }}
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="font-medium text-sm">{service.name}</div>
+                                    <div className="text-xs text-slate-600 mt-1">
+                                      {service.description}
+                                    </div>
+                                    <div className="text-sm font-semibold text-green-600 mt-2">
+                                      ${parseFloat(service.price).toFixed(2)}
+                                      {service.unit && (
+                                        <span className="text-xs text-slate-500"> {service.unit}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="ml-3">
+                                    {isSelected ? (
+                                      <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center">
+                                        <Check className="w-3 h-3 text-white" />
+                                      </div>
+                                    ) : (
+                                      <div className="w-5 h-5 border-2 border-slate-300 rounded"></div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-center p-6 bg-slate-50 rounded-lg">
+                          <p className="text-sm text-slate-600">No services available</p>
+                          <p className="text-xs text-slate-500 mt-1">Create services first to include them in packages</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Package Summary */}
+                    {newPackage.includedServices.length > 0 && (
+                      <div className="bg-slate-50 p-4 rounded-lg">
+                        <h4 className="font-medium text-sm mb-3">Package Summary</h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span>Base Price:</span>
+                            <span className="font-medium">
+                              ${newPackage.basePrice ? parseFloat(newPackage.basePrice).toFixed(2) : '0.00'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Included Services:</span>
+                            <span className="font-medium">{newPackage.includedServices.length} services</span>
+                          </div>
+                          <div className="text-xs text-slate-600 mt-2">
+                            Services are included in the base price. Additional services can be added during event creation.
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     
                     <Button
                       onClick={createPackage}
@@ -361,21 +457,24 @@ export default function Packages() {
                     </p>
                     
                     <div className="text-2xl font-bold text-blue-600">
-                      ${pkg.basePrice?.toLocaleString() || 0}
+                      ${pkg.price?.toLocaleString() || 0}
                     </div>
                     
-                    {pkg.includedServices && pkg.includedServices.length > 0 && (
+                    {pkg.includedServiceIds && pkg.includedServiceIds.length > 0 && (
                       <div className="space-y-1">
                         <p className="text-xs font-medium text-gray-700">Included Services:</p>
                         <div className="flex flex-wrap gap-1">
-                          {pkg.includedServices.slice(0, 3).map((service: string, index: number) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              {service}
-                            </Badge>
-                          ))}
-                          {pkg.includedServices.length > 3 && (
+                          {pkg.includedServiceIds.slice(0, 3).map((serviceId: string, index: number) => {
+                            const service = services?.find((s: any) => s.id === serviceId);
+                            return (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {service?.name || 'Unknown Service'}
+                              </Badge>
+                            );
+                          })}
+                          {pkg.includedServiceIds.length > 3 && (
                             <Badge variant="outline" className="text-xs">
-                              +{pkg.includedServices.length - 3} more
+                              +{pkg.includedServiceIds.length - 3} more
                             </Badge>
                           )}
                         </div>

@@ -32,7 +32,7 @@ export function EditPackageModal({ open, onOpenChange, package: pkg }: Props) {
       setName(pkg.name || "");
       setDescription(pkg.description || "");
       setPrice(pkg.price?.toString() || "");
-      setSelectedServices(pkg.serviceIds || []);
+      setSelectedServices(pkg.includedServiceIds || []);
     }
   }, [pkg, open]);
 
@@ -71,7 +71,7 @@ export function EditPackageModal({ open, onOpenChange, package: pkg }: Props) {
       name,
       description,
       price: parseFloat(price) || 0,
-      serviceIds: selectedServices
+      includedServiceIds: selectedServices
     });
   };
 
