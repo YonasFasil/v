@@ -152,6 +152,15 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
 
     // Create booking for first selected date (extend for multiple dates if needed)
     const firstDate = selectedDates[0];
+    
+    if (!firstDate.spaceId) {
+      toast({ 
+        title: "Space selection required", 
+        description: "Please select a space for this event",
+        variant: "destructive" 
+      });
+      return;
+    }
     const bookingData = {
       eventName,
       eventType: "corporate",
@@ -172,7 +181,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
       status: eventStatus,
       customerId: selectedCustomer,
       venueId: selectedVenue,
-      spaceId: selectedVenueData?.spaces?.[0]?.id,
+      spaceId: firstDate.spaceId,
       totalAmount: totalPrice.toString(),
       notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${selectedServices.length} selected`
     };
@@ -184,6 +193,19 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
     if (currentStep === 1 && (!selectedVenue || selectedDates.length === 0)) {
       toast({ title: "Please select a venue and at least one date", variant: "destructive" });
       return;
+    }
+    
+    if (currentStep === 1) {
+      // Validate that all selected dates have spaces selected
+      const missingSpaces = selectedDates.filter(date => !date.spaceId);
+      if (missingSpaces.length > 0) {
+        toast({ 
+          title: "Space selection required", 
+          description: "Please select a space for all event dates",
+          variant: "destructive" 
+        });
+        return;
+      }
     }
     if (currentStep < 3) setCurrentStep(currentStep + 1);
   };
@@ -356,8 +378,23 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                             </div>
                             
                             <div className="space-y-2">
-                              <div className="text-sm text-green-600 mb-2">
-                                Space: {selectedVenueData?.spaces?.[0]?.name || 'Main Hall'} (Default space will be booked)
+                              <div className="mb-2">
+                                <Label className="text-sm">Select Space</Label>
+                                <Select
+                                  value={dateInfo.spaceId || ""}
+                                  onValueChange={(value) => updateDateTime(index, 'spaceId', value)}
+                                >
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Choose a space" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {selectedVenueData?.spaces?.map((space: any) => (
+                                      <SelectItem key={space.id} value={space.id}>
+                                        {space.name} (Capacity: {space.capacity})
+                                      </SelectItem>
+                                    )) || <SelectItem value="no-spaces" disabled>No spaces available</SelectItem>}
+                                  </SelectContent>
+                                </Select>
                               </div>
                               
                               <div className="flex items-center gap-2">

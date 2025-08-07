@@ -26,6 +26,10 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
   const [address, setAddress] = useState("");
   const [amenities, setAmenities] = useState("");
   const [showCreateSpaceModal, setShowCreateSpaceModal] = useState(false);
+  const [editingSpace, setEditingSpace] = useState<any>(null);
+  const [editSpaceName, setEditSpaceName] = useState("");
+  const [editSpaceCapacity, setEditSpaceCapacity] = useState("");
+  const [editSpaceDescription, setEditSpaceDescription] = useState("");
 
   // Get spaces for this venue
   const { data: spaces = [] } = useQuery({
@@ -89,6 +93,61 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
     if (confirm("Are you sure you want to delete this venue? This will also delete all associated spaces and may affect existing bookings.")) {
       deleteVenue.mutate();
     }
+  };
+
+  const deleteSpace = useMutation({
+    mutationFn: async (spaceId: string) => {
+      const response = await apiRequest("DELETE", `/api/venues/${venue.id}/spaces/${spaceId}`, {});
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/venues/${venue.id}/spaces`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/venues-with-spaces"] });
+      toast({ title: "Space deleted successfully!" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to delete space", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const updateSpace = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("PATCH", `/api/venues/${venue.id}/spaces/${editingSpace.id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/venues/${venue.id}/spaces`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/venues-with-spaces"] });
+      toast({ title: "Space updated successfully!" });
+      setEditingSpace(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to update space", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const handleEditSpace = (space: any) => {
+    setEditingSpace(space);
+    setEditSpaceName(space.name || "");
+    setEditSpaceCapacity(space.capacity?.toString() || "");
+    setEditSpaceDescription(space.description || "");
+  };
+
+  const handleSaveSpace = () => {
+    if (!editSpaceName.trim() || !editSpaceCapacity.trim()) {
+      toast({
+        title: "Required fields missing",
+        description: "Please provide space name and capacity",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    updateSpace.mutate({
+      name: editSpaceName,
+      capacity: parseInt(editSpaceCapacity),
+      description: editSpaceDescription,
+    });
   };
 
   return (
@@ -171,18 +230,78 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
             </div>
             
             {spaces.length > 0 ? (
-              <div className="space-y-2 max-h-32 overflow-y-auto">
+              <div className="space-y-2 max-h-40 overflow-y-auto">
                 {spaces.map((space: any) => (
-                  <Card key={space.id} className="p-2 cursor-pointer hover:bg-slate-50">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <div className="font-medium text-sm">{space.name}</div>
-                        <div className="text-xs text-slate-600">
-                          {space.capacity} guests • {space.spaceType || 'Space'}
+                  <Card key={space.id} className="p-3 border border-slate-200">
+                    {editingSpace?.id === space.id ? (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input
+                            value={editSpaceName}
+                            onChange={(e) => setEditSpaceName(e.target.value)}
+                            placeholder="Space name"
+                            className="text-sm"
+                          />
+                          <Input
+                            type="number"
+                            value={editSpaceCapacity}
+                            onChange={(e) => setEditSpaceCapacity(e.target.value)}
+                            placeholder="Capacity"
+                            className="text-sm"
+                          />
+                        </div>
+                        <Input
+                          value={editSpaceDescription}
+                          onChange={(e) => setEditSpaceDescription(e.target.value)}
+                          placeholder="Description (optional)"
+                          className="text-sm"
+                        />
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={handleSaveSpace} disabled={updateSpace.isPending}>
+                            <Save className="h-3 w-3 mr-1" />
+                            Save
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => setEditingSpace(null)}
+                          >
+                            Cancel
+                          </Button>
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm" className="text-xs px-2 py-1 h-6">Edit</Button>
-                    </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">{space.name}</div>
+                          <div className="text-xs text-slate-600">
+                            {space.capacity} guests • {space.description || 'No description'}
+                          </div>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleEditSpace(space)}
+                            className="text-xs px-2 py-1 h-6"
+                          >
+                            <Edit3 className="h-3 w-3" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              if (confirm(`Delete space "${space.name}"? This cannot be undone.`)) {
+                                deleteSpace.mutate(space.id);
+                              }
+                            }}
+                            className="text-xs px-2 py-1 h-6 text-red-600 border-red-200 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </Card>
                 ))}
               </div>
