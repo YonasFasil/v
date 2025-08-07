@@ -9,6 +9,7 @@ interface HeaderProps {
   subtitle?: string;
   action?: React.ReactNode;
   onMobileMenuToggle?: () => void;
+  onNewBooking?: () => void;
 }
 
 interface HeaderPropsWithMobile extends HeaderProps {
@@ -16,7 +17,7 @@ interface HeaderPropsWithMobile extends HeaderProps {
   setMobileNavOpen?: (open: boolean) => void;
 }
 
-export function Header({ title, subtitle, action, onMobileMenuToggle, mobileNavOpen, setMobileNavOpen }: HeaderPropsWithMobile) {
+export function Header({ title, subtitle, action, onMobileMenuToggle, onNewBooking, mobileNavOpen, setMobileNavOpen }: HeaderPropsWithMobile) {
   const [searchOpen, setSearchOpen] = useState(false);
   
   // Keyboard shortcut for search
@@ -72,7 +73,11 @@ export function Header({ title, subtitle, action, onMobileMenuToggle, mobileNavO
             <Button 
               onClick={() => {
                 console.log('Header New Booking button clicked');
-                window.location.href = '/events';
+                if (onNewBooking) {
+                  onNewBooking();
+                } else {
+                  window.location.href = '/events';
+                }
               }}
               className="bg-blue-600 text-white px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-blue-700 transition-colors"
             >

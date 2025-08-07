@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, getDay } from "date-fns";
-import { ChevronLeft, ChevronRight, X, Plus, RotateCcw } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Plus, RotateCcw, Calendar as CalendarIcon } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -440,7 +440,10 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                 )}
-                <h2 className="text-lg sm:text-xl font-semibold">Create Event</h2>
+                <div className="flex items-center gap-3">
+                  <CalendarIcon className="h-5 w-5 text-blue-600" />
+                  <h2 className="text-lg sm:text-xl font-semibold">Create Event</h2>
+                </div>
               </div>
               <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
                 <X className="h-4 w-4" />

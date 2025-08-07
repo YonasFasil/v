@@ -166,9 +166,9 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
                 return (
                   <div 
                     key={index}
-                    className={`min-h-24 p-1 border border-slate-200 ${
-                      isCurrentMonth ? 'bg-white' : 'bg-slate-50'
-                    }`}
+                    className={`min-h-28 p-2 border border-slate-200 ${
+                      isCurrentMonth ? 'bg-white hover:bg-slate-50' : 'bg-slate-50'
+                    } transition-colors`}
                   >
                     <div className={`text-sm font-medium mb-1 ${
                       isCurrentMonth ? 'text-slate-900' : 'text-slate-400'
@@ -181,19 +181,28 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
                       {dayEvents.slice(0, 2).map((event) => (
                         <div
                           key={event.id}
-                          className="text-xs p-1 rounded text-white truncate cursor-pointer hover:opacity-80 transition-opacity"
+                          className="text-xs p-2 rounded-md text-white cursor-pointer hover:shadow-md transition-all duration-200 border border-white/20"
                           style={{ backgroundColor: event.color }}
-                          title={`${event.title} - ${event.customerName}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             onEventClick?.(event);
                           }}
                         >
-                          {event.title}
+                          <div className="font-medium truncate mb-1">{event.title}</div>
+                          <div className="flex items-center justify-between opacity-90">
+                            <div className="flex items-center gap-1">
+                              <Users className="w-3 h-3" />
+                              <span>{event.guestCount}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              <span>{event.startTime}</span>
+                            </div>
+                          </div>
                         </div>
                       ))}
                       {dayEvents.length > 2 && (
-                        <div className="text-xs text-slate-500 pl-1">
+                        <div className="text-xs text-slate-500 text-center py-1 bg-slate-100 rounded">
                           +{dayEvents.length - 2} more
                         </div>
                       )}
@@ -291,11 +300,11 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
                     {/* Header with dates */}
                     <thead className="bg-slate-50">
                       <tr>
-                        <th className="sticky left-0 bg-slate-50 border-r border-slate-200 p-3 text-left font-semibold text-slate-700 min-w-[150px]">
+                        <th className="sticky left-0 bg-slate-50 border-r border-slate-200 p-3 text-left font-semibold text-slate-700 min-w-[180px] z-10">
                           Venues
                         </th>
-                        {calendarDays.slice(0, 7).map((day, index) => (
-                          <th key={index} className="border-r border-slate-200 p-2 text-center min-w-[120px]">
+                        {calendarDays.slice(0, 31).map((day, index) => (
+                          <th key={index} className="border-r border-slate-200 p-2 text-center min-w-[100px]">
                             <div className="text-sm font-medium text-slate-600">
                               {format(day, 'EEE')}
                             </div>
@@ -303,26 +312,6 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
                               {format(day, 'd')}
                             </div>
                           </th>
-                        ))}
-                      </tr>
-                      {/* Time slots header */}
-                      <tr className="bg-slate-25">
-                        <td className="sticky left-0 bg-slate-25 border-r border-slate-200 p-2"></td>
-                        {calendarDays.slice(0, 7).map((day, index) => (
-                          <td key={index} className="border-r border-slate-200 p-1">
-                            <div className="flex justify-between text-xs text-slate-500 px-1">
-                              <span>12:00 PM</span>
-                              <span>1:00 PM</span>
-                              <span>2:00 PM</span>
-                              <span>3:00 PM</span>
-                              <span>4:00 PM</span>
-                              <span>5:00 PM</span>
-                              <span>6:00 PM</span>
-                              <span>7:00 PM</span>
-                              <span>8:00 PM</span>
-                              <span>9:00 PM</span>
-                            </div>
-                          </td>
                         ))}
                       </tr>
                     </thead>
@@ -344,7 +333,7 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
                           </td>
                           
                           {/* Date cells for this venue */}
-                          {calendarDays.slice(0, 7).map((day, dayIndex) => {
+                          {calendarDays.slice(0, 31).map((day, dayIndex) => {
                             const dayBookings = venueItem.bookings.filter((booking: any) => 
                               isSameDay(new Date(booking.eventDate), day)
                             );

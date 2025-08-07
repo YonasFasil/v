@@ -9,10 +9,12 @@ import { AIRecommendations } from "@/components/dashboard/ai-recommendations";
 import { ActiveLeads } from "@/components/dashboard/active-leads";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { EventEditModal } from "@/components/forms/event-edit-modal";
+import { CreateEventModal } from "@/components/forms/create-event-modal";
 
 export default function Dashboard() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [showCreateEventModal, setShowCreateEventModal] = useState(false);
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
@@ -30,6 +32,7 @@ export default function Dashboard() {
           title="Dashboard" 
           subtitle="Welcome back! Here's what's happening at your venues today."
           onMobileMenuToggle={() => setMobileNavOpen(true)}
+          onNewBooking={() => setShowCreateEventModal(true)}
         />
         
         <main className="flex-1 overflow-y-auto p-3 sm:p-6">
@@ -83,6 +86,11 @@ export default function Dashboard() {
           open={!!selectedEvent} 
           onOpenChange={(open) => !open && setSelectedEvent(null)}
           booking={selectedEvent}
+        />
+
+        <CreateEventModal
+          open={showCreateEventModal}
+          onOpenChange={setShowCreateEventModal}
         />
       </div>
     </div>
