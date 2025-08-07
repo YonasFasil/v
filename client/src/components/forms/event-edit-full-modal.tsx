@@ -390,7 +390,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] p-0 overflow-hidden flex flex-col" aria-describedby="edit-event-description">
+      <DialogContent className="w-full max-w-[95vw] sm:max-w-6xl max-h-[95vh] sm:max-h-[90vh] p-0 overflow-hidden flex flex-col mx-2 sm:mx-4" aria-describedby="edit-event-description">
         <DialogTitle className="sr-only">Edit Event</DialogTitle>
         <div id="edit-event-description" className="sr-only">
           Edit event booking with date selection, venue configuration, and customer details.
@@ -399,7 +399,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
         <div className="flex h-full">
           {/* Sidebar - Steps */}
           {currentStep > 1 && (
-            <div className="w-80 bg-slate-50 border-r border-slate-200 p-6">
+            <div className="hidden lg:block w-80 bg-slate-50 border-r border-slate-200 p-6">
               <div className="space-y-6">
                 <div>
                   <h3 className="font-medium text-slate-900 mb-3">Selected Date & Venue</h3>
@@ -457,7 +457,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
           {/* Main content area */}
           <div className="flex-1 flex flex-col">
             {/* Header */}
-            <div className="border-b border-slate-200 p-6 flex items-center justify-between">
+            <div className="border-b border-slate-200 p-3 sm:p-6 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 {currentStep > 1 && (
                   <Button variant="ghost" size="sm" onClick={prevStep}>
@@ -466,7 +466,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                 )}
                 <div className="flex items-center gap-3">
                   <Edit className="h-5 w-5 text-blue-600" />
-                  <h2 className="text-xl font-semibold">Edit Event</h2>
+                  <h2 className="text-lg sm:text-xl font-semibold">Edit Event</h2>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -481,10 +481,10 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
             </div>
 
             {/* Step Content */}
-            <div className="flex-1 p-6 overflow-y-auto">
+            <div className="flex-1 p-3 sm:p-6 overflow-y-auto">
               {/* Step 1: Date & Venue Selection */}
               {currentStep === 1 && (
-                <div className="grid grid-cols-2 gap-8 h-full">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8 h-full">
                   {/* Left: Calendar */}
                   <div>
                     <div className="flex items-center justify-between mb-4">
@@ -674,7 +674,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-8">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
                             {/* Left Column: Package & Services */}
                             <div className="space-y-6">
                               {/* Guest Count */}
@@ -1147,7 +1147,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
             </div>
 
             {/* Fixed Footer */}
-            <div className="border-t border-slate-200 p-6 flex justify-between items-center bg-white flex-shrink-0">
+            <div className="border-t border-slate-200 p-3 sm:p-6 flex flex-col sm:flex-row gap-3 sm:gap-0 justify-between items-center bg-white flex-shrink-0">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-slate-600">Grand Total</span>
@@ -1164,7 +1164,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                 </Button>
               </div>
               
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
                 {currentStep === 3 && (
                   <Button variant="outline" onClick={prevStep}>
                     Back
@@ -1224,7 +1224,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
             <div className="flex gap-2 pt-4">
               <Button
                 onClick={() => {
-                  const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+                  const checkboxes = document.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
                   const selectedIndices = Array.from(checkboxes)
                     .map((checkbox, index) => checkbox.checked ? index : -1)
                     .filter(index => index !== -1);

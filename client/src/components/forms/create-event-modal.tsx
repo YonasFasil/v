@@ -390,7 +390,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] p-0 overflow-hidden flex flex-col" aria-describedby="create-event-description">
+      <DialogContent className="w-full max-w-[95vw] sm:max-w-6xl max-h-[95vh] sm:max-h-[90vh] p-0 overflow-hidden flex flex-col mx-2 sm:mx-4" aria-describedby="create-event-description">
         <DialogTitle className="sr-only">Create Event</DialogTitle>
         <div id="create-event-description" className="sr-only">
           Create a new event booking with date selection, venue configuration, and customer details.
@@ -433,14 +433,14 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
           {/* Main content area */}
           <div className="flex-1 flex flex-col">
             {/* Header */}
-            <div className="border-b border-slate-200 p-6 flex items-center justify-between">
+            <div className="border-b border-slate-200 p-3 sm:p-6 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 {currentStep > 1 && (
                   <Button variant="ghost" size="sm" onClick={prevStep}>
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                 )}
-                <h2 className="text-xl font-semibold">Create Event</h2>
+                <h2 className="text-lg sm:text-xl font-semibold">Create Event</h2>
               </div>
               <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
                 <X className="h-4 w-4" />
@@ -448,10 +448,10 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
             </div>
 
             {/* Step Content */}
-            <div className="flex-1 p-6 overflow-y-auto">
+            <div className="flex-1 p-3 sm:p-6 overflow-y-auto">
               {/* Step 1: Date & Venue Selection */}
               {currentStep === 1 && (
-                <div className="grid grid-cols-2 gap-8 h-full">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8 h-full">
                   {/* Left: Calendar */}
                   <div>
                     <div className="flex items-center justify-between mb-4">
@@ -623,9 +623,9 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
 
               {/* Step 2: Per-Date Configuration */}
               {currentStep === 2 && (
-                <div className="flex h-full">
+                <div className="flex flex-col lg:flex-row h-full">
                   {/* Left: Date Tabs */}
-                  <div className="w-1/3 border-r overflow-y-auto bg-gray-50">
+                  <div className="w-full lg:w-1/3 border-r lg:border-b-0 border-b overflow-y-auto bg-gray-50 max-h-40 lg:max-h-none">
                     <div className="p-4 font-semibold text-lg border-b bg-white sticky top-0">
                       Event Dates
                     </div>
@@ -655,9 +655,9 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                   </div>
 
                   {/* Right: Configuration for Active Date */}
-                  <div className="w-2/3 flex flex-col overflow-y-auto">
+                  <div className="w-full lg:w-2/3 flex flex-col overflow-y-auto">
                     {activeDate && (
-                      <div className="p-6 flex-grow">
+                      <div className="p-3 sm:p-6 flex-grow">
                         <div className="flex justify-between items-center mb-1">
                           <h3 className="text-xl font-semibold">Configure Event</h3>
                           {selectedDates.length > 1 && (
@@ -1030,13 +1030,13 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
             </div>
 
             {/* Fixed Footer */}
-            <div className="border-t border-slate-200 p-6 flex justify-between items-center bg-white flex-shrink-0">
+            <div className="border-t border-slate-200 p-3 sm:p-6 flex flex-col sm:flex-row gap-3 sm:gap-0 justify-between items-center bg-white flex-shrink-0">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-slate-600">Grand Total</span>
                 <span className="text-lg font-semibold">${totalPrice.toFixed(2)}</span>
               </div>
               
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
                 {currentStep === 3 && (
                   <Button variant="outline" onClick={prevStep}>
                     Back
