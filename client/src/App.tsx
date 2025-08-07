@@ -11,6 +11,7 @@ import Payments from "@/pages/payments";
 import Tasks from "@/pages/tasks";
 import Venues from "@/pages/venues";
 import Packages from "@/pages/packages";
+import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/tasks" component={Tasks} />
       <Route path="/venues" component={Venues} />
       <Route path="/packages" component={Packages} />
+      <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>
   );

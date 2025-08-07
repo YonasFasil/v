@@ -12,7 +12,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Frontend Architecture
 - **Framework**: React with TypeScript using Vite as the build tool
-- **Routing**: Wouter for client-side routing with pages for dashboard, events, customers, proposals, payments, and tasks
+- **Routing**: Wouter for client-side routing with pages for dashboard, events, customers, proposals, payments, tasks, venues, packages, and settings
 - **State Management**: TanStack Query (React Query) for server state management and caching
 - **UI Components**: Radix UI primitives with custom styling using Tailwind CSS and shadcn/ui components
 - **Forms**: React Hook Form with Zod validation for type-safe form handling
