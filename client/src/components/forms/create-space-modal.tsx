@@ -78,7 +78,7 @@ export function CreateSpaceModal({ open, onOpenChange, venueId, venueName }: Pro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg p-0" aria-describedby="create-space-description">
+      <DialogContent className="max-w-md p-0 max-h-[75vh] overflow-hidden" aria-describedby="create-space-description">
         <DialogTitle className="sr-only">Add Space to Venue</DialogTitle>
         <div id="create-space-description" className="sr-only">
           Create a new bookable space within the selected venue property.
@@ -97,7 +97,7 @@ export function CreateSpaceModal({ open, onOpenChange, venueId, venueName }: Pro
           </Button>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="overflow-y-auto flex-1 p-4 space-y-3">
           <div>
             <Label>Space Name *</Label>
             <Input 
@@ -141,27 +141,27 @@ export function CreateSpaceModal({ open, onOpenChange, venueId, venueName }: Pro
           </div>
           
           <div>
-            <Label>Description</Label>
-            <textarea
+            <Label className="text-sm">Description</Label>
+            <Input 
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full p-3 border rounded-md mt-1 h-20 resize-none text-sm"
+              className="mt-1 text-sm"
               placeholder="Describe this space..."
             />
           </div>
           
           <div>
-            <Label>Features & Amenities</Label>
+            <Label className="text-sm">Features & Amenities</Label>
             <Input 
               value={features} 
               onChange={(e) => setFeatures(e.target.value)} 
-              className="mt-1"
+              className="mt-1 text-sm"
               placeholder="Stage, Dance floor, Projector, etc."
             />
           </div>
         </div>
 
-        <div className="border-t border-slate-200 p-6 flex justify-end gap-3">
+        <div className="border-t border-slate-200 p-4 flex justify-end gap-3">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>

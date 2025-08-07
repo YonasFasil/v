@@ -93,7 +93,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl p-0 max-h-[90vh] overflow-y-auto" aria-describedby="edit-venue-description">
+      <DialogContent className="max-w-2xl p-0 max-h-[80vh] overflow-hidden" aria-describedby="edit-venue-description">
         <DialogTitle className="sr-only">Edit Venue</DialogTitle>
         <div id="edit-venue-description" className="sr-only">
           Edit venue property information including name, capacity, spaces, and amenities.
@@ -109,7 +109,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
           </Button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="overflow-y-auto flex-1 p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Venue Name *</Label>
@@ -128,34 +128,36 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
             </div>
           </div>
           
-          <div>
-            <Label>Description</Label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full p-3 border rounded-md mt-1 h-20 resize-none text-sm"
-              placeholder="Describe this venue property..."
-            />
-          </div>
-          
-          <div>
-            <Label>Address</Label>
-            <textarea
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="w-full p-3 border rounded-md mt-1 h-16 resize-none text-sm"
-              placeholder="Full venue address..."
-            />
-          </div>
-          
-          <div>
-            <Label>Amenities & Features</Label>
-            <textarea
-              value={amenities}
-              onChange={(e) => setAmenities(e.target.value)}
-              className="w-full p-3 border rounded-md mt-1 h-16 resize-none text-sm"
-              placeholder="Parking, WiFi, AV equipment, catering kitchen, etc."
-            />
+          <div className="grid grid-cols-1 gap-3">
+            <div>
+              <Label className="text-sm">Description</Label>
+              <Input 
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="mt-1 text-sm"
+                placeholder="Describe this venue property..."
+              />
+            </div>
+            
+            <div>
+              <Label className="text-sm">Address</Label>
+              <Input 
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="mt-1 text-sm"
+                placeholder="Full venue address..."
+              />
+            </div>
+            
+            <div>
+              <Label className="text-sm">Amenities & Features</Label>
+              <Input 
+                value={amenities}
+                onChange={(e) => setAmenities(e.target.value)}
+                className="mt-1 text-sm"
+                placeholder="Parking, WiFi, AV equipment, etc."
+              />
+            </div>
           </div>
 
           {/* Spaces Section */}
@@ -169,25 +171,25 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
             </div>
             
             {spaces.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-32 overflow-y-auto">
                 {spaces.map((space: any) => (
-                  <Card key={space.id} className="p-3 cursor-pointer hover:bg-slate-50">
+                  <Card key={space.id} className="p-2 cursor-pointer hover:bg-slate-50">
                     <div className="flex justify-between items-center">
                       <div>
-                        <div className="font-medium">{space.name}</div>
-                        <div className="text-sm text-slate-600">
-                          Capacity: {space.capacity} • {space.description || 'No description'}
+                        <div className="font-medium text-sm">{space.name}</div>
+                        <div className="text-xs text-slate-600">
+                          {space.capacity} guests • {space.spaceType || 'Space'}
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm">Edit</Button>
+                      <Button variant="ghost" size="sm" className="text-xs px-2 py-1 h-6">Edit</Button>
                     </div>
                   </Card>
                 ))}
               </div>
             ) : (
-              <div className="text-center p-6 bg-slate-50 rounded-lg">
-                <p className="text-slate-600">No spaces configured for this venue</p>
-                <p className="text-sm text-slate-500 mt-1">Add spaces (halls, rooms) that can be booked within this property</p>
+              <div className="text-center p-4 bg-slate-50 rounded-lg">
+                <p className="text-sm text-slate-600">No spaces configured</p>
+                <p className="text-xs text-slate-500 mt-1">Add bookable spaces within this property</p>
               </div>
             )}
           </div>
