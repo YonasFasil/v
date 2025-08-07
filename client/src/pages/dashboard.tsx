@@ -8,9 +8,11 @@ import { RecentBookings } from "@/components/dashboard/recent-bookings";
 import { AIRecommendations } from "@/components/dashboard/ai-recommendations";
 import { ActiveLeads } from "@/components/dashboard/active-leads";
 import { QuickActions } from "@/components/dashboard/quick-actions";
+import { EventDetailsModal } from "@/components/forms/event-details-modal";
 
 export default function Dashboard() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
@@ -64,7 +66,7 @@ export default function Dashboard() {
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-              <AdvancedCalendar />
+              <AdvancedCalendar onEventClick={setSelectedEvent} />
               <RecentBookings />
             </div>
             
@@ -75,6 +77,13 @@ export default function Dashboard() {
             </div>
           </div>
         </main>
+
+        {/* Event Details Modal */}
+        <EventDetailsModal 
+          open={!!selectedEvent} 
+          onOpenChange={(open) => !open && setSelectedEvent(null)}
+          booking={selectedEvent}
+        />
       </div>
     </div>
   );

@@ -37,7 +37,11 @@ interface VenueCalendarData {
   bookings: any[];
 }
 
-export function AdvancedCalendar() {
+interface AdvancedCalendarProps {
+  onEventClick?: (event: any) => void;
+}
+
+export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'events' | 'venues'>('events');
   const [calendarView, setCalendarView] = useState<'monthly' | 'weekly'>('monthly');
@@ -177,9 +181,13 @@ export function AdvancedCalendar() {
                       {dayEvents.slice(0, 2).map((event) => (
                         <div
                           key={event.id}
-                          className="text-xs p-1 rounded text-white truncate cursor-pointer hover:opacity-80"
+                          className="text-xs p-1 rounded text-white truncate cursor-pointer hover:opacity-80 transition-opacity"
                           style={{ backgroundColor: event.color }}
                           title={`${event.title} - ${event.customerName}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEventClick?.(event);
+                          }}
                         >
                           {event.title}
                         </div>

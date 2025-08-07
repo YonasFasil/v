@@ -5,17 +5,20 @@ import { MobileNav } from "@/components/layout/mobile-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreateEventModal } from "@/components/forms/create-event-modal";
-import { EditEventModal } from "@/components/forms/edit-event-modal";
+import { EventDetailsModal } from "@/components/forms/event-details-modal";
 import { useBookings } from "@/hooks/use-bookings";
-import { Calendar, Clock, MapPin, Users } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, Table as TableIcon, Grid3X3, DollarSign } from "lucide-react";
 import { format } from "date-fns";
 
 export default function Events() {
   const { data: bookings, isLoading } = useBookings();
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [editingBooking, setEditingBooking] = useState<any>(null);
+  const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const getStatusColor = (status: string) => {
@@ -82,70 +85,144 @@ export default function Events() {
         />
         
         <main className="flex-1 overflow-y-auto p-6">
-          <CreateEventModal 
-            open={showCreateForm} 
-            onOpenChange={setShowCreateForm} 
-          />
-          
-          <EditEventModal 
-            open={!!editingBooking} 
-            onOpenChange={(open) => !open && setEditingBooking(null)} 
-            booking={editingBooking}
-          />
           {!bookings || bookings.length === 0 ? (
             <div className="text-center py-12">
               <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No bookings yet</h3>
-              <p className="text-gray-600 mb-6">Get started by creating your first event booking.</p>
-              <Button onClick={() => {
-                console.log('Create First Booking button clicked');
-                setShowCreateForm(true);
-              }} className="bg-blue-600 hover:bg-blue-700">
-                Create First Booking
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No events scheduled</h3>
+              <p className="text-gray-600 mb-6">Create your first event to get started with venue management.</p>
+              <Button onClick={() => setShowCreateForm(true)} className="bg-blue-600 hover:bg-blue-700">
+                Create First Event
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {bookings.map((booking) => (
-                <Card key={booking.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setEditingBooking(booking)}>
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg font-semibold">{booking.eventName}</CardTitle>
-                        <p className="text-sm text-gray-600">{booking.eventType}</p>
-                      </div>
-                      <Badge className={getStatusColor(booking.status)}>
-                        {booking.status}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      {booking.eventDate ? format(new Date(booking.eventDate), "PPP") : "Date TBD"}
-                    </div>
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Clock className="w-4 h-4 mr-2" />
-                      {booking.startTime} - {booking.endTime}
-                    </div>
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Users className="w-4 h-4 mr-2" />
-                      {booking.guestCount} guests
-                    </div>
-                    {booking.totalAmount && (
-                      <div className="text-lg font-semibold text-green-600">
-                        ${parseFloat(booking.totalAmount).toLocaleString()}
-                      </div>
-                    )}
-                    <div className="flex justify-end pt-2">
-                      <span className="text-xs text-blue-600 hover:text-blue-800">Click to edit →</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="space-y-6">
+              {/* View Mode Tabs */}
+              <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as "cards" | "table")}>
+                <TabsList className="grid w-48 grid-cols-2">
+                  <TabsTrigger value="cards" className="flex items-center gap-2">
+                    <Grid3X3 className="h-4 w-4" />
+                    Cards
+                  </TabsTrigger>
+                  <TabsTrigger value="table" className="flex items-center gap-2">
+                    <TableIcon className="h-4 w-4" />
+                    Table
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="cards" className="space-y-0">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {bookings.map((booking) => (
+                      <Card 
+                        key={booking.id} 
+                        className="hover:shadow-lg transition-shadow cursor-pointer"
+                        onClick={() => setSelectedBooking(booking)}
+                      >
+                        <CardHeader className="pb-2">
+                          <div className="flex items-start justify-between">
+                            <CardTitle className="text-lg font-semibold line-clamp-2">{booking.eventName}</CardTitle>
+                            <Badge className={getStatusColor(booking.status)}>
+                              {booking.status}
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2 text-sm text-gray-600">
+                            <div className="flex items-center">
+                              <Calendar className="w-4 h-4 mr-2" />
+                              {booking.eventDate ? format(new Date(booking.eventDate), "PPP") : "Date TBD"}
+                            </div>
+                            <div className="flex items-center">
+                              <Clock className="w-4 h-4 mr-2" />
+                              {booking.startTime} - {booking.endTime}
+                            </div>
+                            <div className="flex items-center">
+                              <Users className="w-4 h-4 mr-2" />
+                              {booking.guestCount} guests
+                            </div>
+                            <div className="flex items-center">
+                              <MapPin className="w-4 h-4 mr-2" />
+                              Venue Location
+                            </div>
+                            {booking.totalAmount && (
+                              <div className="flex items-center font-medium text-green-600">
+                                <DollarSign className="w-4 h-4 mr-2" />
+                                ${parseFloat(booking.totalAmount).toLocaleString()}
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="table" className="space-y-0">
+                  <div className="border rounded-lg bg-white">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Event Name</TableHead>
+                          <TableHead>Date & Time</TableHead>
+                          <TableHead>Guests</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Venue</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {bookings.map((booking) => (
+                          <TableRow 
+                            key={booking.id}
+                            className="cursor-pointer hover:bg-slate-50"
+                            onClick={() => setSelectedBooking(booking)}
+                          >
+                            <TableCell className="font-medium">
+                              <div>
+                                <div className="font-semibold">{booking.eventName}</div>
+                                <div className="text-sm text-slate-500">{booking.eventType}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">
+                                <div>{booking.eventDate ? format(new Date(booking.eventDate), "MMM d, yyyy") : "TBD"}</div>
+                                <div className="text-slate-500">{booking.startTime} - {booking.endTime}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell>{booking.guestCount}</TableCell>
+                            <TableCell>
+                              <Badge className={getStatusColor(booking.status)}>
+                                {booking.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="font-medium text-green-600">
+                              {booking.totalAmount ? `$${parseFloat(booking.totalAmount).toLocaleString()}` : '-'}
+                            </TableCell>
+                            <TableCell className="text-sm text-slate-600">
+                              Venue Location
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
           )}
         </main>
+
+        {/* Event Creation Modal */}
+        <CreateEventModal 
+          open={showCreateForm} 
+          onOpenChange={setShowCreateForm}
+        />
+
+        {/* Event Details Modal */}
+        <EventDetailsModal 
+          open={!!selectedBooking} 
+          onOpenChange={(open) => !open && setSelectedBooking(null)}
+          booking={selectedBooking}
+        />
       </div>
     </div>
   );
