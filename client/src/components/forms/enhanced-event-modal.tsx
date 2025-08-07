@@ -288,8 +288,9 @@ export function EnhancedEventModal({ open, onOpenChange }: EnhancedEventModalPro
       await queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
 
       toast({
-        title: "Event Created",
-        description: `Your ${isMultiDay ? 'multi-day ' : ''}event has been created successfully`
+        title: "🎉 Event Created Successfully!",
+        description: `Your ${isMultiDay ? 'multi-day ' : ''}event "${data.eventName}" has been scheduled`,
+        duration: 6000,
       });
 
       onOpenChange(false);
@@ -303,9 +304,10 @@ export function EnhancedEventModal({ open, onOpenChange }: EnhancedEventModalPro
     } catch (error: any) {
       console.error('Event creation error:', error);
       toast({
-        title: "Error",
-        description: error?.response?.data?.message || "Failed to create event",
-        variant: "destructive"
+        title: "❌ Event Creation Failed",
+        description: error?.response?.data?.message || "Could not create event. Please check all required fields and try again.",
+        variant: "destructive",
+        duration: 8000,
       });
     } finally {
       setIsSubmitting(false);

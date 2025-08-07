@@ -46,15 +46,20 @@ export default function Customers() {
       await queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       setShowCreateForm(false);
       form.reset();
+      
+      // Test notification - make it more prominent
       toast({
-        title: "Success",
-        description: "Customer created successfully",
+        title: "✅ Success!",
+        description: `Customer "${data.name}" was created successfully`,
+        duration: 5000,
       });
-    } catch (error) {
+      
+    } catch (error: any) {
       toast({
-        title: "Error",
-        description: "Failed to create customer",
+        title: "❌ Error",
+        description: error?.response?.data?.message || "Failed to create customer. Please try again.",
         variant: "destructive",
+        duration: 8000,
       });
     } finally {
       setIsSubmitting(false);
