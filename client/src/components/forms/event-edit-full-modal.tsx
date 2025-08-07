@@ -397,6 +397,63 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
         </DialogDescription>
 
         <div className="flex h-full overflow-hidden">
+          {/* Sidebar - Steps */}
+          {currentStep > 1 && (
+            <div className="hidden lg:block w-80 bg-slate-50 border-r border-slate-200 p-6 overflow-y-auto flex-shrink-0">
+              <div className="space-y-6">
+                <div>
+                  <h3 className="font-medium text-slate-900 mb-3">Selected Date & Venue</h3>
+                  {selectedDates.length > 0 ? (
+                    <div className="space-y-2">
+                      {selectedDates.map((slot, index) => (
+                        <Card key={index} className="p-3 bg-white">
+                          <div className="text-sm font-medium">{format(slot.date, 'MMM d, yyyy')}</div>
+                          <div className="text-xs text-slate-600">
+                            {slot.startTime} - {slot.endTime}
+                          </div>
+                          <div className="text-xs text-slate-600">
+                            {selectedVenueData?.name}
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-slate-500">No dates selected</div>
+                  )}
+                </div>
+
+                {currentStep >= 2 && (
+                  <div>
+                    <h3 className="font-medium text-slate-900 mb-3">Configuration</h3>
+                    <div className="space-y-2 text-sm">
+                      {activeDate && (
+                        <>
+                          <div>Guest Count: <span className="font-medium">{activeDate.guestCount}</span></div>
+                          {selectedPackageData && (
+                            <div>Package: <span className="font-medium">{selectedPackageData.name}</span></div>
+                          )}
+                          {activeDate.selectedServices && activeDate.selectedServices.length > 0 && (
+                            <div>Services: <span className="font-medium">{activeDate.selectedServices.length} selected</span></div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {currentStep >= 3 && (
+                  <div>
+                    <h3 className="font-medium text-slate-900 mb-3">Event Details</h3>
+                    <div className="space-y-2 text-sm">
+                      <div>Event: <span className="font-medium">{eventName}</span></div>
+                      <div>Status: <Badge className="text-xs">{eventStatus}</Badge></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Main content area */}
           <div className="flex-1 flex flex-col min-h-0">
             {/* Header */}
