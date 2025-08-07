@@ -110,13 +110,13 @@ export function AIRecommendations() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {recommendations.length === 0 ? (
+        {defaultRecommendations.length === 0 ? (
           <div className="text-center py-8">
             <Zap className="mx-auto h-8 w-8 text-gray-400 mb-2" />
             <p className="text-sm text-gray-600">No AI recommendations available</p>
           </div>
         ) : (
-          recommendations.slice(0, 3).map((recommendation) => (
+          defaultRecommendations.slice(0, 3).map((recommendation: AIRecommendation) => (
             <div
               key={recommendation.id}
               className={`border rounded-lg p-4 ${getRecommendationColor(recommendation.type)}`}
@@ -142,6 +142,10 @@ export function AIRecommendations() {
                     size="sm"
                     variant="ghost"
                     className={`text-xs font-medium ${getActionButtonColor(recommendation.type)}`}
+                    onClick={() => {
+                      console.log(`AI Recommendation action clicked: ${recommendation.action}`);
+                      alert(`${recommendation.action} feature coming soon!`);
+                    }}
                   >
                     {recommendation.action}
                   </Button>

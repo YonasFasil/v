@@ -36,20 +36,28 @@ export function QuickActions() {
 
   const handleAction = (actionId: string) => {
     // These would navigate to the appropriate pages or open modals
-    console.log(`Executing action: ${actionId}`);
+    console.log(`Quick Action button clicked: ${actionId}`);
     
     switch (actionId) {
       case "proposal":
         // Navigate to proposals page or open create modal
+        console.log('Navigating to proposals...');
+        window.location.href = '/proposals';
         break;
       case "beo":
         // Generate BEO document
+        console.log('Generating BEO document...');
+        alert('BEO generation feature coming soon!');
         break;
       case "email":
         // Open email template selector
+        console.log('Opening email templates...');
+        alert('Email templates feature coming soon!');
         break;
       case "payment":
         // Open payment processing form
+        console.log('Opening payment form...');
+        window.location.href = '/payments';
         break;
     }
   };

@@ -39,7 +39,13 @@ export function Header({ title, subtitle, action }: HeaderProps) {
 
           {/* Custom Action */}
           {action || (
-            <Button className="bg-blue-600 text-white px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-blue-700 transition-colors">
+            <Button 
+              onClick={() => {
+                console.log('Header New Booking button clicked');
+                window.location.href = '/events';
+              }}
+              className="bg-blue-600 text-white px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
               <Plus className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">New Booking</span>
             </Button>

@@ -38,7 +38,13 @@ export default function Dashboard() {
                   <span className="bg-white/20 px-2 sm:px-3 py-1 rounded-full">$12K Revenue Opportunity</span>
                 </div>
               </div>
-              <button className="bg-white/20 hover:bg-white/30 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors w-full sm:w-auto">
+              <button 
+                onClick={() => {
+                  console.log('AI Insights View Details button clicked');
+                  alert('AI Insights details feature coming soon!');
+                }}
+                className="bg-white/20 hover:bg-white/30 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors w-full sm:w-auto"
+              >
                 View Details
               </button>
             </div>
