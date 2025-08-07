@@ -445,9 +445,6 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                   <h2 className="text-lg sm:text-xl font-semibold">Create Event</h2>
                 </div>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-                <X className="h-4 w-4" />
-              </Button>
             </div>
 
             {/* Step Content */}

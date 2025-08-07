@@ -82,17 +82,12 @@ export function ProposalActionsModal({ open, onOpenChange, proposal }: Props) {
           Manage proposal status and convert accepted proposals to bookings.
         </div>
         
-        <div className="border-b border-slate-200 p-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <FileText className="h-5 w-5 text-blue-600" />
-            <div>
-              <h2 className="text-xl font-semibold">Proposal Actions</h2>
-              <p className="text-sm text-slate-600">{proposal?.title || "Untitled Proposal"}</p>
-            </div>
+        <div className="border-b border-slate-200 p-6 flex items-center gap-3">
+          <FileText className="h-5 w-5 text-blue-600" />
+          <div>
+            <h2 className="text-xl font-semibold">Proposal Actions</h2>
+            <p className="text-sm text-slate-600">{proposal?.title || "Untitled Proposal"}</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-            <X className="h-4 w-4" />
-          </Button>
         </div>
 
         <div className="p-6 space-y-6">

@@ -53,15 +53,10 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <DialogTitle className="text-2xl font-bold">{booking.eventName}</DialogTitle>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={onEditClick} className="gap-2">
-              <Edit3 className="h-4 w-4" />
-              Edit Event
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <Button variant="outline" onClick={onEditClick} className="gap-2">
+            <Edit3 className="h-4 w-4" />
+            Edit Event
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

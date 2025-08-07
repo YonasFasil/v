@@ -469,15 +469,10 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                   <h2 className="text-lg sm:text-xl font-semibold">Edit Event</h2>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" onClick={resetForm}>
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Reset
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
+              <Button variant="ghost" size="sm" onClick={resetForm}>
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reset
+              </Button>
             </div>
 
             {/* Step Content */}

@@ -158,14 +158,9 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
           Edit venue property information including name, capacity, spaces, and amenities.
         </div>
         
-        <div className="border-b border-slate-200 p-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Edit className="h-5 w-5 text-blue-600" />
-            <h2 className="text-xl font-semibold">Edit Venue Property</h2>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-            <X className="h-4 w-4" />
-          </Button>
+        <div className="border-b border-slate-200 p-6 flex items-center gap-3">
+          <Edit className="h-5 w-5 text-blue-600" />
+          <h2 className="text-xl font-semibold">Edit Venue Property</h2>
         </div>
 
         <div className="overflow-y-auto flex-1 p-6 space-y-4">
