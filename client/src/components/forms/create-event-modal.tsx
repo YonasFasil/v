@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ChevronLeft, ChevronRight, Plus, Minus, Check, Mic, MicOff, User, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Minus, Check, Mic, MicOff, User, X, Sparkles, Bot, Calendar as CalendarIcon, MapPin, Users as UsersIcon, Clock } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
@@ -72,6 +72,11 @@ export function CreateEventModal({ open, onOpenChange }: CreateEventModalProps) 
     phone: "",
     company: ""
   });
+
+  // AI Assistant state
+  const [aiAssistantMode, setAiAssistantMode] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [isProcessingAI, setIsProcessingAI] = useState(false);
 
   const { data: venues } = useQuery({
     queryKey: ["/api/venues"],

@@ -6,6 +6,10 @@ import {
   FileText, 
   CreditCard, 
   CheckSquare,
+  Building,
+  Package,
+  Settings,
+  BarChart3,
   X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +21,10 @@ const navigationItems = [
   { name: "Proposals & Contracts", href: "/proposals", icon: FileText },
   { name: "Payments", href: "/payments", icon: CreditCard },
   { name: "Tasks & Team", href: "/tasks", icon: CheckSquare },
+  { name: "Venues", href: "/venues", icon: Building },
+  { name: "Packages & Services", href: "/packages", icon: Package },
+  { name: "Reports & Insights", href: "/reports", icon: BarChart3 },
+  { name: "Settings", href: "/settings", icon: Settings },
 ];
 
 interface MobileNavProps {
