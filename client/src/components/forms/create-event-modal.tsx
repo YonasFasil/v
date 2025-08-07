@@ -146,10 +146,12 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
         setActiveTabIndex(Math.max(0, selectedDates.length - 2));
       }
     } else {
+      const defaultSpace = selectedVenueData?.spaces?.[0];
       setSelectedDates(prev => [...prev, {
         date,
         startTime: "09:00 AM",
         endTime: "05:00 PM",
+        spaceId: defaultSpace?.id || "",
         guestCount: 1,
         packageId: "",
         selectedServices: [],
@@ -289,7 +291,17 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
       if (missingSpaces.length > 0) {
         toast({ 
           title: "Space selection required", 
-          description: "Please select a space for all event dates",
+          description: `Please select a space for ${missingSpaces.length} event date${missingSpaces.length > 1 ? 's' : ''}`,
+          variant: "destructive" 
+        });
+        return;
+      }
+
+      // Validate that venue has spaces available
+      if (!selectedVenueData?.spaces || selectedVenueData.spaces.length === 0) {
+        toast({ 
+          title: "No spaces available", 
+          description: "The selected venue has no available spaces configured",
           variant: "destructive" 
         });
         return;
