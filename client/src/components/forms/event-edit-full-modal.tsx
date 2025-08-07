@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, getDay } from "date-fns";
-import { ChevronLeft, ChevronRight, X, Plus, RotateCcw, Trash2, Save, Edit } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Plus, RotateCcw, Trash2, Save, Edit, Minus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -72,7 +72,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
       setGuestCount(booking.guestCount || 1);
       setSelectedVenue(booking.venueId || "");
       setSelectedPackage(booking.packageId || "");
-      setSelectedServices(booking.serviceIds || []);
+      setSelectedServices(booking.selectedServices || []);
       setSelectedCustomer(booking.customerId || "");
       
       // Set the date and time from the booking
@@ -103,8 +103,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
     ...calendarDays
   ];
 
-  const selectedVenueData = venues.find((v: any) => v.id === selectedVenue);
-  const selectedPackageData = packages.find((p: any) => p.id === selectedPackage);
+  const selectedVenueData = (venues as any[]).find((v: any) => v.id === selectedVenue);
+  const selectedPackageData = (packages as any[]).find((p: any) => p.id === selectedPackage);
   
   // Calculate total price
   const packagePrice = useMemo(() => {
@@ -116,7 +116,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
 
   const servicesPrice = useMemo(() => {
     return selectedServices.reduce((total, serviceId) => {
-      const service = services.find((s: any) => s.id === serviceId);
+      const service = (services as any[]).find((s: any) => s.id === serviceId);
       if (!service) return total;
       return total + (service.pricingModel === 'per_person' 
         ? parseFloat(service.price) * guestCount 
@@ -220,7 +220,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
       venueId: selectedVenue,
       spaceId: selectedDates[0].spaceId,
       packageId: selectedPackage || null,
-      serviceIds: selectedServices,
+      selectedServices: selectedServices,
       customerId: selectedCustomer,
       status: eventStatus,
       totalAmount: totalPrice.toString(),
@@ -420,7 +420,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                           <SelectValue placeholder="Select a venue (property)" />
                         </SelectTrigger>
                         <SelectContent>
-                          {venues.map((venue: any) => (
+                          {(venues as any[]).map((venue: any) => (
                             <SelectItem key={venue.id} value={venue.id}>
                               {venue.name} - {venue.spaces?.length || 0} spaces available
                             </SelectItem>
@@ -546,7 +546,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                           <div className="text-lg font-semibold text-green-600 mt-2">$0.00</div>
                         </div>
                         
-                        {packages.map((pkg: any) => (
+                        {(packages as any[]).map((pkg: any) => (
                           <div
                             key={pkg.id}
                             className={cn(
@@ -577,7 +577,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                   <div>
                     <Label className="text-base font-medium">Additional Services</Label>
                     <div className="mt-3 grid grid-cols-2 gap-4 max-h-60 overflow-y-auto">
-                      {services.map((service: any) => {
+                      {(services as any[]).map((service: any) => {
                         const isSelected = selectedServices.includes(service.id);
                         const servicePrice = service.pricingModel === 'per_person' 
                           ? parseFloat(service.price) * guestCount 
@@ -656,7 +656,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                             <SelectValue placeholder="Select customer" />
                           </SelectTrigger>
                           <SelectContent>
-                            {customers.map((customer: any) => (
+                            {(customers as any[]).map((customer: any) => (
                               <SelectItem key={customer.id} value={customer.id}>
                                 {customer.name} - {customer.email}
                               </SelectItem>
