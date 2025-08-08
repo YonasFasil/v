@@ -9,7 +9,9 @@ import {
   insertPaymentSchema,
   insertTaskSchema,
   insertAiInsightSchema,
-  insertTaxSettingSchema 
+  insertTaxSettingSchema,
+  insertSettingsSchema,
+  insertCommunicationSchema
 } from "@shared/schema";
 import { 
   generateAIInsights,
@@ -1824,6 +1826,186 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
     if (/music|dj|band/i.test(transcript)) services.push("Entertainment");
     return services;
   }
+
+  // Proposal API endpoints
+  app.get("/api/proposals", async (req, res) => {
+    try {
+      const proposals = await storage.getProposals();
+      res.json(proposals);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch proposals" });
+    }
+  });
+
+  app.get("/api/proposals/:id", async (req, res) => {
+    try {
+      const proposal = await storage.getProposal(req.params.id);
+      if (!proposal) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+      res.json(proposal);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch proposal" });
+    }
+  });
+
+  app.post("/api/proposals", async (req, res) => {
+    try {
+      const validatedData = insertProposalSchema.parse(req.body);
+      const proposal = await storage.createProposal(validatedData);
+      res.status(201).json(proposal);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/proposals/send", async (req, res) => {
+    try {
+      const validatedData = insertProposalSchema.parse(req.body);
+      const proposal = await storage.createProposal({
+        ...validatedData,
+        status: "sent",
+        sentAt: new Date()
+      });
+
+      // Send email to customer (simulated for now)
+      try {
+        const customer = await storage.getCustomer(proposal.customerId);
+        if (customer?.email) {
+          console.log(`Email sent to ${customer.email} for proposal: ${proposal.title}`);
+          // In a real implementation, you would use a service like SendGrid here
+        }
+      } catch (emailError) {
+        console.error("Failed to send proposal email:", emailError);
+      }
+
+      res.status(201).json(proposal);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/proposals/:id/communications", async (req, res) => {
+    try {
+      const validatedData = insertCommunicationSchema.parse(req.body);
+      const communication = await storage.createCommunication({
+        ...validatedData,
+        proposalId: req.params.id
+      });
+
+      // If it's an email, simulate sending
+      if (validatedData.type === "email" && validatedData.direction === "outbound") {
+        console.log(`Email sent for proposal ${req.params.id}: ${validatedData.subject}`);
+      }
+
+      res.status(201).json(communication);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/proposals/:id/communications", async (req, res) => {
+    try {
+      const communications = await storage.getCommunicationsByProposal(req.params.id);
+      res.json(communications);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch communications" });
+    }
+  });
+
+  app.post("/api/proposals/:id/process-deposit", async (req, res) => {
+    try {
+      const proposal = await storage.getProposal(req.params.id);
+      if (!proposal) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+
+      // Update proposal to mark deposit as paid
+      const updatedProposal = await storage.updateProposal(req.params.id, {
+        depositPaid: true,
+        depositPaidAt: new Date(),
+        status: "converted"
+      });
+
+      // Create payment record
+      const payment = await storage.createPayment({
+        amount: proposal.depositAmount,
+        paymentType: "deposit",
+        paymentMethod: "card",
+        status: "completed",
+        processedAt: new Date()
+      });
+
+      res.json({ proposal: updatedProposal, payment });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/proposals/:id/mark-opened", async (req, res) => {
+    try {
+      const proposal = await storage.updateProposal(req.params.id, {
+        emailOpened: true,
+        emailOpenedAt: new Date(),
+        status: "viewed"
+      });
+      res.json(proposal);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/proposals/:id", async (req, res) => {
+    try {
+      const proposal = await storage.updateProposal(req.params.id, req.body);
+      res.json(proposal);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/proposals/:id", async (req, res) => {
+    try {
+      await storage.deleteProposal(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete proposal" });
+    }
+  });
+
+  // Settings API endpoints
+  app.get("/api/settings/:key?", async (req, res) => {
+    try {
+      if (req.params.key) {
+        const setting = await storage.getSetting(req.params.key);
+        res.json(setting);
+      } else {
+        const settings = await storage.getSettings();
+        res.json(settings);
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+
+  app.post("/api/settings", async (req, res) => {
+    try {
+      const validatedData = insertSettingsSchema.parse(req.body);
+      const setting = await storage.createSetting(validatedData);
+      res.status(201).json(setting);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/settings/:key", async (req, res) => {
+    try {
+      const setting = await storage.updateSetting(req.params.key, req.body.value);
+      res.json(setting);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

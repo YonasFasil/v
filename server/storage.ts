@@ -13,6 +13,45 @@ import {
   type Service, type InsertService,
   type TaxSetting, type InsertTaxSetting
 } from "@shared/schema";
+
+// Additional types for new features
+interface Communication {
+  id: string;
+  proposalId?: string;
+  customerId?: string;
+  type: string;
+  direction: string;
+  subject?: string;
+  content: string;
+  status?: string;
+  attachments?: string[];
+  metadata?: any;
+  createdAt: Date;
+}
+
+interface InsertCommunication {
+  proposalId?: string;
+  customerId?: string;
+  type: string;
+  direction: string;
+  subject?: string;
+  content: string;
+  status?: string;
+  attachments?: string[];
+  metadata?: any;
+}
+
+interface Setting {
+  id: string;
+  key: string;
+  value: any;
+  updatedAt: Date;
+}
+
+interface InsertSetting {
+  key: string;
+  value: any;
+}
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -63,6 +102,21 @@ export interface IStorage {
   getProposalsByCustomer(customerId: string): Promise<Proposal[]>;
   createProposal(proposal: InsertProposal): Promise<Proposal>;
   updateProposal(id: string, proposal: Partial<InsertProposal>): Promise<Proposal | undefined>;
+  deleteProposal(id: string): Promise<boolean>;
+
+  // Communications
+  getCommunications(): Promise<Communication[]>;
+  getCommunication(id: string): Promise<Communication | undefined>;
+  getCommunicationsByProposal(proposalId: string): Promise<Communication[]>;
+  getCommunicationsByCustomer(customerId: string): Promise<Communication[]>;
+  createCommunication(communication: InsertCommunication): Promise<Communication>;
+  updateCommunication(id: string, communication: Partial<InsertCommunication>): Promise<Communication | undefined>;
+
+  // Settings
+  getSettings(): Promise<Setting[]>;
+  getSetting(key: string): Promise<Setting | undefined>;
+  createSetting(setting: InsertSetting): Promise<Setting>;
+  updateSetting(key: string, value: any): Promise<Setting | undefined>;
 
   // Payments
   getPayments(): Promise<Payment[]>;
@@ -125,6 +179,8 @@ export class MemStorage implements IStorage {
   private packages: Map<string, Package>;
   private services: Map<string, Service>;
   private taxSettings: Map<string, TaxSetting>;
+  private communications: Map<string, Communication>;
+  private settings: Map<string, Setting>;
 
   constructor() {
     this.users = new Map();
@@ -140,6 +196,8 @@ export class MemStorage implements IStorage {
     this.packages = new Map();
     this.services = new Map();
     this.taxSettings = new Map();
+    this.communications = new Map();
+    this.settings = new Map();
 
     this.initializeData();
   }
@@ -978,6 +1036,109 @@ export class MemStorage implements IStorage {
 
   async deleteTaxSetting(id: string): Promise<boolean> {
     return this.taxSettings.delete(id);
+  }
+
+  // Proposal methods
+  async getProposals(): Promise<Proposal[]> {
+    return Array.from(this.proposals.values());
+  }
+
+  async getProposal(id: string): Promise<Proposal | undefined> {
+    return this.proposals.get(id);
+  }
+
+  async getProposalsByCustomer(customerId: string): Promise<Proposal[]> {
+    return Array.from(this.proposals.values()).filter(p => p.customerId === customerId);
+  }
+
+  async createProposal(proposal: InsertProposal): Promise<Proposal> {
+    const newProposal: Proposal = {
+      id: randomUUID(),
+      ...proposal,
+      createdAt: new Date(),
+    };
+    this.proposals.set(newProposal.id, newProposal);
+    return newProposal;
+  }
+
+  async updateProposal(id: string, proposal: Partial<InsertProposal>): Promise<Proposal | undefined> {
+    const existing = this.proposals.get(id);
+    if (!existing) return undefined;
+    
+    const updated = { ...existing, ...proposal };
+    this.proposals.set(id, updated);
+    return updated;
+  }
+
+  async deleteProposal(id: string): Promise<boolean> {
+    return this.proposals.delete(id);
+  }
+
+  // Communication methods
+  async getCommunications(): Promise<Communication[]> {
+    return Array.from(this.communications.values());
+  }
+
+  async getCommunication(id: string): Promise<Communication | undefined> {
+    return this.communications.get(id);
+  }
+
+  async getCommunicationsByProposal(proposalId: string): Promise<Communication[]> {
+    return Array.from(this.communications.values()).filter(c => c.proposalId === proposalId);
+  }
+
+  async getCommunicationsByCustomer(customerId: string): Promise<Communication[]> {
+    return Array.from(this.communications.values()).filter(c => c.customerId === customerId);
+  }
+
+  async createCommunication(communication: InsertCommunication): Promise<Communication> {
+    const newCommunication: Communication = {
+      id: randomUUID(),
+      ...communication,
+      createdAt: new Date(),
+    };
+    this.communications.set(newCommunication.id, newCommunication);
+    return newCommunication;
+  }
+
+  async updateCommunication(id: string, communication: Partial<InsertCommunication>): Promise<Communication | undefined> {
+    const existing = this.communications.get(id);
+    if (!existing) return undefined;
+    
+    const updated = { ...existing, ...communication };
+    this.communications.set(id, updated);
+    return updated;
+  }
+
+  // Settings methods
+  async getSettings(): Promise<Setting[]> {
+    return Array.from(this.settings.values());
+  }
+
+  async getSetting(key: string): Promise<Setting | undefined> {
+    return Array.from(this.settings.values()).find(s => s.key === key);
+  }
+
+  async createSetting(setting: InsertSetting): Promise<Setting> {
+    const newSetting: Setting = {
+      id: randomUUID(),
+      ...setting,
+      updatedAt: new Date(),
+    };
+    this.settings.set(newSetting.id, newSetting);
+    return newSetting;
+  }
+
+  async updateSetting(key: string, value: any): Promise<Setting | undefined> {
+    const existing = Array.from(this.settings.values()).find(s => s.key === key);
+    if (existing) {
+      const updated = { ...existing, value, updatedAt: new Date() };
+      this.settings.set(existing.id, updated);
+      return updated;
+    } else {
+      // Create new setting if it doesn't exist
+      return this.createSetting({ key, value });
+    }
   }
 }
 

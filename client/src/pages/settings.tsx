@@ -104,6 +104,19 @@ export default function Settings() {
     taxRate: "8.5"
   });
 
+  // Deposit Settings State
+  const [depositSettings, setDepositSettings] = useState({
+    defaultDepositType: "percentage",
+    defaultDepositValue: "25",
+    minimumDepositPercentage: "10",
+    maximumDepositPercentage: "50",
+    minimumDepositAmount: "100",
+    depositDueDays: "7",
+    allowCustomDeposit: true,
+    autoCalculateDeposit: true,
+    requireDepositForBooking: false
+  });
+
   // Security Settings State
   const [securitySettings, setSecuritySettings] = useState({
     twoFactorAuth: false,
@@ -114,6 +127,20 @@ export default function Settings() {
     auditLogging: true,
     encryptionEnabled: true,
     accessControlEnabled: true
+  });
+
+  // Deposit Settings State
+  const [depositSettings, setDepositSettings] = useState({
+    defaultDepositType: "percentage", // percentage or fixed
+    defaultDepositValue: "25", // 25% or $amount
+    allowCustomDeposit: true,
+    minimumDepositPercentage: "10",
+    maximumDepositPercentage: "50",
+    minimumDepositAmount: "100",
+    autoCalculateDeposit: true,
+    requireDepositForBooking: true,
+    depositDueDays: "7", // days before event
+    reminderDays: "3" // days before due date to send reminder
   });
 
   const saveSettings = (section: string) => {
@@ -653,6 +680,117 @@ export default function Settings() {
                         value={paymentSettings.taxRate}
                         onChange={(e) => setPaymentSettings(prev => ({ ...prev, taxRate: e.target.value }))}
                       />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <h4 className="font-medium mb-4">Deposit Configuration</h4>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                      <div className="flex items-start gap-3">
+                        <div className="bg-blue-100 rounded-full p-1">
+                          <DollarSign className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <h5 className="font-medium text-blue-900">Deposit Management</h5>
+                          <p className="text-sm text-blue-700 mt-1">
+                            Configure how deposits are calculated and required for bookings and proposals.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="defaultDepositType">Default Deposit Type</Label>
+                        <Select value={depositSettings.defaultDepositType} onValueChange={(value) => setDepositSettings(prev => ({ ...prev, defaultDepositType: value }))}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="percentage">Percentage of Total</SelectItem>
+                            <SelectItem value="fixed">Fixed Amount</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="defaultDepositValue">
+                          Default Value ({depositSettings.defaultDepositType === 'percentage' ? '%' : '$'})
+                        </Label>
+                        <Input
+                          id="defaultDepositValue"
+                          type="number"
+                          min="0"
+                          value={depositSettings.defaultDepositValue}
+                          onChange={(e) => setDepositSettings(prev => ({ ...prev, defaultDepositValue: e.target.value }))}
+                        />
+                      </div>
+                      {depositSettings.defaultDepositType === 'percentage' && (
+                        <>
+                          <div>
+                            <Label htmlFor="minimumDepositPercentage">Minimum Deposit (%)</Label>
+                            <Input
+                              id="minimumDepositPercentage"
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={depositSettings.minimumDepositPercentage}
+                              onChange={(e) => setDepositSettings(prev => ({ ...prev, minimumDepositPercentage: e.target.value }))}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="maximumDepositPercentage">Maximum Deposit (%)</Label>
+                            <Input
+                              id="maximumDepositPercentage"
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={depositSettings.maximumDepositPercentage}
+                              onChange={(e) => setDepositSettings(prev => ({ ...prev, maximumDepositPercentage: e.target.value }))}
+                            />
+                          </div>
+                        </>
+                      )}
+                      <div>
+                        <Label htmlFor="minimumDepositAmount">Minimum Deposit Amount ($)</Label>
+                        <Input
+                          id="minimumDepositAmount"
+                          type="number"
+                          min="0"
+                          value={depositSettings.minimumDepositAmount}
+                          onChange={(e) => setDepositSettings(prev => ({ ...prev, minimumDepositAmount: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="depositDueDays">Deposit Due (Days Before Event)</Label>
+                        <Input
+                          id="depositDueDays"
+                          type="number"
+                          min="0"
+                          value={depositSettings.depositDueDays}
+                          onChange={(e) => setDepositSettings(prev => ({ ...prev, depositDueDays: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 mt-4">
+                      {[
+                        { key: 'allowCustomDeposit', label: 'Allow Custom Deposit Amounts', desc: 'Let staff override default deposit settings per booking' },
+                        { key: 'autoCalculateDeposit', label: 'Auto-Calculate Deposits', desc: 'Automatically calculate deposits in proposals and bookings' },
+                        { key: 'requireDepositForBooking', label: 'Require Deposit for Booking', desc: 'Make deposit payment mandatory before confirming bookings' }
+                      ].map(({ key, label, desc }) => (
+                        <div key={key} className="flex items-start justify-between p-3 border rounded-lg">
+                          <div>
+                            <Label className="font-medium">{label}</Label>
+                            <p className="text-sm text-gray-600 mt-1">{desc}</p>
+                          </div>
+                          <Switch
+                            checked={depositSettings[key as keyof typeof depositSettings] as boolean}
+                            onCheckedChange={(checked) => setDepositSettings(prev => ({ ...prev, [key]: checked }))}
+                          />
+                        </div>
+                      ))}
                     </div>
                   </div>
 

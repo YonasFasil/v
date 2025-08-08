@@ -93,12 +93,22 @@ export const proposals = pgTable("proposals", {
   title: text("title").notNull(),
   content: text("content").notNull(),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
+  depositAmount: decimal("deposit_amount", { precision: 10, scale: 2 }),
+  depositType: text("deposit_type").default("percentage"), // percentage, fixed
+  depositValue: decimal("deposit_value", { precision: 5, scale: 2 }),
+  packageId: varchar("package_id").references(() => packages.id),
+  selectedServices: text("selected_services").array(),
   status: text("status").notNull().default("draft"), // draft, sent, viewed, accepted, rejected, converted
   validUntil: timestamp("valid_until"),
   sentAt: timestamp("sent_at"),
   viewedAt: timestamp("viewed_at"),
+  emailOpened: boolean("email_opened").default(false),
+  emailOpenedAt: timestamp("email_opened_at"),
+  depositPaid: boolean("deposit_paid").default(false),
+  depositPaidAt: timestamp("deposit_paid_at"),
+  paymentIntentId: text("payment_intent_id"),
   createdAt: timestamp("created_at").defaultNow(),
-  // Additional fields to store event details for conversion
+  // Event details for conversion
   eventType: text("event_type"),
   eventDate: timestamp("event_date"),
   startTime: text("start_time"), 
@@ -106,6 +116,29 @@ export const proposals = pgTable("proposals", {
   guestCount: integer("guest_count"),
   venueId: varchar("venue_id").references(() => venues.id),
   spaceId: varchar("space_id").references(() => spaces.id),
+});
+
+// Settings table for deposit configuration
+export const settings = pgTable("settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(),
+  value: jsonb("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Communication tracking
+export const communications = pgTable("communications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  proposalId: varchar("proposal_id").references(() => proposals.id),
+  customerId: varchar("customer_id").references(() => customers.id),
+  type: text("type").notNull(), // email, sms, call, note
+  direction: text("direction").notNull(), // inbound, outbound
+  subject: text("subject"),
+  content: text("content").notNull(),
+  status: text("status").default("sent"), // sent, delivered, opened, replied, failed
+  attachments: text("attachments").array(),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const payments = pgTable("payments", {
@@ -185,6 +218,8 @@ export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertVenueSchema = createInsertSchema(venues).omit({ id: true });
 export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true });
 export const insertContractSchema = createInsertSchema(contracts).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertSettingsSchema = createInsertSchema(settings).omit({ id: true, updatedAt: true });
+export const insertCommunicationSchema = createInsertSchema(communications).omit({ id: true, createdAt: true });
 export const insertBookingSchema = createInsertSchema(bookings, {
   eventDate: z.union([z.string(), z.date()]).transform((val) => 
     typeof val === 'string' ? new Date(val) : val
