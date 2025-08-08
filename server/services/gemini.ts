@@ -297,3 +297,96 @@ export async function generateProposal(eventDetails: any, venueInfo: any): Promi
     return "Event proposal will be generated shortly.";
   }
 }
+
+export async function parseVoiceToBooking(transcript: string, context: string = "voice_booking"): Promise<any> {
+  try {
+    const prompt = `Parse this voice transcript and extract booking/event details. 
+    Context: ${context}
+    
+    Transcript: "${transcript}"
+    
+    Extract and structure the following information from the voice input:
+    - Event name/type (wedding, corporate, birthday, etc.)
+    - Customer name and contact info
+    - Event date and time (convert relative dates like "next Friday" to specific dates)
+    - Number of guests
+    - Venue preference
+    - Services mentioned (catering, DJ, decorations, etc.)
+    - Budget information if mentioned
+    - Special requirements or notes
+    
+    For customer calls, also identify:
+    - Urgency level
+    - Questions asked by customer
+    - Follow-up actions needed
+    
+    Return JSON format:
+    {
+      "eventName": "extracted event name",
+      "eventType": "wedding/corporate/birthday/etc",
+      "customerName": "customer name",
+      "customerEmail": "email if mentioned",
+      "customerPhone": "phone if mentioned",
+      "eventDate": "YYYY-MM-DD or relative date",
+      "eventTime": "HH:MM",
+      "guestCount": number,
+      "venue": "venue preference",
+      "services": ["service1", "service2"],
+      "budget": "budget amount or range",
+      "specialRequirements": "any special notes",
+      "urgency": "high/medium/low",
+      "customerQuestions": ["question1", "question2"],
+      "suggestedActions": ["action1", "action2"],
+      "confidence": 85,
+      "isCallCapture": ${context === "customer_call"}
+    }`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          properties: {
+            eventName: { type: "string" },
+            eventType: { type: "string" },
+            customerName: { type: "string" },
+            customerEmail: { type: "string" },
+            customerPhone: { type: "string" },
+            eventDate: { type: "string" },
+            eventTime: { type: "string" },
+            guestCount: { type: "number" },
+            venue: { type: "string" },
+            services: { type: "array", items: { type: "string" } },
+            budget: { type: "string" },
+            specialRequirements: { type: "string" },
+            urgency: { type: "string" },
+            customerQuestions: { type: "array", items: { type: "string" } },
+            suggestedActions: { type: "array", items: { type: "string" } },
+            confidence: { type: "number" },
+            isCallCapture: { type: "boolean" }
+          }
+        }
+      },
+      contents: prompt,
+    });
+
+    const parsedData = JSON.parse(response.text || '{}');
+    
+    // Enhance with current date context for relative dates
+    if (parsedData.eventDate && parsedData.eventDate.includes('next') || parsedData.eventDate.includes('this')) {
+      parsedData.eventDate = `${parsedData.eventDate} (please verify specific date)`;
+    }
+
+    return parsedData;
+  } catch (error) {
+    console.error("Gemini voice parsing error:", error);
+    return {
+      eventName: "",
+      eventType: "",
+      customerName: "",
+      confidence: 0,
+      error: "Could not parse voice input"
+    };
+  }
+}

@@ -9,10 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, getDay } from "date-fns";
-import { ChevronLeft, ChevronRight, X, Plus, Minus, RotateCcw, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Plus, Minus, RotateCcw, Calendar as CalendarIcon, Mic } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { VoiceBookingPanel } from "../voice/voice-booking-panel";
 
 interface Props {
   open: boolean;
@@ -66,6 +67,10 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
   const [eventName, setEventName] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState("");
   const [eventStatus, setEventStatus] = useState("inquiry");
+
+  // Voice booking integration
+  const [showVoicePanel, setShowVoicePanel] = useState(false);
+  const [voiceExtractedData, setVoiceExtractedData] = useState<any>(null);
   
   // Customer creation
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
@@ -289,6 +294,50 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
     }
   });
 
+  // Voice booking handlers
+  const handleVoiceDataExtracted = (data: any) => {
+    setVoiceExtractedData(data);
+    
+    // Auto-populate form with extracted data
+    if (data.eventName) setEventName(data.eventName);
+    if (data.customerName) {
+      // Try to find existing customer or prepare to create new one
+      const existingCustomer = customers.find((c: any) => 
+        c.name.toLowerCase().includes(data.customerName.toLowerCase())
+      );
+      if (existingCustomer) {
+        setSelectedCustomer(existingCustomer.id);
+      } else {
+        setNewCustomer(prev => ({
+          ...prev,
+          name: data.customerName,
+          email: data.customerEmail || "",
+          phone: data.customerPhone || ""
+        }));
+        setShowNewCustomerForm(true);
+      }
+    }
+    
+    // Set venue if mentioned
+    if (data.venue) {
+      const venue = venues.find((v: any) => 
+        v.name.toLowerCase().includes(data.venue.toLowerCase())
+      );
+      if (venue) {
+        setSelectedVenue(venue.id);
+      }
+    }
+    
+    // Auto-move to step 1 (date selection) if we have extracted data
+    setCurrentStep(1);
+    setShowVoicePanel(false);
+    
+    toast({
+      title: "Voice Data Applied",
+      description: "Form populated with voice booking details. Please review and continue."
+    });
+  };
+
   const resetForm = () => {
     setCurrentStep(1);
     setSelectedVenue("");
@@ -299,6 +348,8 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
     setEventStatus("inquiry");
     setShowNewCustomerForm(false);
     setNewCustomer({ name: "", email: "", phone: "", company: "" });
+    setShowVoicePanel(false);
+    setVoiceExtractedData(null);
   };
 
   const handleCreateCustomer = () => {
@@ -533,6 +584,20 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                   <CalendarIcon className="h-5 w-5 text-blue-600" />
                   <h2 className="text-lg sm:text-xl font-semibold">Create Event</h2>
                 </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowVoicePanel(true)}
+                  className="text-purple-600 border-purple-200 hover:bg-purple-50"
+                >
+                  <Mic className="h-4 w-4 mr-2" />
+                  Voice Booking
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
             </div>
 
@@ -1337,6 +1402,22 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
               {createService.isPending ? 'Creating...' : 'Create Service'}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Voice Booking Panel Modal */}
+      <Dialog open={showVoicePanel} onOpenChange={setShowVoicePanel}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Voice Booking Assistant</DialogTitle>
+            <DialogDescription>
+              Use voice commands to create and populate booking forms. Perfect for capturing customer calls.
+            </DialogDescription>
+          </DialogHeader>
+          <VoiceBookingPanel 
+            onBookingDataExtracted={handleVoiceDataExtracted}
+            isCallMode={true}
+          />
         </DialogContent>
       </Dialog>
     </Dialog>

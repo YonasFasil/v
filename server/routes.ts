@@ -16,7 +16,8 @@ import {
   generateSmartScheduling,
   generateEmailReply,
   scoreLeadPriority,
-  generateProposal
+  generateProposal,
+  parseVoiceToBooking
 } from "./services/gemini";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -754,6 +755,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(insights);
     } catch (error) {
       res.status(500).json({ message: "Failed to generate AI analytics" });
+    }
+  });
+
+  // Voice parsing endpoint for booking and call capture
+  app.post("/api/ai/parse-voice", async (req, res) => {
+    try {
+      const { transcript, context } = req.body;
+      const parsedData = await parseVoiceToBooking(transcript, context);
+      res.json(parsedData);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to parse voice input" });
     }
   });
 
