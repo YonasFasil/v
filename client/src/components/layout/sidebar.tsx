@@ -13,7 +13,8 @@ import {
   BarChart3,
   Star,
   Settings,
-  Mic
+  Mic,
+  Phone
 } from "lucide-react";
 
 const navigationItems = [
@@ -30,6 +31,7 @@ const navigationItems = [
 const aiFeatures = [
   { name: "AI Analytics & Reports", href: "/ai-analytics", icon: BarChart3 },
   { name: "Voice Booking", href: "/voice-booking", icon: Mic },
+  { name: "Phone Integration", href: "/phone-integration", icon: Phone },
   { name: "Smart Scheduling", href: "/ai/scheduling", icon: Zap },
   { name: "Auto Email Replies", href: "/ai/emails", icon: Mail },
   { name: "Lead Scoring", href: "/ai/leads", icon: Star },
