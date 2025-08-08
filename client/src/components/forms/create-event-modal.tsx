@@ -9,11 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, getDay } from "date-fns";
-import { ChevronLeft, ChevronRight, X, Plus, Minus, RotateCcw, Calendar as CalendarIcon, Mic } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Plus, Minus, RotateCcw, Calendar as CalendarIcon, Mic, FileText, Save } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { VoiceBookingPanel } from "../voice/voice-booking-panel";
+import { ProposalCreationModal } from "../proposals/proposal-creation-modal";
 
 interface Props {
   open: boolean;
@@ -81,6 +82,9 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
     company: ""
   });
 
+  // Proposal creation
+  const [showCreateProposal, setShowCreateProposal] = useState(false);
+
   // Data queries
   const { data: venues = [] } = useQuery({ queryKey: ["/api/venues-with-spaces"] });
   const { data: packages = [] } = useQuery({ queryKey: ["/api/packages"] });
@@ -122,36 +126,41 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
   };
   
   // Calculate total price across all dates
-  const totalPrice = useMemo(() => {
-    return selectedDates.reduce((total, dateConfig) => {
-      let dateTotal = 0;
-      
-      // Package price
-      if (dateConfig.packageId) {
-        const pkg = (packages as any[]).find((p: any) => p.id === dateConfig.packageId);
-        if (pkg) {
-          const packagePrice = dateConfig.pricingOverrides?.packagePrice ?? parseFloat(pkg.price || 0);
-          dateTotal += pkg.pricingModel === 'per_person' 
-            ? packagePrice * (dateConfig.guestCount || 1)
-            : packagePrice;
+  // Calculate total for a single date
+  const calculateDateTotal = (dateConfig: SelectedDate) => {
+    let dateTotal = 0;
+    
+    // Package price
+    if (dateConfig.packageId) {
+      const pkg = (packages as any[]).find((p: any) => p.id === dateConfig.packageId);
+      if (pkg) {
+        const packagePrice = dateConfig.pricingOverrides?.packagePrice ?? parseFloat(pkg.price || 0);
+        dateTotal += pkg.pricingModel === 'per_person' 
+          ? packagePrice * (dateConfig.guestCount || 1)
+          : packagePrice;
+      }
+    }
+    
+    // Services price
+    dateConfig.selectedServices?.forEach(serviceId => {
+      const service = (services as any[]).find((s: any) => s.id === serviceId);
+      if (service) {
+        const servicePrice = dateConfig.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
+        if (service.pricingModel === 'per_person') {
+          dateTotal += servicePrice * (dateConfig.guestCount || 1);
+        } else {
+          const quantity = dateConfig.itemQuantities?.[serviceId] || 1;
+          dateTotal += servicePrice * quantity;
         }
       }
-      
-      // Services price
-      dateConfig.selectedServices?.forEach(serviceId => {
-        const service = (services as any[]).find((s: any) => s.id === serviceId);
-        if (service) {
-          const servicePrice = dateConfig.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
-          if (service.pricingModel === 'per_person') {
-            dateTotal += servicePrice * (dateConfig.guestCount || 1);
-          } else {
-            const quantity = dateConfig.itemQuantities?.[serviceId] || 1;
-            dateTotal += servicePrice * quantity;
-          }
-        }
-      });
-      
-      return total + dateTotal;
+    });
+    
+    return dateTotal;
+  };
+
+  const totalPrice = useMemo(() => {
+    return selectedDates.reduce((total, dateConfig) => {
+      return total + calculateDateTotal(dateConfig);
     }, 0);
   }, [selectedDates, packages, services]);
 
@@ -1363,13 +1372,24 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                     {currentStep === 1 ? `Configure ${selectedDates.length} Event Date${selectedDates.length !== 1 ? 's' : ''}` : 'Next'}
                   </Button>
                 ) : (
-                  <Button 
-                    onClick={handleSubmit}
-                    className="bg-blue-600 hover:bg-blue-700"
-                    disabled={createBooking.isPending}
-                  >
-                    {createBooking.isPending ? 'Creating...' : 'Save Changes'}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline"
+                      onClick={() => setShowCreateProposal(true)}
+                      disabled={!eventName || !selectedCustomer || selectedDates.length === 0}
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Create Proposal
+                    </Button>
+                    <Button 
+                      onClick={handleSubmit}
+                      className="bg-blue-600 hover:bg-blue-700"
+                      disabled={createBooking.isPending}
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      {createBooking.isPending ? 'Creating...' : 'Save Event'}
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
@@ -1525,6 +1545,32 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Proposal Creation Modal */}
+      {showCreateProposal && (
+        <ProposalCreationModal
+          open={showCreateProposal}
+          onOpenChange={setShowCreateProposal}
+          eventData={{
+            eventName,
+            customerId: selectedCustomer,
+            eventDates: selectedDates.map(d => ({
+              date: d.date,
+              startTime: d.startTime,
+              endTime: d.endTime,
+              venue: selectedVenueData?.name || "",
+              space: d.spaceId ? (venues as any[])?.find((v: any) => v.id === selectedVenue)?.spaces?.find((s: any) => s.id === d.spaceId)?.name || "" : "",
+              guestCount: d.guestCount || 1,
+              selectedPackage: d.packageId ? (packages as any[])?.find((p: any) => p.id === d.packageId) : null,
+              selectedServices: d.selectedServices || [],
+              totalAmount: calculateDateTotal(d)
+            })),
+            totalAmount: totalPrice,
+            packageItems: selectedDates.map(d => d.packageId ? (packages as any[])?.find((p: any) => p.id === d.packageId) : null).filter(Boolean),
+            serviceItems: selectedDates.flatMap(d => (d.selectedServices || []).map(serviceId => (services as any[])?.find((s: any) => s.id === serviceId))).filter(Boolean)
+          }}
+        />
+      )}
     </Dialog>
   );
 }
