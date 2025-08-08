@@ -43,13 +43,29 @@ export function VoiceBookingModal({ open, onOpenChange, onEventCreated }: Props)
 
   const processVoiceBooking = useMutation({
     mutationFn: async (transcriptText: string) => {
-      const response = await apiRequest("POST", "/api/ai/process-voice-booking", {
+      const response = await apiRequest("POST", "/api/ai/parse-voice", {
         transcript: transcriptText
       });
       return response.json();
     },
     onSuccess: (data) => {
-      setExtractedData(data);
+      // Convert the parsed data to match our VoiceBookingData interface
+      const formattedData = {
+        eventName: data.eventName || "",
+        eventDate: data.dates?.[0] || "",
+        startTime: data.times?.[data.dates?.[0]]?.start || "",
+        endTime: data.times?.[data.dates?.[0]]?.end || "",
+        guestCount: data.guestCount || 0,
+        eventType: data.eventType || "",
+        customerName: data.customerName || "",
+        customerEmail: data.customerEmail || "",
+        customerPhone: "",
+        specialRequests: "",
+        suggestedVenue: "",
+        suggestedServices: []
+      };
+      
+      setExtractedData(formattedData);
       setIsProcessing(false);
       toast({
         title: "Voice booking processed!",
@@ -189,36 +205,47 @@ export function VoiceBookingModal({ open, onOpenChange, onEventCreated }: Props)
       });
     };
 
-    // For demo purposes, we'll use the recorded audio transcript
-    // In a real implementation, you'd process the audio blob
-    setTimeout(() => {
-      const demoTranscript = "I need to book the grand ballroom for a corporate event on December 15th from 6 PM to 10 PM for 150 guests. The client is John Smith from Acme Corp, email john@acmecorp.com, phone 555-1234. We'll need catering, AV equipment, and decoration services.";
-      setTranscript(demoTranscript);
-      setIsProcessing(true);
-      processVoiceBooking.mutate(demoTranscript);
-    }, 2000);
+    recognition.start();
   };
 
   const confirmBooking = () => {
     if (!extractedData) return;
 
+    // Check for missing required fields and suggest them
+    const missingFields = [];
+    if (!extractedData.eventName) missingFields.push("event name");
+    if (!extractedData.eventDate) missingFields.push("event date");
+    if (!extractedData.customerName) missingFields.push("customer name");
+    if (!extractedData.customerEmail) missingFields.push("customer email");
+
+    if (missingFields.length > 0) {
+      toast({
+        title: "Missing Information",
+        description: `Please provide: ${missingFields.join(", ")}. Try recording again with these details.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Format the booking data properly for the API
     const bookingData = {
       eventName: extractedData.eventName,
-      eventDate: extractedData.eventDate,
-      startTime: extractedData.startTime,
-      endTime: extractedData.endTime,
-      guestCount: extractedData.guestCount,
-      eventType: extractedData.eventType,
-      status: 'inquiry',
-      customerData: {
-        name: extractedData.customerName,
-        email: extractedData.customerEmail,
-        phone: extractedData.customerPhone
-      },
-      notes: extractedData.specialRequests,
-      // Default to first venue if no match found
+      eventType: extractedData.eventType || "Meeting", 
+      eventDate: extractedData.eventDate, // API expects ISO date string or Date object
+      startTime: extractedData.startTime || "09:00",
+      endTime: extractedData.endTime || "17:00",
+      guestCount: parseInt(extractedData.guestCount?.toString() || "1"),
+      status: "inquiry",
+      customerName: extractedData.customerName,
+      customerEmail: extractedData.customerEmail,
+      customerPhone: extractedData.customerPhone || "",
+      notes: extractedData.specialRequests || "Created via AI Voice Booking",
+      // Default to first venue if no match found  
       venueId: "5337f504-a61b-442a-9e8b-9e197c421aca", // Grand Ballroom ID
       spaceId: "space-1", // Default space
+      selectedServices: extractedData.suggestedServices || [],
+      totalAmount: "0", // Will be calculated by the API
+      depositAmount: "0"
     };
 
     createBookingFromVoice.mutate(bookingData);
@@ -395,6 +422,27 @@ export function VoiceBookingModal({ open, onOpenChange, onEventCreated }: Props)
                   <p className="text-sm text-yellow-700">{extractedData.specialRequests}</p>
                 </div>
               )}
+
+              {/* Missing Fields Warning */}
+              {(() => {
+                const missingFields = [];
+                if (!extractedData.eventName) missingFields.push("event name");
+                if (!extractedData.eventDate) missingFields.push("event date");
+                if (!extractedData.customerName) missingFields.push("customer name");
+                if (!extractedData.customerEmail) missingFields.push("customer email");
+                
+                if (missingFields.length > 0) {
+                  return (
+                    <div className="mt-4 p-3 bg-orange-50 rounded border border-orange-200">
+                      <p className="font-medium text-orange-800">Missing Information</p>
+                      <p className="text-sm text-orange-700">
+                        Please record again and mention: {missingFields.join(", ")}
+                      </p>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
 
               <div className="flex justify-end gap-3 mt-6">
                 <Button variant="outline" onClick={resetForm}>
