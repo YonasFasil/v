@@ -634,7 +634,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Transcript is required" });
       }
 
-      // Use Gemini to parse the voice transcript
+      // Use Gemini to intelligently parse and correct the voice transcript
       const geminiResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
         method: 'POST',
         headers: {
@@ -644,18 +644,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: `Parse this voice booking transcript and extract event details. Return a JSON response with the following fields:
-              - eventName: string (name of the event)
-              - customerName: string (customer name if mentioned)
-              - customerEmail: string (email if mentioned)
-              - dates: array of strings in YYYY-MM-DD format
-              - times: object with date keys and {start: "HH:MM", end: "HH:MM", space: "venue-id"} values
-              - eventType: string (type of event like wedding, conference, etc.)
-              - guestCount: number (number of guests if mentioned)
-              
-              Transcript: "${transcript}"
-              
-              Important: Only extract information that is clearly mentioned. Use null for missing information. For dates, convert relative dates like "next Friday" to actual dates. For times, convert to 24-hour format.`
+              text: `You are an intelligent voice assistant for venue booking. Analyze this voice transcript and intelligently extract event details while correcting any speech recognition errors or misunderstandings.
+
+INTELLIGENT ERROR CORRECTION:
+- Fix obvious speech recognition errors (e.g., "book the grand ballroom" might be heard as "book the gran bar room")
+- Correct date/time misinterpretations (e.g., "2 PM" heard as "to PM" or "too PM")
+- Fix venue name errors (e.g., "grand ballroom" heard as "gran bar room" or "great ballroom")
+- Correct guest count errors (e.g., "fifty guests" heard as "if tea guests")
+- Fix email domains (e.g., "gmail.com" heard as "g mail dot com" or "gmail calm")
+- Correct common business terms (e.g., "corporate" heard as "corp rate")
+
+CONTEXT UNDERSTANDING:
+- Understand relative dates (e.g., "next Friday", "this coming Monday", "in two weeks")
+- Convert casual time references to proper times (e.g., "early evening" = 18:00, "lunch time" = 12:00)
+- Infer missing information from context when reasonable
+- Understand variations in event types (e.g., "company party" = "corporate event")
+
+VENUE CONTEXT:
+Available venues: Grand Ballroom, Garden Pavilion, Conference Center, Executive Boardroom
+- Map similar-sounding names to correct venues
+- Suggest appropriate venue based on guest count if not specified
+
+Return a JSON response with these fields:
+{
+  "eventName": "string (descriptive name for the event)",
+  "customerName": "string (full name if mentioned)",
+  "customerEmail": "string (corrected email if mentioned)", 
+  "customerPhone": "string (phone number if mentioned)",
+  "eventDate": "string (YYYY-MM-DD format, calculate actual dates for relative references)",
+  "startTime": "string (HH:MM in 24-hour format)",
+  "endTime": "string (HH:MM in 24-hour format)",
+  "eventType": "string (wedding, corporate, conference, birthday, etc.)",
+  "guestCount": "number (number of attendees)",
+  "specialRequests": "string (any specific requirements mentioned)",
+  "suggestedVenue": "string (best venue based on requirements)",
+  "suggestedServices": "array of strings (services that might be needed)",
+  "confidence": "number (0-100, how confident you are in the extraction)",
+  "corrections": "array of strings (list of corrections made to the original transcript)"
+}
+
+Original Transcript: "${transcript}"
+
+Be intelligent and helpful - if something seems unclear, make reasonable inferences based on common booking patterns.`
             }]
           }],
           generationConfig: {

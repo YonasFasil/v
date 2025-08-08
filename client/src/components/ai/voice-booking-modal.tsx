@@ -28,6 +28,8 @@ interface VoiceBookingData {
   specialRequests: string;
   suggestedVenue: string;
   suggestedServices: string[];
+  confidence?: number;
+  corrections?: string[];
 }
 
 export function VoiceBookingModal({ open, onOpenChange, onEventCreated }: Props) {
@@ -52,24 +54,30 @@ export function VoiceBookingModal({ open, onOpenChange, onEventCreated }: Props)
       // Convert the parsed data to match our VoiceBookingData interface
       const formattedData = {
         eventName: data.eventName || "",
-        eventDate: data.dates?.[0] || "",
-        startTime: data.times?.[data.dates?.[0]]?.start || "",
-        endTime: data.times?.[data.dates?.[0]]?.end || "",
+        eventDate: data.eventDate || "",
+        startTime: data.startTime || "",
+        endTime: data.endTime || "",
         guestCount: data.guestCount || 0,
         eventType: data.eventType || "",
         customerName: data.customerName || "",
         customerEmail: data.customerEmail || "",
-        customerPhone: "",
-        specialRequests: "",
-        suggestedVenue: "",
-        suggestedServices: []
+        customerPhone: data.customerPhone || "",
+        specialRequests: data.specialRequests || "",
+        suggestedVenue: data.suggestedVenue || "",
+        suggestedServices: data.suggestedServices || []
       };
       
       setExtractedData(formattedData);
       setIsProcessing(false);
+      
+      // Show corrections made by AI if any
+      const correctionsMessage = data.corrections && data.corrections.length > 0 
+        ? `AI made corrections: ${data.corrections.join(", ")}`
+        : "AI successfully extracted booking details";
+      
       toast({
         title: "Voice booking processed!",
-        description: "AI has extracted booking details from your voice."
+        description: `${correctionsMessage}. Confidence: ${data.confidence || 0}%`
       });
     },
     onError: (error: any) => {
@@ -162,7 +170,7 @@ export function VoiceBookingModal({ open, onOpenChange, onEventCreated }: Props)
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
       toast({
         title: "Speech recognition not supported",
-        description: "Your browser doesn't support speech recognition",
+        description: "Please use Chrome, Safari, or Edge for voice booking",
         variant: "destructive"
       });
       return;
@@ -174,33 +182,59 @@ export function VoiceBookingModal({ open, onOpenChange, onEventCreated }: Props)
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
+    recognition.maxAlternatives = 3; // Get multiple alternatives for better accuracy
+
+    let finalTranscript = '';
 
     recognition.onresult = (event: any) => {
-      let finalTranscript = '';
+      let interimTranscript = '';
       
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
-          finalTranscript += transcript;
+          finalTranscript += transcript + ' ';
+        } else {
+          interimTranscript += transcript;
         }
       }
       
-      if (finalTranscript) {
-        setTranscript(prev => prev + finalTranscript);
-      }
+      // Update display with interim results
+      setTranscript(finalTranscript + interimTranscript);
     };
 
     recognition.onend = () => {
-      if (transcript) {
+      if (finalTranscript.trim()) {
         setIsProcessing(true);
-        processVoiceBooking.mutate(transcript);
+        toast({
+          title: "Processing speech...",
+          description: "AI is analyzing and correcting your voice input"
+        });
+        processVoiceBooking.mutate(finalTranscript.trim());
+      } else {
+        toast({
+          title: "No speech detected",
+          description: "Please try recording again and speak clearly",
+          variant: "destructive"
+        });
       }
     };
 
     recognition.onerror = (event: any) => {
+      const errorMessages = {
+        'no-speech': 'No speech was detected. Please try again.',
+        'audio-capture': 'No microphone was found. Please check your microphone.',
+        'not-allowed': 'Microphone permission denied. Please allow microphone access.',
+        'network': 'Network error occurred. Please check your connection.',
+        'aborted': 'Speech recognition was aborted.',
+        'language-not-supported': 'Language not supported.',
+        'service-not-allowed': 'Speech recognition service not allowed.'
+      };
+      
+      const errorMessage = errorMessages[event.error as keyof typeof errorMessages] || 'Speech recognition error occurred';
+      
       toast({
-        title: "Speech recognition error",
-        description: "Could not process speech",
+        title: "Speech Recognition Error",
+        description: errorMessage,
         variant: "destructive"
       });
     };
@@ -360,10 +394,33 @@ export function VoiceBookingModal({ open, onOpenChange, onEventCreated }: Props)
                   <Sparkles className="w-4 h-4 text-purple-600" />
                   Extracted Booking Details
                 </h4>
-                <Badge className="bg-purple-100 text-purple-800">
-                  AI Processed
-                </Badge>
+                <div className="flex gap-2">
+                  {extractedData.confidence && (
+                    <Badge variant="outline" className={`${
+                      extractedData.confidence >= 80 ? 'bg-green-100 text-green-800' :
+                      extractedData.confidence >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {extractedData.confidence}% Confidence
+                    </Badge>
+                  )}
+                  <Badge className="bg-purple-100 text-purple-800">
+                    AI Processed
+                  </Badge>
+                </div>
               </div>
+
+              {/* AI Corrections Display */}
+              {extractedData.corrections && extractedData.corrections.length > 0 && (
+                <div className="mb-4 p-3 bg-blue-50 rounded border border-blue-200">
+                  <p className="font-medium text-blue-800 mb-1">AI Made These Corrections:</p>
+                  <ul className="text-sm text-blue-700 list-disc list-inside">
+                    {extractedData.corrections.map((correction, index) => (
+                      <li key={index}>{correction}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-3">
@@ -400,6 +457,13 @@ export function VoiceBookingModal({ open, onOpenChange, onEventCreated }: Props)
                     <p className="text-sm text-gray-600">{extractedData.customerEmail}</p>
                     <p className="text-sm text-gray-600">{extractedData.customerPhone}</p>
                   </div>
+
+                  {extractedData.suggestedVenue && (
+                    <div>
+                      <p className="font-medium">Suggested Venue</p>
+                      <p className="text-sm text-gray-600">{extractedData.suggestedVenue}</p>
+                    </div>
+                  )}
 
                   {extractedData.suggestedServices.length > 0 && (
                     <div>
