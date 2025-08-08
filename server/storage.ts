@@ -386,11 +386,98 @@ export class MemStorage implements IStorage {
   }
 
   private initializeSamplePackagesAndServices() {
-    // Initialize with empty arrays - users will create their own data
-    const sampleServices: any[] = [];
+    // Sample services for testing
+    const sampleServices = [
+      {
+        id: randomUUID(),
+        name: "Premium Catering",
+        description: "Full-service catering with appetizers, main course, and dessert",
+        price: "45.00",
+        category: "catering",
+        pricingModel: "per_person" as const,
+        isActive: true
+      },
+      {
+        id: randomUUID(),
+        name: "Audio/Visual Setup", 
+        description: "Professional sound system, microphones, and projection equipment",
+        price: "500.00",
+        category: "equipment",
+        pricingModel: "fixed" as const,
+        isActive: true
+      },
+      {
+        id: randomUUID(),
+        name: "Floral Arrangements",
+        description: "Custom centerpieces and decorative florals",
+        price: "150.00", 
+        category: "decoration",
+        pricingModel: "fixed" as const,
+        isActive: true
+      },
+      {
+        id: randomUUID(),
+        name: "Photography Services",
+        description: "Professional event photography with edited photos",
+        price: "800.00",
+        category: "entertainment",
+        pricingModel: "fixed" as const,
+        isActive: true
+      },
+      {
+        id: randomUUID(),
+        name: "Live DJ Entertainment",
+        description: "Professional DJ with music and lighting",
+        price: "600.00",
+        category: "entertainment", 
+        pricingModel: "fixed" as const,
+        isActive: true
+      },
+      {
+        id: randomUUID(),
+        name: "Bar Service",
+        description: "Full bar service with bartender and premium drinks",
+        price: "25.00",
+        category: "catering",
+        pricingModel: "per_person" as const,
+        isActive: true
+      }
+    ];
 
-    // Initialize with empty arrays - users will create their own packages
-    const samplePackages: any[] = [];
+    // Sample packages for testing
+    const serviceIds = sampleServices.map(s => s.id);
+    const samplePackages = [
+      {
+        id: randomUUID(),
+        name: "Corporate Essential",
+        description: "Perfect for business meetings and corporate events",
+        price: "2500.00",
+        pricingModel: "fixed" as const,
+        includedServiceIds: [serviceIds[1]], // Audio/Visual Setup
+        applicableSpaceIds: [],
+        isActive: true
+      },
+      {
+        id: randomUUID(), 
+        name: "Wedding Premium",
+        description: "Complete wedding package with catering, entertainment, and decor",
+        price: "85.00",
+        pricingModel: "per_person" as const,
+        includedServiceIds: [serviceIds[0], serviceIds[2], serviceIds[3], serviceIds[4]], // Catering, Florals, Photography, DJ
+        applicableSpaceIds: [],
+        isActive: true
+      },
+      {
+        id: randomUUID(),
+        name: "Cocktail Party",
+        description: "Elegant cocktail reception with bar and light catering",
+        price: "55.00",
+        pricingModel: "per_person" as const, 
+        includedServiceIds: [serviceIds[5], serviceIds[2]], // Bar Service, Florals
+        applicableSpaceIds: [],
+        isActive: true
+      }
+    ];
 
     sampleServices.forEach(svc => this.services.set(svc.id, svc));
     samplePackages.forEach(pkg => this.packages.set(pkg.id, pkg));
