@@ -1299,14 +1299,29 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
         
         res.json({ mode: 'venues', data: venueCalendarData });
       } else {
-        // Mode 1: Events by dates (monthly/weekly view) - return individual events, not grouped contracts
+        // Mode 1: Events by dates (monthly/weekly view) - return complete booking data with contract info
+        const contracts = await storage.getContracts();
+        const contractMap = new Map(contracts.map(c => [c.id, c]));
+        
         const eventsWithDetails = await Promise.all(
           bookings.map(async (booking) => {
             const customer = customers.find(c => c.id === booking.customerId);
             const venue = venues.find(v => v.id === booking.venueId);
             const space = spaces.find(s => s.id === booking.spaceId);
             
+            // If this booking is part of a contract, get contract info and related events
+            let contractInfo = null;
+            let contractEvents = null;
+            let isContract = false;
+            
+            if (booking.contractId) {
+              contractInfo = contractMap.get(booking.contractId);
+              contractEvents = bookings.filter(b => b.contractId === booking.contractId);
+              isContract = true;
+            }
+            
             return {
+              // Basic event data for calendar display
               id: booking.id,
               title: booking.eventName || 'Event',
               start: booking.eventDate,
@@ -1320,7 +1335,17 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
               startTime: booking.startTime || '',
               endTime: booking.endTime || '',
               color: booking.status === 'confirmed' ? '#22c55e' : 
-                     booking.status === 'pending' ? '#f59e0b' : '#ef4444'
+                     booking.status === 'pending' ? '#f59e0b' : '#ef4444',
+              
+              // Complete booking data for modals (same structure as /api/bookings)
+              ...booking,
+              customerData: customer,
+              venueData: venue,
+              spaceData: space,
+              isContract,
+              contractInfo,
+              contractEvents,
+              eventCount: contractEvents?.length || 1
             };
           })
         );

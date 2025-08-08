@@ -33,10 +33,11 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
 
   if (!booking) return null;
 
-  const selectedVenueData = venues.find((v: any) => v.id === booking.venueId);
-  const selectedSpaceData = selectedVenueData?.spaces?.find((s: any) => s.id === booking.spaceId);
+  // Use enhanced data from calendar API if available, otherwise fallback to lookup
+  const selectedVenueData = booking.venueData || venues.find((v: any) => v.id === booking.venueId);
+  const selectedSpaceData = booking.spaceData || selectedVenueData?.spaces?.find((s: any) => s.id === booking.spaceId);
   const selectedPackageData = packages.find((p: any) => p.id === booking.packageId);
-  const selectedCustomerData = customers.find((c: any) => c.id === booking.customerId);
+  const selectedCustomerData = booking.customerData || customers.find((c: any) => c.id === booking.customerId);
   const selectedServicesData = services.filter((s: any) => booking.serviceIds?.includes(s.id));
 
   const getStatusColor = (status: string) => {

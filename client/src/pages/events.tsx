@@ -68,7 +68,7 @@ export default function Events() {
         <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
       </div>
       
-      <MobileNav open={mobileNavOpen} onOpenChange={setMobileNavOpen} />
+      <MobileNav isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex items-center justify-between p-4 lg:p-6 border-b border-slate-200 bg-white">
@@ -146,21 +146,21 @@ export default function Events() {
                       <Card 
                         key={booking.id} 
                         className={`hover:shadow-lg transition-shadow cursor-pointer ${
-                          booking.isContract ? 'border-purple-200 bg-purple-50/30' : ''
+                          (booking as any).isContract ? 'border-purple-200 bg-purple-50/30' : ''
                         }`}
                         onClick={() => setSelectedBooking(booking)}
                       >
                         <CardHeader className="pb-2">
                           <div className="flex items-start justify-between">
                             <div>
-                              {booking.isContract && (
+                              {(booking as any).isContract && (
                                 <Badge variant="secondary" className="mb-2 bg-purple-100 text-purple-800">
-                                  Contract • {booking.eventCount} Events
+                                  Contract • {(booking as any).eventCount} Events
                                 </Badge>
                               )}
                               <CardTitle className="text-lg font-semibold line-clamp-2">
-                                {booking.isContract 
-                                  ? booking.contractInfo?.contractName || "Multi-Date Contract"
+                                {(booking as any).isContract 
+                                  ? (booking as any).contractInfo?.contractName || "Multi-Date Contract"
                                   : booking.eventName
                                 }
                               </CardTitle>
@@ -172,20 +172,20 @@ export default function Events() {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-2 text-sm text-gray-600">
-                            {booking.isContract ? (
+                            {(booking as any).isContract ? (
                               <>
                                 <div className="flex items-center">
                                   <Calendar className="w-4 h-4 mr-2" />
-                                  {booking.contractEvents?.length} dates selected
+                                  {(booking as any).contractEvents?.length || 0} dates selected
                                 </div>
                                 <div className="flex items-center">
                                   <Users className="w-4 h-4 mr-2" />
-                                  Total {booking.contractEvents?.reduce((sum: number, event: any) => sum + (event.guestCount || 0), 0)} guests
+                                  Total {(booking as any).contractEvents?.reduce((sum: number, event: any) => sum + (event.guestCount || 0), 0) || 0} guests
                                 </div>
                                 <div className="text-xs text-gray-500">
-                                  Events: {booking.contractEvents?.map((event: any) => 
+                                  Events: {(booking as any).contractEvents?.map((event: any) => 
                                     format(new Date(event.eventDate), "MMM d")
-                                  ).join(", ")}
+                                  ).join(", ") || 'None'}
                                 </div>
                               </>
                             ) : (
@@ -246,35 +246,35 @@ export default function Events() {
                             <TableCell className="font-medium">
                               <div>
                                 <div className="flex items-center gap-2">
-                                  {booking.isContract && (
+                                  {(booking as any).isContract && (
                                     <Badge variant="secondary" className="bg-purple-100 text-purple-800 text-xs">
                                       Contract
                                     </Badge>
                                   )}
                                   <div className="font-semibold">
-                                    {booking.isContract 
-                                      ? booking.contractInfo?.contractName || "Multi-Date Contract"
+                                    {(booking as any).isContract 
+                                      ? (booking as any).contractInfo?.contractName || "Multi-Date Contract"
                                       : booking.eventName
                                     }
                                   </div>
                                 </div>
                                 <div className="text-sm text-slate-500">
-                                  {booking.isContract 
-                                    ? `${booking.eventCount} events grouped`
+                                  {(booking as any).isContract 
+                                    ? `${(booking as any).eventCount || 0} events grouped`
                                     : booking.eventType
                                   }
                                 </div>
                               </div>
                             </TableCell>
                             <TableCell>
-                              {booking.isContract ? (
+                              {(booking as any).isContract ? (
                                 <div className="text-sm">
-                                  <div>{booking.eventCount} dates</div>
+                                  <div>{(booking as any).eventCount || 0} dates</div>
                                   <div className="text-slate-500">
-                                    {booking.contractEvents?.slice(0, 3).map((event: any) => 
+                                    {(booking as any).contractEvents?.slice(0, 3).map((event: any) => 
                                       format(new Date(event.eventDate), "MMM d")
-                                    ).join(", ")}
-                                    {booking.contractEvents?.length > 3 && "..."}
+                                    ).join(", ") || 'None'}
+                                    {((booking as any).contractEvents?.length || 0) > 3 && "..."}
                                   </div>
                                 </div>
                               ) : (
@@ -285,8 +285,8 @@ export default function Events() {
                               )}
                             </TableCell>
                             <TableCell>
-                              {booking.isContract 
-                                ? booking.contractEvents?.reduce((sum: number, event: any) => sum + (event.guestCount || 0), 0)
+                              {(booking as any).isContract 
+                                ? (booking as any).contractEvents?.reduce((sum: number, event: any) => sum + (event.guestCount || 0), 0) || 0
                                 : booking.guestCount
                               }
                             </TableCell>
