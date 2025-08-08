@@ -13,6 +13,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { SmartSchedulingModal } from "@/components/ai/smart-scheduling-modal";
+import { EmailReplyModal } from "@/components/ai/email-reply-modal";
+import { LeadScoringModal } from "@/components/ai/lead-scoring-modal";
 import { 
   Settings as SettingsIcon, 
   Building, 
@@ -28,11 +31,18 @@ import {
   DollarSign,
   Save,
   Key,
-  Database
+  Database,
+  Brain,
+  Zap,
+  Star,
+  Bot
 } from "lucide-react";
 
 export default function Settings() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [showSmartScheduling, setShowSmartScheduling] = useState(false);
+  const [showEmailReply, setShowEmailReply] = useState(false);
+  const [showLeadScoring, setShowLeadScoring] = useState(false);
   const { toast } = useToast();
 
   // Business Settings State
@@ -372,89 +382,212 @@ export default function Settings() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <SettingsIcon className="w-5 h-5" />
+                    <Brain className="w-5 h-5 text-purple-600" />
                     AI Features Configuration
+                    <Badge variant="secondary" className="bg-purple-100 text-purple-700">NEW</Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                  {/* Core AI Features */}
                   <div>
-                    <h4 className="font-medium mb-4">Core AI Features</h4>
-                    <div className="space-y-3">
-                      {[
-                        { key: 'enableAiSuggestions', label: 'AI Suggestions & Recommendations' },
-                        { key: 'smartScheduling', label: 'Smart Scheduling Optimization' },
-                        { key: 'leadScoring', label: 'Automated Lead Scoring' },
-                        { key: 'predictiveAnalytics', label: 'Predictive Analytics' },
-                        { key: 'voiceBooking', label: 'Voice-to-Text Booking' }
-                      ].map(({ key, label }) => (
-                        <div key={key} className="flex items-center justify-between">
-                          <div className="flex flex-col">
-                            <Label>{label}</Label>
-                            <span className="text-xs text-gray-500">Powered by Google Gemini AI</span>
+                    <h4 className="font-medium mb-4 flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-blue-600" />
+                      Core AI Features
+                    </h4>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {/* AI Analytics & Reports */}
+                      <Card className="border-blue-200 bg-blue-50">
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <Brain className="w-5 h-5 text-blue-600" />
+                              <div>
+                                <h5 className="font-medium">AI Analytics & Reports</h5>
+                                <p className="text-xs text-gray-600">Real-time insights and trend analysis</p>
+                              </div>
+                            </div>
+                            <Switch
+                              checked={aiSettings.predictiveAnalytics}
+                              onCheckedChange={(checked) => setAiSettings(prev => ({ ...prev, predictiveAnalytics: checked }))}
+                            />
                           </div>
-                          <Switch
-                            checked={aiSettings[key as keyof typeof aiSettings] as boolean}
-                            onCheckedChange={(checked) => setAiSettings(prev => ({ ...prev, [key]: checked }))}
-                          />
-                        </div>
-                      ))}
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full"
+                            onClick={() => window.open('/ai-analytics', '_blank')}
+                          >
+                            View Analytics Dashboard
+                          </Button>
+                        </CardContent>
+                      </Card>
+
+                      {/* Smart Scheduling */}
+                      <Card className="border-green-200 bg-green-50">
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <Zap className="w-5 h-5 text-green-600" />
+                              <div>
+                                <h5 className="font-medium">Smart Scheduling</h5>
+                                <p className="text-xs text-gray-600">AI-optimized time slot suggestions</p>
+                              </div>
+                            </div>
+                            <Switch
+                              checked={aiSettings.smartScheduling}
+                              onCheckedChange={(checked) => setAiSettings(prev => ({ ...prev, smartScheduling: checked }))}
+                            />
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full"
+                            onClick={() => setShowSmartScheduling(true)}
+                          >
+                            Test Smart Scheduling
+                          </Button>
+                        </CardContent>
+                      </Card>
+
+                      {/* Auto Email Replies */}
+                      <Card className="border-orange-200 bg-orange-50">
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <Mail className="w-5 h-5 text-orange-600" />
+                              <div>
+                                <h5 className="font-medium">Auto Email Replies</h5>
+                                <p className="text-xs text-gray-600">AI-generated customer responses</p>
+                              </div>
+                            </div>
+                            <Switch
+                              checked={aiSettings.autoEmailReplies}
+                              onCheckedChange={(checked) => setAiSettings(prev => ({ ...prev, autoEmailReplies: checked }))}
+                            />
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full"
+                            onClick={() => setShowEmailReply(true)}
+                          >
+                            Test Email Generator
+                          </Button>
+                        </CardContent>
+                      </Card>
+
+                      {/* Lead Scoring */}
+                      <Card className="border-purple-200 bg-purple-50">
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <Star className="w-5 h-5 text-purple-600" />
+                              <div>
+                                <h5 className="font-medium">Lead Scoring</h5>
+                                <p className="text-xs text-gray-600">AI-powered lead prioritization</p>
+                              </div>
+                            </div>
+                            <Switch
+                              checked={aiSettings.leadScoring}
+                              onCheckedChange={(checked) => setAiSettings(prev => ({ ...prev, leadScoring: checked }))}
+                            />
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full"
+                            onClick={() => setShowLeadScoring(true)}
+                          >
+                            Test Lead Scoring
+                          </Button>
+                        </CardContent>
+                      </Card>
                     </div>
                   </div>
 
                   <Separator />
 
+                  {/* AI Configuration */}
                   <div>
-                    <h4 className="font-medium mb-4">AI Automation</h4>
-                    <div className="space-y-3">
-                      {[
-                        { key: 'autoEmailReplies', label: 'Automated Email Replies' },
-                        { key: 'autoProcessBookings', label: 'Auto-process Simple Bookings' }
-                      ].map(({ key, label }) => (
-                        <div key={key} className="flex items-center justify-between">
-                          <div className="flex flex-col">
-                            <Label>{label}</Label>
-                            <span className="text-xs text-red-500">Use with caution - requires monitoring</span>
-                          </div>
-                          <Switch
-                            checked={aiSettings[key as keyof typeof aiSettings] as boolean}
-                            onCheckedChange={(checked) => setAiSettings(prev => ({ ...prev, [key]: checked }))}
-                          />
-                        </div>
-                      ))}
+                    <h4 className="font-medium mb-4 flex items-center gap-2">
+                      <SettingsIcon className="w-4 h-4" />
+                      AI Configuration
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="aiInsightFrequency">AI Insights Frequency</Label>
+                        <Select value={aiSettings.aiInsightFrequency} onValueChange={(value) => setAiSettings(prev => ({ ...prev, aiInsightFrequency: value }))}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="hourly">Every Hour</SelectItem>
+                            <SelectItem value="daily">Daily</SelectItem>
+                            <SelectItem value="weekly">Weekly</SelectItem>
+                            <SelectItem value="manual">Manual Only</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="confidenceThreshold">AI Confidence Threshold (%)</Label>
+                        <Input
+                          id="confidenceThreshold"
+                          type="number"
+                          min="50"
+                          max="100"
+                          value={aiSettings.confidenceThreshold}
+                          onChange={(e) => setAiSettings(prev => ({ ...prev, confidenceThreshold: parseInt(e.target.value) }))}
+                        />
+                      </div>
                     </div>
                   </div>
 
                   <Separator />
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="aiInsightFrequency">AI Insights Frequency</Label>
-                      <Select value={aiSettings.aiInsightFrequency} onValueChange={(value) => setAiSettings(prev => ({ ...prev, aiInsightFrequency: value }))}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="hourly">Every Hour</SelectItem>
-                          <SelectItem value="daily">Daily</SelectItem>
-                          <SelectItem value="weekly">Weekly</SelectItem>
-                          <SelectItem value="manual">Manual Only</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="confidenceThreshold">AI Confidence Threshold (%)</Label>
-                      <Input
-                        id="confidenceThreshold"
-                        type="number"
-                        min="50"
-                        max="100"
-                        value={aiSettings.confidenceThreshold}
-                        onChange={(e) => setAiSettings(prev => ({ ...prev, confidenceThreshold: parseInt(e.target.value) }))}
-                      />
+                  {/* Additional AI Features */}
+                  <div>
+                    <h4 className="font-medium mb-4">Additional Features</h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label>Voice-to-Text Booking</Label>
+                          <p className="text-xs text-gray-500">Convert speech to booking forms</p>
+                        </div>
+                        <Switch
+                          checked={aiSettings.voiceBooking}
+                          onCheckedChange={(checked) => setAiSettings(prev => ({ ...prev, voiceBooking: checked }))}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label>AI Suggestions</Label>
+                          <p className="text-xs text-gray-500">Smart recommendations in booking flow</p>
+                        </div>
+                        <Switch
+                          checked={aiSettings.enableAiSuggestions}
+                          onCheckedChange={(checked) => setAiSettings(prev => ({ ...prev, enableAiSuggestions: checked }))}
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  <Button onClick={() => saveSettings("AI Features")} className="bg-blue-600 hover:bg-blue-700">
+                  {/* Warning Banner */}
+                  <Card className="border-amber-200 bg-amber-50">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <Bot className="h-5 w-5 text-amber-600 mt-0.5" />
+                        <div>
+                          <p className="font-medium text-amber-800">AI Feature Notice</p>
+                          <p className="text-sm text-amber-700">
+                            These AI features are powered by Google Gemini. Always review AI-generated content before using. 
+                            Results may vary and should be verified for accuracy.
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Button onClick={() => saveSettings("AI Features")} className="bg-purple-600 hover:bg-purple-700">
                     <Save className="w-4 h-4 mr-2" />
                     Save AI Settings
                   </Button>
@@ -839,6 +972,35 @@ export default function Settings() {
           </Tabs>
         </main>
       </div>
+
+      {/* AI Feature Modals */}
+      <SmartSchedulingModal
+        open={showSmartScheduling}
+        onOpenChange={setShowSmartScheduling}
+        eventData={{
+          eventType: "corporate",
+          guestCount: 50,
+          duration: 4
+        }}
+      />
+
+      <EmailReplyModal
+        open={showEmailReply}
+        onOpenChange={setShowEmailReply}
+        customerName="Sample Customer"
+        customerEmail="customer@example.com"
+        initialMessage="I'm interested in booking your venue for a corporate event in March. We're expecting about 100 guests and would like catering included. Could you please send me more information about availability and pricing?"
+      />
+
+      <LeadScoringModal
+        open={showLeadScoring}
+        onOpenChange={setShowLeadScoring}
+        customerData={{
+          name: "Sample Customer",
+          email: "customer@example.com",
+          company: "Tech Corp Inc."
+        }}
+      />
     </div>
   );
 }

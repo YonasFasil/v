@@ -702,8 +702,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/ai/smart-scheduling", async (req, res) => {
     try {
-      const { eventType, guestCount, venueCapacity, existingBookings } = req.body;
-      const suggestion = await generateSmartScheduling(eventType, 4);
+      const { eventType, duration = 4, guestCount, venuePreferences } = req.body;
+      const suggestion = await generateSmartScheduling(eventType, duration, guestCount, venuePreferences);
       res.json(suggestion);
     } catch (error) {
       res.status(500).json({ message: "Failed to generate scheduling suggestion" });
@@ -712,8 +712,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/ai/email-reply", async (req, res) => {
     try {
-      const { emailContent, context, customerName } = req.body;
-      const reply = await generateEmailReply(emailContent, context);
+      const { emailContent, context, customerData } = req.body;
+      const reply = await generateEmailReply(emailContent, context, customerData);
       res.json(reply);
     } catch (error) {
       res.status(500).json({ message: "Failed to generate email reply" });
@@ -723,7 +723,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/ai/lead-score", async (req, res) => {
     try {
       const { customerData, interactionHistory } = req.body;
-      const scoring = await scoreLeadPriority(customerData);
+      const scoring = await scoreLeadPriority(customerData, interactionHistory);
       res.json(scoring);
     } catch (error) {
       res.status(500).json({ message: "Failed to calculate lead score" });
@@ -732,11 +732,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/ai/predictive-analytics", async (req, res) => {
     try {
-      const { historicalData, currentMetrics } = req.body;
-      const analytics = await generateAIInsights();
+      const { analyticsData } = req.body;
+      const analytics = await generateAIInsights(analyticsData);
       res.json(analytics);
     } catch (error) {
       res.status(500).json({ message: "Failed to generate predictive analytics" });
+    }
+  });
+
+  // Enhanced AI Analytics endpoint
+  app.get("/api/ai/analytics/:period", async (req, res) => {
+    try {
+      const period = req.params.period;
+      const analyticsData = {
+        period,
+        bookings: await storage.getBookings(),
+        customers: await storage.getCustomers(),
+        venues: await storage.getVenues()
+      };
+      const insights = await generateAIInsights(analyticsData);
+      res.json(insights);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to generate AI analytics" });
     }
   });
 
