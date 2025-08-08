@@ -336,23 +336,24 @@ export function ProposalCreationModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
+      <DialogContent className="w-full max-w-[95vw] sm:max-w-4xl lg:max-w-6xl max-h-[95vh] overflow-hidden flex flex-col p-3 sm:p-6">
+        <DialogHeader className="flex-shrink-0">
+          <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
             Create Event Proposal
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column - Proposal Configuration */}
-          <div className="space-y-6">
-            {/* Basic Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Proposal Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+        <div className="flex-1 overflow-y-auto">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
+            {/* Left Column - Proposal Configuration */}
+            <div className="space-y-4 sm:space-y-6">
+              {/* Basic Information */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base sm:text-lg">Proposal Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 sm:space-y-4">
                 <div>
                   <Label htmlFor="proposalTitle">Proposal Title</Label>
                   <Input
@@ -364,16 +365,17 @@ export function ProposalCreationModal({
                 </div>
                 
                 <div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <Label htmlFor="customer">Customer</Label>
                     <Button 
                       type="button"
                       variant="outline" 
                       size="sm"
                       onClick={() => setShowCreateCustomer(true)}
+                      className="w-full sm:w-auto"
                     >
-                      <Users className="h-4 w-4 mr-1" />
-                      New Customer
+                      <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                      <span className="text-xs sm:text-sm">New Customer</span>
                     </Button>
                   </div>
                   <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
@@ -415,51 +417,53 @@ export function ProposalCreationModal({
 
             {/* Multiple Events Configuration */}
             <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Events ({events.length})</CardTitle>
+              <CardHeader className="pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <CardTitle className="text-base sm:text-lg">Events ({events.length})</CardTitle>
                   <Button 
                     type="button"
                     variant="outline" 
                     size="sm"
                     onClick={addNewEvent}
+                    className="w-full sm:w-auto"
                   >
-                    <Calendar className="h-4 w-4 mr-1" />
-                    Add Event
+                    <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                    <span className="text-xs sm:text-sm">Add Event</span>
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-4 sm:space-y-6">
                 {events.map((event, index) => (
-                  <Card key={event.id} className="p-4 bg-slate-50">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="font-medium">Event {index + 1}</h4>
+                  <Card key={event.id} className="p-3 sm:p-4 bg-slate-50">
+                    <div className="flex items-center justify-between mb-3 sm:mb-4">
+                      <h4 className="font-medium text-sm sm:text-base">Event {index + 1}</h4>
                       {events.length > 1 && (
                         <Button 
                           type="button"
                           variant="ghost" 
                           size="sm"
                           onClick={() => removeEvent(event.id)}
-                          className="text-red-600 hover:text-red-700"
+                          className="text-red-600 hover:text-red-700 h-8 w-8"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3 w-3 sm:h-4 sm:w-4" />
                         </Button>
                       )}
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <div>
-                        <Label>Event Name</Label>
+                        <Label className="text-sm">Event Name</Label>
                         <Input
                           value={event.eventName}
                           onChange={(e) => updateEvent(event.id, 'eventName', e.target.value)}
                           placeholder="Event name"
+                          className="text-sm"
                         />
                       </div>
                       <div>
-                        <Label>Event Type</Label>
+                        <Label className="text-sm">Event Type</Label>
                         <Select value={event.eventType} onValueChange={(value) => updateEvent(event.id, 'eventType', value)}>
-                          <SelectTrigger>
+                          <SelectTrigger className="text-sm">
                             <SelectValue placeholder="Select type" />
                           </SelectTrigger>
                           <SelectContent>
@@ -473,50 +477,54 @@ export function ProposalCreationModal({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                       <div>
-                        <Label>Event Date</Label>
+                        <Label className="text-sm">Event Date</Label>
                         <Input
                           type="date"
                           value={event.eventDate}
                           onChange={(e) => updateEvent(event.id, 'eventDate', e.target.value)}
+                          className="text-sm"
                         />
                       </div>
                       <div>
-                        <Label>Start Time</Label>
+                        <Label className="text-sm">Start Time</Label>
                         <Input
                           type="time"
                           value={event.startTime}
                           onChange={(e) => updateEvent(event.id, 'startTime', e.target.value)}
+                          className="text-sm"
                         />
                       </div>
                       <div>
-                        <Label>End Time</Label>
+                        <Label className="text-sm">End Time</Label>
                         <Input
                           type="time"
                           value={event.endTime}
                           onChange={(e) => updateEvent(event.id, 'endTime', e.target.value)}
+                          className="text-sm"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <Label>Guest Count</Label>
+                      <Label className="text-sm">Guest Count</Label>
                       <Input
                         type="number"
                         min="1"
                         value={event.guestCount}
                         onChange={(e) => updateEvent(event.id, 'guestCount', parseInt(e.target.value) || 0)}
+                        className="text-sm"
                       />
                     </div>
 
                     <div>
-                      <Label>Venue</Label>
+                      <Label className="text-sm">Venue</Label>
                       <Select value={event.selectedVenue} onValueChange={(value) => {
                         updateEvent(event.id, 'selectedVenue', value);
                         updateEvent(event.id, 'selectedSpace', ''); // Reset space when venue changes
                       }}>
-                        <SelectTrigger>
+                        <SelectTrigger className="text-sm">
                           <SelectValue placeholder="Select venue" />
                         </SelectTrigger>
                         <SelectContent>
@@ -531,9 +539,9 @@ export function ProposalCreationModal({
 
                     {venues.find((v: any) => v.id === event.selectedVenue)?.spaces && (
                       <div>
-                        <Label>Space</Label>
+                        <Label className="text-sm">Space</Label>
                         <Select value={event.selectedSpace} onValueChange={(value) => updateEvent(event.id, 'selectedSpace', value)}>
-                          <SelectTrigger>
+                          <SelectTrigger className="text-sm">
                             <SelectValue placeholder="Select space" />
                           </SelectTrigger>
                           <SelectContent>
@@ -548,9 +556,9 @@ export function ProposalCreationModal({
                     )}
 
                     <div>
-                      <Label>Package</Label>
+                      <Label className="text-sm">Package</Label>
                       <Select value={event.selectedPackage} onValueChange={(value) => updateEvent(event.id, 'selectedPackage', value)}>
-                        <SelectTrigger>
+                        <SelectTrigger className="text-sm">
                           <SelectValue placeholder="Select package" />
                         </SelectTrigger>
                         <SelectContent>
@@ -565,9 +573,9 @@ export function ProposalCreationModal({
                       
                       {event.selectedPackage && event.selectedPackage !== "none" && (
                         <div className="mt-2">
-                          <Label className="text-sm">Custom Package Price (Optional)</Label>
+                          <Label className="text-xs sm:text-sm text-slate-600">Custom Package Price (Optional)</Label>
                           <div className="space-y-2">
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2">
                               <Input
                                 type="number"
                                 min="0"
@@ -578,26 +586,28 @@ export function ProposalCreationModal({
                                 })()}
                                 value={event.customPackagePrice || ""}
                                 onChange={(e) => updateEvent(event.id, 'customPackagePrice', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                className="text-sm flex-1"
                               />
                               <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
                                 onClick={() => updateEvent(event.id, 'customPackagePrice', undefined)}
+                                className="text-xs"
                               >
                                 Reset
                               </Button>
                             </div>
                             
                             {/* Quick discount/markup buttons */}
-                            <div className="flex gap-1">
+                            <div className="grid grid-cols-4 gap-1">
                               {[10, 15, 20, 25].map(discount => (
                                 <Button
                                   key={discount}
                                   type="button"
                                   variant="outline"
                                   size="sm"
-                                  className="text-xs"
+                                  className="text-xs py-1 px-2"
                                   onClick={() => {
                                     const pkg = packages.find((p: any) => p.id === event.selectedPackage);
                                     if (pkg) {
@@ -616,11 +626,11 @@ export function ProposalCreationModal({
                     </div>
 
                     <div>
-                      <Label>Add-on Services</Label>
+                      <Label className="text-sm">Add-on Services</Label>
                       <div className="space-y-3 max-h-48 overflow-y-auto">
                         {services.map((service: any) => (
                           <div key={service.id} className="space-y-2">
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-start space-x-2">
                               <Checkbox
                                 id={`${event.id}-service-${service.id}`}
                                 checked={event.selectedServices.includes(service.id)}
@@ -630,17 +640,18 @@ export function ProposalCreationModal({
                                     : event.selectedServices.filter(id => id !== service.id);
                                   updateEvent(event.id, 'selectedServices', newServices);
                                 }}
+                                className="mt-1"
                               />
-                              <Label htmlFor={`${event.id}-service-${service.id}`} className="text-sm flex-1">
+                              <Label htmlFor={`${event.id}-service-${service.id}`} className="text-xs sm:text-sm flex-1 leading-tight">
                                 {service.name} - ${service.price}{service.pricingModel === "per_person" ? "/person" : ""}
                               </Label>
                             </div>
                             
                             {event.selectedServices.includes(service.id) && (
-                              <div className="ml-6">
+                              <div className="ml-4 sm:ml-6">
                                 <Label className="text-xs text-slate-600">Custom Price (Optional)</Label>
                                 <div className="space-y-2">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex flex-col sm:flex-row gap-2">
                                     <Input
                                       type="number"
                                       min="0"
@@ -656,7 +667,7 @@ export function ProposalCreationModal({
                                         }
                                         updateEvent(event.id, 'customServicePrices', customPrices);
                                       }}
-                                      className="text-xs"
+                                      className="text-xs flex-1"
                                     />
                                     <Button
                                       type="button"
@@ -667,13 +678,14 @@ export function ProposalCreationModal({
                                         delete customPrices[service.id];
                                         updateEvent(event.id, 'customServicePrices', customPrices);
                                       }}
+                                      className="text-xs"
                                     >
                                       Reset
                                     </Button>
                                   </div>
                                   
                                   {/* Quick discount buttons for services */}
-                                  <div className="flex gap-1">
+                                  <div className="grid grid-cols-3 gap-1">
                                     {[10, 15, 20].map(discount => (
                                       <Button
                                         key={discount}
@@ -706,11 +718,11 @@ export function ProposalCreationModal({
 
             {/* New Customer Creation Modal */}
             <Dialog open={showCreateCustomer} onOpenChange={setShowCreateCustomer}>
-              <DialogContent>
+              <DialogContent className="w-[95vw] max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Create New Customer</DialogTitle>
+                  <DialogTitle className="text-base sm:text-lg">Create New Customer</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   <div>
                     <Label htmlFor="newCustomerName">Customer Name</Label>
                     <Input
@@ -767,16 +779,16 @@ export function ProposalCreationModal({
                 </div>
               </DialogContent>
             </Dialog>
-          </div>
+            </div>
 
-          {/* Right Column - Proposal Preview */}
-          <div className="space-y-6">
-            {/* Pricing Summary */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Pricing Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            {/* Right Column - Proposal Preview */}
+            <div className="space-y-4 sm:space-y-6">
+              {/* Pricing Summary */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base sm:text-lg">Pricing Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 sm:space-y-4">
                 <div className="space-y-2">
                   {events.map((event, index) => (
                     <div key={event.id} className="space-y-1">
@@ -850,12 +862,12 @@ export function ProposalCreationModal({
                   <span>${totalAmount.toFixed(2)}</span>
                 </div>
 
-                <div className="space-y-3 pt-4 border-t">
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3 pt-3 sm:pt-4 border-t">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
-                      <Label>Deposit Type</Label>
+                      <Label className="text-sm">Deposit Type</Label>
                       <Select value={depositType} onValueChange={setDepositType}>
-                        <SelectTrigger>
+                        <SelectTrigger className="text-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -865,12 +877,13 @@ export function ProposalCreationModal({
                       </Select>
                     </div>
                     <div>
-                      <Label>Deposit {depositType === "percentage" ? "%" : "$"}</Label>
+                      <Label className="text-sm">Deposit {depositType === "percentage" ? "%" : "$"}</Label>
                       <Input
                         type="number"
                         min="0"
                         value={depositValue}
                         onChange={(e) => setDepositValue(parseFloat(e.target.value) || 0)}
+                        className="text-sm"
                       />
                     </div>
                   </div>
@@ -885,21 +898,21 @@ export function ProposalCreationModal({
 
             {/* Preview */}
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Proposal Preview</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg">Proposal Preview</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="p-4 bg-slate-50 rounded border">
-                  <h4 className="font-semibold mb-2">{proposalTitle || "Event Proposal"}</h4>
-                  <p className="text-sm text-slate-600 mb-3">
+              <CardContent className="space-y-3 sm:space-y-4">
+                <div className="p-3 sm:p-4 bg-slate-50 rounded border">
+                  <h4 className="font-semibold mb-2 text-sm sm:text-base">{proposalTitle || "Event Proposal"}</h4>
+                  <p className="text-xs sm:text-sm text-slate-600 mb-3">
                     {customerData ? `To: ${customerData.name}` : "Select a customer"}
                   </p>
                   
                   {events.length > 0 && (
                     <div className="space-y-2">
-                      <h5 className="font-medium text-sm">Events:</h5>
+                      <h5 className="font-medium text-xs sm:text-sm">Events:</h5>
                       {events.map((event, index) => (
-                        <div key={event.id} className="text-sm">
+                        <div key={event.id} className="text-xs sm:text-sm">
                           <div className="font-medium">{event.eventName || `Event ${index + 1}`}</div>
                           <div className="text-slate-600">
                             {event.eventDate && format(new Date(event.eventDate), 'MMM d, yyyy')} • {event.startTime} - {event.endTime}
@@ -912,35 +925,48 @@ export function ProposalCreationModal({
                     </div>
                   )}
                   
-                  <div className="mt-3 pt-3 border-t text-sm">
-                    <div>Total: ${totalAmount.toFixed(2)}</div>
-                    <div>Deposit: ${depositAmount.toFixed(2)}</div>
+                  <div className="mt-3 pt-3 border-t text-xs sm:text-sm">
+                    <div className="flex justify-between">
+                      <span>Total:</span>
+                      <span className="font-medium">${totalAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Deposit:</span>
+                      <span className="font-medium">${depositAmount.toFixed(2)}</span>
+                    </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
         </div>
+        </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-end gap-3 pt-6 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <div className="flex-shrink-0 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-4 sm:pt-6 border-t">
+          <Button 
+            variant="outline" 
+            onClick={() => onOpenChange(false)}
+            className="w-full sm:w-auto order-3 sm:order-1"
+          >
             Cancel
           </Button>
           <Button 
             variant="outline"
             onClick={handleSaveDraft}
             disabled={createProposalMutation.isPending || !proposalTitle || !selectedCustomer}
+            className="w-full sm:w-auto order-2"
           >
-            <Save className="h-4 w-4 mr-2" />
-            {createProposalMutation.isPending ? "Saving..." : "Save Draft"}
+            <Save className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+            <span className="text-sm">{createProposalMutation.isPending ? "Saving..." : "Save Draft"}</span>
           </Button>
           <Button 
             onClick={handleSendProposal}
             disabled={sendProposalMutation.isPending || !proposalTitle || !selectedCustomer}
+            className="w-full sm:w-auto order-1 sm:order-3"
           >
-            <Send className="h-4 w-4 mr-2" />
-            {sendProposalMutation.isPending ? "Sending..." : "Send Proposal"}
+            <Send className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+            <span className="text-sm">{sendProposalMutation.isPending ? "Sending..." : "Send Proposal"}</span>
           </Button>
         </div>
       </DialogContent>
