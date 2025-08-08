@@ -301,14 +301,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const eventDate = validatedData.eventDate;
       const startTime = validatedData.startTime;
       const endTime = validatedData.endTime;
-      const venueId = validatedData.venueId;
+      const spaceId = validatedData.spaceId;
       
       const conflict = existingBookings.find(existing => {
         // Skip cancelled bookings
         if (existing.status === 'cancelled') return false;
         
-        // Check if same venue and same date
-        if (existing.venueId === venueId && 
+        // Check if same space and same date (more specific than venue)
+        if (existing.spaceId === spaceId && 
             existing.eventDate.toDateString() === eventDate.toDateString()) {
           
           // Convert times to minutes for easier comparison
@@ -329,12 +329,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       if (conflict) {
+        // Get customer info for the conflicting booking
+        const customers = await storage.getCustomers();
+        const conflictCustomer = customers.find(c => c.id === conflict.customerId);
+        
         return res.status(409).json({ 
           message: "Time slot conflict", 
           conflictingBooking: {
+            id: conflict.id,
             eventName: conflict.eventName,
+            customerName: conflictCustomer?.name || 'Unknown Customer',
             startTime: conflict.startTime,
-            endTime: conflict.endTime
+            endTime: conflict.endTime,
+            status: conflict.status,
+            eventDate: conflict.eventDate
           }
         });
       }
@@ -381,7 +389,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { contractData, bookingsData } = req.body;
       
-      // Create the contract first
+      // Check for conflicts in any of the bookings first
+      const existingBookings = await storage.getBookings();
+      
+      for (const bookingData of bookingsData) {
+        const eventDate = new Date(bookingData.eventDate);
+        const startTime = bookingData.startTime;
+        const endTime = bookingData.endTime;
+        const spaceId = bookingData.spaceId;
+        
+        const conflict = existingBookings.find(existing => {
+          if (existing.status === 'cancelled') return false;
+          if (existing.spaceId !== spaceId) return false;
+          if (existing.eventDate.toDateString() !== eventDate.toDateString()) return false;
+
+          const parseTime = (timeStr: string) => {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return hours * 60 + minutes;
+          };
+          
+          const newStart = parseTime(startTime);
+          const newEnd = parseTime(endTime);
+          const existingStart = parseTime(existing.startTime);
+          const existingEnd = parseTime(existing.endTime);
+          
+          return (newStart < existingEnd && newEnd > existingStart);
+        });
+        
+        if (conflict) {
+          const customers = await storage.getCustomers();
+          const conflictCustomer = customers.find(c => c.id === conflict.customerId);
+          
+          return res.status(409).json({ 
+            message: "Time slot conflict in multi-date booking", 
+            conflictingBooking: {
+              id: conflict.id,
+              eventName: conflict.eventName,
+              customerName: conflictCustomer?.name || 'Unknown Customer',
+              startTime: conflict.startTime,
+              endTime: conflict.endTime,
+              status: conflict.status,
+              eventDate: conflict.eventDate
+            }
+          });
+        }
+      }
+      
+      // No conflicts found, proceed with creation
       const validatedContract = insertContractSchema.parse(contractData);
       const contract = await storage.createContract(validatedContract);
       

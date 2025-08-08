@@ -86,6 +86,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
   const { data: packages = [] } = useQuery({ queryKey: ["/api/packages"] });
   const { data: services = [] } = useQuery({ queryKey: ["/api/services"] });
   const { data: customers = [] } = useQuery({ queryKey: ["/api/customers"] });
+  const { data: existingBookings = [] } = useQuery({ queryKey: ["/api/bookings"] });
 
   // Calendar calculations
   const monthStart = startOfMonth(currentDate);
@@ -183,6 +184,47 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
 
   const selectedVenueData = (venues as any[]).find((v: any) => v.id === selectedVenue);
   const selectedPackageData = (packages as any[]).find((p: any) => p.id === activeDate?.packageId);
+
+  // Function to check space availability for a specific date and time
+  const getSpaceAvailability = (spaceId: string, date: Date, startTime: string, endTime: string) => {
+    if (!spaceId || !existingBookings.length) return { available: true, conflictingBooking: null };
+
+    const conflicts = (existingBookings as any[]).filter(booking => {
+      if (booking.status === 'cancelled') return false;
+      if (booking.spaceId !== spaceId) return false;
+      
+      const bookingDate = new Date(booking.eventDate);
+      if (bookingDate.toDateString() !== date.toDateString()) return false;
+
+      // Parse times - handle both 24hr format and 12hr format
+      const parseTime = (timeStr: string) => {
+        if (timeStr.includes('AM') || timeStr.includes('PM')) {
+          // Convert 12hr format to 24hr
+          const cleanTime = timeStr.replace(/\s(AM|PM)/g, '');
+          const [hours, minutes] = cleanTime.split(':').map(Number);
+          const isAM = timeStr.includes('AM');
+          const hour24 = isAM ? (hours === 12 ? 0 : hours) : (hours === 12 ? 12 : hours + 12);
+          return hour24 * 60 + minutes;
+        } else {
+          // Already 24hr format
+          const [hours, minutes] = timeStr.split(':').map(Number);
+          return hours * 60 + minutes;
+        }
+      };
+
+      const newStart = parseTime(startTime);
+      const newEnd = parseTime(endTime);
+      const existingStart = parseTime(booking.startTime);
+      const existingEnd = parseTime(booking.endTime);
+
+      return (newStart < existingEnd && newEnd > existingStart);
+    });
+
+    return {
+      available: conflicts.length === 0,
+      conflictingBooking: conflicts[0] || null
+    };
+  };
 
   // Copy configuration to other dates
   const copyConfigToOtherDates = () => {
@@ -428,7 +470,26 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
         notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${firstDate.selectedServices?.length || 0} selected`
       };
 
-      createBooking.mutate(bookingData);
+      createBooking.mutate(bookingData, {
+        onError: (error: any) => {
+          if (error.response?.status === 409) {
+            // Handle booking conflict
+            const conflictData = error.response.data.conflictingBooking;
+            toast({
+              title: "⚠️ Booking Conflict Detected",
+              description: `The selected time slot conflicts with "${conflictData.eventName}" by ${conflictData.customerName} (${conflictData.startTime} - ${conflictData.endTime}, Status: ${conflictData.status}). Would you like to overbook anyway?`,
+              variant: "destructive",
+              duration: 8000
+            });
+          } else {
+            toast({
+              title: "Error creating booking",
+              description: error.response?.data?.message || "An unexpected error occurred",
+              variant: "destructive"
+            });
+          }
+        }
+      });
     } else {
       // Multiple events - create contract with multiple bookings
       const contractData = {
@@ -486,7 +547,25 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
         };
       });
 
-      createContract.mutate({ contractData, bookingsData });
+      createContract.mutate({ contractData, bookingsData }, {
+        onError: (error: any) => {
+          if (error.response?.status === 409) {
+            const conflictData = error.response.data.conflictingBooking;
+            toast({
+              title: "⚠️ Booking Conflict Detected",
+              description: `One or more dates conflict with existing bookings. First conflict: "${conflictData.eventName}" by ${conflictData.customerName} (${conflictData.startTime} - ${conflictData.endTime}, Status: ${conflictData.status}).`,
+              variant: "destructive",
+              duration: 8000
+            });
+          } else {
+            toast({
+              title: "Error creating contract",
+              description: error.response?.data?.message || "An unexpected error occurred",
+              variant: "destructive"
+            });
+          }
+        }
+      });
     }
   };
 
@@ -701,9 +780,35 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                               <span className="font-medium text-green-900">
                                 {format(dateInfo.date, 'EEEE, MMMM d, yyyy')}
                               </span>
-                              <Badge variant="secondary" className="bg-green-100 text-green-700">
-                                Available
-                              </Badge>
+                              {(() => {
+                                const availability = getSpaceAvailability(
+                                  dateInfo.spaceId || '',
+                                  dateInfo.date,
+                                  dateInfo.startTime,
+                                  dateInfo.endTime
+                                );
+                                
+                                if (availability.available) {
+                                  return (
+                                    <Badge variant="secondary" className="bg-green-100 text-green-700">
+                                      Available
+                                    </Badge>
+                                  );
+                                } else {
+                                  const conflict = availability.conflictingBooking;
+                                  return (
+                                    <div className="flex flex-col items-end gap-1">
+                                      <Badge variant="destructive" className="bg-red-100 text-red-700">
+                                        ⚠️ Conflict
+                                      </Badge>
+                                      <div className="text-xs text-red-600 text-right">
+                                        {conflict?.eventName}<br/>
+                                        {conflict?.startTime} - {conflict?.endTime}
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                              })()}
                             </div>
                             
                             <div className="space-y-2">
