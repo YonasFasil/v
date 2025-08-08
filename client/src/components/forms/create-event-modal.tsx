@@ -358,7 +358,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
       const bookingData = {
         eventName,
         eventType: "corporate",
-        eventDate: firstDate.date,
+        eventDate: new Date(firstDate.date),
         startTime: convertTimeToHours(firstDate.startTime),
         endTime: convertTimeToHours(firstDate.endTime),
         guestCount: firstDate.guestCount || 1,
@@ -415,7 +415,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
         return {
           eventName: `${eventName} - Day ${index + 1}`,
           eventType: "corporate",
-          eventDate: date.date,
+          eventDate: new Date(date.date),
           startTime: convertTimeToHours(date.startTime),
           endTime: convertTimeToHours(date.endTime),
           guestCount: date.guestCount || 1,
