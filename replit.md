@@ -7,6 +7,9 @@ This is a comprehensive event venue management system called "Venuine" built wit
 ## Recent Updates (August 2025)
 
 ### Latest Completed Features:
+- ✅ **Enhanced Calendar Design with Collapsible Sidebar (December 2025)**: Major calendar redesign with collapsible sidebar functionality, wider spacious layout, better event visibility showing up to 3 events per day with comprehensive details, responsive spacing, and calendar as the default primary view
+- ✅ **Comprehensive Booking Conflict Detection**: Enhanced conflict detection system with space-specific checking, detailed conflict warnings showing event names, customers, times, and status to prevent overbooking
+- ✅ **Real-Time Availability Display**: Calendar shows actual booking status instead of generic "Available" messages with enhanced event cards displaying customer names, times, guest counts, and venue spaces
 - ✅ **Integrated Contract System Throughout UI**: Complete contract system integration with Events & Bookings page showing contract summaries, calendar using full edit modal, and contract-aware display with purple highlighting for multi-date events
 - ✅ **Multi-Date Contract System**: Fully functional contract system that automatically groups multi-date events under a single contract while creating individual bookings for each date, with proper date validation and error handling
 - ✅ **Enhanced Reports & Analytics Page**: Comprehensive reporting dashboard with real-time data refresh, interactive charts, AI-powered insights, performance scoring, and export functionality
