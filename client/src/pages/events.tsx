@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreateEventModal } from "@/components/forms/create-event-modal";
 import { EventSummaryModal } from "@/components/forms/event-summary-modal";
 import { EventEditFullModal } from "@/components/forms/event-edit-full-modal";
+import { AdvancedCalendar } from "@/components/dashboard/advanced-calendar";
 import { useBookings } from "@/hooks/use-bookings";
 import { Calendar, Clock, MapPin, Users, Table as TableIcon, Grid3X3, DollarSign } from "lucide-react";
 import { format } from "date-fns";
@@ -20,8 +22,9 @@ export default function Events() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
+  const [viewMode, setViewMode] = useState<"calendar" | "cards" | "table">("calendar");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -57,10 +60,12 @@ export default function Events() {
     );
   }
 
+  const toggleSidebar = () => setSidebarCollapsed(!sidebarCollapsed);
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
-      <div className="hidden lg:block">
-        <Sidebar />
+      <div className="hidden md:block">
+        <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
       </div>
       
       <MobileNav 
@@ -69,24 +74,30 @@ export default function Events() {
       />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header 
-          title="Events & Bookings" 
-          subtitle="Manage your venue bookings and events"
-          onMobileMenuToggle={() => setMobileNavOpen(true)}
-          action={
+        <div className="flex items-center justify-between p-4 lg:p-6 border-b border-slate-200 bg-white">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Events & Bookings</h1>
+            <p className="text-slate-600">Manage your venue bookings and events</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={toggleSidebar}
+              className="hidden md:flex items-center gap-2"
+            >
+              {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+              {sidebarCollapsed ? "Expand" : "Collapse"} Sidebar
+            </Button>
             <Button 
-              onClick={() => {
-                console.log('New Event button clicked');
-                setShowCreateForm(true);
-              }}
+              onClick={() => setShowCreateForm(true)}
               className="bg-blue-600 hover:bg-blue-700"
             >
               + New Event
             </Button>
-          }
-        />
+          </div>
+        </div>
         
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6 xl:p-8">
           {!bookings || bookings.length === 0 ? (
             <div className="text-center py-12">
               <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-4" />
@@ -99,8 +110,12 @@ export default function Events() {
           ) : (
             <div className="space-y-6">
               {/* View Mode Tabs */}
-              <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as "cards" | "table")}>
-                <TabsList className="grid w-48 grid-cols-2">
+              <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as "calendar" | "cards" | "table")}>
+                <TabsList className="grid w-72 grid-cols-3">
+                  <TabsTrigger value="calendar" className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Calendar
+                  </TabsTrigger>
                   <TabsTrigger value="cards" className="flex items-center gap-2">
                     <Grid3X3 className="h-4 w-4" />
                     Cards
@@ -110,6 +125,12 @@ export default function Events() {
                     Table
                   </TabsTrigger>
                 </TabsList>
+
+                <TabsContent value="calendar" className="space-y-6">
+                  <div className="h-[calc(100vh-280px)]">
+                    <AdvancedCalendar onEventClick={setSelectedBooking} />
+                  </div>
+                </TabsContent>
 
                 <TabsContent value="cards" className="space-y-0">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

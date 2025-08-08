@@ -13,7 +13,9 @@ import {
   BarChart3,
   Star,
   Settings,
-  Mic
+  Mic,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 
 const navigationItems = [
@@ -40,7 +42,12 @@ const analyticsItems = [
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  collapsed?: boolean;
+  onToggle?: () => void;
+}
+
+export function Sidebar({ collapsed = false, onToggle }: SidebarProps = {}) {
   const [location] = useLocation();
 
   const isActive = (href: string) => {
@@ -51,15 +58,23 @@ export function Sidebar() {
   };
 
   return (
-    <div className="w-64 bg-white border-r border-slate-200 flex flex-col">
+    <div className={`${collapsed ? 'w-16' : 'w-64'} bg-white border-r border-slate-200 flex flex-col transition-all duration-300`}>
       {/* Logo and Brand */}
-      <div className="flex items-center px-6 py-4 border-b border-slate-200">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-sm">V</span>
           </div>
-          <span className="text-xl font-semibold text-slate-900">Venuine</span>
+          {!collapsed && <span className="text-xl font-semibold text-slate-900">Venuine</span>}
         </div>
+        {onToggle && (
+          <button 
+            onClick={onToggle}
+            className="p-1 rounded hover:bg-slate-100 transition-colors"
+          >
+            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          </button>
+        )}
       </div>
 
       {/* Navigation Menu */}
@@ -78,9 +93,10 @@ export function Sidebar() {
                       ? "bg-blue-600 text-white"
                       : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                   }`}
+                  title={collapsed ? item.name : undefined}
                 >
                   <Icon className="w-5 h-5 mr-3" />
-                  {item.name}
+                  {!collapsed && item.name}
                 </div>
               </Link>
             );
@@ -88,37 +104,65 @@ export function Sidebar() {
         </div>
 
         {/* AI Features Section */}
-        <div className="pt-4">
-          <div className="px-3 mb-2">
-            <div className="flex items-center">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                AI Features
-              </span>
-              <div className="ml-2 px-2 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full">
-                <span className="text-xs text-white font-medium">NEW</span>
+        {!collapsed && (
+          <div className="pt-4">
+            <div className="px-3 mb-2">
+              <div className="flex items-center">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  AI Features
+                </span>
+                <div className="ml-2 px-2 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full">
+                  <span className="text-xs text-white font-medium">NEW</span>
+                </div>
               </div>
             </div>
+            {aiFeatures.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              
+              return (
+                <Link key={item.name} href={item.href}>
+                  <div
+                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                      active
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                    }`}
+                    title={collapsed ? item.name : undefined}
+                  >
+                    <Icon className="w-5 h-5 mr-3" />
+                    {!collapsed && item.name}
+                  </div>
+                </Link>
+              );
+            })}
           </div>
-          {aiFeatures.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.href);
-            
-            return (
-              <Link key={item.name} href={item.href}>
-                <div
-                  className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-                    active
-                      ? "bg-blue-600 text-white"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                  }`}
-                >
-                  <Icon className="w-5 h-5 mr-3" />
-                  {item.name}
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+        )}
+        
+        {/* AI Features - Collapsed Icons Only */}
+        {collapsed && (
+          <div className="pt-4 space-y-1">
+            {aiFeatures.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              
+              return (
+                <Link key={item.name} href={item.href}>
+                  <div
+                    className={`flex items-center justify-center w-10 h-10 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                      active
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                    }`}
+                    title={item.name}
+                  >
+                    <Icon className="w-5 h-5" />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
 
         {/* Analytics Section */}
         <div className="pt-4">
