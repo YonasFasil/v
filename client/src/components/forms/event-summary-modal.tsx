@@ -52,12 +52,40 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
-          <DialogTitle className="text-2xl font-bold">{booking.eventName}</DialogTitle>
+          <DialogTitle className="text-2xl font-bold">
+            {booking.isContract 
+              ? booking.contractInfo?.contractName || "Multi-Date Contract"
+              : booking.eventName
+            }
+          </DialogTitle>
           <Button variant="outline" onClick={onEditClick} className="gap-2">
             <Edit3 className="h-4 w-4" />
-            Edit Event
+            Edit {booking.isContract ? "Contract" : "Event"}
           </Button>
         </div>
+
+        {/* Contract Summary Banner */}
+        {booking.isContract && (
+          <div className="mb-6 bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Badge className="bg-purple-100 text-purple-800">Contract</Badge>
+                <div>
+                  <h3 className="font-semibold text-purple-900">
+                    {booking.contractInfo?.contractName || "Multi-Date Event Contract"}
+                  </h3>
+                  <p className="text-sm text-purple-700">
+                    {booking.eventCount} events • Total: ${parseFloat(booking.totalAmount || '0').toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right text-sm text-purple-700">
+                <div>Contract ID: {booking.contractInfo?.id?.slice(-8)}</div>
+                <div>{booking.status?.charAt(0).toUpperCase() + booking.status?.slice(1)}</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Left Column - Event Details */}
@@ -83,25 +111,60 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
                   <span className="font-medium">{booking.eventType || 'General Event'}</span>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Date</span>
-                  <span className="font-medium">
-                    {booking.eventDate ? format(new Date(booking.eventDate), 'EEEE, MMMM d, yyyy') : 'No date set'}
-                  </span>
-                </div>
+                {booking.isContract ? (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Event Dates</span>
+                      <span className="font-medium">{booking.eventCount} events</span>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <span className="text-sm text-gray-600">Schedule:</span>
+                      <div className="max-h-32 overflow-y-auto space-y-1">
+                        {booking.contractEvents?.map((event: any, index: number) => (
+                          <div key={index} className="text-sm bg-gray-50 p-2 rounded">
+                            <div className="font-medium">
+                              {event.eventDate ? format(new Date(event.eventDate), 'MMM d, yyyy') : 'Date TBD'}
+                            </div>
+                            <div className="text-gray-600">
+                              {event.startTime} - {event.endTime} • {event.guestCount} guests
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
 
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Time</span>
-                  <span className="font-medium">{booking.startTime} - {booking.endTime}</span>
-                </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Total Guests</span>
+                      <span className="font-medium flex items-center gap-1">
+                        <Users className="h-4 w-4" />
+                        {booking.contractEvents?.reduce((sum: number, event: any) => sum + (event.guestCount || 0), 0)}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Date</span>
+                      <span className="font-medium">
+                        {booking.eventDate ? format(new Date(booking.eventDate), 'EEEE, MMMM d, yyyy') : 'No date set'}
+                      </span>
+                    </div>
 
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Guests</span>
-                  <span className="font-medium flex items-center gap-1">
-                    <Users className="h-4 w-4" />
-                    {booking.guestCount}
-                  </span>
-                </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Time</span>
+                      <span className="font-medium">{booking.startTime} - {booking.endTime}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Guests</span>
+                      <span className="font-medium flex items-center gap-1">
+                        <Users className="h-4 w-4" />
+                        {booking.guestCount}
+                      </span>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
 
@@ -114,24 +177,46 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div>
-                  <span className="text-sm text-gray-600">Venue</span>
-                  <div className="font-medium">{selectedVenueData?.name || 'Venue not found'}</div>
-                </div>
-                
-                <div>
-                  <span className="text-sm text-gray-600">Space</span>
-                  <div className="font-medium">{selectedSpaceData?.name || 'Space not found'}</div>
-                  {selectedSpaceData && (
-                    <div className="text-sm text-gray-500">Capacity: {selectedSpaceData.capacity} guests</div>
-                  )}
-                </div>
-
-                {selectedVenueData?.address && (
-                  <div>
-                    <span className="text-sm text-gray-600">Address</span>
-                    <div className="text-sm">{selectedVenueData.address}</div>
+                {booking.isContract ? (
+                  <div className="space-y-3">
+                    <span className="text-sm text-gray-600">Venues & Spaces Used:</span>
+                    <div className="max-h-24 overflow-y-auto space-y-2">
+                      {booking.contractEvents?.map((event: any, index: number) => {
+                        const eventVenue = venues.find((v: any) => v.id === event.venueId);
+                        const eventSpace = eventVenue?.spaces?.find((s: any) => s.id === event.spaceId);
+                        return (
+                          <div key={index} className="text-sm bg-gray-50 p-2 rounded">
+                            <div className="font-medium">{eventVenue?.name || 'Unknown Venue'}</div>
+                            <div className="text-gray-600">
+                              {eventSpace?.name || 'Unknown Space'} • {event.eventDate ? format(new Date(event.eventDate), 'MMM d') : 'TBD'}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
+                ) : (
+                  <>
+                    <div>
+                      <span className="text-sm text-gray-600">Venue</span>
+                      <div className="font-medium">{selectedVenueData?.name || 'Venue not found'}</div>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm text-gray-600">Space</span>
+                      <div className="font-medium">{selectedSpaceData?.name || 'Space not found'}</div>
+                      {selectedSpaceData && (
+                        <div className="text-sm text-gray-500">Capacity: {selectedSpaceData.capacity} guests</div>
+                      )}
+                    </div>
+
+                    {selectedVenueData?.address && (
+                      <div>
+                        <span className="text-sm text-gray-600">Address</span>
+                        <div className="text-sm">{selectedVenueData.address}</div>
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
