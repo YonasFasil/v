@@ -10,11 +10,13 @@ import { ActiveLeads } from "@/components/dashboard/active-leads";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { EventEditModal } from "@/components/forms/event-edit-modal";
 import { CreateEventModal } from "@/components/forms/create-event-modal";
+import { VoiceBookingModal } from "@/components/ai/voice-booking-modal";
 
 export default function Dashboard() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [showCreateEventModal, setShowCreateEventModal] = useState(false);
+  const [showVoiceBookingModal, setShowVoiceBookingModal] = useState(false);
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
@@ -44,7 +46,7 @@ export default function Dashboard() {
                   <svg className="w-5 h-5 sm:w-6 sm:h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                   </svg>
-                  <h3 className="text-base sm:text-lg font-semibold">AI Insights</h3>
+                  <h3 className="text-base sm:text-lg font-semibold">AI-Powered Venue Management</h3>
                 </div>
                 <p className="text-purple-100 mb-3 text-sm sm:text-base">Your venue utilization is 15% higher than last month. AI suggests focusing on weekend evening slots for maximum revenue.</p>
                 <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm">
@@ -53,15 +55,23 @@ export default function Dashboard() {
                   <span className="bg-white/20 px-2 sm:px-3 py-1 rounded-full">$12K Revenue Opportunity</span>
                 </div>
               </div>
-              <button 
-                onClick={() => {
-                  console.log('AI Insights View Details button clicked');
-                  alert('AI Insights details feature coming soon!');
-                }}
-                className="bg-white/20 hover:bg-white/30 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors w-full sm:w-auto"
-              >
-                View Details
-              </button>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button 
+                  onClick={() => setShowVoiceBookingModal(true)}
+                  className="bg-white/20 hover:bg-white/30 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors w-full sm:w-auto flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                  </svg>
+                  Voice Booking
+                </button>
+                <button 
+                  onClick={() => window.location.href = '/ai-analytics'}
+                  className="bg-white/20 hover:bg-white/30 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors w-full sm:w-auto"
+                >
+                  AI Reports
+                </button>
+              </div>
             </div>
           </div>
 
@@ -91,6 +101,17 @@ export default function Dashboard() {
         <CreateEventModal
           open={showCreateEventModal}
           onOpenChange={setShowCreateEventModal}
+        />
+
+        {/* AI Voice Booking Modal */}
+        <VoiceBookingModal
+          open={showVoiceBookingModal}
+          onOpenChange={setShowVoiceBookingModal}
+          onEventCreated={() => {
+            setShowVoiceBookingModal(false);
+            // Refresh data
+            window.location.reload();
+          }}
         />
       </div>
     </div>

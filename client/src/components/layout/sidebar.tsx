@@ -27,14 +27,13 @@ const navigationItems = [
 ];
 
 const aiFeatures = [
+  { name: "AI Analytics & Reports", href: "/ai-analytics", icon: BarChart3 },
   { name: "Smart Scheduling", href: "/ai/scheduling", icon: Zap },
   { name: "Auto Email Replies", href: "/ai/emails", icon: Mail },
-  { name: "Predictive Analytics", href: "/ai/analytics", icon: BarChart3 },
   { name: "Lead Scoring", href: "/ai/leads", icon: Star },
 ];
 
 const analyticsItems = [
-  { name: "Reports & Insights", href: "/reports", icon: BarChart3 },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 

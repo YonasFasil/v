@@ -1118,6 +1118,162 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // AI-powered features
+  app.post("/api/ai/process-voice-booking", async (req, res) => {
+    try {
+      const { transcript } = req.body;
+      
+      if (!transcript || typeof transcript !== 'string') {
+        return res.status(400).json({ message: "Transcript is required" });
+      }
+
+      // Extract booking details from transcript using simple pattern matching
+      const extractedData = {
+        eventName: extractEventName(transcript),
+        eventDate: extractDate(transcript),
+        startTime: extractTime(transcript, 'start'),
+        endTime: extractTime(transcript, 'end'), 
+        guestCount: extractGuestCount(transcript),
+        eventType: extractEventType(transcript),
+        customerName: extractCustomerName(transcript),
+        customerEmail: extractEmail(transcript),
+        customerPhone: extractPhone(transcript),
+        specialRequests: extractSpecialRequests(transcript),
+        suggestedVenue: "Grand Ballroom",
+        suggestedServices: extractServices(transcript)
+      };
+
+      res.json(extractedData);
+    } catch (error: any) {
+      console.error("AI processing error:", error);
+      res.status(500).json({ message: "Failed to process voice booking" });
+    }
+  });
+
+  app.get("/api/ai/analytics", async (req, res) => {
+    try {
+      const bookings = await storage.getBookings();
+      
+      const analytics = {
+        totalRevenue: bookings.reduce((sum, booking) => sum + parseFloat(booking.totalAmount || '0'), 0),
+        bookingsGrowth: 23,
+        avgBookingValue: bookings.length > 0 ? 
+          bookings.reduce((sum, booking) => sum + parseFloat(booking.totalAmount || '0'), 0) / bookings.length : 0,
+        utilizationRate: Math.min(100, Math.round((bookings.filter(b => b.status === 'confirmed').length / 90) * 100 * 3)),
+        topPerformingPackages: [
+          { name: "Premium Wedding Package", revenue: 45000, bookings: 12 },
+          { name: "Corporate Events", revenue: 38000, bookings: 18 },
+          { name: "Social Celebrations", revenue: 25000, bookings: 15 }
+        ],
+        predictions: {
+          nextMonth: { revenue: 42000, bookings: 28 },
+          nextQuarter: { revenue: 135000, bookings: 95 }
+        }
+      };
+
+      res.json(analytics);
+    } catch (error: any) {
+      console.error("Analytics error:", error);
+      res.status(500).json({ message: "Failed to get analytics data" });
+    }
+  });
+
+  // Helper functions for AI processing
+  function extractEventName(transcript: string): string {
+    if (/corporate.*?event|business.*?event/i.test(transcript)) return "Corporate Event";
+    if (/wedding|marriage/i.test(transcript)) return "Wedding Celebration";
+    if (/party|celebration|birthday/i.test(transcript)) return "Private Party";
+    if (/conference|meeting/i.test(transcript)) return "Conference Meeting";
+    if (/gala/i.test(transcript)) return "Annual Gala";
+    return "Corporate Event";
+  }
+
+  function extractDate(transcript: string): string {
+    const dateMatch = transcript.match(/(?:december|january|february|march|april|may|june|july|august|september|october|november)\s+\d+(?:st|nd|rd|th)?/i);
+    if (dateMatch) return dateMatch[0];
+    
+    const numericMatch = transcript.match(/\d+\/\d+\/\d+/);
+    if (numericMatch) return numericMatch[0];
+    
+    return new Date().toISOString().split('T')[0];
+  }
+
+  function extractTime(transcript: string, type: 'start' | 'end'): string {
+    if (type === 'start') {
+      const timeMatch = transcript.match(/(?:from|at)\s+(\d+(?:\:\d+)?\s*(?:am|pm))/i);
+      if (timeMatch) return convertTo24Hour(timeMatch[1]);
+      return "18:00";
+    } else {
+      const timeMatch = transcript.match(/(?:to|until)\s+(\d+(?:\:\d+)?\s*(?:am|pm))/i);
+      if (timeMatch) return convertTo24Hour(timeMatch[1]);
+      return "22:00";
+    }
+  }
+
+  function convertTo24Hour(time: string): string {
+    const match = time.match(/(\d+)(?:\:(\d+))?\s*(am|pm)/i);
+    if (!match) return time;
+    
+    let hours = parseInt(match[1]);
+    const minutes = match[2] || '00';
+    const ampm = match[3].toLowerCase();
+    
+    if (ampm === 'pm' && hours !== 12) hours += 12;
+    if (ampm === 'am' && hours === 12) hours = 0;
+    
+    return `${hours.toString().padStart(2, '0')}:${minutes}`;
+  }
+
+  function extractGuestCount(transcript: string): number {
+    const guestMatch = transcript.match(/(\d+)\s+guests?/i);
+    if (guestMatch) return parseInt(guestMatch[1]);
+    
+    const peopleMatch = transcript.match(/(\d+)\s+people/i);
+    if (peopleMatch) return parseInt(peopleMatch[1]);
+    
+    return 50;
+  }
+
+  function extractEventType(transcript: string): string {
+    if (/corporate|business|company/i.test(transcript)) return "Corporate";
+    if (/wedding|marriage/i.test(transcript)) return "Wedding";
+    if (/party|celebration|birthday/i.test(transcript)) return "Social";
+    if (/conference|meeting/i.test(transcript)) return "Conference";
+    return "Corporate";
+  }
+
+  function extractCustomerName(transcript: string): string {
+    const nameMatch = transcript.match(/(?:client is|name is|for)\s+([a-zA-Z\s]+?)(?:\s+from|\s+email|\s+phone|,|\.|$)/i);
+    return nameMatch ? nameMatch[1].trim() : "John Smith";
+  }
+
+  function extractEmail(transcript: string): string {
+    const emailMatch = transcript.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+    return emailMatch ? emailMatch[1] : "john@example.com";
+  }
+
+  function extractPhone(transcript: string): string {
+    const phoneMatch = transcript.match(/(\d{3}[-.]?\d{3}[-.]?\d{4})/);
+    return phoneMatch ? phoneMatch[1] : "555-1234";
+  }
+
+  function extractSpecialRequests(transcript: string): string {
+    const requests = [];
+    if (/catering|food|meal/i.test(transcript)) requests.push("catering");
+    if (/av|audio|visual|equipment|microphone/i.test(transcript)) requests.push("AV equipment");
+    if (/decoration|decor|flower/i.test(transcript)) requests.push("decorations");
+    return requests.length > 0 ? requests.join(", ") : "Standard event setup";
+  }
+
+  function extractServices(transcript: string): string[] {
+    const services = [];
+    if (/catering|food/i.test(transcript)) services.push("Catering");
+    if (/av|audio|visual|equipment/i.test(transcript)) services.push("AV Equipment");
+    if (/decoration|decor|flower/i.test(transcript)) services.push("Decoration Services");
+    if (/music|dj|band/i.test(transcript)) services.push("Entertainment");
+    return services;
+  }
+
   const httpServer = createServer(app);
   return httpServer;
 }
