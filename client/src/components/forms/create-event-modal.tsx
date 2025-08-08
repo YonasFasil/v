@@ -380,30 +380,58 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
       // Multiple events - create contract with multiple bookings
       const contractData = {
         customerId: selectedCustomer,
-        title: eventName,
+        contractName: eventName,
         description: `Multi-date event with ${selectedDates.length} dates`,
         status: eventStatus
       };
 
-      const bookingsData = selectedDates.map((date, index) => ({
-        eventName: `${eventName} - Day ${index + 1}`,
-        eventType: "corporate",
-        eventDate: date.date,
-        startTime: convertTimeToHours(date.startTime),
-        endTime: convertTimeToHours(date.endTime),
-        guestCount: date.guestCount || 1,
-        status: eventStatus,
-        customerId: selectedCustomer,
-        venueId: selectedVenue,
-        spaceId: date.spaceId,
-        packageId: date.packageId || null,
-        selectedServices: date.selectedServices?.length ? date.selectedServices : null,
-        pricingModel: selectedPackageData?.pricingModel || "fixed",
-        itemQuantities: date.itemQuantities || {},
-        pricingOverrides: date.pricingOverrides || null,
-        totalAmount: "0", // Will be calculated per booking
-        notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${date.selectedServices?.length || 0} selected`
-      }));
+      const bookingsData = selectedDates.map((date, index) => {
+        // Calculate individual date price
+        let datePrice = 0;
+        if (date.packageId) {
+          const pkg = (packages as any[]).find((p: any) => p.id === date.packageId);
+          if (pkg) {
+            const packagePrice = date.pricingOverrides?.packagePrice ?? parseFloat(pkg.price || 0);
+            datePrice += pkg.pricingModel === 'per_person' 
+              ? packagePrice * (date.guestCount || 1)
+              : packagePrice;
+          }
+        }
+        
+        // Add services price
+        date.selectedServices?.forEach(serviceId => {
+          const service = (services as any[]).find((s: any) => s.id === serviceId);
+          if (service) {
+            const servicePrice = date.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
+            if (service.pricingModel === 'per_person') {
+              datePrice += servicePrice * (date.guestCount || 1);
+            } else {
+              const quantity = date.itemQuantities?.[serviceId] || 1;
+              datePrice += servicePrice * quantity;
+            }
+          }
+        });
+
+        return {
+          eventName: `${eventName} - Day ${index + 1}`,
+          eventType: "corporate",
+          eventDate: date.date,
+          startTime: convertTimeToHours(date.startTime),
+          endTime: convertTimeToHours(date.endTime),
+          guestCount: date.guestCount || 1,
+          status: eventStatus,
+          customerId: selectedCustomer,
+          venueId: selectedVenue,
+          spaceId: date.spaceId,
+          packageId: date.packageId || null,
+          selectedServices: date.selectedServices?.length ? date.selectedServices : null,
+          pricingModel: selectedPackageData?.pricingModel || "fixed",
+          itemQuantities: date.itemQuantities || {},
+          pricingOverrides: date.pricingOverrides || null,
+          totalAmount: datePrice.toString(),
+          notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${date.selectedServices?.length || 0} selected`
+        };
+      });
 
       createContract.mutate({ contractData, bookingsData });
     }
