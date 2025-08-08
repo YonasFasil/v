@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, getDay } from "date-fns";
-import { ChevronLeft, ChevronRight, X, Plus, RotateCcw, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Plus, Minus, RotateCcw, Calendar as CalendarIcon } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -766,25 +766,33 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
 
                         <div className="space-y-4">
                           <div>
-                            <Label className="font-semibold text-gray-700">Number of Guests</Label>
-                            <Input
-                              type="number"
-                              min="1"
-                              value={activeDate.guestCount || 1}
-                              onChange={(e) => updateDateConfig('guestCount', parseInt(e.target.value, 10) || 1)}
-                              className="w-full mt-1 px-3 py-2 border rounded-md"
-                            />
+                            <Label className="text-base font-medium">Guest Count</Label>
+                            <div className="mt-2 flex items-center gap-3">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => updateDateConfig('guestCount', Math.max(1, (activeDate.guestCount || 1) - 1))}
+                              >
+                                <Minus className="h-4 w-4" />
+                              </Button>
+                              <span className="text-lg font-medium px-4">{activeDate.guestCount || 1}</span>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => updateDateConfig('guestCount', (activeDate.guestCount || 1) + 1)}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
 
                           {/* Package Selection */}
                           <div>
-                            <div className="flex items-center justify-between mb-3">
-                              <h4 className="font-semibold text-gray-700">Package Selection</h4>
-                            </div>
-                            
-                            <div className="space-y-3">
+                            <Label className="text-base font-medium">Event Package</Label>
+                            <div className="mt-3 max-h-60 overflow-y-auto">
                               <div className="grid grid-cols-1 gap-3">
-                                {/* No Package Option */}
                                 <div
                                   className={cn(
                                     "p-4 border rounded-lg cursor-pointer transition-all",
@@ -827,26 +835,6 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                         Total: ${(parseFloat(pkg.price) * (activeDate.guestCount || 1)).toFixed(2)} for {activeDate.guestCount || 1} guests
                                       </div>
                                     )}
-                                    {pkg.includedServiceIds?.length > 0 && (
-                                      <div className="mt-2">
-                                        <p className="text-xs text-slate-600 mb-1">Includes:</p>
-                                        <div className="flex flex-wrap gap-1">
-                                          {pkg.includedServiceIds.slice(0, 3).map((serviceId: string) => {
-                                            const service = (services as any[]).find((s: any) => s.id === serviceId);
-                                            return service ? (
-                                              <Badge key={serviceId} variant="secondary" className="text-xs">
-                                                {service.name}
-                                              </Badge>
-                                            ) : null;
-                                          })}
-                                          {pkg.includedServiceIds.length > 3 && (
-                                            <Badge variant="secondary" className="text-xs">
-                                              +{pkg.includedServiceIds.length - 3} more
-                                            </Badge>
-                                          )}
-                                        </div>
-                                      </div>
-                                    )}
                                   </div>
                                 ))}
                               </div>
@@ -856,7 +844,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                           {/* Services Selection */}
                           <div>
                             <div className="flex items-center justify-between mb-3">
-                              <h4 className="font-semibold text-gray-700">Additional Services</h4>
+                              <Label className="text-base font-medium">Additional Services</Label>
                               <Button
                                 type="button"
                                 variant="outline"
@@ -926,35 +914,36 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                               </Card>
                             )}
 
-                            <div className="mt-3 space-y-3 max-h-60 overflow-y-auto">
-                              {(services as any[]).map((service: any) => {
-                                const isSelected = activeDate.selectedServices?.includes(service.id) || false;
-                                const basePrice = parseFloat(service.price || 0);
-                                const overridePrice = activeDate.pricingOverrides?.servicePrices?.[service.id];
-                                const displayPrice = overridePrice ?? basePrice;
-                                
-                                return (
-                                  <label key={service.id} className="block">
-                                    <div className={cn(
-                                      "p-3 border rounded-lg cursor-pointer transition-all",
-                                      isSelected ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
-                                    )}>
-                                      <div className="flex items-start gap-3">
-                                        <Checkbox 
-                                          checked={isSelected}
-                                          onCheckedChange={(checked) => {
-                                            const currentServices = activeDate.selectedServices || [];
-                                            const newServices = checked 
-                                              ? [...currentServices, service.id]
-                                              : currentServices.filter(id => id !== service.id);
-                                            updateDateConfig('selectedServices', newServices);
-                                          }}
-                                        />
+                            <div className="mt-3 max-h-60 overflow-y-auto">
+                              <div className="grid grid-cols-1 gap-3">
+                                {(services as any[]).map((service: any) => {
+                                  const isSelected = activeDate.selectedServices?.includes(service.id) || false;
+                                  const basePrice = parseFloat(service.price || 0);
+                                  const overridePrice = activeDate.pricingOverrides?.servicePrices?.[service.id];
+                                  const displayPrice = overridePrice ?? basePrice;
+                                  
+                                  return (
+                                    <div
+                                      key={service.id}
+                                      className={cn(
+                                        "p-4 border rounded-lg cursor-pointer transition-all",
+                                        isSelected ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
+                                      )}
+                                      onClick={() => {
+                                        const currentServices = activeDate.selectedServices || [];
+                                        const newServices = isSelected 
+                                          ? currentServices.filter(id => id !== service.id)
+                                          : [...currentServices, service.id];
+                                        updateDateConfig('selectedServices', newServices);
+                                      }}
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <Checkbox checked={isSelected} readOnly />
                                         <div className="flex-1">
-                                          <div className="font-medium text-sm">{service.name}</div>
-                                          <div className="text-xs text-slate-600 mt-1">{service.description}</div>
-                                          <div className="text-sm text-green-600 font-medium mt-1">
-                                            ${displayPrice.toFixed(2)} {service.pricingModel === 'per_person' ? 'per person' : 'each'}
+                                          <div className="font-medium">{service.name}</div>
+                                          <div className="text-sm text-slate-600">{service.description}</div>
+                                          <div className="text-lg font-semibold text-green-600 mt-2">
+                                            ${displayPrice.toFixed(2)} {service.pricingModel === 'per_person' ? 'per person' : ''}
                                           </div>
                                         </div>
                                       </div>
@@ -969,6 +958,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                                 min="1"
                                                 value={activeDate.itemQuantities?.[service.id] || 1}
                                                 onChange={(e) => {
+                                                  e.stopPropagation();
                                                   const newQuantities = {
                                                     ...activeDate.itemQuantities,
                                                     [service.id]: Math.max(1, parseInt(e.target.value, 10) || 1)
@@ -986,6 +976,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                               step="0.01"
                                               value={activeDate.pricingOverrides?.servicePrices?.[service.id] ?? ''}
                                               onChange={(e) => {
+                                                e.stopPropagation();
                                                 const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
                                                 updateDateConfig('pricingOverrides', {
                                                   ...activeDate.pricingOverrides,
@@ -1002,9 +993,9 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                         </div>
                                       )}
                                     </div>
-                                  </label>
-                                );
-                              })}
+                                  );
+                                })}
+                              </div>
                             </div>
                           </div>
                         </div>

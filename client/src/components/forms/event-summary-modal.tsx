@@ -264,35 +264,81 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
                 <CardTitle>Package & Services</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {selectedPackageData ? (
-                  <div className="border-l-4 border-blue-500 bg-blue-50 p-3 rounded-r">
-                    <div className="font-medium text-blue-900">{selectedPackageData.name}</div>
-                    <div className="text-sm text-blue-700">{selectedPackageData.description}</div>
-                    <div className="text-sm font-medium text-blue-800 mt-1">
-                      ${selectedPackageData.price} {selectedPackageData.pricingModel === 'per_person' ? '/ person' : 'total'}
-                    </div>
+                {booking.isContract ? (
+                  <div className="space-y-4">
+                    {/* Contract Packages Summary */}
+                    {booking.contractEvents?.map((event: any, index: number) => {
+                      const eventPackage = packages.find((p: any) => p.id === event.packageId);
+                      const eventServices = services.filter((s: any) => event.selectedServices?.includes(s.id));
+                      
+                      return (
+                        <div key={index} className="border border-gray-200 rounded-lg p-3">
+                          <div className="text-sm font-medium text-gray-800 mb-2">
+                            {event.eventDate ? format(new Date(event.eventDate), 'MMM d, yyyy') : 'TBD'}
+                          </div>
+                          
+                          {eventPackage ? (
+                            <div className="border-l-4 border-blue-500 bg-blue-50 p-3 rounded-r mb-3">
+                              <div className="font-medium text-blue-900">{eventPackage.name}</div>
+                              <div className="text-sm text-blue-700">{eventPackage.description}</div>
+                              <div className="text-sm font-medium text-blue-800 mt-1">
+                                ${eventPackage.price} {eventPackage.pricingModel === 'per_person' ? '/ person' : 'total'}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-sm text-gray-500 mb-3">No package selected</div>
+                          )}
+
+                          {eventServices.length > 0 && (
+                            <div>
+                              <div className="text-sm font-medium text-gray-700 mb-2">Services:</div>
+                              <div className="space-y-1">
+                                {eventServices.map((service: any) => (
+                                  <div key={service.id} className="flex justify-between items-center p-2 bg-gray-50 rounded text-sm">
+                                    <span className="font-medium">{service.name}</span>
+                                    <span>${service.price} {service.pricingModel === 'per_person' ? '/ person' : ''}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
-                  <div className="text-sm text-gray-500">No package selected</div>
-                )}
-
-                {selectedServicesData.length > 0 && (
-                  <div>
-                    <div className="text-sm font-medium text-gray-700 mb-2">Additional Services:</div>
-                    <div className="space-y-2">
-                      {selectedServicesData.map((service: any) => (
-                        <div key={service.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                          <div>
-                            <div className="font-medium text-sm">{service.name}</div>
-                            <div className="text-xs text-gray-600">{service.description}</div>
-                          </div>
-                          <div className="text-sm font-medium">
-                            ${service.price} {service.pricingModel === 'per_person' ? '/ person' : 'total'}
-                          </div>
+                  <>
+                    {selectedPackageData ? (
+                      <div className="border-l-4 border-blue-500 bg-blue-50 p-3 rounded-r">
+                        <div className="font-medium text-blue-900">{selectedPackageData.name}</div>
+                        <div className="text-sm text-blue-700">{selectedPackageData.description}</div>
+                        <div className="text-sm font-medium text-blue-800 mt-1">
+                          ${selectedPackageData.price} {selectedPackageData.pricingModel === 'per_person' ? '/ person' : 'total'}
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-500">No package selected</div>
+                    )}
+
+                    {selectedServicesData.length > 0 && (
+                      <div>
+                        <div className="text-sm font-medium text-gray-700 mb-2">Additional Services:</div>
+                        <div className="space-y-2">
+                          {selectedServicesData.map((service: any) => (
+                            <div key={service.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                              <div>
+                                <div className="font-medium text-sm">{service.name}</div>
+                                <div className="text-xs text-gray-600">{service.description}</div>
+                              </div>
+                              <div className="text-sm font-medium">
+                                ${service.price} {service.pricingModel === 'per_person' ? '/ person' : 'total'}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
