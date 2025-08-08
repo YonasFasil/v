@@ -354,9 +354,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const contract = await storage.createContract(validatedContract);
       
       // Create all bookings under this contract
-      const validatedBookings = bookingsData.map((booking: any) => 
-        insertBookingSchema.parse({ ...booking, contractId: contract.id })
-      );
+      const validatedBookings = bookingsData.map((booking: any) => {
+        // Convert date strings to Date objects if they're strings
+        const bookingData = {
+          ...booking,
+          contractId: contract.id,
+          eventDate: typeof booking.eventDate === 'string' 
+            ? new Date(booking.eventDate) 
+            : booking.eventDate,
+          endDate: booking.endDate && typeof booking.endDate === 'string'
+            ? new Date(booking.endDate)
+            : booking.endDate,
+          guestCount: typeof booking.guestCount === 'string' 
+            ? parseInt(booking.guestCount, 10)
+            : booking.guestCount
+        };
+        
+        return insertBookingSchema.parse(bookingData);
+      });
       
       const bookings = await storage.createMultipleBookings(validatedBookings, contract.id);
       
