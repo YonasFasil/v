@@ -34,6 +34,7 @@ const aiFeatures = [
 ];
 
 const analyticsItems = [
+  { name: "Reports & Analytics", href: "/reports", icon: BarChart3 },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 

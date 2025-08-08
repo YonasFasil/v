@@ -13,6 +13,7 @@ import Venues from "@/pages/venues";
 import Packages from "@/pages/packages";
 import FunctionalSettings from "@/pages/functional-settings";
 import AIAnalytics from "@/pages/ai-analytics";
+import Reports from "@/pages/reports";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/venues" component={Venues} />
       <Route path="/packages" component={Packages} />
       <Route path="/ai-analytics" component={AIAnalytics} />
+      <Route path="/reports" component={Reports} />
       <Route path="/settings" component={FunctionalSettings} />
       <Route component={NotFound} />
     </Switch>
