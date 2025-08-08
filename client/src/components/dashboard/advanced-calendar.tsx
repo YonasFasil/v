@@ -364,7 +364,7 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
                           const isCurrentMonth = isSameMonth(day, currentDate);
                           
                           const dayBookings = venueItem.bookings.filter((booking: any) => 
-                            booking.spaceId === space.id && isSameDay(new Date(booking.eventDate), day)
+                            booking.spaceId === space.id && booking.eventDate && isSameDay(new Date(booking.eventDate), day)
                           );
                           
                           // Sort bookings by start time (earliest first)
@@ -388,11 +388,15 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
                                 {sortedBookings.map((booking: any) => (
                                   <div
                                     key={booking.id}
-                                    className="bg-blue-100 border-l-2 border-blue-500 p-1 text-xs rounded cursor-pointer hover:bg-blue-200 transition-colors"
+                                    className={`border-l-2 p-1 text-xs rounded cursor-pointer hover:opacity-80 transition-colors ${
+                                      booking.contractId 
+                                        ? 'bg-purple-100 border-purple-500 text-purple-800' 
+                                        : 'bg-blue-100 border-blue-500 text-blue-800'
+                                    }`}
                                     onClick={() => onEventClick?.(booking)}
                                   >
                                     <div className="text-gray-600 mb-1">
-                                      {format(new Date(booking.eventDate), 'MMM d, yyyy')}
+                                      {booking.eventDate ? format(new Date(booking.eventDate), 'MMM d, yyyy') : 'Date TBD'}
                                     </div>
                                     <div className="font-semibold text-blue-800">
                                       {space.name} @ {booking.startTime}
@@ -428,7 +432,7 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
                           {booking.venueName} • {booking.customerName} • {booking.guestCount} guests
                         </div>
                         <div className="text-xs text-slate-500">
-                          {format(new Date(booking.eventDate), 'MMM d, yyyy')} • {booking.startTime} - {booking.endTime}
+                          {booking.eventDate ? format(new Date(booking.eventDate), 'MMM d, yyyy') : 'Date TBD'} • {booking.startTime} - {booking.endTime}
                         </div>
                       </div>
                       <div className="text-right">

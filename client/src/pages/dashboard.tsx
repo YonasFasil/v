@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
@@ -17,6 +18,25 @@ export default function Dashboard() {
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [showCreateEventModal, setShowCreateEventModal] = useState(false);
   const [showVoiceBookingModal, setShowVoiceBookingModal] = useState(false);
+  
+  // Load full contract data if event is part of a contract
+  const { data: allBookings = [] } = useQuery({ queryKey: ["/api/bookings"] });
+  
+  const handleEventClick = async (booking: any) => {
+    if (booking.contractId) {
+      // Find the full contract representation from the bookings list
+      const contractBooking = allBookings.find((b: any) => 
+        b.isContract && b.contractInfo?.id === booking.contractId
+      );
+      if (contractBooking) {
+        setSelectedEvent(contractBooking);
+      } else {
+        setSelectedEvent(booking);
+      }
+    } else {
+      setSelectedEvent(booking);
+    }
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
@@ -79,7 +99,7 @@ export default function Dashboard() {
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-              <AdvancedCalendar onEventClick={setSelectedEvent} />
+              <AdvancedCalendar onEventClick={handleEventClick} />
               <RecentBookings />
             </div>
             

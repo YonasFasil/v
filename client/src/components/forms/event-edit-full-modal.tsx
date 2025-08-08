@@ -95,9 +95,9 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
         
         // Initialize all contract events as selected dates
         const contractDates = booking.contractEvents.map((event: any) => ({
-          date: new Date(event.eventDate),
-          startTime: event.startTime || "09:00 AM",
-          endTime: event.endTime || "05:00 PM",
+          date: event.eventDate ? new Date(event.eventDate) : new Date(),
+          startTime: event.startTime || "09:00",
+          endTime: event.endTime || "17:00",
           spaceId: event.spaceId,
           packageId: event.packageId || "",
           selectedServices: event.selectedServices || [],
@@ -117,9 +117,9 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
         
         // Initialize dates with existing booking data
         const bookingDate: SelectedDate = {
-          date: new Date(booking.eventDate),
-          startTime: booking.startTime || "09:00 AM",
-          endTime: booking.endTime || "05:00 PM", 
+          date: booking.eventDate ? new Date(booking.eventDate) : new Date(),
+          startTime: booking.startTime || "09:00",
+          endTime: booking.endTime || "17:00", 
           spaceId: booking.spaceId,
           packageId: booking.packageId || "",
           selectedServices: booking.selectedServices || [],

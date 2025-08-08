@@ -1216,7 +1216,7 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
         
         res.json({ mode: 'venues', data: venueCalendarData });
       } else {
-        // Mode 1: Events by dates (monthly/weekly view)
+        // Mode 1: Events by dates (monthly/weekly view) - return individual events, not grouped contracts
         const eventsWithDetails = await Promise.all(
           bookings.map(async (booking) => {
             const customer = customers.find(c => c.id === booking.customerId);
