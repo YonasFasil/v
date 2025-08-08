@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -478,8 +478,9 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-[95vw] sm:max-w-6xl max-h-[90vh] p-0 flex flex-col mx-2 sm:mx-4 overflow-hidden">
+    <Fragment>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="w-full max-w-[95vw] sm:max-w-6xl max-h-[90vh] p-0 flex flex-col mx-2 sm:mx-4 overflow-hidden">
         <DialogTitle className="sr-only">Create Event</DialogTitle>
         <DialogDescription className="sr-only">
           Create a new event booking with date selection, venue configuration, and customer details.
@@ -539,10 +540,9 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
             {/* Step Content */}
             <div className="flex-1 overflow-hidden">
               <div className="h-full p-3 sm:p-6 overflow-y-auto">
-                <div>
                   {/* Step 1: Date & Venue Selection */}
                   {currentStep === 1 && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
                   {/* Left: Calendar */}
                   <div>
                     <div className="flex items-center justify-between mb-4">
@@ -907,7 +907,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                       }}
                                     >
                                       <div className="flex items-center gap-3">
-                                        <Checkbox checked={isSelected} readOnly />
+                                        <Checkbox checked={isSelected} disabled />
                                         <div className="flex-1">
                                           <div className="font-medium">{service.name}</div>
                                           <div className="text-sm text-slate-600">{service.description}</div>
@@ -968,7 +968,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                             </div>
                           </div>
                         </div>
-                    )}
+                )}
                 </div>
               )}
 
@@ -1133,10 +1133,8 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                       </div>
                     </div>
                   </div>
-                  )}
                 </div>
-              </div>
-            </div>
+              )}
 
             {/* Fixed Footer */}
             <div className="border-t border-slate-200 p-3 sm:p-6 flex flex-col sm:flex-row gap-3 sm:gap-0 justify-between items-center bg-white flex-shrink-0 mt-auto">
@@ -1172,7 +1170,8 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
             </div>
           </div>
         </div>
-      </DialogContent>
+        </DialogContent>
+      </Dialog>
 
       {/* Copy Configuration Modal */}
       <Dialog open={showCopyModal} onOpenChange={setShowCopyModal}>
@@ -1306,6 +1305,6 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
           </div>
         </DialogContent>
       </Dialog>
-    </Dialog>
+    </Fragment>
   );
 }
