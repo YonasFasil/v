@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { 
   insertBookingSchema, 
   insertCustomerSchema, 
+  insertContractSchema,
   insertProposalSchema, 
   insertPaymentSchema,
   insertTaskSchema,
@@ -165,6 +166,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Contracts
+  app.get("/api/contracts", async (req, res) => {
+    try {
+      const contracts = await storage.getContracts();
+      res.json(contracts);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch contracts" });
+    }
+  });
+
+  app.post("/api/contracts", async (req, res) => {
+    try {
+      const validatedData = insertContractSchema.parse(req.body);
+      const contract = await storage.createContract(validatedData);
+      res.json(contract);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid contract data" });
+    }
+  });
+
+  app.get("/api/contracts/:id", async (req, res) => {
+    try {
+      const contract = await storage.getContract(req.params.id);
+      if (!contract) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+      res.json(contract);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch contract" });
+    }
+  });
+
+  app.get("/api/contracts/:id/bookings", async (req, res) => {
+    try {
+      const bookings = await storage.getBookingsByContract(req.params.id);
+      res.json(bookings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch contract bookings" });
+    }
+  });
+
+  app.put("/api/contracts/:id", async (req, res) => {
+    try {
+      const contract = await storage.updateContract(req.params.id, req.body);
+      if (!contract) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+      res.json(contract);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update contract" });
+    }
+  });
+
   // Bookings
   app.get("/api/bookings", async (req, res) => {
     try {
@@ -287,6 +341,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Booking delete error:', error);
       res.status(500).json({ message: "Failed to delete booking" });
+    }
+  });
+
+  // Create multiple bookings under a contract
+  app.post("/api/bookings/contract", async (req, res) => {
+    try {
+      const { contractData, bookingsData } = req.body;
+      
+      // Create the contract first
+      const validatedContract = insertContractSchema.parse(contractData);
+      const contract = await storage.createContract(validatedContract);
+      
+      // Create all bookings under this contract
+      const validatedBookings = bookingsData.map((booking: any) => 
+        insertBookingSchema.parse({ ...booking, contractId: contract.id })
+      );
+      
+      const bookings = await storage.createMultipleBookings(validatedBookings, contract.id);
+      
+      // Update contract total amount
+      const totalAmount = bookings.reduce((sum, booking) => {
+        return sum + (booking.totalAmount ? parseFloat(booking.totalAmount) : 0);
+      }, 0);
+      
+      await storage.updateContract(contract.id, { totalAmount: totalAmount.toString() });
+      
+      res.json({ contract, bookings });
+    } catch (error) {
+      console.error('Contract booking creation error:', error);
+      res.status(400).json({ message: "Invalid contract or booking data" });
     }
   });
 

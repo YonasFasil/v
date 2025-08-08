@@ -239,7 +239,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
     }
   });
 
-  // Create booking mutation
+  // Create booking mutation (single event)
   const createBooking = useMutation({
     mutationFn: async (bookingData: any) => {
       const response = await apiRequest("POST", "/api/bookings", bookingData);
@@ -255,6 +255,32 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
     onError: (error: any) => {
       toast({ 
         title: "Failed to create event", 
+        description: error.message,
+        variant: "destructive" 
+      });
+    }
+  });
+
+  // Create contract with multiple bookings mutation
+  const createContract = useMutation({
+    mutationFn: async (contractData: any) => {
+      const response = await apiRequest("POST", "/api/bookings/contract", contractData);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/metrics"] });
+      toast({ 
+        title: "Multi-event contract created successfully!", 
+        description: `Created contract with ${data.bookings.length} events` 
+      });
+      onOpenChange(false);
+      resetForm();
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to create contract", 
         description: error.message,
         variant: "destructive" 
       });
@@ -300,54 +326,87 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
     });
   };
 
+  const convertTimeToHours = (timeStr: string) => {
+    return timeStr.replace(/\s(AM|PM)/g, '').replace(/(\d+):(\d+)/, (_, h, m) => {
+      const hour = parseInt(h);
+      const isAM = timeStr.includes('AM');
+      const hour24 = isAM ? (hour === 12 ? 0 : hour) : (hour === 12 ? 12 : hour + 12);
+      return `${hour24.toString().padStart(2, '0')}:${m}`;
+    });
+  };
+
   const handleSubmit = () => {
     if (!eventName || !selectedCustomer || selectedDates.length === 0) {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
       return;
     }
 
-    // Create booking for first selected date (extend for multiple dates if needed)
-    const firstDate = selectedDates[0];
-    
-    if (!firstDate.spaceId) {
+    // Validate all dates have spaces selected
+    const missingSpaces = selectedDates.filter(date => !date.spaceId);
+    if (missingSpaces.length > 0) {
       toast({ 
         title: "Space selection required", 
-        description: "Please select a space for this event",
+        description: `Please select a space for ${missingSpaces.length} event date${missingSpaces.length > 1 ? 's' : ''}`,
         variant: "destructive" 
       });
       return;
     }
-    const bookingData = {
-      eventName,
-      eventType: "corporate",
-      eventDate: firstDate.date,
-      startTime: firstDate.startTime.replace(/\s(AM|PM)/g, '').replace(/(\d+):(\d+)/, (_, h, m) => {
-        const hour = parseInt(h);
-        const isAM = firstDate.startTime.includes('AM');
-        const hour24 = isAM ? (hour === 12 ? 0 : hour) : (hour === 12 ? 12 : hour + 12);
-        return `${hour24.toString().padStart(2, '0')}:${m}`;
-      }),
-      endTime: firstDate.endTime.replace(/\s(AM|PM)/g, '').replace(/(\d+):(\d+)/, (_, h, m) => {
-        const hour = parseInt(h);
-        const isAM = firstDate.endTime.includes('AM');
-        const hour24 = isAM ? (hour === 12 ? 0 : hour) : (hour === 12 ? 12 : hour + 12);
-        return `${hour24.toString().padStart(2, '0')}:${m}`;
-      }),
-      guestCount: firstDate.guestCount || 1,
-      status: eventStatus,
-      customerId: selectedCustomer,
-      venueId: selectedVenue,
-      spaceId: firstDate.spaceId,
-      packageId: firstDate.packageId || null,
-      selectedServices: firstDate.selectedServices?.length ? firstDate.selectedServices : null,
-      pricingModel: selectedPackageData?.pricingModel || "fixed",
-      itemQuantities: firstDate.itemQuantities || {},
-      pricingOverrides: firstDate.pricingOverrides || null,
-      totalAmount: totalPrice.toString(),
-      notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${firstDate.selectedServices?.length || 0} selected`
-    };
 
-    createBooking.mutate(bookingData);
+    if (selectedDates.length === 1) {
+      // Single event - use regular booking endpoint
+      const firstDate = selectedDates[0];
+      const bookingData = {
+        eventName,
+        eventType: "corporate",
+        eventDate: firstDate.date,
+        startTime: convertTimeToHours(firstDate.startTime),
+        endTime: convertTimeToHours(firstDate.endTime),
+        guestCount: firstDate.guestCount || 1,
+        status: eventStatus,
+        customerId: selectedCustomer,
+        venueId: selectedVenue,
+        spaceId: firstDate.spaceId,
+        packageId: firstDate.packageId || null,
+        selectedServices: firstDate.selectedServices?.length ? firstDate.selectedServices : null,
+        pricingModel: selectedPackageData?.pricingModel || "fixed",
+        itemQuantities: firstDate.itemQuantities || {},
+        pricingOverrides: firstDate.pricingOverrides || null,
+        totalAmount: totalPrice.toString(),
+        notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${firstDate.selectedServices?.length || 0} selected`
+      };
+
+      createBooking.mutate(bookingData);
+    } else {
+      // Multiple events - create contract with multiple bookings
+      const contractData = {
+        customerId: selectedCustomer,
+        title: eventName,
+        description: `Multi-date event with ${selectedDates.length} dates`,
+        status: eventStatus
+      };
+
+      const bookingsData = selectedDates.map((date, index) => ({
+        eventName: `${eventName} - Day ${index + 1}`,
+        eventType: "corporate",
+        eventDate: date.date,
+        startTime: convertTimeToHours(date.startTime),
+        endTime: convertTimeToHours(date.endTime),
+        guestCount: date.guestCount || 1,
+        status: eventStatus,
+        customerId: selectedCustomer,
+        venueId: selectedVenue,
+        spaceId: date.spaceId,
+        packageId: date.packageId || null,
+        selectedServices: date.selectedServices?.length ? date.selectedServices : null,
+        pricingModel: selectedPackageData?.pricingModel || "fixed",
+        itemQuantities: date.itemQuantities || {},
+        pricingOverrides: date.pricingOverrides || null,
+        totalAmount: "0", // Will be calculated per booking
+        notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${date.selectedServices?.length || 0} selected`
+      }));
+
+      createContract.mutate({ contractData, bookingsData });
+    }
   };
 
   const nextStep = () => {

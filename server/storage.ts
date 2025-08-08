@@ -3,6 +3,7 @@ import {
   type Venue, type InsertVenue,
   type Space, type InsertSpace,
   type Customer, type InsertCustomer,
+  type Contract, type InsertContract,
   type Booking, type InsertBooking,
   type Proposal, type InsertProposal,
   type Payment, type InsertPayment,
@@ -39,12 +40,22 @@ export interface IStorage {
   createCustomer(customer: InsertCustomer): Promise<Customer>;
   updateCustomer(id: string, customer: Partial<InsertCustomer>): Promise<Customer | undefined>;
 
+  // Contracts
+  getContracts(): Promise<Contract[]>;
+  getContract(id: string): Promise<Contract | undefined>;
+  getContractsByCustomer(customerId: string): Promise<Contract[]>;
+  createContract(contract: InsertContract): Promise<Contract>;
+  updateContract(id: string, contract: Partial<InsertContract>): Promise<Contract | undefined>;
+  deleteContract(id: string): Promise<boolean>;
+
   // Bookings
   getBookings(): Promise<Booking[]>;
   getBooking(id: string): Promise<Booking | undefined>;
   getBookingsByCustomer(customerId: string): Promise<Booking[]>;
+  getBookingsByContract(contractId: string): Promise<Booking[]>;
   createBooking(booking: InsertBooking): Promise<Booking>;
   updateBooking(id: string, booking: Partial<InsertBooking>): Promise<Booking | undefined>;
+  createMultipleBookings(bookings: InsertBooking[], contractId: string): Promise<Booking[]>;
 
   // Proposals
   getProposals(): Promise<Proposal[]>;
@@ -105,6 +116,7 @@ export class MemStorage implements IStorage {
   private venues: Map<string, Venue>;
   private spaces: Map<string, Space>;
   private customers: Map<string, Customer>;
+  private contracts: Map<string, Contract>;
   private bookings: Map<string, Booking>;
   private proposals: Map<string, Proposal>;
   private payments: Map<string, Payment>;
@@ -119,6 +131,7 @@ export class MemStorage implements IStorage {
     this.venues = new Map();
     this.spaces = new Map();
     this.customers = new Map();
+    this.contracts = new Map();
     this.bookings = new Map();
     this.proposals = new Map();
     this.payments = new Map();
@@ -506,6 +519,45 @@ export class MemStorage implements IStorage {
     return updated;
   }
 
+  // Contracts
+  async getContracts(): Promise<Contract[]> {
+    return Array.from(this.contracts.values());
+  }
+
+  async getContract(id: string): Promise<Contract | undefined> {
+    return this.contracts.get(id);
+  }
+
+  async getContractsByCustomer(customerId: string): Promise<Contract[]> {
+    return Array.from(this.contracts.values()).filter(contract => contract.customerId === customerId);
+  }
+
+  async createContract(insertContract: InsertContract): Promise<Contract> {
+    const id = randomUUID();
+    const contract: Contract = { 
+      ...insertContract, 
+      id, 
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      status: insertContract.status || "draft",
+      totalAmount: insertContract.totalAmount || null
+    };
+    this.contracts.set(id, contract);
+    return contract;
+  }
+
+  async updateContract(id: string, contract: Partial<InsertContract>): Promise<Contract | undefined> {
+    const existing = this.contracts.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...contract, updatedAt: new Date() };
+    this.contracts.set(id, updated);
+    return updated;
+  }
+
+  async deleteContract(id: string): Promise<boolean> {
+    return this.contracts.delete(id);
+  }
+
   // Bookings
   async getBookings(): Promise<Booking[]> {
     return Array.from(this.bookings.values());
@@ -519,12 +571,17 @@ export class MemStorage implements IStorage {
     return Array.from(this.bookings.values()).filter(booking => booking.customerId === customerId);
   }
 
+  async getBookingsByContract(contractId: string): Promise<Booking[]> {
+    return Array.from(this.bookings.values()).filter(booking => booking.contractId === contractId);
+  }
+
   async createBooking(insertBooking: InsertBooking): Promise<Booking> {
     const id = randomUUID();
     const booking: Booking = { 
       ...insertBooking, 
       id, 
       createdAt: new Date(),
+      contractId: insertBooking.contractId || null,
       customerId: insertBooking.customerId || null,
       venueId: insertBooking.venueId || null,
       totalAmount: insertBooking.totalAmount || null,
@@ -542,6 +599,15 @@ export class MemStorage implements IStorage {
     const updated = { ...existing, ...booking };
     this.bookings.set(id, updated);
     return updated;
+  }
+
+  async createMultipleBookings(bookings: InsertBooking[], contractId: string): Promise<Booking[]> {
+    const createdBookings: Booking[] = [];
+    for (const insertBooking of bookings) {
+      const booking = await this.createBooking({ ...insertBooking, contractId });
+      createdBookings.push(booking);
+    }
+    return createdBookings;
   }
 
   // Proposals
@@ -573,14 +639,6 @@ export class MemStorage implements IStorage {
     };
     this.proposals.set(id, proposal);
     return proposal;
-  }
-
-  async updateProposal(id: string, proposal: Partial<InsertProposal>): Promise<Proposal | undefined> {
-    const existing = this.proposals.get(id);
-    if (!existing) return undefined;
-    const updated = { ...existing, ...proposal };
-    this.proposals.set(id, updated);
-    return updated;
   }
 
   async updateProposal(id: string, proposal: Partial<InsertProposal>): Promise<Proposal | undefined> {
