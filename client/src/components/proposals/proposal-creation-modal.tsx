@@ -49,6 +49,8 @@ export function ProposalCreationModal({
     selectedSpace: string;
     selectedPackage: string;
     selectedServices: string[];
+    customPackagePrice?: number;
+    customServicePrices?: { [serviceId: string]: number };
   }>>([]);
   
   // New customer creation
@@ -116,8 +118,10 @@ export function ProposalCreationModal({
           selectedVenue: eventDate.venue || "",
           selectedSpace: eventDate.space || "",
           selectedPackage: eventDate.selectedPackage?.id || "none",
-          selectedServices: eventDate.selectedServices || []
+          selectedServices: eventDate.selectedServices || [],
+          customServicePrices: {}
         }));
+        
         setEvents(newEvents);
       } else {
         // Single event fallback
@@ -132,7 +136,8 @@ export function ProposalCreationModal({
           selectedVenue: eventData.venueId || "",
           selectedSpace: eventData.spaceId || "",
           selectedPackage: eventData.packageId || "none",
-          selectedServices: eventData.selectedServices || []
+          selectedServices: eventData.selectedServices || [],
+          customServicePrices: {}
         }]);
       }
       
@@ -156,7 +161,8 @@ export function ProposalCreationModal({
       selectedVenue: "",
       selectedSpace: "",
       selectedPackage: "none",
-      selectedServices: []
+      selectedServices: [],
+      customServicePrices: {}
     };
     setEvents([...events, newEvent]);
   };
@@ -171,29 +177,33 @@ export function ProposalCreationModal({
     ));
   };
 
-  // Calculate pricing for all events
+  // Calculate pricing for all events with custom pricing support
   useEffect(() => {
     let total = 0;
     
     events.forEach(event => {
-      // Add package price
+      // Add package price (custom or default)
       if (event.selectedPackage && event.selectedPackage !== "none") {
         const pkg = packages.find((p: any) => p.id === event.selectedPackage);
         if (pkg) {
+          const basePrice = event.customPackagePrice !== undefined ? event.customPackagePrice : parseFloat(pkg.price);
           const packagePrice = pkg.pricingModel === "per_person" 
-            ? parseFloat(pkg.price) * event.guestCount 
-            : parseFloat(pkg.price);
+            ? basePrice * event.guestCount 
+            : basePrice;
           total += packagePrice;
         }
       }
       
-      // Add service prices
+      // Add service prices (custom or default)
       event.selectedServices.forEach(serviceId => {
         const service = services.find((s: any) => s.id === serviceId);
         if (service) {
-          const servicePrice = service.pricingModel === "per_person"
-            ? parseFloat(service.price) * event.guestCount
+          const basePrice = event.customServicePrices?.[serviceId] !== undefined 
+            ? event.customServicePrices[serviceId] 
             : parseFloat(service.price);
+          const servicePrice = service.pricingModel === "per_person"
+            ? basePrice * event.guestCount
+            : basePrice;
           total += servicePrice;
         }
       });
@@ -552,26 +562,139 @@ export function ProposalCreationModal({
                           ))}
                         </SelectContent>
                       </Select>
+                      
+                      {event.selectedPackage && event.selectedPackage !== "none" && (
+                        <div className="mt-2">
+                          <Label className="text-sm">Custom Package Price (Optional)</Label>
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder={(() => {
+                                  const pkg = packages.find((p: any) => p.id === event.selectedPackage);
+                                  return pkg ? `Default: $${pkg.price}` : "Enter custom price";
+                                })()}
+                                value={event.customPackagePrice || ""}
+                                onChange={(e) => updateEvent(event.id, 'customPackagePrice', e.target.value ? parseFloat(e.target.value) : undefined)}
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => updateEvent(event.id, 'customPackagePrice', undefined)}
+                              >
+                                Reset
+                              </Button>
+                            </div>
+                            
+                            {/* Quick discount/markup buttons */}
+                            <div className="flex gap-1">
+                              {[10, 15, 20, 25].map(discount => (
+                                <Button
+                                  key={discount}
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs"
+                                  onClick={() => {
+                                    const pkg = packages.find((p: any) => p.id === event.selectedPackage);
+                                    if (pkg) {
+                                      const discountedPrice = parseFloat(pkg.price) * (1 - discount / 100);
+                                      updateEvent(event.id, 'customPackagePrice', discountedPrice);
+                                    }
+                                  }}
+                                >
+                                  -{discount}%
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div>
                       <Label>Add-on Services</Label>
-                      <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
+                      <div className="space-y-3 max-h-48 overflow-y-auto">
                         {services.map((service: any) => (
-                          <div key={service.id} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`${event.id}-service-${service.id}`}
-                              checked={event.selectedServices.includes(service.id)}
-                              onCheckedChange={(checked) => {
-                                const newServices = checked 
-                                  ? [...event.selectedServices, service.id]
-                                  : event.selectedServices.filter(id => id !== service.id);
-                                updateEvent(event.id, 'selectedServices', newServices);
-                              }}
-                            />
-                            <Label htmlFor={`${event.id}-service-${service.id}`} className="text-sm">
-                              {service.name} - ${service.price}{service.pricingModel === "per_person" ? "/person" : ""}
-                            </Label>
+                          <div key={service.id} className="space-y-2">
+                            <div className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`${event.id}-service-${service.id}`}
+                                checked={event.selectedServices.includes(service.id)}
+                                onCheckedChange={(checked) => {
+                                  const newServices = checked 
+                                    ? [...event.selectedServices, service.id]
+                                    : event.selectedServices.filter(id => id !== service.id);
+                                  updateEvent(event.id, 'selectedServices', newServices);
+                                }}
+                              />
+                              <Label htmlFor={`${event.id}-service-${service.id}`} className="text-sm flex-1">
+                                {service.name} - ${service.price}{service.pricingModel === "per_person" ? "/person" : ""}
+                              </Label>
+                            </div>
+                            
+                            {event.selectedServices.includes(service.id) && (
+                              <div className="ml-6">
+                                <Label className="text-xs text-slate-600">Custom Price (Optional)</Label>
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      placeholder={`Default: $${service.price}`}
+                                      value={event.customServicePrices?.[service.id] || ""}
+                                      onChange={(e) => {
+                                        const customPrices = { ...event.customServicePrices };
+                                        if (e.target.value) {
+                                          customPrices[service.id] = parseFloat(e.target.value);
+                                        } else {
+                                          delete customPrices[service.id];
+                                        }
+                                        updateEvent(event.id, 'customServicePrices', customPrices);
+                                      }}
+                                      className="text-xs"
+                                    />
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        const customPrices = { ...event.customServicePrices };
+                                        delete customPrices[service.id];
+                                        updateEvent(event.id, 'customServicePrices', customPrices);
+                                      }}
+                                    >
+                                      Reset
+                                    </Button>
+                                  </div>
+                                  
+                                  {/* Quick discount buttons for services */}
+                                  <div className="flex gap-1">
+                                    {[10, 15, 20].map(discount => (
+                                      <Button
+                                        key={discount}
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-xs px-2 py-1"
+                                        onClick={() => {
+                                          const discountedPrice = parseFloat(service.price) * (1 - discount / 100);
+                                          const customPrices = { ...event.customServicePrices };
+                                          customPrices[service.id] = discountedPrice;
+                                          updateEvent(event.id, 'customServicePrices', customPrices);
+                                        }}
+                                      >
+                                        -{discount}%
+                                      </Button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -656,28 +779,66 @@ export function ProposalCreationModal({
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   {events.map((event, index) => (
-                    <div key={event.id} className="flex justify-between text-sm">
-                      <span>Event {index + 1} Total</span>
-                      <span>${(() => {
-                        let eventTotal = 0;
-                        if (event.selectedPackage && event.selectedPackage !== "none") {
-                          const pkg = packages.find((p: any) => p.id === event.selectedPackage);
-                          if (pkg) {
-                            eventTotal += pkg.pricingModel === "per_person" 
-                              ? parseFloat(pkg.price) * event.guestCount 
-                              : parseFloat(pkg.price);
+                    <div key={event.id} className="space-y-1">
+                      <div className="flex justify-between text-sm font-medium">
+                        <span>Event {index + 1} Total</span>
+                        <span>${(() => {
+                          let eventTotal = 0;
+                          if (event.selectedPackage && event.selectedPackage !== "none") {
+                            const pkg = packages.find((p: any) => p.id === event.selectedPackage);
+                            if (pkg) {
+                              const basePrice = event.customPackagePrice !== undefined ? event.customPackagePrice : parseFloat(pkg.price);
+                              eventTotal += pkg.pricingModel === "per_person" 
+                                ? basePrice * event.guestCount 
+                                : basePrice;
+                            }
                           }
-                        }
-                        event.selectedServices.forEach(serviceId => {
-                          const service = services.find((s: any) => s.id === serviceId);
-                          if (service) {
-                            eventTotal += service.pricingModel === "per_person"
-                              ? parseFloat(service.price) * event.guestCount
-                              : parseFloat(service.price);
-                          }
-                        });
-                        return eventTotal.toFixed(2);
-                      })()}</span>
+                          event.selectedServices.forEach(serviceId => {
+                            const service = services.find((s: any) => s.id === serviceId);
+                            if (service) {
+                              const basePrice = event.customServicePrices?.[serviceId] !== undefined 
+                                ? event.customServicePrices[serviceId] 
+                                : parseFloat(service.price);
+                              eventTotal += service.pricingModel === "per_person"
+                                ? basePrice * event.guestCount
+                                : basePrice;
+                            }
+                          });
+                          return eventTotal.toFixed(2);
+                        })()}</span>
+                      </div>
+                      
+                      {/* Show detailed breakdown if custom pricing is used */}
+                      {(event.customPackagePrice !== undefined || Object.keys(event.customServicePrices || {}).length > 0) && (
+                        <div className="ml-4 text-xs space-y-1">
+                          {event.customPackagePrice !== undefined && event.selectedPackage !== "none" && (
+                            <div className="flex justify-between text-green-600">
+                              <span>• Package (custom):</span>
+                              <span>${(() => {
+                                const pkg = packages.find((p: any) => p.id === event.selectedPackage);
+                                if (!pkg) return "0.00";
+                                const price = pkg.pricingModel === "per_person" 
+                                  ? event.customPackagePrice * event.guestCount 
+                                  : event.customPackagePrice;
+                                return price.toFixed(2);
+                              })()}</span>
+                            </div>
+                          )}
+                          {Object.keys(event.customServicePrices || {}).map(serviceId => {
+                            const service = services.find((s: any) => s.id === serviceId);
+                            if (!service || !event.customServicePrices) return null;
+                            const price = service.pricingModel === "per_person"
+                              ? event.customServicePrices[serviceId] * event.guestCount
+                              : event.customServicePrices[serviceId];
+                            return (
+                              <div key={serviceId} className="flex justify-between text-green-600">
+                                <span>• {service.name} (custom):</span>
+                                <span>${price.toFixed(2)}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

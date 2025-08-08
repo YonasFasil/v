@@ -7,6 +7,7 @@ This is a comprehensive event venue management system called "Venuine" built wit
 ## Recent Updates (August 2025)
 
 ### Latest Completed Features:
+- ✅ **Adjustable Pricing in Proposals (August 2025)**: Added comprehensive custom pricing functionality allowing venue managers to modify package and service prices within individual proposals for custom quotes, discounts, and special offers with quick discount buttons and visual indicators
 - ✅ **Enhanced Calendar Design with Collapsible Sidebar (December 2025)**: Major calendar redesign with collapsible sidebar functionality, wider spacious layout, better event visibility showing up to 3 events per day with comprehensive details, responsive spacing, and calendar as the default primary view
 - ✅ **Comprehensive Booking Conflict Detection**: Enhanced conflict detection system with space-specific checking, detailed conflict warnings showing event names, customers, times, and status to prevent overbooking
 - ✅ **Real-Time Availability Display**: Calendar shows actual booking status instead of generic "Available" messages with enhanced event cards displaying customer names, times, guest counts, and venue spaces
