@@ -853,7 +853,7 @@ export default function SlotBasedEventModal({
                         <SelectValue placeholder="Select package (or choose A La Carte)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">A La Carte</SelectItem>
+                        <SelectItem value="none">A La Carte</SelectItem>
                         {packages.map((pkg: any) => (
                           <SelectItem key={pkg.id} value={pkg.id}>
                             {pkg.name} - ${pkg.price}

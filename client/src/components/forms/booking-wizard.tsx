@@ -707,7 +707,7 @@ export default function BookingWizard({
                             <SelectValue placeholder="A La Carte (No Package)" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">A La Carte</SelectItem>
+                            <SelectItem value="none">A La Carte</SelectItem>
                             {packages.filter((pkg: any) => 
                               !pkg.applicableSpaceIds || pkg.applicableSpaceIds.includes(activeSlot.space?.id)
                             ).map((pkg: any) => (

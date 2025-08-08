@@ -91,7 +91,7 @@ export function ProposalCreationModal({ open, onOpenChange, eventData, customer 
     let total = 0;
     
     // Add package price
-    if (selectedPackage) {
+    if (selectedPackage && selectedPackage !== "none") {
       const pkg = packages.find((p: any) => p.id === selectedPackage);
       if (pkg) {
         const packagePrice = pkg.pricingModel === "per_person" 
@@ -439,7 +439,7 @@ export function ProposalCreationModal({ open, onOpenChange, eventData, customer 
                       <SelectValue placeholder="Select package" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No Package</SelectItem>
+                      <SelectItem value="none">No Package</SelectItem>
                       {packages.map((pkg: any) => (
                         <SelectItem key={pkg.id} value={pkg.id}>
                           {pkg.name} - ${pkg.price}{pkg.pricingModel === "per_person" ? "/person" : ""}
