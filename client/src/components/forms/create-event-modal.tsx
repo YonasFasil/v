@@ -539,8 +539,9 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
             {/* Step Content */}
             <div className="flex-1 overflow-hidden">
               <div className="h-full p-3 sm:p-6 overflow-y-auto">
-              {/* Step 1: Date & Venue Selection */}
-              {currentStep === 1 && (
+                <div>
+                  {/* Step 1: Date & Venue Selection */}
+                  {currentStep === 1 && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
                   {/* Left: Calendar */}
                   <div>
@@ -713,41 +714,9 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
 
               {/* Step 2: Per-Date Configuration */}
               {currentStep === 2 && (
-                <div className="flex flex-col lg:flex-row min-h-0 pb-4">
-                  {/* Left: Date Tabs */}
-                  <div className="w-full lg:w-1/3 border-r lg:border-b-0 border-b overflow-y-auto bg-gray-50 max-h-40 lg:max-h-none">
-                    <div className="p-4 font-semibold text-lg border-b bg-white sticky top-0">
-                      Event Dates
-                    </div>
-                    {selectedDates.map((dateInfo, index) => (
-                      <div 
-                        key={index} 
-                        onClick={() => setActiveTabIndex(index)}
-                        className={cn(
-                          "p-4 cursor-pointer border-b transition-colors",
-                          activeTabIndex === index 
-                            ? "bg-indigo-100 border-l-4 border-indigo-500" 
-                            : "hover:bg-gray-100"
-                        )}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-semibold">{format(dateInfo.date, 'EEEE')}</p>
-                            <p className="text-sm text-gray-600">{format(dateInfo.date, 'MMMM d, yyyy')}</p>
-                            <p className="text-sm text-gray-600">
-                              {selectedVenueData?.spaces?.find((s: any) => s.id === dateInfo.spaceId)?.name || 'No space selected'} 
-                              @ {dateInfo.startTime}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Right: Configuration for Active Date */}
-                  <div className="w-full lg:w-2/3 flex flex-col overflow-y-auto min-h-0">
-                    {activeDate && (
-                      <div className="p-3 sm:p-6 flex-grow">
+                <div className="space-y-6 pb-4">
+                  {activeDate && (
+                    <div className="space-y-6">
                         <div className="flex justify-between items-center mb-1">
                           <h3 className="text-xl font-semibold">Configure Event</h3>
                           {selectedDates.length > 1 && (
@@ -999,9 +968,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                             </div>
                           </div>
                         </div>
-                      </div>
                     )}
-                  </div>
                 </div>
               )}
 
@@ -1166,8 +1133,8 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                       </div>
                     </div>
                   </div>
+                  )}
                 </div>
-              )}
               </div>
             </div>
 
