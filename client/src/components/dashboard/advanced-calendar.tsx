@@ -12,7 +12,8 @@ import {
   MapPin,
   Grid3x3,
   List,
-  Eye
+  Eye,
+  Plus
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
 
@@ -153,11 +154,71 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
               </div>
             </div>
 
-            {/* Calendar Grid - More Spacious */}
-            <div className="grid grid-cols-7 gap-2 lg:gap-3 xl:gap-4 bg-transparent overflow-visible flex-1">
+            {/* Mobile Calendar - Optimized for small screens */}
+            <div className="md:hidden">
+              <div className="space-y-3">
+                {calendarDays.map((day, index) => {
+                  const dayEvents = getEventsForDay(day);
+                  const isCurrentMonth = isSameMonth(day, currentDate);
+                  
+                  if (!isCurrentMonth || dayEvents.length === 0) return null;
+                  
+                  return (
+                    <div key={index} className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className={`text-lg font-bold ${
+                          isSameDay(day, new Date()) ? 'text-blue-600' : 'text-slate-900'
+                        }`}>
+                          {format(day, 'EEEE, MMM d')}
+                        </div>
+                        <Badge variant="secondary" className="text-xs">
+                          {dayEvents.length} event{dayEvents.length > 1 ? 's' : ''}
+                        </Badge>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        {dayEvents.slice(0, 2).map((event) => (
+                          <div
+                            key={event.id}
+                            className="p-3 rounded-lg border border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEventClick?.(event);
+                            }}
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="font-semibold text-sm line-clamp-1">{event.title}</div>
+                              <div className="text-xs text-slate-500">{event.startTime}</div>
+                            </div>
+                            <div className="text-xs text-slate-600 space-y-1">
+                              <div className="flex items-center gap-2">
+                                <Users className="w-3 h-3" />
+                                <span>{event.guestCount} guests</span>
+                                <MapPin className="w-3 h-3 ml-2" />
+                                <span>{event.spaceName}</span>
+                              </div>
+                              <div>{event.customerName}</div>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        {dayEvents.length > 2 && (
+                          <div className="text-center py-2 text-sm text-slate-500">
+                            +{dayEvents.length - 2} more events - tap to view
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Desktop Calendar Grid - More Spacious */}
+            <div className="hidden md:grid grid-cols-7 gap-1 lg:gap-3 xl:gap-4 bg-transparent overflow-visible flex-1">
               {/* Weekday Headers */}
               {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, index) => (
-                <div key={day} className="p-3 lg:p-4 text-center text-sm lg:text-base font-semibold text-slate-700 bg-slate-100 rounded-lg border border-slate-200">
+                <div key={day} className="p-2 lg:p-4 text-center text-sm lg:text-base font-semibold text-slate-700 bg-slate-100 rounded-lg border border-slate-200">
                   <span className="hidden lg:inline">{day}</span>
                   <span className="lg:hidden">{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][index]}</span>
                 </div>
@@ -171,63 +232,93 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
                 return (
                   <div 
                     key={index}
-                    className={`min-h-48 lg:min-h-52 xl:min-h-56 p-2 lg:p-3 border border-slate-200 ${
+                    className={`min-h-32 md:min-h-40 lg:min-h-52 xl:min-h-56 p-1 md:p-2 lg:p-3 border border-slate-200 ${
                       isCurrentMonth ? 'bg-white hover:bg-slate-50' : 'bg-slate-50'
                     } transition-colors relative rounded-lg shadow-sm`}
                   >
-                    <div className={`text-lg font-bold mb-3 ${
+                    <div className={`text-sm md:text-lg font-bold mb-1 md:mb-3 ${
                       isCurrentMonth ? 'text-slate-900' : 'text-slate-400'
-                    } ${isSameDay(day, new Date()) ? 'text-blue-600 bg-blue-100 w-10 h-10 rounded-full flex items-center justify-center' : ''}`}>
+                    } ${isSameDay(day, new Date()) ? 'text-blue-600 bg-blue-100 w-6 h-6 md:w-10 md:h-10 rounded-full flex items-center justify-center text-xs md:text-base' : ''}`}>
                       {format(day, 'd')}
                     </div>
                     
-                    {/* Events for this day - Show up to 3 events */}
-                    <div className="space-y-2 overflow-y-auto max-h-44">
-                      {dayEvents.slice(0, 3).map((event, eventIndex) => (
+                    {/* Events for this day - Show up to 3 events on desktop, 1 on tablet */}
+                    <div className="space-y-1 md:space-y-2 overflow-y-auto max-h-24 md:max-h-32 lg:max-h-44">
+                      {dayEvents.slice(0, 1).map((event, eventIndex) => (
                         <div
                           key={event.id}
-                          className="text-xs p-3 rounded-lg text-white cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200 border border-white/20 shadow-sm"
+                          className="text-xs p-1 md:p-2 lg:p-3 rounded-lg text-white cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200 border border-white/20 shadow-sm"
                           style={{ 
                             backgroundColor: event.color,
-                            minHeight: '70px'
+                            minHeight: '40px'
                           }}
                           onClick={(e) => {
                             e.stopPropagation();
                             onEventClick?.(event);
                           }}
                         >
-                          <div className="font-semibold mb-2 text-sm leading-tight line-clamp-2">{event.title}</div>
-                          <div className="flex items-center justify-between mb-2 text-xs opacity-95">
-                            <div className="flex items-center gap-1">
-                              <Users className="w-3 h-3 flex-shrink-0" />
-                              <span className="font-medium">{event.guestCount}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-3 h-3 flex-shrink-0" />
-                              <span className="font-medium">{event.startTime}</span>
-                            </div>
-                          </div>
+                          <div className="font-semibold mb-1 text-xs leading-tight line-clamp-1">{event.title}</div>
                           <div className="text-xs opacity-90 truncate">
-                            {event.customerName}
-                          </div>
-                          <div className="text-xs opacity-80 truncate mt-1 flex items-center gap-1">
-                            <MapPin className="w-3 h-3 flex-shrink-0" />
-                            {event.spaceName}
+                            {event.startTime}
                           </div>
                         </div>
                       ))}
                       
+                      <div className="hidden lg:block space-y-2">
+                        {dayEvents.slice(1, 3).map((event, eventIndex) => (
+                          <div
+                            key={event.id}
+                            className="text-xs p-3 rounded-lg text-white cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200 border border-white/20 shadow-sm"
+                            style={{ 
+                              backgroundColor: event.color,
+                              minHeight: '70px'
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEventClick?.(event);
+                            }}
+                          >
+                            <div className="font-semibold mb-2 text-sm leading-tight line-clamp-2">{event.title}</div>
+                            <div className="flex items-center justify-between mb-2 text-xs opacity-95">
+                              <div className="flex items-center gap-1">
+                                <Users className="w-3 h-3 flex-shrink-0" />
+                                <span className="font-medium">{event.guestCount}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-3 h-3 flex-shrink-0" />
+                                <span className="font-medium">{event.startTime}</span>
+                              </div>
+                            </div>
+                            <div className="text-xs opacity-90 truncate">
+                              {event.customerName}
+                            </div>
+                            <div className="text-xs opacity-80 truncate mt-1 flex items-center gap-1">
+                              <MapPin className="w-3 h-3 flex-shrink-0" />
+                              {event.spaceName}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
                       {/* Show "more events" indicator */}
-                      {dayEvents.length > 3 && (
-                        <div className="text-xs text-slate-600 text-center py-2 bg-slate-100 rounded-lg cursor-pointer hover:bg-slate-200 transition-colors border border-slate-200"
+                      {dayEvents.length > 1 && (
+                        <div className="text-xs text-slate-600 text-center py-1 md:py-2 bg-slate-100 rounded-lg cursor-pointer hover:bg-slate-200 transition-colors border border-slate-200"
                              onClick={(e) => {
                                e.stopPropagation();
                                // Show all events modal for this day
                                console.log('Show all events for day:', format(day, 'MMM dd'), dayEvents);
                              }}>
-                          <Plus className="w-4 h-4 mx-auto mb-1" />
-                          +{dayEvents.length - 3} more events
-                          <div className="text-[10px] opacity-75">Click to view all</div>
+                          <div className="hidden lg:block">
+                            {dayEvents.length > 3 && (
+                              <>
+                                +{dayEvents.length - 3} more events
+                                <div className="text-[10px] opacity-75">Click to view all</div>
+                              </>
+                            )}
+                          </div>
+                          <div className="lg:hidden">
+                            +{dayEvents.length - 1} more
+                          </div>
                         </div>
                       )}
                     </div>

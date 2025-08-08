@@ -68,31 +68,39 @@ export default function Events() {
         <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
       </div>
       
-      <MobileNav 
-        isOpen={mobileNavOpen} 
-        onClose={() => setMobileNavOpen(false)} 
-      />
+      <MobileNav open={mobileNavOpen} onOpenChange={setMobileNavOpen} />
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex items-center justify-between p-4 lg:p-6 border-b border-slate-200 bg-white">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Events & Bookings</h1>
-            <p className="text-slate-600">Manage your venue bookings and events</p>
-          </div>
           <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMobileNavOpen(true)}
+              className="md:hidden"
+            >
+              <Grid3X3 className="w-4 h-4" />
+            </Button>
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold text-slate-900">Events & Bookings</h1>
+              <p className="text-sm md:text-base text-slate-600 hidden sm:block">Manage your venue bookings and events</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 md:gap-3">
             <Button
               variant="outline"
               onClick={toggleSidebar}
               className="hidden md:flex items-center gap-2"
             >
               {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-              {sidebarCollapsed ? "Expand" : "Collapse"} Sidebar
+              <span className="hidden lg:inline">{sidebarCollapsed ? "Expand" : "Collapse"} Sidebar</span>
             </Button>
             <Button 
               onClick={() => setShowCreateForm(true)}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-blue-600 hover:bg-blue-700 text-sm md:text-base px-3 md:px-4"
             >
-              + New Event
+              <span className="hidden sm:inline">+ New Event</span>
+              <span className="sm:hidden">+ New</span>
             </Button>
           </div>
         </div>
@@ -127,7 +135,7 @@ export default function Events() {
                 </TabsList>
 
                 <TabsContent value="calendar" className="space-y-6">
-                  <div className="h-[calc(100vh-280px)]">
+                  <div className="h-[calc(100vh-280px)] md:h-[calc(100vh-280px)]">
                     <AdvancedCalendar onEventClick={setSelectedBooking} />
                   </div>
                 </TabsContent>
