@@ -125,7 +125,12 @@ const seasonalData: SeasonalRecommendation[] = [
   }
 ];
 
-export function AnalyticsDashboard() {
+interface Props {
+  onCreatePackage?: (packageData: any) => void;
+  onCreateService?: (serviceData: any) => void;
+}
+
+export function AnalyticsDashboard({ onCreatePackage, onCreateService }: Props = {}) {
   const [selectedSeason, setSelectedSeason] = useState("current");
   const [timeRange, setTimeRange] = useState("3months");
 
@@ -163,6 +168,103 @@ export function AnalyticsDashboard() {
   });
 
   const SeasonIcon = seasonData.icon;
+
+  const handleCreatePackage = (pkg: any, season: string) => {
+    const packageData = {
+      name: pkg.name,
+      description: `${season} special package featuring premium services tailored for the season`,
+      basePrice: pkg.revenue.toString(),
+      category: season.toLowerCase(),
+      isActive: true,
+      maxGuests: getSeasonalGuestCount(pkg.name),
+      duration: "4", // Default 4 hours
+      includedServices: getSeasonalServices(pkg.name, season),
+      features: getSeasonalFeatures(pkg.name, season)
+    };
+    
+    onCreatePackage?.(packageData);
+  };
+
+  const handleCreateService = (service: any, season: string) => {
+    const serviceData = {
+      name: service.name,
+      description: service.suggestion,
+      category: getServiceCategory(service.name),
+      basePrice: calculateSeasonalPrice(service.name, season),
+      unit: getServiceUnit(service.name),
+      isActive: true,
+      seasonalDemand: service.seasonality,
+      bookingRate: service.bookingRate
+    };
+    
+    onCreateService?.(serviceData);
+  };
+
+  const getSeasonalGuestCount = (packageName: string): number => {
+    if (packageName.includes('Corporate')) return 150;
+    if (packageName.includes('Wedding')) return 120;
+    if (packageName.includes('Conference')) return 80;
+    return 100;
+  };
+
+  const getSeasonalServices = (packageName: string, season: string): string[] => {
+    const baseServices = ['Venue Setup', 'Basic Lighting'];
+    
+    if (season === 'Winter') {
+      baseServices.push('Indoor Heating', 'Hot Beverage Station', 'Coat Check');
+    } else if (season === 'Spring') {
+      baseServices.push('Outdoor Setup', 'Floral Arrangements', 'Garden Lighting');
+    } else if (season === 'Summer') {
+      baseServices.push('Air Conditioning', 'Outdoor Bar', 'Shade Structures');
+    } else if (season === 'Fall') {
+      baseServices.push('Weather Contingency', 'Seasonal Decorations', 'Indoor/Outdoor Flexibility');
+    }
+    
+    if (packageName.includes('Corporate')) {
+      baseServices.push('AV Equipment', 'Presentation Setup', 'Catering');
+    } else if (packageName.includes('Wedding')) {
+      baseServices.push('Bridal Suite', 'Photography Area', 'Dance Floor');
+    }
+    
+    return baseServices;
+  };
+
+  const getSeasonalFeatures = (packageName: string, season: string): string[] => {
+    const features = [`${season} themed decorations`, 'Professional event coordination'];
+    
+    if (packageName.includes('Premium')) {
+      features.push('VIP guest area', 'Premium bar service', 'Upgraded linens');
+    }
+    
+    return features;
+  };
+
+  const getServiceCategory = (serviceName: string): string => {
+    if (serviceName.includes('Catering') || serviceName.includes('Food') || serviceName.includes('Beverage')) return 'catering';
+    if (serviceName.includes('AV') || serviceName.includes('Audio') || serviceName.includes('Equipment')) return 'av-equipment';
+    if (serviceName.includes('Decoration') || serviceName.includes('Floral') || serviceName.includes('Lighting')) return 'decorations';
+    if (serviceName.includes('Heating') || serviceName.includes('Cooling') || serviceName.includes('Air')) return 'utilities';
+    return 'other';
+  };
+
+  const calculateSeasonalPrice = (serviceName: string, season: string): string => {
+    let basePrice = 200;
+    
+    if (serviceName.includes('Premium') || serviceName.includes('VIP')) basePrice *= 2;
+    if (serviceName.includes('Equipment') || serviceName.includes('AV')) basePrice *= 1.5;
+    
+    // Seasonal pricing adjustments
+    if (season === 'Summer' && serviceName.includes('Cooling')) basePrice *= 1.3;
+    if (season === 'Winter' && serviceName.includes('Heating')) basePrice *= 1.3;
+    
+    return Math.round(basePrice).toString();
+  };
+
+  const getServiceUnit = (serviceName: string): string => {
+    if (serviceName.includes('Station') || serviceName.includes('Bar')) return 'per station';
+    if (serviceName.includes('Equipment') || serviceName.includes('Setup')) return 'per event';
+    return 'per hour';
+  };
 
   return (
     <div className="space-y-6">
@@ -283,17 +385,22 @@ export function AnalyticsDashboard() {
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {seasonData.packages.map((pkg, index) => (
-                <Card key={index} className="border-l-4 border-l-blue-500">
+                <Card key={index} className="border-l-4 border-l-blue-500 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleCreatePackage(pkg, displaySeason)}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
                       <h5 className="font-medium">{pkg.name}</h5>
-                      {pkg.trend === 'up' ? (
-                        <TrendingUp className="w-4 h-4 text-green-600" />
-                      ) : pkg.trend === 'down' ? (
-                        <TrendingDown className="w-4 h-4 text-red-600" />
-                      ) : (
-                        <div className="w-4 h-4 bg-gray-400 rounded-full" />
-                      )}
+                      <div className="flex items-center gap-2">
+                        {pkg.trend === 'up' ? (
+                          <TrendingUp className="w-4 h-4 text-green-600" />
+                        ) : pkg.trend === 'down' ? (
+                          <TrendingDown className="w-4 h-4 text-red-600" />
+                        ) : (
+                          <div className="w-4 h-4 bg-gray-400 rounded-full" />
+                        )}
+                        <Button size="sm" variant="outline" className="h-6 px-2 text-xs">
+                          Create
+                        </Button>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
@@ -324,12 +431,17 @@ export function AnalyticsDashboard() {
             </h4>
             <div className="space-y-3">
               {seasonData.services.map((service, index) => (
-                <div key={index} className="border rounded-lg p-4">
+                <div key={index} className="border rounded-lg p-4 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleCreateService(service, displaySeason)}>
                   <div className="flex items-center justify-between mb-2">
                     <h5 className="font-medium">{service.name}</h5>
-                    <Badge variant="outline">
-                      {service.bookingRate}% booking rate
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">
+                        {service.bookingRate}% booking rate
+                      </Badge>
+                      <Button size="sm" variant="outline" className="h-6 px-2 text-xs">
+                        Create
+                      </Button>
+                    </div>
                   </div>
                   <div className="flex items-center gap-4 mb-2">
                     <div className="flex-1">
