@@ -302,7 +302,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
     if (data.eventName) setEventName(data.eventName);
     if (data.customerName) {
       // Try to find existing customer or prepare to create new one
-      const existingCustomer = customers.find((c: any) => 
+      const existingCustomer = (customers as any[]).find((c: any) => 
         c.name.toLowerCase().includes(data.customerName.toLowerCase())
       );
       if (existingCustomer) {
@@ -320,7 +320,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
     
     // Set venue if mentioned
     if (data.venue) {
-      const venue = venues.find((v: any) => 
+      const venue = (venues as any[]).find((v: any) => 
         v.name.toLowerCase().includes(data.venue.toLowerCase())
       );
       if (venue) {
@@ -411,7 +411,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
       const bookingData = {
         eventName,
         eventType: "corporate",
-        eventDate: new Date(firstDate.date),
+        eventDate: firstDate.date,
         startTime: convertTimeToHours(firstDate.startTime),
         endTime: convertTimeToHours(firstDate.endTime),
         guestCount: firstDate.guestCount || 1,
@@ -468,7 +468,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
         return {
           eventName: `${eventName} - Day ${index + 1}`,
           eventType: "corporate",
-          eventDate: new Date(date.date),
+          eventDate: date.date,
           startTime: convertTimeToHours(date.startTime),
           endTime: convertTimeToHours(date.endTime),
           guestCount: date.guestCount || 1,
@@ -1003,7 +1003,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                       }}
                                     >
                                       <div className="flex items-center gap-3">
-                                        <Checkbox checked={isSelected} readOnly />
+                                        <Checkbox checked={isSelected} disabled />
                                         <div className="flex-1">
                                           <div className="font-medium">{service.name}</div>
                                           <div className="text-sm text-slate-600">{service.description}</div>

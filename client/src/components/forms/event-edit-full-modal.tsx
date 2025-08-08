@@ -93,9 +93,9 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
         setSelectedVenue(booking.venueId || "");
         setSelectedCustomer(booking.customerId || "");
         
-        // Initialize all contract events as selected dates
+        // Initialize all contract events as selected dates - preserve original dates
         const contractDates = booking.contractEvents.map((event: any) => ({
-          date: event.eventDate ? new Date(event.eventDate) : new Date(),
+          date: event.eventDate ? new Date(event.eventDate.getFullYear(), event.eventDate.getMonth(), event.eventDate.getDate()) : new Date(),
           startTime: event.startTime || "09:00",
           endTime: event.endTime || "17:00",
           spaceId: event.spaceId,
@@ -115,9 +115,9 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
         setSelectedVenue(booking.venueId || "");
         setSelectedCustomer(booking.customerId || "");
         
-        // Initialize dates with existing booking data
+        // Initialize dates with existing booking data - preserve original date
         const bookingDate: SelectedDate = {
-          date: booking.eventDate ? new Date(booking.eventDate) : new Date(),
+          date: booking.eventDate ? new Date(booking.eventDate.getFullYear(), booking.eventDate.getMonth(), booking.eventDate.getDate()) : new Date(),
           startTime: booking.startTime || "09:00",
           endTime: booking.endTime || "17:00", 
           spaceId: booking.spaceId,
