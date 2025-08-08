@@ -482,22 +482,65 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
           {/* Main content area */}
           <div className="flex-1 flex flex-col min-h-0">
             {/* Header */}
-            <div className="border-b border-slate-200 p-3 sm:p-6 flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-4">
-                {currentStep > 1 && (
-                  <Button variant="ghost" size="sm" onClick={prevStep}>
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                )}
-                <div className="flex items-center gap-3">
-                  <Edit className="h-5 w-5 text-blue-600" />
-                  <h2 className="text-lg sm:text-xl font-semibold">Edit Event</h2>
+            <div className="border-b border-slate-200 p-3 sm:p-6 flex-shrink-0">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-4">
+                  {currentStep > 1 && (
+                    <Button variant="ghost" size="sm" onClick={prevStep}>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <Edit className="h-5 w-5 text-blue-600" />
+                    <h2 className="text-lg sm:text-xl font-semibold">
+                      {booking?.isContract ? "Edit Contract" : "Edit Event"}
+                    </h2>
+                  </div>
                 </div>
+                <Button variant="ghost" size="sm" onClick={resetForm}>
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Reset
+                </Button>
               </div>
-              <Button variant="ghost" size="sm" onClick={resetForm}>
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Reset
-              </Button>
+              
+              {/* Contract Summary */}
+              {booking?.isContract && booking?.contractInfo && (
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                          Contract
+                        </Badge>
+                        <h3 className="font-semibold text-purple-900">
+                          {booking.contractInfo.contractName || "Multi-Date Contract"}
+                        </h3>
+                      </div>
+                      <div className="text-sm text-purple-700 space-y-1">
+                        <div className="flex items-center gap-4">
+                          <span>{booking.eventCount} events scheduled</span>
+                          <span>Total {booking.contractEvents?.reduce((sum: number, event: any) => sum + (event.guestCount || 0), 0)} guests</span>
+                        </div>
+                        <div className="text-xs">
+                          Event dates: {booking.contractEvents?.map((event: any) => 
+                            format(new Date(event.eventDate), "MMM d, yyyy")
+                          ).join(" • ")}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-medium text-purple-900">
+                        Total Contract Value
+                      </div>
+                      <div className="text-lg font-bold text-purple-800">
+                        ${booking.contractEvents?.reduce((sum: number, event: any) => 
+                          sum + parseFloat(event.totalAmount || '0'), 0
+                        ).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Step Content */}
