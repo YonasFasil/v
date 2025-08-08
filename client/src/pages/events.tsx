@@ -116,12 +116,26 @@ export default function Events() {
                     {bookings.map((booking) => (
                       <Card 
                         key={booking.id} 
-                        className="hover:shadow-lg transition-shadow cursor-pointer"
+                        className={`hover:shadow-lg transition-shadow cursor-pointer ${
+                          booking.isContract ? 'border-purple-200 bg-purple-50/30' : ''
+                        }`}
                         onClick={() => setSelectedBooking(booking)}
                       >
                         <CardHeader className="pb-2">
                           <div className="flex items-start justify-between">
-                            <CardTitle className="text-lg font-semibold line-clamp-2">{booking.eventName}</CardTitle>
+                            <div>
+                              {booking.isContract && (
+                                <Badge variant="secondary" className="mb-2 bg-purple-100 text-purple-800">
+                                  Contract • {booking.eventCount} Events
+                                </Badge>
+                              )}
+                              <CardTitle className="text-lg font-semibold line-clamp-2">
+                                {booking.isContract 
+                                  ? booking.contractInfo?.contractName || "Multi-Date Contract"
+                                  : booking.eventName
+                                }
+                              </CardTitle>
+                            </div>
                             <Badge className={getStatusColor(booking.status)}>
                               {booking.status}
                             </Badge>
@@ -129,18 +143,38 @@ export default function Events() {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-2 text-sm text-gray-600">
-                            <div className="flex items-center">
-                              <Calendar className="w-4 h-4 mr-2" />
-                              {booking.eventDate ? format(new Date(booking.eventDate), "PPP") : "Date TBD"}
-                            </div>
-                            <div className="flex items-center">
-                              <Clock className="w-4 h-4 mr-2" />
-                              {booking.startTime} - {booking.endTime}
-                            </div>
-                            <div className="flex items-center">
-                              <Users className="w-4 h-4 mr-2" />
-                              {booking.guestCount} guests
-                            </div>
+                            {booking.isContract ? (
+                              <>
+                                <div className="flex items-center">
+                                  <Calendar className="w-4 h-4 mr-2" />
+                                  {booking.contractEvents?.length} dates selected
+                                </div>
+                                <div className="flex items-center">
+                                  <Users className="w-4 h-4 mr-2" />
+                                  Total {booking.contractEvents?.reduce((sum: number, event: any) => sum + (event.guestCount || 0), 0)} guests
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Events: {booking.contractEvents?.map((event: any) => 
+                                    format(new Date(event.eventDate), "MMM d")
+                                  ).join(", ")}
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex items-center">
+                                  <Calendar className="w-4 h-4 mr-2" />
+                                  {booking.eventDate ? format(new Date(booking.eventDate), "PPP") : "Date TBD"}
+                                </div>
+                                <div className="flex items-center">
+                                  <Clock className="w-4 h-4 mr-2" />
+                                  {booking.startTime} - {booking.endTime}
+                                </div>
+                                <div className="flex items-center">
+                                  <Users className="w-4 h-4 mr-2" />
+                                  {booking.guestCount} guests
+                                </div>
+                              </>
+                            )}
                             <div className="flex items-center">
                               <MapPin className="w-4 h-4 mr-2" />
                               Venue Location
@@ -175,22 +209,58 @@ export default function Events() {
                         {bookings.map((booking) => (
                           <TableRow 
                             key={booking.id}
-                            className="cursor-pointer hover:bg-slate-50"
+                            className={`cursor-pointer hover:bg-slate-50 ${
+                              booking.isContract ? 'bg-purple-50/30' : ''
+                            }`}
                             onClick={() => setSelectedBooking(booking)}
                           >
                             <TableCell className="font-medium">
                               <div>
-                                <div className="font-semibold">{booking.eventName}</div>
-                                <div className="text-sm text-slate-500">{booking.eventType}</div>
+                                <div className="flex items-center gap-2">
+                                  {booking.isContract && (
+                                    <Badge variant="secondary" className="bg-purple-100 text-purple-800 text-xs">
+                                      Contract
+                                    </Badge>
+                                  )}
+                                  <div className="font-semibold">
+                                    {booking.isContract 
+                                      ? booking.contractInfo?.contractName || "Multi-Date Contract"
+                                      : booking.eventName
+                                    }
+                                  </div>
+                                </div>
+                                <div className="text-sm text-slate-500">
+                                  {booking.isContract 
+                                    ? `${booking.eventCount} events grouped`
+                                    : booking.eventType
+                                  }
+                                </div>
                               </div>
                             </TableCell>
                             <TableCell>
-                              <div className="text-sm">
-                                <div>{booking.eventDate ? format(new Date(booking.eventDate), "MMM d, yyyy") : "TBD"}</div>
-                                <div className="text-slate-500">{booking.startTime} - {booking.endTime}</div>
-                              </div>
+                              {booking.isContract ? (
+                                <div className="text-sm">
+                                  <div>{booking.eventCount} dates</div>
+                                  <div className="text-slate-500">
+                                    {booking.contractEvents?.slice(0, 3).map((event: any) => 
+                                      format(new Date(event.eventDate), "MMM d")
+                                    ).join(", ")}
+                                    {booking.contractEvents?.length > 3 && "..."}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="text-sm">
+                                  <div>{booking.eventDate ? format(new Date(booking.eventDate), "MMM d, yyyy") : "TBD"}</div>
+                                  <div className="text-slate-500">{booking.startTime} - {booking.endTime}</div>
+                                </div>
+                              )}
                             </TableCell>
-                            <TableCell>{booking.guestCount}</TableCell>
+                            <TableCell>
+                              {booking.isContract 
+                                ? booking.contractEvents?.reduce((sum: number, event: any) => sum + (event.guestCount || 0), 0)
+                                : booking.guestCount
+                              }
+                            </TableCell>
                             <TableCell>
                               <Badge className={getStatusColor(booking.status)}>
                                 {booking.status}

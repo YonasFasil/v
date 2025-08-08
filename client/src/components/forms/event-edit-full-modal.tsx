@@ -86,26 +86,51 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   // Initialize form data when booking changes
   useEffect(() => {
     if (booking && open) {
-      setEventName(booking.eventName || "");
-      setEventStatus(booking.status || "inquiry");
-      setSelectedVenue(booking.venueId || "");
-      setSelectedCustomer(booking.customerId || "");
-      
-      // Initialize dates with existing booking data
-      const bookingDate: SelectedDate = {
-        date: new Date(booking.eventDate),
-        startTime: booking.startTime || "09:00 AM",
-        endTime: booking.endTime || "05:00 PM", 
-        spaceId: booking.spaceId,
-        packageId: booking.packageId || "",
-        selectedServices: booking.selectedServices || [],
-        guestCount: booking.guestCount || 1,
-        itemQuantities: booking.itemQuantities || {},
-        pricingOverrides: booking.pricingOverrides || {}
-      };
-      
-      setSelectedDates([bookingDate]);
-      setActiveTabIndex(0);
+      if (booking.isContract && booking.contractEvents) {
+        // Handle contract with multiple events
+        setEventName(booking.contractInfo?.contractName || "Multi-Date Contract");
+        setEventStatus(booking.status || "inquiry");
+        setSelectedVenue(booking.venueId || "");
+        setSelectedCustomer(booking.customerId || "");
+        
+        // Initialize all contract events as selected dates
+        const contractDates = booking.contractEvents.map((event: any) => ({
+          date: new Date(event.eventDate),
+          startTime: event.startTime || "09:00 AM",
+          endTime: event.endTime || "05:00 PM",
+          spaceId: event.spaceId,
+          packageId: event.packageId || "",
+          selectedServices: event.selectedServices || [],
+          guestCount: event.guestCount || 1,
+          itemQuantities: event.itemQuantities || {},
+          pricingOverrides: event.pricingOverrides || {}
+        }));
+        
+        setSelectedDates(contractDates);
+        setActiveTabIndex(0);
+      } else {
+        // Handle single event
+        setEventName(booking.eventName || "");
+        setEventStatus(booking.status || "inquiry");
+        setSelectedVenue(booking.venueId || "");
+        setSelectedCustomer(booking.customerId || "");
+        
+        // Initialize dates with existing booking data
+        const bookingDate: SelectedDate = {
+          date: new Date(booking.eventDate),
+          startTime: booking.startTime || "09:00 AM",
+          endTime: booking.endTime || "05:00 PM", 
+          spaceId: booking.spaceId,
+          packageId: booking.packageId || "",
+          selectedServices: booking.selectedServices || [],
+          guestCount: booking.guestCount || 1,
+          itemQuantities: booking.itemQuantities || {},
+          pricingOverrides: booking.pricingOverrides || {}
+        };
+        
+        setSelectedDates([bookingDate]);
+        setActiveTabIndex(0);
+      }
     }
   }, [booking, open]);
 

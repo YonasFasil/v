@@ -8,7 +8,7 @@ import { RecentBookings } from "@/components/dashboard/recent-bookings";
 import { AIRecommendations } from "@/components/dashboard/ai-recommendations";
 import { ActiveLeads } from "@/components/dashboard/active-leads";
 import { QuickActions } from "@/components/dashboard/quick-actions";
-import { EventEditModal } from "@/components/forms/event-edit-modal";
+import { EventEditFullModal } from "@/components/forms/event-edit-full-modal";
 import { CreateEventModal } from "@/components/forms/create-event-modal";
 import { VoiceBookingModal } from "@/components/ai/voice-booking-modal";
 
@@ -91,8 +91,8 @@ export default function Dashboard() {
           </div>
         </main>
 
-        {/* Event Edit Modal */}
-        <EventEditModal 
+        {/* Event Edit Modal - Use full modal like in events page */}
+        <EventEditFullModal 
           open={!!selectedEvent} 
           onOpenChange={(open) => !open && setSelectedEvent(null)}
           booking={selectedEvent}

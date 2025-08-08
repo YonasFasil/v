@@ -223,7 +223,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/bookings", async (req, res) => {
     try {
       const bookings = await storage.getBookings();
-      res.json(bookings);
+      const contracts = await storage.getContracts();
+      
+      // Group bookings by contract and add contract info
+      const contractMap = new Map(contracts.map(c => [c.id, c]));
+      const result = [];
+      
+      // First, add all standalone bookings (no contract)
+      const standaloneBookings = bookings.filter(b => !b.contractId);
+      result.push(...standaloneBookings);
+      
+      // Then, add contracts with their bookings
+      const contractBookings = bookings.filter(b => b.contractId);
+      const processedContracts = new Set();
+      
+      for (const booking of contractBookings) {
+        if (!processedContracts.has(booking.contractId)) {
+          const contract = contractMap.get(booking.contractId!);
+          const contractEvents = contractBookings.filter(b => b.contractId === booking.contractId);
+          
+          result.push({
+            ...booking,
+            isContract: true,
+            contractInfo: contract,
+            contractEvents: contractEvents,
+            eventCount: contractEvents.length
+          });
+          
+          processedContracts.add(booking.contractId!);
+        }
+      }
+      
+      res.json(result);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch bookings" });
     }
