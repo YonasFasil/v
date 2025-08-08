@@ -10,12 +10,14 @@ import { AIRecommendations } from "@/components/dashboard/ai-recommendations";
 import { ActiveLeads } from "@/components/dashboard/active-leads";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { EventEditFullModal } from "@/components/forms/event-edit-full-modal";
+import { EventSummaryModal } from "@/components/forms/event-summary-modal";
 import { CreateEventModal } from "@/components/forms/create-event-modal";
 import { VoiceBookingModal } from "@/components/ai/voice-booking-modal";
 
 export default function Dashboard() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showCreateEventModal, setShowCreateEventModal] = useState(false);
   const [showVoiceBookingModal, setShowVoiceBookingModal] = useState(false);
   
@@ -111,10 +113,23 @@ export default function Dashboard() {
           </div>
         </main>
 
-        {/* Event Edit Modal - Use full modal like in events page */}
-        <EventEditFullModal 
-          open={!!selectedEvent} 
+        {/* Event Summary Modal - Shows when clicking calendar event */}
+        <EventSummaryModal 
+          open={!!selectedEvent && !showEditModal} 
           onOpenChange={(open) => !open && setSelectedEvent(null)}
+          booking={selectedEvent}
+          onEditClick={() => setShowEditModal(true)}
+        />
+
+        {/* Event Edit Modal - Shows when clicking Edit in summary modal */}
+        <EventEditFullModal 
+          open={showEditModal} 
+          onOpenChange={(open) => {
+            setShowEditModal(false);
+            if (!open) {
+              setSelectedEvent(null);
+            }
+          }}
           booking={selectedEvent}
         />
 
