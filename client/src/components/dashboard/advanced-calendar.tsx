@@ -45,8 +45,6 @@ interface AdvancedCalendarProps {
 export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'events' | 'venues'>('events');
-  const [calendarView, setCalendarView] = useState<'monthly' | 'weekly'>('monthly');
-
 
   // Fetch calendar data based on mode
   const { data: calendarData, isLoading } = useQuery({
@@ -66,6 +64,28 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
   const monthEnd = endOfMonth(currentDate);
   const calendarDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
+  // Add padding days to start with Sunday
+  const paddedDays = [];
+  const firstDayOfWeek = monthStart.getDay();
+  
+  // Add previous month's ending days
+  for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+    const paddingDate = new Date(monthStart);
+    paddingDate.setDate(paddingDate.getDate() - (i + 1));
+    paddedDays.push(paddingDate);
+  }
+  
+  // Add current month days
+  paddedDays.push(...calendarDays);
+  
+  // Add next month's beginning days to complete the grid
+  const totalCells = Math.ceil(paddedDays.length / 7) * 7;
+  for (let i = paddedDays.length; i < totalCells; i++) {
+    const paddingDate = new Date(monthEnd);
+    paddingDate.setDate(paddingDate.getDate() + (i - paddedDays.length + 1));
+    paddedDays.push(paddingDate);
+  }
+
   // Get events for a specific day
   const getEventsForDay = (date: Date) => {
     return events.filter(event => 
@@ -79,480 +99,182 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
 
   if (isLoading) {
     return (
-      <Card className="p-6">
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      </Card>
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
     );
   }
 
   return (
-    <Card className="p-4 sm:p-6 h-full">
-      <div className="space-y-4 h-full flex flex-col">
-        {/* Calendar Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <CalendarIcon className="h-6 w-6 text-blue-600" />
-            <h3 className="text-lg font-semibold">Calendar View</h3>
-          </div>
-          
-          {/* Mode Toggle */}
-          <div className="flex items-center gap-2">
-            <div className="flex bg-slate-100 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('events')}
-                className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                  viewMode === 'events' 
-                    ? 'bg-white text-blue-600 shadow-sm' 
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Grid3x3 className="h-4 w-4 mr-1 inline" />
-                Events
-              </button>
-              <button
-                onClick={() => setViewMode('venues')}
-                className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                  viewMode === 'venues' 
-                    ? 'bg-white text-blue-600 shadow-sm' 
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <List className="h-4 w-4 mr-1 inline" />
-                Spaces
-              </button>
-            </div>
+    <div className="w-full space-y-6">
+      {/* Minimal Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <h2 className="text-2xl font-light text-slate-900">
+            {format(currentDate, 'MMMM yyyy')}
+          </h2>
+          <div className="flex items-center gap-1">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={previousMonth}
+              className="h-8 w-8 hover:bg-slate-100 rounded-full"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={nextMonth}
+              className="h-8 w-8 hover:bg-slate-100 rounded-full"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
         </div>
+        
+        {/* Clean Mode Toggle */}
+        <div className="flex bg-slate-50 rounded-lg p-1">
+          <button
+            onClick={() => setViewMode('events')}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+              viewMode === 'events' 
+                ? 'bg-white text-slate-900 shadow-sm' 
+                : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            Events
+          </button>
+          <button
+            onClick={() => setViewMode('venues')}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+              viewMode === 'venues' 
+                ? 'bg-white text-slate-900 shadow-sm' 
+                : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            Venues
+          </button>
+        </div>
+      </div>
 
-        {viewMode === 'events' ? (
-          <>
-            {/* Calendar Navigation */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4">
-              <h4 className="text-lg sm:text-xl font-semibold">
-                {format(currentDate, 'MMMM yyyy')}
-              </h4>
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-center sm:justify-end">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={previousMonth}
-                  className="px-3 py-2"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-sm text-slate-500 px-3">Navigate</span>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={nextMonth}
-                  className="px-3 py-2"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+      {viewMode === 'events' ? (
+        <div className="space-y-4">
+          {/* Day Headers */}
+          <div className="grid grid-cols-7 gap-px">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+              <div key={day} className="text-center py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">
+                {day}
               </div>
-            </div>
+            ))}
+          </div>
 
-            {/* Mobile Calendar - Optimized for small screens */}
-            <div className="md:hidden">
-              <div className="space-y-3">
-                {calendarDays.map((day, index) => {
-                  const dayEvents = getEventsForDay(day);
-                  const isCurrentMonth = isSameMonth(day, currentDate);
-                  
-                  if (!isCurrentMonth || dayEvents.length === 0) return null;
-                  
-                  return (
-                    <div key={index} className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className={`text-lg font-bold ${
-                          isSameDay(day, new Date()) ? 'text-blue-600' : 'text-slate-900'
-                        }`}>
-                          {format(day, 'EEEE, MMM d')}
-                        </div>
-                        <Badge variant="secondary" className="text-xs">
-                          {dayEvents.length} event{dayEvents.length > 1 ? 's' : ''}
-                        </Badge>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        {dayEvents.slice(0, 2).map((event) => (
-                          <div
-                            key={event.id}
-                            className="p-3 rounded-lg border border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onEventClick?.(event);
-                            }}
-                          >
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="font-semibold text-sm line-clamp-1">{event.title}</div>
-                              <div className="text-xs text-slate-500">{event.startTime}</div>
-                            </div>
-                            <div className="text-xs text-slate-600 space-y-1">
-                              <div className="flex items-center gap-2">
-                                <Users className="w-3 h-3" />
-                                <span>{event.guestCount} guests</span>
-                                <MapPin className="w-3 h-3 ml-2" />
-                                <span>{event.spaceName}</span>
-                              </div>
-                              <div>{event.customerName}</div>
-                            </div>
-                          </div>
-                        ))}
-                        
-                        {dayEvents.length > 2 && (
-                          <div className="text-center py-2 text-sm text-slate-500">
-                            +{dayEvents.length - 2} more events - tap to view
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Desktop Calendar Grid - More Spacious */}
-            <div className="hidden md:grid grid-cols-7 gap-1 lg:gap-3 xl:gap-4 bg-transparent overflow-visible flex-1">
-              {/* Weekday Headers */}
-              {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, index) => (
-                <div key={day} className="p-2 lg:p-4 text-center text-sm lg:text-base font-semibold text-slate-700 bg-slate-100 rounded-lg border border-slate-200">
-                  <span className="hidden lg:inline">{day}</span>
-                  <span className="lg:hidden">{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][index]}</span>
-                </div>
-              ))}
+          {/* Calendar Grid */}
+          <div className="grid grid-cols-7 gap-px bg-slate-200 rounded-lg overflow-hidden">
+            {paddedDays.map((day, index) => {
+              const dayEvents = getEventsForDay(day);
+              const isCurrentMonth = isSameMonth(day, currentDate);
+              const isToday = isSameDay(day, new Date());
               
-              {/* Calendar Days */}
-              {calendarDays.map((day, index) => {
-                const dayEvents = getEventsForDay(day);
-                const isCurrentMonth = isSameMonth(day, currentDate);
-                
-                return (
-                  <div 
-                    key={index}
-                    className={`min-h-32 md:min-h-40 lg:min-h-52 xl:min-h-56 p-1 md:p-2 lg:p-3 border border-slate-200 ${
-                      isCurrentMonth ? 'bg-white hover:bg-slate-50' : 'bg-slate-50'
-                    } transition-colors relative rounded-lg shadow-sm`}
-                  >
-                    <div className={`text-sm md:text-lg font-bold mb-1 md:mb-3 ${
-                      isCurrentMonth ? 'text-slate-900' : 'text-slate-400'
-                    } ${isSameDay(day, new Date()) ? 'text-blue-600 bg-blue-100 w-6 h-6 md:w-10 md:h-10 rounded-full flex items-center justify-center text-xs md:text-base' : ''}`}>
-                      {format(day, 'd')}
-                    </div>
-                    
-                    {/* Events for this day - Show up to 3 events on desktop, 1 on tablet */}
-                    <div className="space-y-1 md:space-y-2 overflow-y-auto max-h-24 md:max-h-32 lg:max-h-44">
-                      {dayEvents.slice(0, 1).map((event, eventIndex) => (
-                        <div
-                          key={event.id}
-                          className="text-xs p-1 md:p-2 lg:p-3 rounded-lg text-white cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200 border border-white/20 shadow-sm"
-                          style={{ 
-                            backgroundColor: event.color,
-                            minHeight: '40px'
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEventClick?.(event);
-                          }}
-                        >
-                          <div className="font-semibold mb-1 text-xs leading-tight line-clamp-1">{event.title}</div>
-                          <div className="text-xs opacity-90 truncate">
-                            {event.startTime}
-                          </div>
-                        </div>
-                      ))}
-                      
-                      <div className="hidden lg:block space-y-2">
-                        {dayEvents.slice(1, 3).map((event, eventIndex) => (
-                          <div
-                            key={event.id}
-                            className="text-xs p-3 rounded-lg text-white cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200 border border-white/20 shadow-sm"
-                            style={{ 
-                              backgroundColor: event.color,
-                              minHeight: '70px'
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onEventClick?.(event);
-                            }}
-                          >
-                            <div className="font-semibold mb-2 text-sm leading-tight line-clamp-2">{event.title}</div>
-                            <div className="flex items-center justify-between mb-2 text-xs opacity-95">
-                              <div className="flex items-center gap-1">
-                                <Users className="w-3 h-3 flex-shrink-0" />
-                                <span className="font-medium">{event.guestCount}</span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <Clock className="w-3 h-3 flex-shrink-0" />
-                                <span className="font-medium">{event.startTime}</span>
-                              </div>
-                            </div>
-                            <div className="text-xs opacity-90 truncate">
-                              {event.customerName}
-                            </div>
-                            <div className="text-xs opacity-80 truncate mt-1 flex items-center gap-1">
-                              <MapPin className="w-3 h-3 flex-shrink-0" />
-                              {event.spaceName}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      
-                      {/* Show "more events" indicator */}
-                      {dayEvents.length > 1 && (
-                        <div className="text-xs text-slate-600 text-center py-1 md:py-2 bg-slate-100 rounded-lg cursor-pointer hover:bg-slate-200 transition-colors border border-slate-200"
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               // Show all events modal for this day
-                               console.log('Show all events for day:', format(day, 'MMM dd'), dayEvents);
-                             }}>
-                          <div className="hidden lg:block">
-                            {dayEvents.length > 3 && (
-                              <>
-                                +{dayEvents.length - 3} more events
-                                <div className="text-[10px] opacity-75">Click to view all</div>
-                              </>
-                            )}
-                          </div>
-                          <div className="lg:hidden">
-                            +{dayEvents.length - 1} more
-                          </div>
-                        </div>
-                      )}
-                    </div>
+              return (
+                <div 
+                  key={index} 
+                  className={`min-h-[120px] bg-white p-3 ${
+                    !isCurrentMonth ? 'bg-slate-50' : ''
+                  }`}
+                >
+                  <div className={`text-sm font-medium mb-2 ${
+                    isToday 
+                      ? 'w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs' 
+                      : isCurrentMonth 
+                        ? 'text-slate-900' 
+                        : 'text-slate-400'
+                  }`}>
+                    {format(day, 'd')}
                   </div>
-                );
-              })}
-            </div>
-
-            {/* Today's Events Detail */}
-            {events.length > 0 && (
-              <div className="mt-6">
-                <h4 className="font-semibold mb-3">Upcoming Events</h4>
-                <div className="space-y-3">
-                  {events.slice(0, 5).map((event) => (
-                    <div key={event.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <div 
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: event.color }}
-                          />
-                          <span className="font-medium">{event.title}</span>
-                          <Badge variant="secondary" className="text-xs">
-                            {event.status}
-                          </Badge>
-                        </div>
-                        <div className="text-sm text-slate-600 space-y-1">
-                          <div className="flex items-center gap-4">
-                            <span className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {event.startTime} - {event.endTime}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Users className="h-3 w-3" />
-                              {event.guestCount} guests
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <MapPin className="h-3 w-3" />
-                              {event.venueName}
-                            </span>
-                          </div>
-                          <div>Customer: {event.customerName}</div>
-                        </div>
+                  
+                  <div className="space-y-1">
+                    {dayEvents.slice(0, 3).map((event) => (
+                      <div
+                        key={event.id}
+                        onClick={() => onEventClick?.(event)}
+                        className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-700 cursor-pointer hover:bg-blue-100 transition-colors truncate"
+                      >
+                        {event.title}
                       </div>
-                      <div className="text-right">
-                        <div className="font-semibold text-green-600">
-                          ${parseFloat(event.totalAmount).toLocaleString()}
-                        </div>
-                        <Button variant="ghost" size="sm" className="mt-1">
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                    ))}
+                    {dayEvents.length > 3 && (
+                      <div className="text-xs text-slate-500 px-2">
+                        +{dayEvents.length - 3} more
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </>
-        ) : (
-          // Spaces Mode - Show spaces with events stacked by date
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
-              <h4 className="text-lg sm:text-xl font-semibold">Spaces Schedule</h4>
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-center sm:justify-end">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={previousMonth}
-                  className="px-3 py-2"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-base sm:text-lg font-semibold px-3">
-                  {format(currentDate, 'MMMM yyyy')}
-                </span>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={nextMonth}
-                  className="px-3 py-2"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-            
-            {venueData.length === 0 ? (
-              <div className="text-center py-8 text-slate-500">
-                <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-slate-300" />
-                <p>No venues found.</p>
-              </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="overflow-x-auto">
-                  <div className="grid grid-cols-[250px_repeat(31,120px)] min-w-max">
-                    {/* Header row - dates */}
-                    <div className="bg-gray-50 p-3 border-b border-gray-200 font-semibold text-gray-700 sticky left-0 z-10">
-                      Space
-                    </div>
-                    {calendarDays.slice(0, 31).map((day, index) => {
-                      const isToday = isSameDay(day, new Date());
-                      const isCurrentMonth = isSameMonth(day, currentDate);
-                      
-                      return (
-                        <div 
-                          key={index} 
-                          className={`bg-gray-50 p-2 border-b border-r border-gray-200 text-center text-xs ${
-                            isToday ? 'bg-blue-100' : ''
-                          }`}
-                        >
-                          <div className={`font-medium ${
-                            isCurrentMonth ? 'text-gray-600' : 'text-gray-400'
-                          }`}>
-                            {format(day, 'EEE')}
-                          </div>
-                          <div className={`text-sm font-semibold ${
-                            isToday ? 'text-blue-600' : 
-                            isCurrentMonth ? 'text-gray-900' : 'text-gray-400'
-                          }`}>
-                            {format(day, 'd')}
-                          </div>
-                        </div>
-                      );
-                    })}
-                    
-                    {/* Space rows and event cells */}
-                    {venueData.map((venueItem) => 
-                      venueItem.venue.spaces ? venueItem.venue.spaces.map((space: any) => {
-                        // Create the row for each space
-                        const rowItems = [];
-                        
-                        // Space name cell
-                        rowItems.push(
-                          <div key={`${space.id}-name`} className="p-3 border-b border-gray-200 font-medium text-gray-900 bg-white sticky left-0 z-10">
-                            {venueItem.venue.name} - {space.name}
-                          </div>
-                        );
-                        
-                        // Date cells for this space
-                        calendarDays.slice(0, 31).forEach((day, dayIndex) => {
-                          const isToday = isSameDay(day, new Date());
-                          const isCurrentMonth = isSameMonth(day, currentDate);
-                          
-                          const dayBookings = venueItem.bookings.filter((booking: any) => 
-                            booking.spaceId === space.id && booking.eventDate && isSameDay(new Date(booking.eventDate), day)
-                          );
-                          
-                          // Sort bookings by start time (earliest first)
-                          const sortedBookings = dayBookings.sort((a, b) => {
-                            const parseTime = (timeStr: string) => {
-                              const [hours, minutes] = timeStr.split(':').map(Number);
-                              return hours * 60 + minutes;
-                            };
-                            return parseTime(a.startTime) - parseTime(b.startTime);
-                          });
-                          
-                          rowItems.push(
-                            <div 
-                              key={`${space.id}-${dayIndex}`}
-                              className={`p-1 border-b border-r border-gray-200 min-h-[60px] ${
-                                isToday ? 'bg-blue-50/30' : 
-                                !isCurrentMonth ? 'bg-gray-50' : 'bg-white'
-                              }`}
-                            >
-                              <div className="space-y-1">
-                                {sortedBookings.map((booking: any) => (
-                                  <div
-                                    key={booking.id}
-                                    className={`border-l-2 p-1 text-xs rounded cursor-pointer hover:opacity-80 transition-colors ${
-                                      booking.contractId 
-                                        ? 'bg-purple-100 border-purple-500 text-purple-800' 
-                                        : 'bg-blue-100 border-blue-500 text-blue-800'
-                                    }`}
-                                    onClick={() => onEventClick?.(booking)}
-                                  >
-                                    <div className="text-gray-600 mb-1">
-                                      {booking.eventDate ? format(new Date(booking.eventDate), 'MMM d, yyyy') : 'Date TBD'}
-                                    </div>
-                                    <div className="font-semibold text-blue-800">
-                                      {space.name} @ {booking.startTime}
-                                    </div>
-                                    <div className="text-gray-700 truncate">
-                                      {booking.eventName}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        });
-                        
-                        return rowItems;
-                      }).flat() : []
                     )}
                   </div>
                 </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Venue Mode */}
+          {venueData.map((venue, index) => (
+            <Card key={index} className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-lg font-semibold">{venue.venue.name}</h4>
+                <Badge variant="secondary">
+                  {venue.bookings.length} booking{venue.bookings.length !== 1 ? 's' : ''}
+                </Badge>
               </div>
-            )}
-            
-            {/* Booking Details Below */}
-            {venueData.some(v => v.bookings.length > 0) && (
-              <Card className="p-4">
-                <h5 className="font-semibold mb-3">Recent Bookings</h5>
-                <div className="space-y-2">
-                  {venueData.flatMap(v => v.bookings).slice(0, 5).map((booking: any) => (
-                    <div key={booking.id} className="flex items-center justify-between p-2 bg-slate-50 rounded">
-                      <div className="flex-1">
-                        <div className="font-medium">{booking.eventName}</div>
-                        <div className="text-sm text-slate-600">
-                          {booking.venueName} • {booking.customerName} • {booking.guestCount} guests
-                        </div>
-                        <div className="text-xs text-slate-500">
-                          {booking.eventDate ? format(new Date(booking.eventDate), 'MMM d, yyyy') : 'Date TBD'} • {booking.startTime} - {booking.endTime}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <Badge 
-                          variant={booking.status === 'confirmed' ? 'default' : 'secondary'}
-                          className="mb-1"
-                        >
-                          {booking.status}
-                        </Badge>
-                        <div className="text-sm font-medium">
-                          ${parseFloat(booking.totalAmount || '0').toLocaleString()}
-                        </div>
+              
+              {venue.spaces.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                  {venue.spaces.map((space: any) => (
+                    <div key={space.id} className="p-3 bg-slate-50 rounded-lg">
+                      <div className="font-medium">{space.name}</div>
+                      <div className="text-sm text-slate-600">
+                        Capacity: {space.capacity} • ${space.hourlyRate}/hour
                       </div>
                     </div>
                   ))}
                 </div>
-              </Card>
-            )}
-          </div>
-        )}
-      </div>
-    </Card>
+              )}
+            </Card>
+          ))}
+          
+          {/* Recent Bookings */}
+          {venueData.some(v => v.bookings.length > 0) && (
+            <Card className="p-6">
+              <h5 className="text-lg font-semibold mb-4">Recent Bookings</h5>
+              <div className="space-y-3">
+                {venueData.flatMap(v => v.bookings).slice(0, 5).map((booking: any) => (
+                  <div key={booking.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                    <div className="flex-1">
+                      <div className="font-medium">{booking.eventName}</div>
+                      <div className="text-sm text-slate-600">
+                        {booking.venueName} • {booking.customerName} • {booking.guestCount} guests
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        {booking.eventDate ? format(new Date(booking.eventDate), 'MMM d, yyyy') : 'Date TBD'} • {booking.startTime} - {booking.endTime}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <Badge 
+                        variant={booking.status === 'confirmed' ? 'default' : 'secondary'}
+                        className="mb-1"
+                      >
+                        {booking.status}
+                      </Badge>
+                      <div className="text-sm font-medium">
+                        ${parseFloat(booking.totalAmount || '0').toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
