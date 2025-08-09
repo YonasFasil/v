@@ -785,9 +785,12 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                   {/* Right: Venue & Time Configuration */}
                   <div className="space-y-6">
                     <div>
-                      <Label className="text-base font-medium">Venue</Label>
+                      <Label className="text-base font-medium flex items-center gap-2">
+                        Venue
+                        <span className="text-red-500 text-sm">*</span>
+                      </Label>
                       <Select value={selectedVenue} onValueChange={setSelectedVenue}>
-                        <SelectTrigger className="mt-2">
+                        <SelectTrigger className={cn("mt-2", !selectedVenue && "border-red-200 bg-red-50/30")}>
                           <SelectValue placeholder="Select a venue (property)" />
                         </SelectTrigger>
                         <SelectContent>
@@ -855,12 +858,15 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                             
                             <div className="space-y-2">
                               <div className="mb-2">
-                                <Label className="text-sm">Select Space</Label>
+                                <Label className="text-sm flex items-center gap-1">
+                                  Select Space
+                                  <span className="text-red-500 text-xs">*</span>
+                                </Label>
                                 <Select
                                   value={dateInfo.spaceId || ""}
                                   onValueChange={(value) => updateDateTime(index, 'spaceId', value)}
                                 >
-                                  <SelectTrigger className="w-full">
+                                  <SelectTrigger className={cn("w-full", !dateInfo.spaceId && "border-red-200 bg-red-50/30")}>
                                     <SelectValue placeholder="Choose a space" />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -873,14 +879,19 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                 </Select>
                               </div>
                               
-                              <div className="flex items-center gap-2">
-                                <Select
-                                  value={dateInfo.startTime}
-                                  onValueChange={(value) => updateDateTime(index, 'startTime', value)}
-                                >
-                                  <SelectTrigger className="w-32">
-                                    <SelectValue />
-                                  </SelectTrigger>
+                              <div className="space-y-2">
+                                <Label className="text-sm flex items-center gap-1">
+                                  Event Time
+                                  <span className="text-red-500 text-xs">*</span>
+                                </Label>
+                                <div className="flex items-center gap-2">
+                                  <Select
+                                    value={dateInfo.startTime}
+                                    onValueChange={(value) => updateDateTime(index, 'startTime', value)}
+                                  >
+                                    <SelectTrigger className={cn("w-32", !dateInfo.startTime && "border-red-200 bg-red-50/30")}>
+                                      <SelectValue placeholder="Start" />
+                                    </SelectTrigger>
                                   <SelectContent>
                                     {Array.from({length: 24}, (_, i) => {
                                       const hour = i === 0 ? 12 : i <= 12 ? i : i - 12;
@@ -899,8 +910,8 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                   value={dateInfo.endTime}
                                   onValueChange={(value) => updateDateTime(index, 'endTime', value)}
                                 >
-                                  <SelectTrigger className="w-32">
-                                    <SelectValue />
+                                  <SelectTrigger className={cn("w-32", !dateInfo.endTime && "border-red-200 bg-red-50/30")}>
+                                    <SelectValue placeholder="End" />
                                   </SelectTrigger>
                                   <SelectContent>
                                     {Array.from({length: 24}, (_, i) => {
@@ -914,6 +925,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                   </SelectContent>
                                 </Select>
                               </div>
+                            </div>
                             </div>
                           </Card>
                         ))}
@@ -975,22 +987,37 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                             <div className="space-y-6">
                               {/* Guest Count */}
                               <div>
-                                <Label className="text-base font-medium">Guest Count</Label>
+                                <Label className="text-base font-medium flex items-center gap-2">
+                                  Guest Count
+                                  <span className="text-red-500 text-sm">*</span>
+                                </Label>
                                 <div className="mt-2 flex items-center gap-3">
                                   <Button
                                     type="button"
                                     variant="outline"
                                     size="sm"
                                     onClick={() => updateDateConfig('guestCount', Math.max(1, (activeDate.guestCount || 1) - 1))}
+                                    className="h-10 w-10 p-0"
                                   >
                                     <Minus className="h-4 w-4" />
                                   </Button>
-                                  <span className="text-lg font-medium px-4">{activeDate.guestCount || 1}</span>
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    max="999"
+                                    value={activeDate.guestCount || 1}
+                                    onChange={(e) => {
+                                      const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
+                                      updateDateConfig('guestCount', value);
+                                    }}
+                                    className="w-20 text-center text-lg font-medium h-10"
+                                  />
                                   <Button
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => updateDateConfig('guestCount', (activeDate.guestCount || 1) + 1)}
+                                    onClick={() => updateDateConfig('guestCount', Math.min(999, (activeDate.guestCount || 1) + 1))}
+                                    className="h-10 w-10 p-0"
                                   >
                                     <Plus className="h-4 w-4" />
                                   </Button>
@@ -1348,18 +1375,24 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
                     <div className="space-y-6">
                       <div>
-                        <Label className="text-base font-medium">Event Name</Label>
+                        <Label className="text-base font-medium flex items-center gap-2">
+                          Event Name
+                          <span className="text-red-500 text-sm">*</span>
+                        </Label>
                         <Input
                           value={eventName}
                           onChange={(e) => setEventName(e.target.value)}
                           placeholder="e.g., 'Annual Conference 2025'"
-                          className="mt-2"
+                          className={cn("mt-2", !eventName.trim() && "border-red-200 bg-red-50/30")}
                         />
                       </div>
 
                       <div>
                         <div className="flex items-center justify-between mb-2">
-                          <Label className="text-base font-medium">Customer</Label>
+                          <Label className="text-base font-medium flex items-center gap-2">
+                            Customer
+                            <span className="text-red-500 text-sm">*</span>
+                          </Label>
                           <Button
                             type="button"
                             variant="outline"
@@ -1374,7 +1407,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                         
                         {!showNewCustomerForm ? (
                           <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-                            <SelectTrigger>
+                            <SelectTrigger className={cn(!selectedCustomer && "border-red-200 bg-red-50/30")}>
                               <SelectValue placeholder="-- Select a Customer --" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1391,22 +1424,28 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                               <h4 className="font-medium text-sm">Create New Customer</h4>
                               <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                  <Label className="text-sm">Name *</Label>
+                                  <Label className="text-sm flex items-center gap-1">
+                                    Name
+                                    <span className="text-red-500 text-xs">*</span>
+                                  </Label>
                                   <Input
                                     value={newCustomer.name}
                                     onChange={(e) => setNewCustomer(prev => ({...prev, name: e.target.value}))}
                                     placeholder="Customer name"
-                                    className="mt-1"
+                                    className={cn("mt-1", !newCustomer.name.trim() && "border-red-200 bg-red-50/30")}
                                   />
                                 </div>
                                 <div>
-                                  <Label className="text-sm">Email *</Label>
+                                  <Label className="text-sm flex items-center gap-1">
+                                    Email
+                                    <span className="text-red-500 text-xs">*</span>
+                                  </Label>
                                   <Input
                                     type="email"
                                     value={newCustomer.email}
                                     onChange={(e) => setNewCustomer(prev => ({...prev, email: e.target.value}))}
                                     placeholder="customer@example.com"
-                                    className="mt-1"
+                                    className={cn("mt-1", !newCustomer.email.trim() && "border-red-200 bg-red-50/30")}
                                   />
                                 </div>
                                 <div>
