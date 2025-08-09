@@ -168,13 +168,12 @@ export default function FloorPlans() {
 
   const exportToPDF = async (floorPlan: FloorPlan) => {
     try {
-      const response = await apiRequest(`/api/floor-plans/${floorPlan.id}/export-pdf`, {
-        method: 'POST'
-      });
+      const response = await apiRequest('POST', `/api/floor-plans/${floorPlan.id}/export-pdf`);
+      const data = await response.json();
       
       // Create download link
       const link = document.createElement('a');
-      link.href = response.downloadUrl;
+      link.href = data.downloadUrl;
       link.download = `${floorPlan.name}-floor-plan.pdf`;
       document.body.appendChild(link);
       link.click();
@@ -310,7 +309,17 @@ export default function FloorPlans() {
                 </div>
               </div>
               <Button 
-                onClick={() => createFloorPlanMutation.mutate(newFloorPlan)}
+                onClick={() => {
+                  const selectedVenue = venues.find((v: Venue) => v.id === newFloorPlan.venueId);
+                  const floorPlanData = {
+                    ...newFloorPlan,
+                    venueName: selectedVenue?.name || '',
+                    dimensions: JSON.stringify(newFloorPlan.dimensions),
+                    elements: JSON.stringify([]),
+                    colorCoding: JSON.stringify({}),
+                  };
+                  createFloorPlanMutation.mutate(floorPlanData);
+                }}
                 disabled={!newFloorPlan.name || !newFloorPlan.venueId || createFloorPlanMutation.isPending}
                 className="w-full"
               >
