@@ -340,10 +340,15 @@ export function ImportMenuModal({ open, onOpenChange, type }: ImportMenuModalPro
   };
 
   const handleColumnMappingUpdate = (csvColumn: string, targetField: string) => {
-    setColumnMapping(prev => ({
-      ...prev,
-      [csvColumn]: targetField
-    }));
+    setColumnMapping(prev => {
+      const updated = { ...prev };
+      if (targetField === "__none__") {
+        delete updated[csvColumn];
+      } else {
+        updated[csvColumn] = targetField;
+      }
+      return updated;
+    });
   };
 
   const handleMappingComplete = () => {
@@ -516,14 +521,14 @@ export function ImportMenuModal({ open, onOpenChange, type }: ImportMenuModalPro
                           <ArrowRight className="w-4 h-4 text-gray-400" />
                           <div className="flex-1">
                             <Select
-                              value={columnMapping[csvColumn] || ""}
+                              value={columnMapping[csvColumn] || "__none__"}
                               onValueChange={(value) => handleColumnMappingUpdate(csvColumn, value)}
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Select target field" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="">Don't import</SelectItem>
+                                <SelectItem value="__none__">Don't import</SelectItem>
                                 {REQUIRED_FIELDS[type].map(field => (
                                   <SelectItem key={field.key} value={field.key}>
                                     {field.label} {field.required && <span className="text-red-500">*</span>}
