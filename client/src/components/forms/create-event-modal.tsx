@@ -984,22 +984,22 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
 
                           <div className="space-y-6">
                             {/* Package & Services - Full Width */}
-                            <div className="space-y-6">
-                              {/* Guest Count */}
+                            <div className="space-y-4">
+                              {/* Guest Count - Compact */}
                               <div>
-                                <Label className="text-base font-medium flex items-center gap-2">
+                                <Label className="text-sm font-medium flex items-center gap-2">
                                   Guest Count
-                                  <span className="text-red-500 text-sm">*</span>
+                                  <span className="text-red-500 text-xs">*</span>
                                 </Label>
-                                <div className="mt-2 flex items-center gap-3">
+                                <div className="mt-1 flex items-center gap-2">
                                   <Button
                                     type="button"
                                     variant="outline"
                                     size="sm"
                                     onClick={() => updateDateConfig('guestCount', Math.max(1, (activeDate.guestCount || 1) - 1))}
-                                    className="h-10 w-10 p-0"
+                                    className="h-8 w-8 p-0"
                                   >
-                                    <Minus className="h-4 w-4" />
+                                    <Minus className="h-3 w-3" />
                                   </Button>
                                   <Input
                                     type="number"
@@ -1010,16 +1010,16 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                       const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
                                       updateDateConfig('guestCount', value);
                                     }}
-                                    className="w-20 text-center text-lg font-medium h-10"
+                                    className="w-16 text-center text-sm font-medium h-8"
                                   />
                                   <Button
                                     type="button"
                                     variant="outline"
                                     size="sm"
                                     onClick={() => updateDateConfig('guestCount', Math.min(999, (activeDate.guestCount || 1) + 1))}
-                                    className="h-10 w-10 p-0"
+                                    className="h-8 w-8 p-0"
                                   >
-                                    <Plus className="h-4 w-4" />
+                                    <Plus className="h-3 w-3" />
                                   </Button>
                                 </div>
                               </div>
@@ -1040,7 +1040,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                 </div>
                                 
                                 {showPackageSelection && (
-                                  <div className="mt-3 max-h-60 overflow-y-auto">
+                                  <div className="mt-3 max-h-80 overflow-y-auto">
                                   <div className="grid grid-cols-1 gap-3">
                                     <div
                                       className={cn(
@@ -1249,7 +1249,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                   </Card>
                                 )}
 
-                                <div className="mt-3 space-y-3 max-h-60 overflow-y-auto">
+                                <div className="mt-3 space-y-3 max-h-80 overflow-y-auto">
                                   {(services as any[]).map((service: any) => {
                                     const isSelected = activeDate.selectedServices?.includes(service.id) || false;
                                     const basePrice = parseFloat(service.price || 0);
