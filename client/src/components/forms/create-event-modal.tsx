@@ -892,268 +892,259 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
 
               {/* Step 2: Per-Date Configuration */}
               {currentStep === 2 && (
-                <div className="flex flex-col lg:flex-row min-h-0 pb-4 gap-6">
-                  {/* Left: Date Tabs (Mobile: Top, Desktop: Left) */}
+                <div className="space-y-8 pb-4">
+                  {/* Date Selection (Multi-date only) */}
                   {selectedDates.length > 1 && (
-                    <div className="w-full lg:w-1/4 border-b lg:border-b-0 lg:border-r border-slate-200">
-                      <div className="p-3 bg-slate-50 rounded-t-lg lg:rounded-none lg:rounded-tl-lg">
-                        <h4 className="font-medium text-sm">Event Dates</h4>
-                      </div>
-                      <div className="flex lg:flex-col overflow-x-auto lg:overflow-x-visible lg:overflow-y-auto max-h-40 lg:max-h-none">
+                    <div>
+                      <Label className="text-base font-medium mb-3 block">Select Date to Configure</Label>
+                      <div className="flex gap-2 overflow-x-auto pb-2">
                         {selectedDates.map((dateInfo, index) => (
-                          <div 
-                            key={index} 
+                          <Button
+                            key={index}
+                            variant={activeTabIndex === index ? "default" : "outline"}
+                            size="sm"
                             onClick={() => setActiveTabIndex(index)}
-                            className={cn(
-                              "p-3 cursor-pointer border-b lg:border-b lg:border-r-0 transition-colors min-w-fit lg:min-w-0",
-                              activeTabIndex === index 
-                                ? "bg-blue-50 border-l-4 border-l-blue-500 text-blue-900" 
-                                : "hover:bg-slate-50"
-                            )}
+                            className="min-w-fit"
                           >
-                            <div className="text-sm font-medium">{format(dateInfo.date, 'MMM d')}</div>
-                            <div className="text-xs text-slate-500">{format(dateInfo.date, 'EEE')}</div>
-                          </div>
+                            {format(dateInfo.date, 'MMM d')}
+                          </Button>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {/* Right: Configuration Panel */}
-                  <div className="flex-1 overflow-y-auto">
-                    {activeDate && (
-                      <div className="space-y-6">
-                        {/* Header */}
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <h3 className="text-lg font-semibold">Configure Event</h3>
-                            <p className="text-sm text-slate-500">
-                              {format(activeDate.date, 'EEEE, MMMM d')} • {selectedVenueData?.spaces?.find((s: any) => s.id === activeDate.spaceId)?.name}
-                            </p>
+                  {activeDate && (
+                    <div className="space-y-8">
+                      {/* Header */}
+                      <div className="text-center">
+                        <h3 className="text-xl font-semibold">{format(activeDate.date, 'MMMM d, yyyy')}</h3>
+                        <p className="text-slate-500">{selectedVenueData?.spaces?.find((s: any) => s.id === activeDate.spaceId)?.name}</p>
+                      </div>
+
+                      {/* Guest Count */}
+                      <div className="text-center">
+                        <Label className="text-base font-medium mb-4 block">Number of Guests</Label>
+                        <div className="flex items-center justify-center gap-4">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="lg"
+                            onClick={() => updateDateConfig('guestCount', Math.max(1, (activeDate.guestCount || 1) - 1))}
+                            className="w-12 h-12"
+                          >
+                            <Minus className="h-5 w-5" />
+                          </Button>
+                          <div className="text-3xl font-bold w-16 text-center">{activeDate.guestCount || 1}</div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="lg"
+                            onClick={() => updateDateConfig('guestCount', (activeDate.guestCount || 1) + 1)}
+                            className="w-12 h-12"
+                          >
+                            <Plus className="h-5 w-5" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Package Selection */}
+                      <div>
+                        <Label className="text-base font-medium mb-4 block text-center">Choose Package</Label>
+                        <div className="space-y-3">
+                          {/* No Package */}
+                          <div
+                            className={cn(
+                              "p-4 border-2 rounded-xl cursor-pointer transition-all text-center",
+                              !activeDate.packageId ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"
+                            )}
+                            onClick={() => {
+                              updateDateConfig('packageId', "");
+                              updateDateConfig('selectedServices', []);
+                            }}
+                          >
+                            <div className="font-semibold">No Package</div>
+                            <div className="text-sm text-gray-600">Build your own with services</div>
+                            <div className="text-2xl font-bold text-green-600 mt-2">$0</div>
                           </div>
-                          {selectedDates.length > 1 && (
+                          
+                          {/* Package Options */}
+                          {(packages as any[]).map((pkg: any) => (
+                            <div
+                              key={pkg.id}
+                              className={cn(
+                                "p-4 border-2 rounded-xl cursor-pointer transition-all text-center",
+                                activeDate.packageId === pkg.id ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"
+                              )}
+                              onClick={() => {
+                                updateDateConfig('packageId', pkg.id);
+                                if (pkg?.includedServiceIds) {
+                                  updateDateConfig('selectedServices', [...(pkg.includedServiceIds || [])]);
+                                }
+                              }}
+                            >
+                              <div className="font-semibold text-lg">{pkg.name}</div>
+                              <div className="text-sm text-gray-600 mb-3">{pkg.description}</div>
+                              <div className="text-2xl font-bold text-green-600">
+                                ${pkg.pricingModel === 'per_person' 
+                                  ? `${parseFloat(pkg.price)}/person` 
+                                  : parseFloat(pkg.price)}
+                              </div>
+                              {pkg.pricingModel === 'per_person' && (
+                                <div className="text-sm text-gray-500 mt-1">
+                                  Total: ${(parseFloat(pkg.price) * (activeDate.guestCount || 1)).toFixed(2)}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Services Selection */}
+                      <div>
+                        <div className="flex items-center justify-center gap-4 mb-4">
+                          <Label className="text-base font-medium">Add Services</Label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowNewServiceForm(!showNewServiceForm)}
+                            className="text-blue-600"
+                          >
+                            <Plus className="w-4 h-4 mr-1" />
+                            New Service
+                          </Button>
+                        </div>
+
+                        {/* New Service Form */}
+                        {showNewServiceForm && (
+                          <div className="bg-blue-50 p-4 rounded-lg mb-4">
+                            <div className="flex gap-2">
+                              <Input
+                                value={newService.name}
+                                onChange={(e) => setNewService(prev => ({ ...prev, name: e.target.value }))}
+                                placeholder="Service name"
+                                className="flex-1"
+                              />
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={newService.price}
+                                onChange={(e) => setNewService(prev => ({ ...prev, price: e.target.value }))}
+                                placeholder="Price"
+                                className="w-24"
+                              />
+                              <Button
+                                type="button"
+                                onClick={handleCreateService}
+                                disabled={createService.isPending}
+                                className="bg-blue-600 hover:bg-blue-700"
+                              >
+                                Add
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Services List */}
+                        <div className="space-y-3 max-h-96 overflow-y-auto">
+                          {(services as any[]).map((service: any) => {
+                            const isSelected = activeDate.selectedServices?.includes(service.id) || false;
+                            const basePrice = parseFloat(service.price || 0);
+                            const overridePrice = activeDate.pricingOverrides?.servicePrices?.[service.id];
+                            const displayPrice = overridePrice ?? basePrice;
+                            
+                            return (
+                              <div
+                                key={service.id}
+                                className={cn(
+                                  "p-4 border-2 rounded-xl cursor-pointer transition-all",
+                                  isSelected ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"
+                                )}
+                                onClick={() => {
+                                  const currentServices = activeDate.selectedServices || [];
+                                  const newServices = isSelected 
+                                    ? currentServices.filter(id => id !== service.id)
+                                    : [...currentServices, service.id];
+                                  updateDateConfig('selectedServices', newServices);
+                                }}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <Checkbox checked={isSelected} disabled />
+                                    <div>
+                                      <div className="font-semibold">{service.name}</div>
+                                      <div className="text-sm text-gray-600">{service.description}</div>
+                                    </div>
+                                  </div>
+                                  <div className="text-xl font-bold text-green-600">
+                                    ${displayPrice.toFixed(2)}
+                                    {service.pricingModel === 'per_person' && <span className="text-sm">/person</span>}
+                                  </div>
+                                </div>
+                                
+                                {isSelected && (
+                                  <div className="mt-4 pt-4 border-t flex items-center gap-4 justify-center">
+                                    {service.pricingModel !== 'per_person' && (
+                                      <div className="flex items-center gap-2">
+                                        <span>Quantity:</span>
+                                        <Input
+                                          type="number"
+                                          min="1"
+                                          value={activeDate.itemQuantities?.[service.id] || 1}
+                                          onChange={(e) => {
+                                            e.stopPropagation();
+                                            const newQuantities = {
+                                              ...activeDate.itemQuantities,
+                                              [service.id]: Math.max(1, parseInt(e.target.value, 10) || 1)
+                                            };
+                                            updateDateConfig('itemQuantities', newQuantities);
+                                          }}
+                                          className="w-20"
+                                        />
+                                      </div>
+                                    )}
+                                    <div className="flex items-center gap-2">
+                                      <span>Custom Price: $</span>
+                                      <Input
+                                        type="number"
+                                        step="0.01"
+                                        value={activeDate.pricingOverrides?.servicePrices?.[service.id] ?? ''}
+                                        onChange={(e) => {
+                                          e.stopPropagation();
+                                          const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                          updateDateConfig('pricingOverrides', {
+                                            ...activeDate.pricingOverrides,
+                                            servicePrices: {
+                                              ...activeDate.pricingOverrides?.servicePrices,
+                                              [service.id]: value
+                                            }
+                                          });
+                                        }}
+                                        className="w-24"
+                                        placeholder={service.price}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        
+                        {selectedDates.length > 1 && (
+                          <div className="text-center mt-6">
                             <Button 
-                              variant="outline" 
-                              size="sm"
+                              variant="outline"
                               onClick={() => setShowCopyModal(true)}
                               className="text-blue-600"
                             >
-                              Copy Config
-                            </Button>
-                          )}
-                        </div>
-
-                        {/* Guest Count - Compact */}
-                        <div className="flex items-center gap-4">
-                          <Label className="text-sm font-medium">Guests:</Label>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateDateConfig('guestCount', Math.max(1, (activeDate.guestCount || 1) - 1))}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <span className="text-sm font-medium px-3">{activeDate.guestCount || 1}</span>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateDateConfig('guestCount', (activeDate.guestCount || 1) + 1)}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Plus className="h-3 w-3" />
+                              Copy This Configuration to Other Dates
                             </Button>
                           </div>
-                        </div>
-
-                        {/* Package Selection - Grid Layout */}
-                        <div>
-                          <Label className="text-sm font-medium mb-3 block">Event Package</Label>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
-                            {/* No Package Option */}
-                            <div
-                              className={cn(
-                                "p-3 border rounded-lg cursor-pointer transition-all",
-                                !activeDate.packageId ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
-                              )}
-                              onClick={() => {
-                                updateDateConfig('packageId', "");
-                                updateDateConfig('selectedServices', []);
-                              }}
-                            >
-                              <div className="font-medium text-sm">No Package</div>
-                              <div className="text-xs text-slate-600 mb-1">Custom services only</div>
-                              <div className="text-lg font-semibold text-green-600">$0.00</div>
-                            </div>
-                            
-                            {/* Package Options */}
-                            {(packages as any[]).map((pkg: any) => (
-                              <div
-                                key={pkg.id}
-                                className={cn(
-                                  "p-3 border rounded-lg cursor-pointer transition-all",
-                                  activeDate.packageId === pkg.id ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
-                                )}
-                                onClick={() => {
-                                  updateDateConfig('packageId', pkg.id);
-                                  if (pkg?.includedServiceIds) {
-                                    updateDateConfig('selectedServices', [...(pkg.includedServiceIds || [])]);
-                                  }
-                                }}
-                              >
-                                <div className="font-medium text-sm">{pkg.name}</div>
-                                <div className="text-xs text-slate-600 mb-1 line-clamp-2">{pkg.description}</div>
-                                <div className="text-lg font-semibold text-green-600">
-                                  ${pkg.pricingModel === 'per_person' 
-                                    ? `${parseFloat(pkg.price)}/person` 
-                                    : parseFloat(pkg.price).toFixed(2)}
-                                </div>
-                                {pkg.pricingModel === 'per_person' && (
-                                  <div className="text-xs text-slate-500">
-                                    Total: ${(parseFloat(pkg.price) * (activeDate.guestCount || 1)).toFixed(2)}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Services Selection - Simplified */}
-                        <div>
-                          <div className="flex items-center justify-between mb-3">
-                            <Label className="text-sm font-medium">Additional Services</Label>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setShowNewServiceForm(!showNewServiceForm)}
-                              className="text-blue-600 border-blue-200 hover:bg-blue-50 h-8"
-                            >
-                              <Plus className="w-3 h-3 mr-1" />
-                              {showNewServiceForm ? "Cancel" : "New"}
-                            </Button>
-                          </div>
-
-                          {/* New Service Form - Compact */}
-                          {showNewServiceForm && (
-                            <Card className="p-3 mb-3 border-blue-200 bg-blue-50">
-                              <div className="grid grid-cols-3 gap-2">
-                                <Input
-                                  value={newService.name}
-                                  onChange={(e) => setNewService(prev => ({ ...prev, name: e.target.value }))}
-                                  placeholder="Service name"
-                                  className="h-8 text-xs"
-                                />
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  value={newService.price}
-                                  onChange={(e) => setNewService(prev => ({ ...prev, price: e.target.value }))}
-                                  placeholder="Price"
-                                  className="h-8 text-xs"
-                                />
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  onClick={handleCreateService}
-                                  disabled={createService.isPending}
-                                  className="bg-blue-600 hover:bg-blue-700 h-8 text-xs"
-                                >
-                                  {createService.isPending ? "..." : "Create"}
-                                </Button>
-                              </div>
-                            </Card>
-                          )}
-
-                          {/* Services Grid */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-64 overflow-y-auto">
-                            {(services as any[]).map((service: any) => {
-                              const isSelected = activeDate.selectedServices?.includes(service.id) || false;
-                              const basePrice = parseFloat(service.price || 0);
-                              const overridePrice = activeDate.pricingOverrides?.servicePrices?.[service.id];
-                              const displayPrice = overridePrice ?? basePrice;
-                              
-                              return (
-                                <div
-                                  key={service.id}
-                                  className={cn(
-                                    "p-3 border rounded-lg cursor-pointer transition-all",
-                                    isSelected ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
-                                  )}
-                                  onClick={() => {
-                                    const currentServices = activeDate.selectedServices || [];
-                                    const newServices = isSelected 
-                                      ? currentServices.filter(id => id !== service.id)
-                                      : [...currentServices, service.id];
-                                    updateDateConfig('selectedServices', newServices);
-                                  }}
-                                >
-                                  <div className="flex items-start gap-2">
-                                    <Checkbox checked={isSelected} disabled className="mt-0.5" />
-                                    <div className="flex-1 min-w-0">
-                                      <div className="font-medium text-sm">{service.name}</div>
-                                      <div className="text-xs text-slate-600 line-clamp-1">{service.description}</div>
-                                      <div className="text-base font-semibold text-green-600 mt-1">
-                                        ${displayPrice.toFixed(2)} {service.pricingModel === 'per_person' ? '/person' : ''}
-                                      </div>
-                                    </div>
-                                  </div>
-                                  
-                                  {isSelected && (
-                                    <div className="mt-2 pt-2 border-t border-slate-200 flex items-center gap-2">
-                                      {service.pricingModel !== 'per_person' && (
-                                        <div className="flex items-center gap-1">
-                                          <span className="text-xs">Qty:</span>
-                                          <Input
-                                            type="number"
-                                            min="1"
-                                            value={activeDate.itemQuantities?.[service.id] || 1}
-                                            onChange={(e) => {
-                                              e.stopPropagation();
-                                              const newQuantities = {
-                                                ...activeDate.itemQuantities,
-                                                [service.id]: Math.max(1, parseInt(e.target.value, 10) || 1)
-                                              };
-                                              updateDateConfig('itemQuantities', newQuantities);
-                                            }}
-                                            className="w-12 h-6 text-xs"
-                                          />
-                                        </div>
-                                      )}
-                                      <div className="flex items-center gap-1">
-                                        <span className="text-xs">$</span>
-                                        <Input
-                                          type="number"
-                                          step="0.01"
-                                          value={activeDate.pricingOverrides?.servicePrices?.[service.id] ?? ''}
-                                          onChange={(e) => {
-                                            e.stopPropagation();
-                                            const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
-                                            updateDateConfig('pricingOverrides', {
-                                              ...activeDate.pricingOverrides,
-                                              servicePrices: {
-                                                ...activeDate.pricingOverrides?.servicePrices,
-                                                [service.id]: value
-                                              }
-                                            });
-                                          }}
-                                          className="w-16 h-6 text-xs"
-                                          placeholder={service.price}
-                                        />
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               )}
 
