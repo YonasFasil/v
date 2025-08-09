@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, getDay } from "date-fns";
-import { ChevronLeft, ChevronRight, X, Plus, Minus, RotateCcw, Calendar as CalendarIcon, Mic, FileText, Save, Users, Grid3X3 } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Plus, Minus, RotateCcw, Calendar as CalendarIcon, Mic, FileText, Save, Users, Grid3X3, MapPin } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
