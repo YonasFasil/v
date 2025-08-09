@@ -933,38 +933,57 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                     Guest Count
                                     <span className="text-red-500 text-xs">*</span>
                                   </Label>
-                                  <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg p-1 w-fit">
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => updateDateTime(index, 'guestCount', Math.max(1, (dateInfo.guestCount || 1) - 1))}
-                                      className="h-6 w-6 p-0 hover:bg-slate-200 rounded"
-                                    >
-                                      <Minus className="h-3 w-3" />
-                                    </Button>
-                                    <div className="px-3 py-1 bg-white border border-slate-200 rounded mx-1 min-w-[3rem] text-center">
-                                      <Input
-                                        type="number"
-                                        min="1"
-                                        max="999"
-                                        value={dateInfo.guestCount || 1}
-                                        onChange={(e) => {
-                                          const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
-                                          updateDateTime(index, 'guestCount', value);
-                                        }}
-                                        className="border-0 p-0 text-center text-sm font-semibold bg-transparent focus:ring-0 focus:outline-none w-full"
-                                      />
+                                  <div className="space-y-1">
+                                    <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg p-1 w-fit">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => updateDateTime(index, 'guestCount', Math.max(1, (dateInfo.guestCount || 1) - 1))}
+                                        className="h-6 w-6 p-0 hover:bg-slate-200 rounded"
+                                      >
+                                        <Minus className="h-3 w-3" />
+                                      </Button>
+                                      <div className="px-3 py-1 bg-white border border-slate-200 rounded mx-1 min-w-[3rem] text-center">
+                                        <Input
+                                          type="number"
+                                          min="1"
+                                          max="999"
+                                          value={dateInfo.guestCount || 1}
+                                          onChange={(e) => {
+                                            const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
+                                            updateDateTime(index, 'guestCount', value);
+                                          }}
+                                          className="border-0 p-0 text-center text-sm font-semibold bg-transparent focus:ring-0 focus:outline-none w-full"
+                                        />
+                                      </div>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => updateDateTime(index, 'guestCount', Math.min(999, (dateInfo.guestCount || 1) + 1))}
+                                        className="h-6 w-6 p-0 hover:bg-slate-200 rounded"
+                                      >
+                                        <Plus className="h-3 w-3" />
+                                      </Button>
                                     </div>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => updateDateTime(index, 'guestCount', Math.min(999, (dateInfo.guestCount || 1) + 1))}
-                                      className="h-6 w-6 p-0 hover:bg-slate-200 rounded"
-                                    >
-                                      <Plus className="h-3 w-3" />
-                                    </Button>
+                                    {(() => {
+                                      const selectedSpace = selectedVenueData?.spaces?.find((space: any) => space.id === dateInfo.spaceId);
+                                      const guestCount = dateInfo.guestCount || 1;
+                                      const capacity = selectedSpace?.capacity || 0;
+                                      
+                                      if (selectedSpace && guestCount > capacity) {
+                                        return (
+                                          <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                            </svg>
+                                            Exceeds capacity ({capacity})
+                                          </div>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
                                   </div>
                                 </div>
                               </div>
@@ -1032,38 +1051,57 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                 Guests
                                 <span className="text-red-500 text-xs">*</span>
                               </Label>
-                              <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg p-1">
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => updateDateConfig('guestCount', Math.max(1, (activeDate.guestCount || 1) - 1))}
-                                  className="h-6 w-6 p-0 hover:bg-slate-200 rounded"
-                                >
-                                  <Minus className="h-3 w-3" />
-                                </Button>
-                                <div className="px-3 py-1 bg-white border border-slate-200 rounded mx-1 min-w-[3rem] text-center">
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    max="999"
-                                    value={activeDate.guestCount || 1}
-                                    onChange={(e) => {
-                                      const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
-                                      updateDateConfig('guestCount', value);
-                                    }}
-                                    className="border-0 p-0 text-center text-sm font-semibold bg-transparent focus:ring-0 focus:outline-none w-full"
-                                  />
+                              <div className="flex flex-col items-end gap-1">
+                                <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg p-1">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => updateDateConfig('guestCount', Math.max(1, (activeDate.guestCount || 1) - 1))}
+                                    className="h-6 w-6 p-0 hover:bg-slate-200 rounded"
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <div className="px-3 py-1 bg-white border border-slate-200 rounded mx-1 min-w-[3rem] text-center">
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      max="999"
+                                      value={activeDate.guestCount || 1}
+                                      onChange={(e) => {
+                                        const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
+                                        updateDateConfig('guestCount', value);
+                                      }}
+                                      className="border-0 p-0 text-center text-sm font-semibold bg-transparent focus:ring-0 focus:outline-none w-full"
+                                    />
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => updateDateConfig('guestCount', Math.min(999, (activeDate.guestCount || 1) + 1))}
+                                    className="h-6 w-6 p-0 hover:bg-slate-200 rounded"
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
                                 </div>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => updateDateConfig('guestCount', Math.min(999, (activeDate.guestCount || 1) + 1))}
-                                  className="h-6 w-6 p-0 hover:bg-slate-200 rounded"
-                                >
-                                  <Plus className="h-3 w-3" />
-                                </Button>
+                                {(() => {
+                                  const selectedSpace = selectedVenueData?.spaces?.find((space: any) => space.id === activeDate.spaceId);
+                                  const guestCount = activeDate.guestCount || 1;
+                                  const capacity = selectedSpace?.capacity || 0;
+                                  
+                                  if (selectedSpace && guestCount > capacity) {
+                                    return (
+                                      <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                        </svg>
+                                        Exceeds capacity ({capacity})
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                })()}
                               </div>
                             </div>
                           </div>
