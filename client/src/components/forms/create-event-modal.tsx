@@ -925,6 +925,46 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                   </SelectContent>
                                 </Select>
                               </div>
+                              </div>
+                              
+                              <div>
+                                <Label className="text-sm flex items-center gap-1">
+                                  Guest Count
+                                  <span className="text-red-500 text-xs">*</span>
+                                </Label>
+                                <div className="mt-1 flex items-center bg-slate-50 border border-slate-200 rounded-lg p-1 w-fit">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => updateDateTime(index, 'guestCount', Math.max(1, (dateInfo.guestCount || 1) - 1))}
+                                    className="h-6 w-6 p-0 hover:bg-slate-200 rounded"
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <div className="px-3 py-1 bg-white border border-slate-200 rounded mx-1 min-w-[3rem] text-center">
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      max="999"
+                                      value={dateInfo.guestCount || 1}
+                                      onChange={(e) => {
+                                        const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
+                                        updateDateTime(index, 'guestCount', value);
+                                      }}
+                                      className="border-0 p-0 text-center text-sm font-semibold bg-transparent focus:ring-0 focus:outline-none w-full"
+                                    />
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => updateDateTime(index, 'guestCount', Math.min(999, (dateInfo.guestCount || 1) + 1))}
+                                    className="h-6 w-6 p-0 hover:bg-slate-200 rounded"
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
                             </div>
                             </div>
                           </Card>
