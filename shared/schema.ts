@@ -31,6 +31,7 @@ export const setupStyles = pgTable("setup_styles", {
   category: text("category").notNull().default("general"), // dining, meeting, presentation, social, custom
   minCapacity: integer("min_capacity"),
   maxCapacity: integer("max_capacity"),
+  floorPlan: jsonb("floor_plan"), // 2D floor plan configuration showing the layout for this setup style
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });

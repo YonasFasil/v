@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Grid3X3, Plus, Edit, Trash2, Users, Search, Filter } from "lucide-react";
+import { Grid3X3, Plus, Edit, Trash2, Users, Search, Filter, Layout } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { SetupStyleFloorPlanModal } from "@/components/forms/setup-style-floor-plan-modal";
 
 const CATEGORIES = [
   { value: 'dining', label: 'Dining', color: 'bg-orange-100 text-orange-700' },
@@ -40,7 +41,9 @@ export default function SetupStyles() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showFloorPlanModal, setShowFloorPlanModal] = useState(false);
   const [editingStyle, setEditingStyle] = useState<any>(null);
+  const [floorPlanStyle, setFloorPlanStyle] = useState<any>(null);
   const [formData, setFormData] = useState<SetupStyleFormData>({
     name: "",
     description: "",
@@ -120,6 +123,26 @@ export default function SetupStyles() {
     }
   });
 
+  // Update floor plan mutation
+  const updateFloorPlanMutation = useMutation({
+    mutationFn: ({ id, floorPlan }: { id: string, floorPlan: any }) => 
+      apiRequest(`/api/setup-styles/${id}`, "PATCH", { floorPlan }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/setup-styles"] });
+      toast({
+        title: "Floor plan saved",
+        description: "The floor plan has been saved to the setup style."
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save floor plan. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
+
   const resetForm = () => {
     setFormData({
       name: "",
@@ -155,6 +178,12 @@ export default function SetupStyles() {
   const handleDelete = (id: string) => {
     if (confirm("Are you sure you want to delete this setup style?")) {
       deleteMutation.mutate(id);
+    }
+  };
+
+  const handleFloorPlanSave = (floorPlan: any) => {
+    if (floorPlanStyle) {
+      updateFloorPlanMutation.mutate({ id: floorPlanStyle.id, floorPlan });
     }
   };
 
@@ -246,14 +275,27 @@ export default function SetupStyles() {
                       variant="outline"
                       size="sm"
                       onClick={() => handleEdit(style)}
+                      title="Edit setup style"
                     >
                       <Edit className="w-4 h-4" />
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => {
+                        setFloorPlanStyle(style);
+                        setShowFloorPlanModal(true);
+                      }}
+                      title="Design floor plan"
+                    >
+                      <Layout className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => handleDelete(style.id)}
                       className="text-red-600 hover:text-red-700"
+                      title="Delete setup style"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -279,8 +321,16 @@ export default function SetupStyles() {
                 )}
                 
                 <div className="pt-2 border-t border-slate-100">
-                  <div className="text-xs text-slate-500">
-                    Created {new Date(style.createdAt).toLocaleDateString()}
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-slate-500">
+                      Created {new Date(style.createdAt).toLocaleDateString()}
+                    </div>
+                    {style.floorPlan && (
+                      <div className="flex items-center gap-1 text-xs text-blue-600">
+                        <Layout className="w-3 h-3" />
+                        Floor plan
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -443,6 +493,14 @@ export default function SetupStyles() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Floor Plan Designer Modal */}
+        <SetupStyleFloorPlanModal
+          open={showFloorPlanModal}
+          onOpenChange={setShowFloorPlanModal}
+          setupStyle={floorPlanStyle}
+          onSave={handleFloorPlanSave}
+        />
       </div>
     </AppLayout>
   );
