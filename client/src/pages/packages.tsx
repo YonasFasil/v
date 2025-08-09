@@ -11,12 +11,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useQuery } from "@tanstack/react-query";
-import { Package, Plus, Edit, Trash2, DollarSign, Check, Copy } from "lucide-react";
+import { Package, Plus, Edit, Trash2, DollarSign, Check, Copy, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { EditPackageModal } from "@/components/forms/edit-package-modal";
 import { EditServiceModal } from "@/components/forms/edit-service-modal";
+import { ImportMenuModal } from "@/components/forms/import-menu-modal";
 
 export default function Packages() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -26,6 +27,8 @@ export default function Packages() {
   const [editingService, setEditingService] = useState<any>(null);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [duplicatingService, setDuplicatingService] = useState<any>(null);
+  const [showImportPackages, setShowImportPackages] = useState(false);
+  const [showImportServices, setShowImportServices] = useState(false);
   const [categories, setCategories] = useState([
     { id: "catering", name: "Catering", color: "bg-orange-100 text-orange-800" },
     { id: "entertainment", name: "Entertainment", color: "bg-purple-100 text-purple-800" },
@@ -243,6 +246,22 @@ export default function Packages() {
           onMobileMenuToggle={() => setMobileNavOpen(true)}
           action={
             <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowImportServices(true)}
+                className="border-gray-300 text-gray-600 hover:bg-gray-50"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Import Services
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowImportPackages(true)}
+                className="border-gray-300 text-gray-600 hover:bg-gray-50"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Import Packages
+              </Button>
               <Dialog open={showCreateServiceForm} onOpenChange={setShowCreateServiceForm}>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-50">
@@ -779,6 +798,19 @@ export default function Packages() {
           </Dialog>
         </main>
       </div>
+      
+      {/* Import Modals */}
+      <ImportMenuModal 
+        open={showImportPackages}
+        onOpenChange={setShowImportPackages}
+        type="packages"
+      />
+      
+      <ImportMenuModal 
+        open={showImportServices}
+        onOpenChange={setShowImportServices}
+        type="services"
+      />
     </div>
   );
 }

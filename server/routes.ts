@@ -818,6 +818,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI Features
+  // ===== IMPORT ROUTES =====
+  
+  app.post("/api/packages/import", async (req, res) => {
+    try {
+      const { items } = req.body;
+      if (!items || !Array.isArray(items)) {
+        return res.status(400).json({ error: "Invalid import data" });
+      }
+
+      let imported = 0;
+      let errors = 0;
+      const importErrors: string[] = [];
+
+      for (const item of items) {
+        try {
+          // Validate required fields
+          if (!item.name || !item.category || item.price === undefined) {
+            errors++;
+            importErrors.push(`Row ${item.row}: Missing required fields`);
+            continue;
+          }
+
+          // Create the package
+          const newPackage = {
+            name: item.name,
+            description: item.description || "",
+            category: item.category,
+            price: item.price.toString(),
+            pricingModel: item.pricingModel || "fixed",
+            applicableSpaceIds: [],
+            includedServiceIds: []
+          };
+
+          // If includedServices are provided, try to match them with existing services
+          if (item.includedServices && item.includedServices.length > 0) {
+            const allServices = await storage.getServices();
+            const matchedServiceIds = [];
+            
+            for (const serviceName of item.includedServices) {
+              const service = allServices.find(s => 
+                s.name.toLowerCase().includes(serviceName.toLowerCase()) ||
+                serviceName.toLowerCase().includes(s.name.toLowerCase())
+              );
+              if (service) {
+                matchedServiceIds.push(service.id);
+              }
+            }
+            newPackage.includedServiceIds = matchedServiceIds;
+          }
+
+          await storage.createPackage(newPackage);
+          imported++;
+        } catch (error) {
+          errors++;
+          importErrors.push(`Row ${item.row}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+
+      res.json({
+        imported,
+        errors,
+        warnings: 0,
+        details: importErrors
+      });
+    } catch (error) {
+      console.error("Package import error:", error);
+      res.status(500).json({ error: "Failed to import packages" });
+    }
+  });
+
+  app.post("/api/services/import", async (req, res) => {
+    try {
+      const { items } = req.body;
+      if (!items || !Array.isArray(items)) {
+        return res.status(400).json({ error: "Invalid import data" });
+      }
+
+      let imported = 0;
+      let errors = 0;
+      const importErrors: string[] = [];
+
+      for (const item of items) {
+        try {
+          // Validate required fields
+          if (!item.name || !item.category || item.price === undefined) {
+            errors++;
+            importErrors.push(`Row ${item.row}: Missing required fields`);
+            continue;
+          }
+
+          // Create the service
+          const newService = {
+            name: item.name,
+            description: item.description || "",
+            category: item.category,
+            price: item.price.toString(),
+            pricingModel: item.pricingModel || "fixed"
+          };
+
+          await storage.createService(newService);
+          imported++;
+        } catch (error) {
+          errors++;
+          importErrors.push(`Row ${item.row}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+
+      res.json({
+        imported,
+        errors,
+        warnings: 0,
+        details: importErrors
+      });
+    } catch (error) {
+      console.error("Service import error:", error);
+      res.status(500).json({ error: "Failed to import services" });
+    }
+  });
+
   app.get("/api/ai/insights", async (req, res) => {
     try {
       const insights = await storage.getActiveAiInsights();
