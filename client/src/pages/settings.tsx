@@ -97,9 +97,9 @@ export default function Settings() {
                 <Building className="w-4 h-4" />
                 <span>Business</span>
               </TabsTrigger>
-              <TabsTrigger value="email" className="flex items-center gap-2 px-4 py-3">
-                <Mail className="w-4 h-4" />
-                <span>Email</span>
+              <TabsTrigger value="integrations" className="flex items-center gap-2 px-4 py-3">
+                <Key className="w-4 h-4" />
+                <span>Integrations</span>
               </TabsTrigger>
               <TabsTrigger value="payments" className="flex items-center gap-2 px-4 py-3">
                 <CreditCard className="w-4 h-4" />
@@ -205,25 +205,33 @@ export default function Settings() {
               </Card>
             </TabsContent>
 
-            {/* Email Configuration */}
-            <TabsContent value="email" className="space-y-6">
+            {/* Integrations */}
+            <TabsContent value="integrations" className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Mail className="w-5 h-5" />
-                    Email Configuration
+                    <Key className="w-5 h-5" />
+                    Integrations & API Keys
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {/* Current Status */}
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
-                      <div>
-                        <h4 className="font-medium text-amber-900">Demo Mode Active</h4>
-                        <p className="text-sm text-amber-700 mt-1">
-                          Emails are currently in demo mode. Configure Gmail credentials in Replit Secrets to enable real email sending.
-                        </p>
+                  {/* Email Integration */}
+                  <div>
+                    <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
+                      <Mail className="w-5 h-5" />
+                      Email Integration
+                    </h3>
+                    
+                    {/* Current Status */}
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
+                        <div>
+                          <h4 className="font-medium text-amber-900">Demo Mode Active</h4>
+                          <p className="text-sm text-amber-700 mt-1">
+                            Emails are currently in demo mode. Configure Gmail credentials in Replit Secrets to enable real email sending.
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -334,6 +342,44 @@ export default function Settings() {
                     <Save className="w-4 h-4 mr-2" />
                     Save Email Settings
                   </Button>
+
+                  <Separator />
+
+                  {/* Other Integrations */}
+                  <div>
+                    <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
+                      <Globe className="w-5 h-5" />
+                      Other Integrations
+                    </h3>
+                    
+                    <div className="grid gap-4">
+                      <div className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium">Google Gemini AI</h4>
+                            <p className="text-sm text-gray-500">AI-powered features and automation</p>
+                          </div>
+                        </div>
+                        <div className="text-sm text-green-600 font-medium">Connected</div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <CreditCard className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium">Stripe Payments</h4>
+                            <p className="text-sm text-gray-500">Online payment processing</p>
+                          </div>
+                        </div>
+                        <div className="text-sm text-gray-500">Not Connected</div>
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
