@@ -46,10 +46,9 @@ const analyticsItems = [
 
 interface SidebarProps {
   collapsed?: boolean;
-  onToggle?: () => void;
 }
 
-export function Sidebar({ collapsed = false, onToggle }: SidebarProps = {}) {
+export function Sidebar({ collapsed = false }: SidebarProps) {
   const [location] = useLocation();
 
   const isActive = (href: string) => {
@@ -62,21 +61,13 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps = {}) {
   return (
     <div className={`${collapsed ? 'w-16' : 'w-64'} bg-white border-r border-slate-200 flex flex-col transition-all duration-300`}>
       {/* Logo and Brand */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+      <div className="flex items-center px-6 py-4 border-b border-slate-200">
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-sm">V</span>
           </div>
           {!collapsed && <span className="text-xl font-semibold text-slate-900">Venuine</span>}
         </div>
-        {onToggle && (
-          <button 
-            onClick={onToggle}
-            className="p-1 rounded hover:bg-slate-100 transition-colors"
-          >
-            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </button>
-        )}
       </div>
 
       {/* Navigation Menu */}
