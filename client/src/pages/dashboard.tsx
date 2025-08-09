@@ -27,7 +27,7 @@ export default function Dashboard() {
   const handleEventClick = async (booking: any) => {
     if (booking.contractId) {
       // Find the full contract representation from the bookings list
-      const contractBooking = allBookings.find((b: any) => 
+      const contractBooking = (allBookings as any[]).find((b: any) => 
         b.isContract && b.contractInfo?.id === booking.contractId
       );
       if (contractBooking) {
@@ -112,7 +112,6 @@ export default function Dashboard() {
             
             <div className="space-y-4 sm:space-y-6">
               <ActiveLeads />
-              <QuickActions />
             </div>
           </div>
           
