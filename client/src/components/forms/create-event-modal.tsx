@@ -870,39 +870,8 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                     </div>
                   </div>
 
-                  {/* Right: Venue & Time Configuration */}
+                  {/* Right: Time Configuration */}
                   <div className="space-y-6">
-                    <div>
-                      <Label className="text-base font-medium flex items-center gap-2">
-                        Venue
-                        <span className="text-red-500 text-sm">*</span>
-                      </Label>
-                      <Select value={selectedVenue} onValueChange={setSelectedVenue}>
-                        <SelectTrigger className={cn("mt-2", !selectedVenue && "border-red-200 bg-red-50/30")}>
-                          <SelectValue placeholder="Select a venue (property)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(venues as any[]).map((venue: any) => (
-                            <SelectItem key={venue.id} value={venue.id}>
-                              {venue.name} - {venue.spaces?.length || 0} spaces available
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {selectedVenueData && (
-                        <div className="mt-2 p-3 bg-slate-50 rounded border">
-                          <p className="text-sm text-slate-600 mb-2">Available spaces in this venue:</p>
-                          <div className="space-y-1">
-                            {selectedVenueData.spaces?.map((space: any) => (
-                              <div key={space.id} className="text-sm">
-                                <span className="font-medium">{space.name}</span>
-                                <span className="text-slate-500 ml-2">• Capacity: {space.capacity}</span>
-                              </div>
-                            )) || <p className="text-sm text-slate-500">No spaces configured</p>}
-                          </div>
-                        </div>
-                      )}
-                    </div>
 
                     <div>
                       <Label className="text-base font-medium">Configure Dates ({selectedDates.length})</Label>
@@ -1803,12 +1772,47 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
           </div>
 
           {/* Fixed Footer */}
-          <div className="border-t border-slate-200 p-3 sm:p-6 flex flex-col sm:flex-row gap-3 sm:gap-0 justify-between items-center bg-white flex-shrink-0 mt-auto">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-600">Grand Total</span>
-                <span className="text-lg font-semibold">${totalPrice.toFixed(2)}</span>
+          <div className="border-t border-slate-200 p-3 sm:p-6 bg-white flex-shrink-0 mt-auto">
+            <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
+              {/* Left: Venue Selection & Summary */}
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                {currentStep === 1 && (
+                  <div className="flex items-center gap-3">
+                    <Label className="text-sm font-medium text-slate-700 whitespace-nowrap flex items-center gap-1">
+                      <MapPin className="w-4 h-4" />
+                      Venue*
+                    </Label>
+                    <Select value={selectedVenue} onValueChange={setSelectedVenue}>
+                      <SelectTrigger className={cn("w-64", !selectedVenue && "border-red-200 bg-red-50/30")}>
+                        <SelectValue placeholder="Select venue" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(venues as any[]).map((venue: any) => (
+                          <SelectItem key={venue.id} value={venue.id}>
+                            {venue.name} ({venue.spaces?.length || 0} spaces)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                
+                {currentStep > 1 && selectedVenueData && (
+                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <MapPin className="w-4 h-4" />
+                    <span className="font-medium">{selectedVenueData.name}</span>
+                    <span className="text-slate-400">•</span>
+                    <span>{selectedVenueData.spaces?.length || 0} spaces available</span>
+                  </div>
+                )}
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-600">Grand Total</span>
+                  <span className="text-lg font-semibold">${totalPrice.toFixed(2)}</span>
+                </div>
               </div>
               
+              {/* Right: Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
                 {currentStep === 3 && (
                   <Button variant="outline" onClick={prevStep}>
@@ -1819,7 +1823,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                   <Button 
                     onClick={nextStep}
                     className="bg-blue-600 hover:bg-blue-700"
-                    disabled={currentStep === 1 && selectedDates.length === 0}
+                    disabled={currentStep === 1 && (selectedDates.length === 0 || !selectedVenue)}
                   >
                     {currentStep === 1 ? `Configure ${selectedDates.length} Event Date${selectedDates.length !== 1 ? 's' : ''}` : 'Next'}
                   </Button>
@@ -1846,6 +1850,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                 )}
               </div>
             </div>
+          </div>
           </div>
         </div>
       </DialogContent>
