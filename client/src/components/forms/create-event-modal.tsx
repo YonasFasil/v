@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, getDay } from "date-fns";
-import { ChevronLeft, ChevronRight, X, Plus, Minus, RotateCcw, Calendar as CalendarIcon, Mic, FileText, Save } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Plus, Minus, RotateCcw, Calendar as CalendarIcon, Mic, FileText, Save, Users, Grid3X3 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -30,6 +30,7 @@ interface SelectedDate {
   packageId?: string;
   selectedServices?: string[];
   guestCount?: number;
+  setupStyle?: string;
   itemQuantities?: Record<string, number>;
   pricingOverrides?: {
     packagePrice?: number;
@@ -607,6 +608,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         customerId: selectedCustomer,
         venueId: selectedVenue,
         spaceId: firstDate.spaceId,
+        setupStyle: firstDate.setupStyle || null,
         packageId: firstDate.packageId || null,
         selectedServices: firstDate.selectedServices?.length ? firstDate.selectedServices : null,
         pricingModel: selectedPackageData?.pricingModel || "fixed",
@@ -662,6 +664,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
           customerId: selectedCustomer,
           venueId: selectedVenue,
           spaceId: date.spaceId,
+          setupStyle: date.setupStyle || null,
           packageId: date.packageId || null,
           selectedServices: date.selectedServices?.length ? date.selectedServices : null,
           pricingModel: selectedPackageData?.pricingModel || "fixed",
@@ -1013,58 +1016,65 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                   </div>
                                 </div>
                                 
-                                <div className="space-y-2">
-                                  <Label className="text-sm flex items-center gap-1">
-                                    Guest Count
-                                    <span className="text-red-500 text-xs">*</span>
-                                  </Label>
-                                  <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg p-1 w-fit">
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => updateDateTime(index, 'guestCount', Math.max(1, (dateInfo.guestCount || 1) - 1))}
-                                      className="h-6 w-6 p-0 hover:bg-slate-200 rounded"
-                                    >
-                                      <Minus className="h-3 w-3" />
-                                    </Button>
-                                    <div className="px-3 py-1 bg-white border border-slate-200 rounded mx-1 min-w-[3rem] text-center">
-                                      <Input
-                                        type="number"
-                                        min="1"
-                                        max="999"
-                                        value={dateInfo.guestCount || 1}
-                                        onChange={(e) => {
-                                          const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
-                                          updateDateTime(index, 'guestCount', value);
-                                        }}
-                                        className="border-0 p-0 text-center text-sm font-semibold bg-transparent focus:ring-0 focus:outline-none w-full"
-                                      />
-                                    </div>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => updateDateTime(index, 'guestCount', Math.min(999, (dateInfo.guestCount || 1) + 1))}
-                                      className="h-6 w-6 p-0 hover:bg-slate-200 rounded"
-                                    >
-                                      <Plus className="h-3 w-3" />
-                                    </Button>
+                                {/* Simplified Guest Count and Setup Style */}
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                    <Label className="text-sm flex items-center gap-1">
+                                      <Users className="w-4 h-4 text-slate-500" />
+                                      Guests
+                                      <span className="text-red-500 text-xs">*</span>
+                                    </Label>
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      max="999"
+                                      value={dateInfo.guestCount || 1}
+                                      onChange={(e) => {
+                                        const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
+                                        updateDateTime(index, 'guestCount', value);
+                                      }}
+                                      className="w-20 h-8 text-center text-sm"
+                                    />
+                                    {(() => {
+                                      const selectedSpace = selectedVenueData?.spaces?.find((space: any) => space.id === dateInfo.spaceId);
+                                      const guestCount = dateInfo.guestCount || 1;
+                                      const capacity = selectedSpace?.capacity || 0;
+                                      
+                                      if (selectedSpace && guestCount > capacity) {
+                                        return (
+                                          <div className="text-xs text-amber-600 mt-1">
+                                            Exceeds capacity ({capacity})
+                                          </div>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
                                   </div>
-                                  {(() => {
-                                    const selectedSpace = selectedVenueData?.spaces?.find((space: any) => space.id === dateInfo.spaceId);
-                                    const guestCount = dateInfo.guestCount || 1;
-                                    const capacity = selectedSpace?.capacity || 0;
-                                    
-                                    if (selectedSpace && guestCount > capacity) {
-                                      return (
-                                        <div className="text-xs text-amber-600 mt-1">
-                                          Exceeds capacity ({capacity})
-                                        </div>
-                                      );
-                                    }
-                                    return null;
-                                  })()}
+
+                                  <div className="space-y-2">
+                                    <Label className="text-sm flex items-center gap-1">
+                                      <Grid3X3 className="w-4 h-4 text-slate-500" />
+                                      Setup Style
+                                    </Label>
+                                    <Select
+                                      value={dateInfo.setupStyle || ''}
+                                      onValueChange={(value) => updateDateTime(index, 'setupStyle', value)}
+                                    >
+                                      <SelectTrigger className="h-8 text-sm">
+                                        <SelectValue placeholder="Select style" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="round-tables">Round Tables</SelectItem>
+                                        <SelectItem value="u-shape">U-Shape</SelectItem>
+                                        <SelectItem value="classroom">Classroom</SelectItem>
+                                        <SelectItem value="theater">Theater</SelectItem>
+                                        <SelectItem value="cocktail">Cocktail</SelectItem>
+                                        <SelectItem value="banquet">Banquet</SelectItem>
+                                        <SelectItem value="conference">Conference</SelectItem>
+                                        <SelectItem value="custom">Custom</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -1123,48 +1133,25 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                 {activeDate.startTime} - {activeDate.endTime}
                               </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                              <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
-                                <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                                </svg>
-                                Guests
-                                <span className="text-red-500 text-xs">*</span>
-                              </Label>
-                              <div className="flex flex-col items-end">
-                                <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg p-1">
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => updateDateConfig('guestCount', Math.max(1, (activeDate.guestCount || 1) - 1))}
-                                    className="h-6 w-6 p-0 hover:bg-slate-200 rounded"
-                                  >
-                                    <Minus className="h-3 w-3" />
-                                  </Button>
-                                  <div className="px-3 py-1 bg-white border border-slate-200 rounded mx-1 min-w-[3rem] text-center">
-                                    <Input
-                                      type="number"
-                                      min="1"
-                                      max="999"
-                                      value={activeDate.guestCount || 1}
-                                      onChange={(e) => {
-                                        const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
-                                        updateDateConfig('guestCount', value);
-                                      }}
-                                      className="border-0 p-0 text-center text-sm font-semibold bg-transparent focus:ring-0 focus:outline-none w-full"
-                                    />
-                                  </div>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => updateDateConfig('guestCount', Math.min(999, (activeDate.guestCount || 1) + 1))}
-                                    className="h-6 w-6 p-0 hover:bg-slate-200 rounded"
-                                  >
-                                    <Plus className="h-3 w-3" />
-                                  </Button>
-                                </div>
+                            <div className="flex items-center gap-6">
+                              {/* Guests Field - Simplified */}
+                              <div className="flex items-center gap-2">
+                                <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                                  <Users className="w-4 h-4 text-slate-500" />
+                                  Guests
+                                  <span className="text-red-500 text-xs">*</span>
+                                </Label>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  max="999"
+                                  value={activeDate.guestCount || 1}
+                                  onChange={(e) => {
+                                    const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
+                                    updateDateConfig('guestCount', value);
+                                  }}
+                                  className="w-20 h-8 text-center text-sm"
+                                />
                                 {(() => {
                                   const selectedSpace = selectedVenueData?.spaces?.find((space: any) => space.id === activeDate.spaceId);
                                   const guestCount = activeDate.guestCount || 1;
@@ -1172,13 +1159,39 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                   
                                   if (selectedSpace && guestCount > capacity) {
                                     return (
-                                      <div className="text-xs text-amber-600 mt-1">
+                                      <span className="text-xs text-amber-600">
                                         Exceeds capacity ({capacity})
-                                      </div>
+                                      </span>
                                     );
                                   }
                                   return null;
                                 })()}
+                              </div>
+
+                              {/* Setup Style Field */}
+                              <div className="flex items-center gap-2">
+                                <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                                  <Grid3X3 className="w-4 h-4 text-slate-500" />
+                                  Setup Style
+                                </Label>
+                                <Select
+                                  value={activeDate.setupStyle || ''}
+                                  onValueChange={(value) => updateDateConfig('setupStyle', value)}
+                                >
+                                  <SelectTrigger className="w-40 h-8 text-sm">
+                                    <SelectValue placeholder="Select style" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="round-tables">Round Tables</SelectItem>
+                                    <SelectItem value="u-shape">U-Shape</SelectItem>
+                                    <SelectItem value="classroom">Classroom</SelectItem>
+                                    <SelectItem value="theater">Theater</SelectItem>
+                                    <SelectItem value="cocktail">Cocktail</SelectItem>
+                                    <SelectItem value="banquet">Banquet</SelectItem>
+                                    <SelectItem value="conference">Conference</SelectItem>
+                                    <SelectItem value="custom">Custom</SelectItem>
+                                  </SelectContent>
+                                </Select>
                               </div>
                             </div>
                           </div>

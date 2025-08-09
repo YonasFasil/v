@@ -32,6 +32,8 @@ export const spaces = pgTable("spaces", {
   pricePerHour: decimal("price_per_hour", { precision: 10, scale: 2 }),
   amenities: text("amenities").array(),
   imageUrl: text("image_url"),
+  availableSetupStyles: text("available_setup_styles").array(), // Available setup styles for this space
+  floorPlan: jsonb("floor_plan"), // 2D floor plan configuration with elements, furniture, etc.
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -72,6 +74,7 @@ export const bookings = pgTable("bookings", {
   startTime: text("start_time").notNull(),
   endTime: text("end_time").notNull(),
   guestCount: integer("guest_count").notNull(),
+  setupStyle: text("setup_style"), // round-tables, u-shape, classroom, theater, cocktail, banquet, conference, custom
   packageId: varchar("package_id").references(() => packages.id),
   // Proposal integration
   proposalStatus: text("proposal_status").default("none"), // none, sent, viewed, accepted, declined

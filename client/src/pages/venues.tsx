@@ -15,11 +15,14 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { EditVenueModal } from "@/components/forms/edit-venue-modal";
+import { EditSpaceModal } from "@/components/forms/edit-space-modal";
 
 export default function Venues() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingVenue, setEditingVenue] = useState<any>(null);
+  const [editingSpace, setEditingSpace] = useState<any>(null);
+  const [selectedVenueForSpaces, setSelectedVenueForSpaces] = useState<any>(null);
   const { toast } = useToast();
 
   const { data: venues, isLoading } = useQuery({
@@ -211,13 +214,25 @@ export default function Venues() {
         <main className="flex-1 overflow-y-auto p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.isArray(venues) && venues.map((venue: any) => (
-              <Card key={venue.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setEditingVenue(venue)}>
+              <Card key={venue.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">{venue.name}</CardTitle>
-                    <Badge variant="outline" className="text-xs">
-                      {venue.type || "Indoor"}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        {venue.spaces?.length || 0} spaces
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingVenue(venue);
+                        }}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -244,15 +259,57 @@ export default function Venues() {
                     </div>
                   )}
                   
+                  {/* Spaces List */}
+                  {venue.spaces && venue.spaces.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium text-slate-700">Spaces:</div>
+                      <div className="space-y-1">
+                        {venue.spaces.slice(0, 3).map((space: any) => (
+                          <div key={space.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{space.name}</span>
+                              <Badge variant="secondary" className="text-xs">
+                                {space.capacity} guests
+                              </Badge>
+                              {space.availableSetupStyles && space.availableSetupStyles.length > 0 && (
+                                <Badge variant="outline" className="text-xs">
+                                  {space.availableSetupStyles.length} setups
+                                </Badge>
+                              )}
+                              {space.floorPlan && space.floorPlan.elements && (
+                                <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
+                                  Floor Plan
+                                </Badge>
+                              )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingSpace(space);
+                                setSelectedVenueForSpaces(venue);
+                              }}
+                              className="h-6 w-6 p-0"
+                            >
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ))}
+                        {venue.spaces.length > 3 && (
+                          <div className="text-xs text-slate-500 text-center py-1">
+                            +{venue.spaces.length - 3} more spaces
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
                   {venue.amenities && (
                     <div className="text-xs text-gray-500">
                       <strong>Amenities:</strong> {venue.amenities}
                     </div>
                   )}
-                  
-                  <div className="flex justify-end pt-2">
-                    <span className="text-xs text-blue-600 hover:text-blue-800">Click to edit →</span>
-                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -262,6 +319,13 @@ export default function Venues() {
             open={!!editingVenue} 
             onOpenChange={(open) => !open && setEditingVenue(null)} 
             venue={editingVenue}
+          />
+
+          <EditSpaceModal 
+            open={!!editingSpace} 
+            onOpenChange={(open) => !open && setEditingSpace(null)} 
+            space={editingSpace}
+            venueId={selectedVenueForSpaces?.id}
           />
         </main>
       </div>
