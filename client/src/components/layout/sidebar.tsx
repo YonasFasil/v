@@ -15,7 +15,8 @@ import {
   Settings,
   Mic,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Grid3X3
 } from "lucide-react";
 
 const navigationItems = [
@@ -25,6 +26,7 @@ const navigationItems = [
   { name: "Payments", href: "/payments", icon: CreditCard },
   { name: "Tasks & Team", href: "/tasks", icon: CheckSquare },
   { name: "Venues", href: "/venues", icon: MapPin },
+  { name: "Floor Plans & Setup", href: "/floor-plans", icon: Grid3X3 },
   { name: "Packages & Services", href: "/packages", icon: Package },
 ];
 

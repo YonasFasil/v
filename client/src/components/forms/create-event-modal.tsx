@@ -1168,30 +1168,50 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                 })()}
                               </div>
 
-                              {/* Setup Style Field */}
+                              {/* Setup Style Field with Floor Plan Integration */}
                               <div className="flex items-center gap-2">
                                 <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
                                   <Grid3X3 className="w-4 h-4 text-slate-500" />
                                   Setup Style
                                 </Label>
-                                <Select
-                                  value={activeDate.setupStyle || ''}
-                                  onValueChange={(value) => updateDateConfig('setupStyle', value)}
-                                >
-                                  <SelectTrigger className="w-40 h-8 text-sm">
-                                    <SelectValue placeholder="Select style" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="round-tables">Round Tables</SelectItem>
-                                    <SelectItem value="u-shape">U-Shape</SelectItem>
-                                    <SelectItem value="classroom">Classroom</SelectItem>
-                                    <SelectItem value="theater">Theater</SelectItem>
-                                    <SelectItem value="cocktail">Cocktail</SelectItem>
-                                    <SelectItem value="banquet">Banquet</SelectItem>
-                                    <SelectItem value="conference">Conference</SelectItem>
-                                    <SelectItem value="custom">Custom</SelectItem>
-                                  </SelectContent>
-                                </Select>
+                                <div className="flex items-center gap-2">
+                                  <Select
+                                    value={activeDate.setupStyle || ''}
+                                    onValueChange={(value) => updateDateConfig('setupStyle', value)}
+                                  >
+                                    <SelectTrigger className="w-40 h-8 text-sm">
+                                      <SelectValue placeholder="Select style" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="round-tables">Round Tables</SelectItem>
+                                      <SelectItem value="u-shape">U-Shape</SelectItem>
+                                      <SelectItem value="classroom">Classroom</SelectItem>
+                                      <SelectItem value="theater">Theater</SelectItem>
+                                      <SelectItem value="cocktail">Cocktail</SelectItem>
+                                      <SelectItem value="banquet">Banquet</SelectItem>
+                                      <SelectItem value="conference">Conference</SelectItem>
+                                      <SelectItem value="custom">Custom</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  {activeDate.setupStyle && (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-8 px-3 text-xs"
+                                      onClick={() => {
+                                        // Open floor plan designer for this setup style
+                                        toast({
+                                          title: "Floor Plan Designer",
+                                          description: "Visit Floor Plans & Setup section to design custom layouts for this setup style"
+                                        });
+                                      }}
+                                    >
+                                      <Grid3X3 className="w-3 h-3 mr-1" />
+                                      Edit Layout
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>

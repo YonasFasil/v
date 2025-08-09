@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
-import { MobileMenu } from "@/components/layout/mobile-menu";
+import { MobileNav } from "@/components/layout/mobile-nav";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -22,7 +22,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
       {/* Mobile Menu */}
       <div className="md:hidden">
-        <MobileMenu />
+        <MobileNav />
       </div>
 
       {/* Main Content */}
