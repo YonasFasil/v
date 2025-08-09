@@ -3,6 +3,8 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BeoModal } from "./beo-modal";
+import { CreateEventModal } from "./create-event-modal";
 import { 
   X, 
   Edit3, 
@@ -33,6 +35,8 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
   const [showCommunication, setShowCommunication] = useState(false);
   const [communicationMessage, setCommunicationMessage] = useState("");
   const [communicationType, setCommunicationType] = useState("email");
+  const [showBeoModal, setShowBeoModal] = useState(false);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   
   const { data: venues = [] } = useQuery({ queryKey: ["/api/venues-with-spaces"] });
   const { data: packages = [] } = useQuery({ queryKey: ["/api/packages"] });
@@ -554,23 +558,30 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
               <Edit3 className="h-4 w-4" />
               Edit {booking.isContract ? "Contract" : "Event"}
             </Button>
-            <Button variant="outline" className="gap-2" onClick={() => {
-              // TODO: Implement duplicate functionality
-              console.log('Duplicate event clicked');
-            }}>
+            <Button variant="outline" className="gap-2" onClick={() => setShowDuplicateModal(true)}>
               <Copy className="h-4 w-4" />
               Duplicate Event
             </Button>
-            <Button variant="outline" className="gap-2" onClick={() => {
-              // TODO: Implement BEO modal
-              console.log('BEO clicked');
-            }}>
+            <Button variant="outline" className="gap-2" onClick={() => setShowBeoModal(true)}>
               <FileOutput className="h-4 w-4" />
               BEO
             </Button>
           </div>
         </div>
       </DialogContent>
+      
+      {/* BEO Modal */}
+      <BeoModal 
+        isOpen={showBeoModal} 
+        onClose={() => setShowBeoModal(false)} 
+        booking={booking} 
+      />
+      
+      {/* Duplicate Event Modal */}
+      <CreateEventModal
+        open={showDuplicateModal}
+        onOpenChange={setShowDuplicateModal}
+      />
     </Dialog>
   );
 }
