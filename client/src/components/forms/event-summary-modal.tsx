@@ -547,26 +547,28 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
           </Card>
         )}
 
-        {/* Action Buttons */}
-        <div className="flex gap-3 justify-end mt-6 pt-4 border-t">
-          <Button variant="outline" onClick={onEditClick} className="gap-2">
-            <Edit3 className="h-4 w-4" />
-            Edit {booking.isContract ? "Contract" : "Event"}
-          </Button>
-          <Button variant="outline" className="gap-2" onClick={() => {
-            // TODO: Implement duplicate functionality
-            console.log('Duplicate event clicked');
-          }}>
-            <Copy className="h-4 w-4" />
-            Duplicate Event
-          </Button>
-          <Button variant="outline" className="gap-2" onClick={() => {
-            // TODO: Implement BEO modal
-            console.log('BEO clicked');
-          }}>
-            <FileOutput className="h-4 w-4" />
-            BEO
-          </Button>
+        {/* Action Buttons - Sticky at bottom */}
+        <div className="sticky bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t mt-6 pt-4 -mx-6 px-6 -mb-6 pb-6">
+          <div className="flex gap-3 justify-end">
+            <Button variant="outline" onClick={onEditClick} className="gap-2">
+              <Edit3 className="h-4 w-4" />
+              Edit {booking.isContract ? "Contract" : "Event"}
+            </Button>
+            <Button variant="outline" className="gap-2" onClick={() => {
+              // TODO: Implement duplicate functionality
+              console.log('Duplicate event clicked');
+            }}>
+              <Copy className="h-4 w-4" />
+              Duplicate Event
+            </Button>
+            <Button variant="outline" className="gap-2" onClick={() => {
+              // TODO: Implement BEO modal
+              console.log('BEO clicked');
+            }}>
+              <FileOutput className="h-4 w-4" />
+              BEO
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
