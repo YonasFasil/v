@@ -40,11 +40,11 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
   if (!booking) return null;
 
   // Use enhanced data from calendar API if available, otherwise fallback to lookup
-  const selectedVenueData = booking.venueData || venues.find((v: any) => v.id === booking.venueId);
+  const selectedVenueData = booking.venueData || (venues as any[]).find((v: any) => v.id === booking.venueId);
   const selectedSpaceData = booking.spaceData || selectedVenueData?.spaces?.find((s: any) => s.id === booking.spaceId);
-  const selectedPackageData = packages.find((p: any) => p.id === booking.packageId);
-  const selectedCustomerData = booking.customerData || customers.find((c: any) => c.id === booking.customerId);
-  const selectedServicesData = services.filter((s: any) => booking.serviceIds?.includes(s.id));
+  const selectedPackageData = (packages as any[]).find((p: any) => p.id === booking.packageId);
+  const selectedCustomerData = booking.customerData || (customers as any[]).find((c: any) => c.id === booking.customerId);
+  const selectedServicesData = (services as any[]).filter((s: any) => booking.serviceIds?.includes(s.id));
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -213,7 +213,7 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
                     <span className="text-sm text-gray-600">Venues & Spaces Used:</span>
                     <div className="max-h-24 overflow-y-auto space-y-2">
                       {booking.contractEvents?.map((event: any, index: number) => {
-                        const eventVenue = venues.find((v: any) => v.id === event.venueId);
+                        const eventVenue = (venues as any[]).find((v: any) => v.id === event.venueId);
                         const eventSpace = eventVenue?.spaces?.find((s: any) => s.id === event.spaceId);
                         return (
                           <div key={index} className="text-sm bg-gray-50 p-2 rounded">
@@ -367,8 +367,8 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
                   <div className="space-y-4">
                     {/* Contract Packages Summary */}
                     {booking.contractEvents?.map((event: any, index: number) => {
-                      const eventPackage = packages.find((p: any) => p.id === event.packageId);
-                      const eventServices = services.filter((s: any) => event.selectedServices?.includes(s.id));
+                      const eventPackage = (packages as any[]).find((p: any) => p.id === event.packageId);
+                      const eventServices = (services as any[]).filter((s: any) => event.selectedServices?.includes(s.id));
                       
                       return (
                         <div key={index} className="border border-gray-200 rounded-lg p-3">

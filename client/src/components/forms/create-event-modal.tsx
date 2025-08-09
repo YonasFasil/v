@@ -437,6 +437,11 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
   };
 
   const convertTimeToHours = (timeStr: string) => {
+    // If already in 24-hour format, return as is
+    if (!timeStr.includes('AM') && !timeStr.includes('PM')) {
+      return timeStr;
+    }
+    
     return timeStr.replace(/\s(AM|PM)/g, '').replace(/(\d+):(\d+)/, (_, h, m) => {
       const hour = parseInt(h);
       const isAM = timeStr.includes('AM');
@@ -484,7 +489,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
         totalAmount: totalPrice.toString(),
         notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${firstDate.selectedServices?.length || 0} selected`,
         proposalStatus: submitType === 'proposal' ? 'sent' : 'none',
-        proposalSentAt: submitType === 'proposal' ? new Date() : null
+        proposalSentAt: submitType === 'proposal' ? new Date().toISOString() : null
       };
 
       createBooking.mutate(bookingData, {
@@ -560,7 +565,9 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
           itemQuantities: date.itemQuantities || {},
           pricingOverrides: date.pricingOverrides || null,
           totalAmount: datePrice.toString(),
-          notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${date.selectedServices?.length || 0} selected`
+          notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${date.selectedServices?.length || 0} selected`,
+          proposalStatus: submitType === 'proposal' ? 'sent' : 'none',
+          proposalSentAt: submitType === 'proposal' ? new Date().toISOString() : null
         };
       });
 
