@@ -36,6 +36,10 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
   const { data: packages = [] } = useQuery({ queryKey: ["/api/packages"] });
   const { data: services = [] } = useQuery({ queryKey: ["/api/services"] });
   const { data: customers = [] } = useQuery({ queryKey: ["/api/customers"] });
+  const { data: communications = [] } = useQuery({ 
+    queryKey: ["/api/communications", booking?.id], 
+    enabled: !!booking?.id 
+  });
 
   if (!booking) return null;
 
@@ -328,9 +332,34 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
                           <Button 
                             size="sm" 
                             className="gap-1"
-                            onClick={() => {
-                              // Handle sending message
-                              console.log('Sending message:', communicationMessage, communicationType);
+                            onClick={async () => {
+                              try {
+                                // Save communication to database
+                                const response = await fetch('/api/communications', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    bookingId: booking.id,
+                                    customerId: selectedCustomerData.id,
+                                    type: communicationType,
+                                    direction: 'outbound',
+                                    message: communicationMessage,
+                                    subject: communicationType === 'email' ? `Regarding your event: ${booking.eventName}` : null,
+                                    sentBy: 'Venue Manager'
+                                  })
+                                });
+                                
+                                if (response.ok) {
+                                  console.log('Communication saved successfully');
+                                  // Refresh the page to show the new communication
+                                  window.location.reload();
+                                } else {
+                                  console.error('Failed to save communication');
+                                }
+                              } catch (error) {
+                                console.error('Error saving communication:', error);
+                              }
+                              
                               setCommunicationMessage("");
                               setShowCommunication(false);
                             }}
@@ -347,6 +376,34 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
                             Cancel
                           </Button>
                         </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Communication History */}
+                  {(communications as any[]).length > 0 && (
+                    <div className="mt-4 p-4 border border-blue-200 rounded-lg bg-blue-50">
+                      <h4 className="font-medium mb-3 text-blue-900">Communication History</h4>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {(communications as any[]).map((comm: any) => (
+                          <div key={comm.id} className="p-2 bg-white rounded border text-sm">
+                            <div className="flex justify-between items-start mb-1">
+                              <span className="font-medium text-blue-800 capitalize">
+                                {comm.type} {comm.direction === 'outbound' ? '→' : '←'}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {comm.sentAt ? format(new Date(comm.sentAt), 'MMM d, h:mm a') : 'No date'}
+                              </span>
+                            </div>
+                            {comm.subject && (
+                              <div className="text-xs text-gray-600 mb-1">Subject: {comm.subject}</div>
+                            )}
+                            <div className="text-gray-700">{comm.message}</div>
+                            {comm.sentBy && (
+                              <div className="text-xs text-gray-500 mt-1">by {comm.sentBy}</div>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}

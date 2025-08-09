@@ -134,16 +134,16 @@ export const settings = pgTable("settings", {
 // Communication tracking
 export const communications = pgTable("communications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  proposalId: varchar("proposal_id").references(() => proposals.id),
+  bookingId: varchar("booking_id").references(() => bookings.id),
   customerId: varchar("customer_id").references(() => customers.id),
-  type: text("type").notNull(), // email, sms, call, note
+  type: text("type").notNull(), // email, sms, call, internal
   direction: text("direction").notNull(), // inbound, outbound
   subject: text("subject"),
-  content: text("content").notNull(),
-  status: text("status").default("sent"), // sent, delivered, opened, replied, failed
-  attachments: text("attachments").array(),
-  metadata: jsonb("metadata"),
-  createdAt: timestamp("created_at").defaultNow(),
+  message: text("message").notNull(),
+  sentBy: text("sent_by"),
+  sentAt: timestamp("sent_at").defaultNow(),
+  readAt: timestamp("read_at"),
+  status: text("status").default("sent"), // sent, delivered, read, failed
 });
 
 export const payments = pgTable("payments", {
@@ -224,7 +224,7 @@ export const insertVenueSchema = createInsertSchema(venues).omit({ id: true });
 export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true });
 export const insertContractSchema = createInsertSchema(contracts).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertSettingsSchema = createInsertSchema(settings).omit({ id: true, updatedAt: true });
-export const insertCommunicationSchema = createInsertSchema(communications).omit({ id: true, createdAt: true });
+export const insertCommunicationSchema = createInsertSchema(communications).omit({ id: true, sentAt: true });
 export const insertBookingSchema = createInsertSchema(bookings, {
   eventDate: z.union([z.string(), z.date()]).transform((val) => 
     typeof val === 'string' ? new Date(val) : val
@@ -274,6 +274,8 @@ export type Package = typeof packages.$inferSelect;
 export type InsertPackage = z.infer<typeof insertPackageSchema>;
 export type Service = typeof services.$inferSelect;
 export type InsertService = z.infer<typeof insertServiceSchema>;
+export type Communication = typeof communications.$inferSelect;
+export type InsertCommunication = z.infer<typeof insertCommunicationSchema>;
 export type Space = typeof spaces.$inferSelect;
 export type InsertSpace = z.infer<typeof insertSpaceSchema>;
 export type TaxSetting = typeof taxSettings.$inferSelect;

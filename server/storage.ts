@@ -11,35 +11,11 @@ import {
   type AiInsight, type InsertAiInsight,
   type Package, type InsertPackage,
   type Service, type InsertService,
-  type TaxSetting, type InsertTaxSetting
+  type TaxSetting, type InsertTaxSetting,
+  type Communication, type InsertCommunication
 } from "@shared/schema";
 
 // Additional types for new features
-interface Communication {
-  id: string;
-  proposalId?: string;
-  customerId?: string;
-  type: string;
-  direction: string;
-  subject?: string;
-  content: string;
-  status?: string;
-  attachments?: string[];
-  metadata?: any;
-  createdAt: Date;
-}
-
-interface InsertCommunication {
-  proposalId?: string;
-  customerId?: string;
-  type: string;
-  direction: string;
-  subject?: string;
-  content: string;
-  status?: string;
-  attachments?: string[];
-  metadata?: any;
-}
 
 interface Setting {
   id: string;
@@ -105,7 +81,7 @@ export interface IStorage {
   deleteProposal(id: string): Promise<boolean>;
 
   // Communications
-  getCommunications(): Promise<Communication[]>;
+  getCommunications(bookingId?: string): Promise<Communication[]>;
   getCommunication(id: string): Promise<Communication | undefined>;
   getCommunicationsByProposal(proposalId: string): Promise<Communication[]>;
   getCommunicationsByCustomer(customerId: string): Promise<Communication[]>;
@@ -1075,8 +1051,12 @@ export class MemStorage implements IStorage {
   }
 
   // Communication methods
-  async getCommunications(): Promise<Communication[]> {
-    return Array.from(this.communications.values());
+  async getCommunications(bookingId?: string): Promise<Communication[]> {
+    const allComms = Array.from(this.communications.values());
+    if (bookingId) {
+      return allComms.filter(comm => (comm as any).bookingId === bookingId);
+    }
+    return allComms;
   }
 
   async getCommunication(id: string): Promise<Communication | undefined> {
@@ -1084,7 +1064,7 @@ export class MemStorage implements IStorage {
   }
 
   async getCommunicationsByProposal(proposalId: string): Promise<Communication[]> {
-    return Array.from(this.communications.values()).filter(c => c.proposalId === proposalId);
+    return Array.from(this.communications.values()).filter(c => (c as any).proposalId === proposalId);
   }
 
   async getCommunicationsByCustomer(customerId: string): Promise<Communication[]> {
@@ -1094,8 +1074,16 @@ export class MemStorage implements IStorage {
   async createCommunication(communication: InsertCommunication): Promise<Communication> {
     const newCommunication: Communication = {
       id: randomUUID(),
-      ...communication,
-      createdAt: new Date(),
+      bookingId: communication.bookingId || null,
+      customerId: communication.customerId || null,
+      type: communication.type,
+      direction: communication.direction,
+      subject: communication.subject || null,
+      message: communication.message,
+      sentBy: communication.sentBy || null,
+      sentAt: new Date(),
+      readAt: communication.readAt || null,
+      status: communication.status || "sent"
     };
     this.communications.set(newCommunication.id, newCommunication);
     return newCommunication;

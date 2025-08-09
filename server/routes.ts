@@ -2002,6 +2002,29 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
     }
   });
 
+  // Communications API
+  app.get("/api/communications/:bookingId", async (req, res) => {
+    try {
+      const bookingId = req.params.bookingId;
+      const communications = await storage.getCommunications(bookingId);
+      res.json(communications);
+    } catch (error) {
+      console.error('Communications fetch error:', error);
+      res.status(500).json({ message: "Failed to fetch communications" });
+    }
+  });
+
+  app.post("/api/communications", async (req, res) => {
+    try {
+      const validatedCommunication = insertCommunicationSchema.parse(req.body);
+      const communication = await storage.createCommunication(validatedCommunication);
+      res.json(communication);
+    } catch (error) {
+      console.error('Communication creation error:', error);
+      res.status(400).json({ message: "Invalid communication data" });
+    }
+  });
+
   // Settings API endpoints
   app.get("/api/settings/:key?", async (req, res) => {
     try {
