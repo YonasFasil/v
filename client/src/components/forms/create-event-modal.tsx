@@ -51,7 +51,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
   const [selectedDates, setSelectedDates] = useState<SelectedDate[]>([]);
   
   // Step 2: Event Configuration - now managed per date
-  const [activeTabIndex, setActiveTabIndex] = useState(-1);
+  const [activeTabIndex, setActiveTabIndex] = useState(0);
   
   // Copy config functionality
   const [showCopyModal, setShowCopyModal] = useState(false);
@@ -103,7 +103,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
     if (duplicateFromBooking && open) {
       // Reset to first step when duplicating
       setCurrentStep(1);
-      setActiveTabIndex(-1);
+      setActiveTabIndex(0);
       
       // Set basic event details with (Copy) suffix
       setEventName(duplicateFromBooking.eventName + " (Copy)");
@@ -745,8 +745,8 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         return;
       }
 
-      // Reset active tab index to no selection when moving to step 2
-      setActiveTabIndex(-1);
+      // Reset active tab index to first date when moving to step 2
+      setActiveTabIndex(0);
     }
     if (currentStep < 3) setCurrentStep(currentStep + 1);
   };
@@ -893,201 +893,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
 
                     <div>
                       <Label className="text-base font-medium">Configure Dates ({selectedDates.length})</Label>
-                      
-                      {/* Compact Date Configuration Table */}
-                      <div className="mt-3 bg-white border rounded-lg overflow-hidden">
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead className="bg-slate-50 border-b">
-                              <tr>
-                                <th className="text-left p-3 font-medium text-slate-700">Date</th>
-                                <th className="text-left p-3 font-medium text-slate-700">Space</th>
-                                <th className="text-left p-3 font-medium text-slate-700">Time</th>
-                                <th className="text-left p-3 font-medium text-slate-700">Guests</th>
-                                <th className="text-left p-3 font-medium text-slate-700">Setup</th>
-                                <th className="text-center p-3 font-medium text-slate-700">Details</th>
-                                <th className="text-center p-3 font-medium text-slate-700">Remove</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {selectedDates.map((dateInfo, index) => {
-                                const availability = getSpaceAvailability(
-                                  dateInfo.spaceId || '',
-                                  dateInfo.date,
-                                  dateInfo.startTime,
-                                  dateInfo.endTime
-                                );
-                                const hasConflict = !availability.available;
-                                
-                                return (
-                                  <tr key={index} className={cn(
-                                    "border-b border-slate-100 hover:bg-slate-50 transition-colors",
-                                    hasConflict && "bg-red-50 border-red-200"
-                                  )}>
-                                    <td className="p-3">
-                                      <div className="flex items-center gap-2">
-                                        {hasConflict && (
-                                          <div className="w-2 h-2 bg-red-500 rounded-full" title="Booking conflict detected"></div>
-                                        )}
-                                        <div>
-                                          <div className="font-medium text-slate-900">
-                                            {format(dateInfo.date, 'MMM d, yyyy')}
-                                          </div>
-                                          <div className="text-xs text-slate-500">
-                                            {format(dateInfo.date, 'EEEE')}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </td>
-                                    <td className="p-3">
-                                      <Select
-                                        value={dateInfo.spaceId || ""}
-                                        onValueChange={(value) => updateDateTime(index, 'spaceId', value)}
-                                      >
-                                        <SelectTrigger className={cn(
-                                          "w-full h-8 text-xs",
-                                          !dateInfo.spaceId && "border-red-200 bg-red-50/30"
-                                        )}>
-                                          <SelectValue placeholder="Select space" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {selectedVenueData?.spaces?.map((space: any) => (
-                                            <SelectItem key={space.id} value={space.id}>
-                                              {space.name} ({space.capacity})
-                                            </SelectItem>
-                                          )) || <SelectItem value="no-spaces" disabled>No spaces</SelectItem>}
-                                        </SelectContent>
-                                      </Select>
-                                    </td>
-                                    <td className="p-3">
-                                      <div className="flex items-center gap-1 text-xs">
-                                        <Select
-                                          value={dateInfo.startTime}
-                                          onValueChange={(value) => updateDateTime(index, 'startTime', value)}
-                                        >
-                                          <SelectTrigger className="w-20 h-7 text-xs">
-                                            <SelectValue />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {Array.from({length: 24}, (_, i) => {
-                                              const hour = i === 0 ? 12 : i <= 12 ? i : i - 12;
-                                              const ampm = i < 12 ? 'AM' : 'PM';
-                                              const time = `${hour.toString().padStart(2, '0')}:00 ${ampm}`;
-                                              return <SelectItem key={time} value={time}>{time}</SelectItem>;
-                                            })}
-                                          </SelectContent>
-                                        </Select>
-                                        <span className="text-slate-400">-</span>
-                                        <Select
-                                          value={dateInfo.endTime}
-                                          onValueChange={(value) => updateDateTime(index, 'endTime', value)}
-                                        >
-                                          <SelectTrigger className="w-20 h-7 text-xs">
-                                            <SelectValue />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {Array.from({length: 24}, (_, i) => {
-                                              const hour = i === 0 ? 12 : i <= 12 ? i : i - 12;
-                                              const ampm = i < 12 ? 'AM' : 'PM';
-                                              const time = `${hour.toString().padStart(2, '0')}:00 ${ampm}`;
-                                              return <SelectItem key={time} value={time}>{time}</SelectItem>;
-                                            })}
-                                          </SelectContent>
-                                        </Select>
-                                      </div>
-                                    </td>
-                                    <td className="p-3">
-                                      <Input
-                                        type="number"
-                                        min="1"
-                                        max="999"
-                                        value={dateInfo.guestCount || 1}
-                                        onChange={(e) => {
-                                          const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
-                                          updateDateTime(index, 'guestCount', value);
-                                        }}
-                                        className="w-16 h-7 text-xs text-center"
-                                      />
-                                    </td>
-                                    <td className="p-3">
-                                      <Select
-                                        value={dateInfo.setupStyle || ''}
-                                        onValueChange={(value) => updateDateTime(index, 'setupStyle', value)}
-                                      >
-                                        <SelectTrigger className="w-28 h-7 text-xs">
-                                          <SelectValue placeholder="Style" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="round-tables">Round Tables</SelectItem>
-                                          <SelectItem value="u-shape">U-Shape</SelectItem>
-                                          <SelectItem value="classroom">Classroom</SelectItem>
-                                          <SelectItem value="theater">Theater</SelectItem>
-                                          <SelectItem value="cocktail">Cocktail</SelectItem>
-                                          <SelectItem value="banquet">Banquet</SelectItem>
-                                          <SelectItem value="conference">Conference</SelectItem>
-                                          <SelectItem value="custom">Custom</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </td>
-                                    <td className="p-3 text-center">
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setActiveTabIndex(index)}
-                                        className="h-7 w-7 p-0 text-blue-600 hover:bg-blue-50"
-                                      >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                        </svg>
-                                      </Button>
-                                    </td>
-                                    <td className="p-3 text-center">
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                          setSelectedDates(prev => prev.filter((_, i) => i !== index));
-                                        }}
-                                        className="h-7 w-7 p-0 text-slate-400 hover:text-red-500 hover:bg-red-50"
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-
-                      {/* Expanded Details Panel - Only show when a date is selected for details */}
-                      {activeTabIndex >= 0 && activeTabIndex < selectedDates.length && (
-                        <Card className="mt-4 p-4 bg-blue-50 border-blue-200">
-                          <div className="flex items-center justify-between mb-4">
-                            <h4 className="font-semibold text-blue-900">
-                              Configure: {format(selectedDates[activeTabIndex].date, 'EEEE, MMMM d, yyyy')}
-                            </h4>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setActiveTabIndex(-1)}
-                              className="text-blue-600 hover:bg-blue-100"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          
-                          {/* Configuration options for the selected date would go here */}
-                          <div className="text-sm text-blue-700">
-                            Advanced configuration options for packages and services will appear here when you select a date for detailed configuration.
-                          </div>
-                        </Card>
-                      )}
-                      
-                      <div className="hidden">{/* Original card-based content hidden for space efficiency */}
+                      <div className="mt-3 space-y-3 max-h-64 overflow-y-auto">
                         {selectedDates.map((dateInfo, index) => (
                           <Card key={index} className="group relative overflow-hidden border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
                             {/* Modern gradient header */}
