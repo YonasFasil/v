@@ -24,7 +24,22 @@ export default function Packages() {
   const [showCreateServiceForm, setShowCreateServiceForm] = useState(false);
   const [editingPackage, setEditingPackage] = useState<any>(null);
   const [editingService, setEditingService] = useState<any>(null);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [categories, setCategories] = useState([
+    { id: "catering", name: "Catering", color: "bg-orange-100 text-orange-800" },
+    { id: "entertainment", name: "Entertainment", color: "bg-purple-100 text-purple-800" },
+    { id: "decor", name: "Decor", color: "bg-pink-100 text-pink-800" },
+    { id: "photography", name: "Photography", color: "bg-blue-100 text-blue-800" },
+    { id: "equipment", name: "Equipment", color: "bg-gray-100 text-gray-800" },
+    { id: "additional", name: "Additional Services", color: "bg-green-100 text-green-800" }
+  ]);
+  const [newCategory, setNewCategory] = useState({ name: "", color: "bg-blue-100 text-blue-800" });
   const { toast } = useToast();
+
+  const getCategoryColor = (category: string) => {
+    const categoryConfig = categories.find(c => c.id === category);
+    return categoryConfig?.color || "bg-gray-100 text-gray-800";
+  };
 
   const { data: packages, isLoading: packagesLoading } = useQuery({
     queryKey: ["/api/packages"],
@@ -132,17 +147,7 @@ export default function Packages() {
     }
   };
 
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case "wedding": return "bg-pink-100 text-pink-800";
-      case "corporate": return "bg-blue-100 text-blue-800";
-      case "social": return "bg-green-100 text-green-800";
-      case "catering": return "bg-orange-100 text-orange-800";
-      case "decoration": return "bg-purple-100 text-purple-800";
-      case "entertainment": return "bg-yellow-100 text-yellow-800";
-      default: return "bg-gray-100 text-gray-800";
-    }
-  };
+
 
   if (packagesLoading || servicesLoading) {
     return (
@@ -251,12 +256,11 @@ export default function Packages() {
                         onChange={(e) => setNewService(prev => ({ ...prev, category: e.target.value }))}
                         className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
                       >
-                        <option value="catering">Catering</option>
-                        <option value="entertainment">Entertainment</option>
-                        <option value="decor">Decor</option>
-                        <option value="photography">Photography</option>
-                        <option value="equipment">Equipment</option>
-                        <option value="additional">Additional Services</option>
+                        {categories.map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     
@@ -497,11 +501,45 @@ export default function Packages() {
 
           <Separator />
 
-          {/* Add-on Services Section */}
+          {/* Service Categories Section */}
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-green-600" />
+                <h2 className="text-xl font-semibold">Service Categories</h2>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowCategoryManager(true)}
+                className="border-green-600 text-green-600 hover:bg-green-50"
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                Manage Categories
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+              {categories.map((category) => (
+                <div key={category.id} className="text-center">
+                  <Badge className={`${category.color} px-3 py-2 w-full justify-center`}>
+                    {category.name}
+                  </Badge>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {Array.isArray(services) ? services.filter((s: any) => s.category === category.id).length : 0} services
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Services Section */}
           <div>
             <div className="flex items-center gap-2 mb-6">
               <DollarSign className="w-5 h-5 text-green-600" />
-              <h2 className="text-xl font-semibold">Add-on Services</h2>
+              <h2 className="text-xl font-semibold">Services</h2>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -550,6 +588,98 @@ export default function Packages() {
             onOpenChange={(open) => !open && setEditingService(null)} 
             service={editingService}
           />
+          
+          {/* Category Management Modal */}
+          <Dialog open={showCategoryManager} onOpenChange={setShowCategoryManager}>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Manage Service Categories</DialogTitle>
+              </DialogHeader>
+              
+              <div className="space-y-6">
+                {/* Add New Category */}
+                <div className="p-4 border rounded-lg bg-gray-50">
+                  <h3 className="font-medium mb-3">Add New Category</h3>
+                  <div className="flex gap-3">
+                    <Input
+                      placeholder="Category name"
+                      value={newCategory.name}
+                      onChange={(e) => setNewCategory(prev => ({ ...prev, name: e.target.value }))}
+                      className="flex-1"
+                    />
+                    <select
+                      value={newCategory.color}
+                      onChange={(e) => setNewCategory(prev => ({ ...prev, color: e.target.value }))}
+                      className="px-3 py-2 border rounded-md text-sm"
+                    >
+                      <option value="bg-blue-100 text-blue-800">Blue</option>
+                      <option value="bg-green-100 text-green-800">Green</option>
+                      <option value="bg-purple-100 text-purple-800">Purple</option>
+                      <option value="bg-orange-100 text-orange-800">Orange</option>
+                      <option value="bg-pink-100 text-pink-800">Pink</option>
+                      <option value="bg-gray-100 text-gray-800">Gray</option>
+                      <option value="bg-red-100 text-red-800">Red</option>
+                      <option value="bg-yellow-100 text-yellow-800">Yellow</option>
+                    </select>
+                    <Button
+                      onClick={() => {
+                        if (newCategory.name.trim()) {
+                          const id = newCategory.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                          setCategories(prev => [...prev, { 
+                            id, 
+                            name: newCategory.name.trim(), 
+                            color: newCategory.color 
+                          }]);
+                          setNewCategory({ name: "", color: "bg-blue-100 text-blue-800" });
+                          toast({ title: "Category added successfully!" });
+                        }
+                      }}
+                      disabled={!newCategory.name.trim()}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Existing Categories */}
+                <div>
+                  <h3 className="font-medium mb-3">Existing Categories</h3>
+                  <div className="space-y-2">
+                    {categories.map((category, index) => (
+                      <div key={category.id} className="flex items-center gap-3 p-3 border rounded-lg">
+                        <Badge className={`${category.color} px-3 py-1`}>
+                          {category.name}
+                        </Badge>
+                        <span className="text-sm text-gray-500 flex-1">
+                          ID: {category.id} • {Array.isArray(services) ? services.filter((s: any) => s.category === category.id).length : 0} services
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (confirm(`Delete category "${category.name}"? Services using this category will need to be updated.`)) {
+                              setCategories(prev => prev.filter((_, i) => i !== index));
+                              toast({ title: "Category deleted successfully!" });
+                            }
+                          }}
+                          className="text-red-600 border-red-200 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-3 mt-6">
+                <Button variant="outline" onClick={() => setShowCategoryManager(false)}>
+                  Close
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </main>
       </div>
     </div>
