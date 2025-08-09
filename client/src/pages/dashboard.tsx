@@ -16,6 +16,7 @@ import { VoiceBookingModal } from "@/components/ai/voice-booking-modal";
 
 export default function Dashboard() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCreateEventModal, setShowCreateEventModal] = useState(false);
@@ -43,7 +44,7 @@ export default function Dashboard() {
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
       <div className="hidden lg:block">
-        <Sidebar />
+        <Sidebar collapsed={sidebarCollapsed} />
       </div>
       
       <MobileNav 
@@ -57,6 +58,8 @@ export default function Dashboard() {
           subtitle="Welcome back! Here's what's happening at your venues today."
           onMobileMenuToggle={() => setMobileNavOpen(true)}
           onNewBooking={() => setShowCreateEventModal(true)}
+          onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          sidebarCollapsed={sidebarCollapsed}
         />
         
         <main className="flex-1 overflow-y-auto p-3 sm:p-6">

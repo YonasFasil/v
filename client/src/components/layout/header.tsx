@@ -1,4 +1,4 @@
-import { Search, Bell, Plus, Menu, Settings } from "lucide-react";
+import { Search, Bell, Plus, Menu, Settings, PanelLeftClose, PanelLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
@@ -10,6 +10,8 @@ interface HeaderProps {
   action?: React.ReactNode;
   onMobileMenuToggle?: () => void;
   onNewBooking?: () => void;
+  onSidebarToggle?: () => void;
+  sidebarCollapsed?: boolean;
 }
 
 interface HeaderPropsWithMobile extends HeaderProps {
@@ -17,7 +19,7 @@ interface HeaderPropsWithMobile extends HeaderProps {
   setMobileNavOpen?: (open: boolean) => void;
 }
 
-export function Header({ title, subtitle, action, onMobileMenuToggle, onNewBooking, mobileNavOpen, setMobileNavOpen }: HeaderPropsWithMobile) {
+export function Header({ title, subtitle, action, onMobileMenuToggle, onNewBooking, onSidebarToggle, sidebarCollapsed, mobileNavOpen, setMobileNavOpen }: HeaderPropsWithMobile) {
   const [searchOpen, setSearchOpen] = useState(false);
   
   // Keyboard shortcut for search
@@ -44,6 +46,17 @@ export function Header({ title, subtitle, action, onMobileMenuToggle, onNewBooki
           >
             <Menu className="w-5 h-5" />
           </button>
+          
+          {/* Desktop Sidebar Toggle */}
+          {onSidebarToggle && (
+            <button 
+              onClick={onSidebarToggle}
+              className="hidden lg:flex p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {sidebarCollapsed ? <PanelLeft className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+            </button>
+          )}
           
           <div className="flex-1 min-w-0">
             <h1 className="text-lg sm:text-2xl font-semibold text-slate-900 truncate">{title}</h1>
