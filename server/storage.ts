@@ -2,6 +2,7 @@ import {
   type User, type InsertUser,
   type Venue, type InsertVenue,
   type Space, type InsertSpace,
+  type SetupStyle, type InsertSetupStyle,
   type Customer, type InsertCustomer,
   type Contract, type InsertContract,
   type Booking, type InsertBooking,
@@ -48,6 +49,13 @@ export interface IStorage {
   getSpacesByVenue(venueId: string): Promise<Space[]>;
   createSpace(space: InsertSpace): Promise<Space>;
   updateSpace(id: string, space: Partial<InsertSpace>): Promise<Space | undefined>;
+
+  // Setup Styles
+  getSetupStyles(): Promise<SetupStyle[]>;
+  getSetupStyle(id: string): Promise<SetupStyle | undefined>;
+  createSetupStyle(setupStyle: InsertSetupStyle): Promise<SetupStyle>;
+  updateSetupStyle(id: string, setupStyle: Partial<InsertSetupStyle>): Promise<SetupStyle | undefined>;
+  deleteSetupStyle(id: string): Promise<boolean>;
 
   // Customers
   getCustomers(): Promise<Customer[]>;

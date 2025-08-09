@@ -23,6 +23,18 @@ export const venues = pgTable("venues", {
   isActive: boolean("is_active").default(true),
 });
 
+export const setupStyles = pgTable("setup_styles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  iconName: text("icon_name"), // Lucide icon name for UI display
+  category: text("category").notNull().default("general"), // dining, meeting, presentation, social, custom
+  minCapacity: integer("min_capacity"),
+  maxCapacity: integer("max_capacity"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const spaces = pgTable("spaces", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   venueId: varchar("venue_id").references(() => venues.id).notNull(),
@@ -32,7 +44,7 @@ export const spaces = pgTable("spaces", {
   pricePerHour: decimal("price_per_hour", { precision: 10, scale: 2 }),
   amenities: text("amenities").array(),
   imageUrl: text("image_url"),
-  availableSetupStyles: text("available_setup_styles").array(), // Available setup styles for this space
+  availableSetupStyles: text("available_setup_styles").array(), // Available setup styles for this space (references setupStyles.id)
   floorPlan: jsonb("floor_plan"), // 2D floor plan configuration with elements, furniture, etc.
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
@@ -252,6 +264,7 @@ export const insertAiInsightSchema = createInsertSchema(aiInsights).omit({ id: t
 export const insertPackageSchema = createInsertSchema(packages).omit({ id: true, createdAt: true });
 export const insertServiceSchema = createInsertSchema(services).omit({ id: true, createdAt: true });
 export const insertSpaceSchema = createInsertSchema(spaces).omit({ id: true, createdAt: true });
+export const insertSetupStyleSchema = createInsertSchema(setupStyles).omit({ id: true, createdAt: true });
 export const insertTaxSettingSchema = createInsertSchema(taxSettings).omit({ id: true, createdAt: true });
 
 // Types
@@ -281,5 +294,7 @@ export type Communication = typeof communications.$inferSelect;
 export type InsertCommunication = z.infer<typeof insertCommunicationSchema>;
 export type Space = typeof spaces.$inferSelect;
 export type InsertSpace = z.infer<typeof insertSpaceSchema>;
+export type SetupStyle = typeof setupStyles.$inferSelect;
+export type InsertSetupStyle = z.infer<typeof insertSetupStyleSchema>;
 export type TaxSetting = typeof taxSettings.$inferSelect;
 export type InsertTaxSetting = z.infer<typeof insertTaxSettingSchema>;
