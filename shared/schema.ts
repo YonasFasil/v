@@ -232,14 +232,14 @@ export const insertBookingSchema = createInsertSchema(bookings, {
   endDate: z.union([z.string(), z.date()]).transform((val) => 
     typeof val === 'string' ? new Date(val) : val
   ).optional(),
-  proposalSentAt: z.union([z.string(), z.date()]).transform((val) => 
-    typeof val === 'string' ? new Date(val) : val
+  proposalSentAt: z.union([z.string(), z.date(), z.null()]).transform((val) => 
+    val === null ? null : (typeof val === 'string' ? new Date(val) : val)
   ).optional(),
-  proposalViewedAt: z.union([z.string(), z.date()]).transform((val) => 
-    typeof val === 'string' ? new Date(val) : val
+  proposalViewedAt: z.union([z.string(), z.date(), z.null()]).transform((val) => 
+    val === null ? null : (typeof val === 'string' ? new Date(val) : val)
   ).optional(),
-  proposalRespondedAt: z.union([z.string(), z.date()]).transform((val) => 
-    typeof val === 'string' ? new Date(val) : val
+  proposalRespondedAt: z.union([z.string(), z.date(), z.null()]).transform((val) => 
+    val === null ? null : (typeof val === 'string' ? new Date(val) : val)
   ).optional(),
 }).omit({ id: true, createdAt: true });
 export const insertProposalSchema = createInsertSchema(proposals).omit({ id: true, createdAt: true, sentAt: true, viewedAt: true });
