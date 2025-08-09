@@ -908,45 +908,65 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                       <Label className="text-base font-medium">Configure Dates ({selectedDates.length})</Label>
                       <div className="mt-3 space-y-3 max-h-64 overflow-y-auto">
                         {selectedDates.map((dateInfo, index) => (
-                          <Card key={index} className="p-4 border border-green-200 bg-green-50">
-                            <div className="flex items-center justify-between mb-3">
-                              <span className="font-medium text-green-900">
-                                {format(dateInfo.date, 'EEEE, MMMM d, yyyy')}
-                              </span>
-                              {(() => {
-                                const availability = getSpaceAvailability(
-                                  dateInfo.spaceId || '',
-                                  dateInfo.date,
-                                  dateInfo.startTime,
-                                  dateInfo.endTime
-                                );
+                          <Card key={index} className="group relative overflow-hidden border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
+                            {/* Modern gradient header */}
+                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-100 p-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white font-semibold text-sm">
+                                    {format(dateInfo.date, 'd')}
+                                  </div>
+                                  <div>
+                                    <h4 className="font-semibold text-slate-900 text-sm">
+                                      {format(dateInfo.date, 'EEEE, MMMM d')}
+                                    </h4>
+                                    <p className="text-xs text-slate-600 mt-0.5">
+                                      {format(dateInfo.date, 'yyyy')}
+                                    </p>
+                                  </div>
+                                </div>
                                 
-                                if (availability.available) {
-                                  return (
-                                    <Badge variant="secondary" className="bg-green-100 text-green-700">
-                                      Available
-                                    </Badge>
+                                {/* Availability indicator */}
+                                {(() => {
+                                  const availability = getSpaceAvailability(
+                                    dateInfo.spaceId || '',
+                                    dateInfo.date,
+                                    dateInfo.startTime,
+                                    dateInfo.endTime
                                   );
-                                } else {
-                                  const conflict = availability.conflictingBooking;
-                                  return (
-                                    <div className="flex flex-col items-end gap-1">
-                                      <Badge variant="destructive" className="bg-red-100 text-red-700">
-                                        ⚠️ Conflict
-                                      </Badge>
-                                      <div className="text-xs text-red-600 text-right">
-                                        {conflict?.eventName}<br/>
-                                        {conflict?.startTime} - {conflict?.endTime}
+                                  
+                                  if (availability.available) {
+                                    return (
+                                      <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                        Available
                                       </div>
-                                    </div>
-                                  );
-                                }
-                              })()}
+                                    );
+                                  } else {
+                                    const conflict = availability.conflictingBooking;
+                                    return (
+                                      <div className="text-right">
+                                        <div className="flex items-center gap-2 px-3 py-1.5 bg-red-100 text-red-700 rounded-full text-xs font-medium mb-1">
+                                          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                          Conflict
+                                        </div>
+                                        <div className="text-xs text-red-600">
+                                          {conflict?.eventName}<br/>
+                                          {conflict?.startTime} - {conflict?.endTime}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                })()}
+                              </div>
                             </div>
-                            
-                            <div className="space-y-2">
-                              <div className="mb-2">
-                                <Label className="text-sm flex items-center gap-1">
+
+                            {/* Form content */}
+                            <div className="p-5 space-y-4">
+                              {/* Space Selection */}
+                              <div className="space-y-2">
+                                <Label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                                  <MapPin className="w-4 h-4 text-slate-500" />
                                   Select Space
                                   <span className="text-red-500 text-xs">*</span>
                                 </Label>
@@ -954,22 +974,35 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                   value={dateInfo.spaceId || ""}
                                   onValueChange={(value) => updateDateTime(index, 'spaceId', value)}
                                 >
-                                  <SelectTrigger className={cn("w-full", !dateInfo.spaceId && "border-red-200 bg-red-50/30")}>
+                                  <SelectTrigger className={cn(
+                                    "w-full h-10 transition-colors",
+                                    !dateInfo.spaceId 
+                                      ? "border-red-200 bg-red-50/30 focus:border-red-400" 
+                                      : "border-slate-200 hover:border-slate-300 focus:border-blue-400"
+                                  )}>
                                     <SelectValue placeholder="Choose a space" />
                                   </SelectTrigger>
                                   <SelectContent>
                                     {selectedVenueData?.spaces?.map((space: any) => (
                                       <SelectItem key={space.id} value={space.id}>
-                                        {space.name} (Capacity: {space.capacity})
+                                        <div className="flex items-center justify-between w-full">
+                                          <span>{space.name}</span>
+                                          <Badge variant="outline" className="ml-2 text-xs">
+                                            {space.capacity} guests
+                                          </Badge>
+                                        </div>
                                       </SelectItem>
                                     )) || <SelectItem value="no-spaces" disabled>No spaces available</SelectItem>}
                                   </SelectContent>
                                 </Select>
                               </div>
                               
-                              <div className="grid grid-cols-2 gap-4">
+                              {/* Time and Details Grid */}
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                {/* Event Time */}
                                 <div className="space-y-2">
-                                  <Label className="text-sm flex items-center gap-1">
+                                  <Label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                                    <CalendarIcon className="w-4 h-4 text-slate-500" />
                                     Event Time
                                     <span className="text-red-500 text-xs">*</span>
                                   </Label>
@@ -978,28 +1011,38 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                       value={dateInfo.startTime}
                                       onValueChange={(value) => updateDateTime(index, 'startTime', value)}
                                     >
-                                      <SelectTrigger className={cn("w-28", !dateInfo.startTime && "border-red-200 bg-red-50/30")}>
+                                      <SelectTrigger className={cn(
+                                        "flex-1 h-9 text-sm transition-colors",
+                                        !dateInfo.startTime 
+                                          ? "border-red-200 bg-red-50/30" 
+                                          : "border-slate-200 hover:border-slate-300"
+                                      )}>
                                         <SelectValue placeholder="Start" />
                                       </SelectTrigger>
-                                    <SelectContent>
-                                      {Array.from({length: 24}, (_, i) => {
-                                        const hour = i === 0 ? 12 : i <= 12 ? i : i - 12;
-                                        const ampm = i < 12 ? 'AM' : 'PM';
-                                        const time = `${hour.toString().padStart(2, '0')}:00 ${ampm}`;
-                                        return (
-                                          <SelectItem key={time} value={time}>{time}</SelectItem>
-                                        );
-                                      })}
-                                    </SelectContent>
+                                      <SelectContent>
+                                        {Array.from({length: 24}, (_, i) => {
+                                          const hour = i === 0 ? 12 : i <= 12 ? i : i - 12;
+                                          const ampm = i < 12 ? 'AM' : 'PM';
+                                          const time = `${hour.toString().padStart(2, '0')}:00 ${ampm}`;
+                                          return (
+                                            <SelectItem key={time} value={time}>{time}</SelectItem>
+                                          );
+                                        })}
+                                      </SelectContent>
                                     </Select>
                                     
-                                    <span className="text-slate-500 text-xs">to</span>
+                                    <span className="text-slate-400 font-medium px-1">→</span>
                                     
                                     <Select
                                       value={dateInfo.endTime}
                                       onValueChange={(value) => updateDateTime(index, 'endTime', value)}
                                     >
-                                      <SelectTrigger className={cn("w-28", !dateInfo.endTime && "border-red-200 bg-red-50/30")}>
+                                      <SelectTrigger className={cn(
+                                        "flex-1 h-9 text-sm transition-colors",
+                                        !dateInfo.endTime 
+                                          ? "border-red-200 bg-red-50/30" 
+                                          : "border-slate-200 hover:border-slate-300"
+                                      )}>
                                         <SelectValue placeholder="End" />
                                       </SelectTrigger>
                                       <SelectContent>
@@ -1016,52 +1059,57 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                   </div>
                                 </div>
                                 
-                                {/* Simplified Guest Count and Setup Style */}
-                                <div className="grid grid-cols-2 gap-4">
+                                {/* Guests and Setup */}
+                                <div className="grid grid-cols-2 gap-3">
+                                  {/* Guest Count */}
                                   <div className="space-y-2">
-                                    <Label className="text-sm flex items-center gap-1">
+                                    <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
                                       <Users className="w-4 h-4 text-slate-500" />
                                       Guests
                                       <span className="text-red-500 text-xs">*</span>
                                     </Label>
-                                    <Input
-                                      type="number"
-                                      min="1"
-                                      max="999"
-                                      value={dateInfo.guestCount || 1}
-                                      onChange={(e) => {
-                                        const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
-                                        updateDateTime(index, 'guestCount', value);
-                                      }}
-                                      className="w-20 h-8 text-center text-sm"
-                                    />
-                                    {(() => {
-                                      const selectedSpace = selectedVenueData?.spaces?.find((space: any) => space.id === dateInfo.spaceId);
-                                      const guestCount = dateInfo.guestCount || 1;
-                                      const capacity = selectedSpace?.capacity || 0;
-                                      
-                                      if (selectedSpace && guestCount > capacity) {
-                                        return (
-                                          <div className="text-xs text-amber-600 mt-1">
-                                            Exceeds capacity ({capacity})
-                                          </div>
-                                        );
-                                      }
-                                      return null;
-                                    })()}
+                                    <div className="space-y-1">
+                                      <Input
+                                        type="number"
+                                        min="1"
+                                        max="999"
+                                        value={dateInfo.guestCount || 1}
+                                        onChange={(e) => {
+                                          const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
+                                          updateDateTime(index, 'guestCount', value);
+                                        }}
+                                        className="h-9 text-center text-sm font-medium"
+                                      />
+                                      {(() => {
+                                        const selectedSpace = selectedVenueData?.spaces?.find((space: any) => space.id === dateInfo.spaceId);
+                                        const guestCount = dateInfo.guestCount || 1;
+                                        const capacity = selectedSpace?.capacity || 0;
+                                        
+                                        if (selectedSpace && guestCount > capacity) {
+                                          return (
+                                            <div className="flex items-center gap-1 text-xs text-amber-600">
+                                              <div className="w-1 h-1 bg-amber-400 rounded-full"></div>
+                                              Exceeds capacity ({capacity})
+                                            </div>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
+                                    </div>
                                   </div>
 
+                                  {/* Setup Style */}
                                   <div className="space-y-2">
-                                    <Label className="text-sm flex items-center gap-1">
+                                    <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
                                       <Grid3X3 className="w-4 h-4 text-slate-500" />
-                                      Setup Style
+                                      Setup
                                     </Label>
                                     <Select
                                       value={dateInfo.setupStyle || ''}
                                       onValueChange={(value) => updateDateTime(index, 'setupStyle', value)}
                                     >
-                                      <SelectTrigger className="h-8 text-sm">
-                                        <SelectValue placeholder="Select style" />
+                                      <SelectTrigger className="h-9 text-sm border-slate-200 hover:border-slate-300">
+                                        <SelectValue placeholder="Style" />
                                       </SelectTrigger>
                                       <SelectContent>
                                         <SelectItem value="round-tables">Round Tables</SelectItem>
