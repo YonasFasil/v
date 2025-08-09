@@ -982,38 +982,43 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                 {activeDate.startTime} - {activeDate.endTime}
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Label className="text-sm font-medium flex items-center gap-1">
+                            <div className="flex items-center gap-3">
+                              <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                                <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
                                 Guests
                                 <span className="text-red-500 text-xs">*</span>
                               </Label>
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg p-1">
                                 <Button
                                   type="button"
-                                  variant="outline"
+                                  variant="ghost"
                                   size="sm"
                                   onClick={() => updateDateConfig('guestCount', Math.max(1, (activeDate.guestCount || 1) - 1))}
-                                  className="h-7 w-7 p-0"
+                                  className="h-6 w-6 p-0 hover:bg-slate-200 rounded"
                                 >
                                   <Minus className="h-3 w-3" />
                                 </Button>
-                                <Input
-                                  type="number"
-                                  min="1"
-                                  max="999"
-                                  value={activeDate.guestCount || 1}
-                                  onChange={(e) => {
-                                    const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
-                                    updateDateConfig('guestCount', value);
-                                  }}
-                                  className="w-14 text-center text-sm font-medium h-7"
-                                />
+                                <div className="px-3 py-1 bg-white border border-slate-200 rounded mx-1 min-w-[3rem] text-center">
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    max="999"
+                                    value={activeDate.guestCount || 1}
+                                    onChange={(e) => {
+                                      const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
+                                      updateDateConfig('guestCount', value);
+                                    }}
+                                    className="border-0 p-0 text-center text-sm font-semibold bg-transparent focus:ring-0 focus:outline-none w-full"
+                                  />
+                                </div>
                                 <Button
                                   type="button"
-                                  variant="outline"
+                                  variant="ghost"
                                   size="sm"
                                   onClick={() => updateDateConfig('guestCount', Math.min(999, (activeDate.guestCount || 1) + 1))}
-                                  className="h-7 w-7 p-0"
+                                  className="h-6 w-6 p-0 hover:bg-slate-200 rounded"
                                 >
                                   <Plus className="h-3 w-3" />
                                 </Button>
