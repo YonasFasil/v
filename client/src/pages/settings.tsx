@@ -129,6 +129,23 @@ export default function Settings() {
     accessControlEnabled: true
   });
 
+  // Email Settings State
+  const [emailSettings, setEmailSettings] = useState({
+    provider: "gmail", // gmail, sendgrid, custom
+    smtpHost: "smtp.gmail.com",
+    smtpPort: "587",
+    emailUser: "",
+    emailPass: "",
+    fromName: "Venuine Events",
+    fromEmail: "noreply@venuine.com",
+    replyToEmail: "contact@venuine.com",
+    emailTemplate: "professional",
+    includeSignature: true,
+    signatureText: "Best regards,\nThe Venuine Events Team",
+    enableEmailLogging: true,
+    testMode: false
+  });
+
   // Deposit Settings State
   const [depositSettings, setDepositSettings] = useState({
     defaultDepositType: "percentage", // percentage or fixed
@@ -170,7 +187,7 @@ export default function Settings() {
         
         <main className="flex-1 overflow-y-auto p-6">
           <Tabs defaultValue="business" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7">
+            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
               <TabsTrigger value="business" className="flex items-center gap-2">
                 <Building className="w-4 h-4" />
                 <span className="hidden sm:inline">Business</span>
@@ -178,6 +195,10 @@ export default function Settings() {
               <TabsTrigger value="notifications" className="flex items-center gap-2">
                 <Bell className="w-4 h-4" />
                 <span className="hidden sm:inline">Notifications</span>
+              </TabsTrigger>
+              <TabsTrigger value="email" className="flex items-center gap-2">
+                <Mail className="w-4 h-4" />
+                <span className="hidden sm:inline">Email</span>
               </TabsTrigger>
               <TabsTrigger value="ai" className="flex items-center gap-2">
                 <SettingsIcon className="w-4 h-4" />
@@ -315,6 +336,178 @@ export default function Settings() {
                   <Button onClick={() => saveSettings("Business")} className="bg-blue-600 hover:bg-blue-700">
                     <Save className="w-4 h-4 mr-2" />
                     Save Business Settings
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Email Configuration */}
+            <TabsContent value="email" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Mail className="w-5 h-5" />
+                    Email Configuration
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Email Provider Selection */}
+                  <div>
+                    <h4 className="font-medium mb-4">Email Provider</h4>
+                    <Select value={emailSettings.provider} onValueChange={(value) => setEmailSettings(prev => ({ ...prev, provider: value }))}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="gmail">Gmail (Free - Recommended)</SelectItem>
+                        <SelectItem value="sendgrid">SendGrid</SelectItem>
+                        <SelectItem value="custom">Custom SMTP</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Separator />
+
+                  {/* Gmail Configuration */}
+                  {emailSettings.provider === "gmail" && (
+                    <div className="space-y-4">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <Mail className="w-5 h-5 text-blue-600 mt-0.5" />
+                          <div>
+                            <h5 className="font-medium text-blue-900">Gmail Setup Instructions</h5>
+                            <p className="text-sm text-blue-700 mt-1">
+                              To use Gmail for sending emails, you'll need to enable 2-Step Verification and create an App Password.
+                            </p>
+                            <div className="mt-2 text-sm text-blue-700">
+                              <p><strong>Step 1:</strong> Go to Google Account → Security → 2-Step Verification</p>
+                              <p><strong>Step 2:</strong> Create an "App Password" for Mail</p>
+                              <p><strong>Step 3:</strong> Add credentials to Replit Secrets (not here)</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="fromName">From Name</Label>
+                          <Input
+                            id="fromName"
+                            value={emailSettings.fromName}
+                            onChange={(e) => setEmailSettings(prev => ({ ...prev, fromName: e.target.value }))}
+                            placeholder="Venuine Events"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="fromEmail">From Email</Label>
+                          <Input
+                            id="fromEmail"
+                            type="email"
+                            value={emailSettings.fromEmail}
+                            onChange={(e) => setEmailSettings(prev => ({ ...prev, fromEmail: e.target.value }))}
+                            placeholder="noreply@venuine.com"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <Key className="w-5 h-5 text-amber-600 mt-0.5" />
+                          <div>
+                            <h5 className="font-medium text-amber-900">Security Note</h5>
+                            <p className="text-sm text-amber-700">
+                              <strong>EMAIL_USER</strong> and <strong>EMAIL_PASS</strong> should be set in Replit Secrets, not in this interface. 
+                              This keeps your credentials secure and encrypted.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Custom SMTP Configuration */}
+                  {emailSettings.provider === "custom" && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="smtpHost">SMTP Host</Label>
+                        <Input
+                          id="smtpHost"
+                          value={emailSettings.smtpHost}
+                          onChange={(e) => setEmailSettings(prev => ({ ...prev, smtpHost: e.target.value }))}
+                          placeholder="smtp.example.com"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="smtpPort">SMTP Port</Label>
+                        <Input
+                          id="smtpPort"
+                          value={emailSettings.smtpPort}
+                          onChange={(e) => setEmailSettings(prev => ({ ...prev, smtpPort: e.target.value }))}
+                          placeholder="587"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <Separator />
+
+                  {/* Email Template Settings */}
+                  <div>
+                    <h4 className="font-medium mb-4">Email Templates</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="emailTemplate">Template Style</Label>
+                        <Select value={emailSettings.emailTemplate} onValueChange={(value) => setEmailSettings(prev => ({ ...prev, emailTemplate: value }))}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="professional">Professional</SelectItem>
+                            <SelectItem value="modern">Modern</SelectItem>
+                            <SelectItem value="minimal">Minimal</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="replyToEmail">Reply-To Email</Label>
+                        <Input
+                          id="replyToEmail"
+                          type="email"
+                          value={emailSettings.replyToEmail}
+                          onChange={(e) => setEmailSettings(prev => ({ ...prev, replyToEmail: e.target.value }))}
+                          placeholder="contact@venuine.com"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Include Email Signature</Label>
+                      <p className="text-xs text-gray-500">Add company signature to emails</p>
+                    </div>
+                    <Switch
+                      checked={emailSettings.includeSignature}
+                      onCheckedChange={(checked) => setEmailSettings(prev => ({ ...prev, includeSignature: checked }))}
+                    />
+                  </div>
+
+                  {emailSettings.includeSignature && (
+                    <div>
+                      <Label htmlFor="signatureText">Email Signature</Label>
+                      <Textarea
+                        id="signatureText"
+                        value={emailSettings.signatureText}
+                        onChange={(e) => setEmailSettings(prev => ({ ...prev, signatureText: e.target.value }))}
+                        placeholder="Best regards,&#10;The Venuine Events Team"
+                        className="min-h-[80px]"
+                      />
+                    </div>
+                  )}
+
+                  <Button onClick={() => saveSettings("Email")} className="bg-blue-600 hover:bg-blue-700">
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Email Settings
                   </Button>
                 </CardContent>
               </Card>
