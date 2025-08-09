@@ -48,6 +48,7 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
   const [selectedType, setSelectedType] = useState(ELEMENT_TYPES[0]);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [canvasSize] = useState({ width: 600, height: 400 });
 
   const addElement = useCallback((x: number, y: number) => {
@@ -89,6 +90,53 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
   const handleElementClick = useCallback((e: React.MouseEvent, elementId: string) => {
     e.stopPropagation();
     setSelectedElement(elementId);
+  }, []);
+
+  const handleElementMouseDown = useCallback((e: React.MouseEvent, elementId: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    const element = elements.find(el => el.id === elementId);
+    if (!element) return;
+
+    setSelectedElement(elementId);
+    setIsDragging(true);
+    
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect) {
+      setDragStart({ x: e.clientX, y: e.clientY });
+      setDragOffset({ 
+        x: e.clientX - rect.left - element.x, 
+        y: e.clientY - rect.top - element.y 
+      });
+    }
+  }, [elements]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging || !selectedElement || !canvasRef.current) return;
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left - dragOffset.x;
+    const y = e.clientY - rect.top - dragOffset.y;
+
+    // Constrain to canvas bounds
+    const element = elements.find(el => el.id === selectedElement);
+    if (!element) return;
+
+    const constrainedX = Math.max(0, Math.min(x, canvasSize.width - element.width));
+    const constrainedY = Math.max(0, Math.min(y, canvasSize.height - element.height));
+
+    setElements(prev => prev.map(el => 
+      el.id === selectedElement 
+        ? { ...el, x: constrainedX, y: constrainedY }
+        : el
+    ));
+  }, [isDragging, selectedElement, dragOffset, elements, canvasSize]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+    setDragStart({ x: 0, y: 0 });
+    setDragOffset({ x: 0, y: 0 });
   }, []);
 
   const deleteSelectedElement = useCallback(() => {
@@ -257,12 +305,18 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
               
               <div
                 ref={canvasRef}
-                className="relative border-2 border-dashed border-slate-300 bg-slate-50 cursor-crosshair overflow-hidden"
+                className={cn(
+                  "relative border-2 border-dashed border-slate-300 bg-slate-50 overflow-hidden",
+                  mode === 'add' ? "cursor-crosshair" : "cursor-default"
+                )}
                 style={{
                   width: canvasSize.width,
                   height: canvasSize.height,
                 }}
                 onClick={handleCanvasClick}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
               >
                 {/* Grid pattern */}
                 <div 
@@ -281,8 +335,9 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
                   <div
                     key={element.id}
                     className={cn(
-                      "absolute border-2 cursor-pointer flex items-center justify-center text-xs font-medium text-white",
-                      selectedElement === element.id ? "border-blue-500 ring-2 ring-blue-200" : "border-gray-400"
+                      "absolute border-2 flex items-center justify-center text-xs font-medium text-white select-none",
+                      selectedElement === element.id ? "border-blue-500 ring-2 ring-blue-200 cursor-move" : "border-gray-400 cursor-pointer",
+                      isDragging && selectedElement === element.id ? "cursor-grabbing" : ""
                     )}
                     style={{
                       left: element.x,
@@ -292,10 +347,12 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
                       backgroundColor: element.color,
                       borderRadius: element.shape === 'circle' ? '50%' : '4px',
                       transform: `rotate(${element.rotation}deg)`,
+                      zIndex: selectedElement === element.id ? 10 : 1,
                     }}
                     onClick={(e) => handleElementClick(e, element.id)}
+                    onMouseDown={(e) => handleElementMouseDown(e, element.id)}
                   >
-                    <span className="text-center text-xs leading-tight">
+                    <span className="text-center text-xs leading-tight pointer-events-none">
                       {element.label}
                       {element.seats && <br />}
                       {element.seats && `${element.seats} seats`}
@@ -311,8 +368,9 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
               </div>
 
               <div className="mt-4 text-xs text-slate-600">
-                <p>• Click to add elements when in Add mode</p>
-                <p>• Click elements to select and edit them</p>
+                <p>• <strong>Add mode:</strong> Click to place new elements</p>
+                <p>• <strong>Select mode:</strong> Click elements to select them</p>
+                <p>• <strong>Move:</strong> Drag selected elements to reposition them</p>
                 <p>• Use the tools panel to modify selected elements</p>
               </div>
             </Card>
