@@ -2,50 +2,7 @@
 
 ## Overview
 
-This is a comprehensive event venue management system called "Venuine" built with React/TypeScript frontend and Express.js backend. The application provides venue owners and event managers with tools to manage bookings, customers, proposals, payments, and tasks. It features AI-powered capabilities including smart scheduling, automated email replies, lead scoring, and predictive analytics to optimize venue operations and enhance customer experience.
-
-## Recent Updates (August 2025)
-
-### Latest Completed Features:
-- ✅ **Dedicated Floor Plans & Setup Section (August 2025)**: Created standalone "Floor Plans & Setup" navigation section with comprehensive floor plan management interface. Users can now access all venue floor plans from a centralized location, filter by venue and setup style, and design layouts independently of venue editing. Integrated floor plan editing prompt in event creation when setup styles are selected.
-- ✅ **Interactive 2D Floor Planning System (August 2025)**: Complete floor plan designer with drag-and-drop furniture placement, resizable/rotatable objects, table seating configuration, multiple setup styles (round tables, U-shape, classroom, theater, cocktail, banquet, conference, custom), visual grid and zoom controls, and real-time element count and capacity tracking.
-- ✅ **Cards as Default View for Events (August 2025)**: Changed Events & Bookings section to default to cards view instead of calendar for better immediate overview of all events with detailed information cards.
-- ✅ **Modern Settings Redesign (August 2025)**: Completely rebuilt the settings section with modern UI/UX and full functionality. Features 7 organized tabs (General, Notifications, Appearance, Integrations, BEO, Taxes, Security), real API integration with backend, form validation, loading states, individual section saving, and comprehensive configuration options. Includes business information, notification preferences, appearance customization, API key management, BEO templates, tax configuration, and security settings.
-- ✅ **Full-Width Calendar Layout (August 2025)**: Restructured dashboard layout to give calendar section full width for better event visibility. Moved AI recommendations below calendar, maintained responsive design and clean visual hierarchy. Calendar now has much more horizontal space to display multiple events per day clearly.
-- ✅ **BEO (Banquet Event Orders) System (August 2025)**: Complete BEO functionality with professional template-based event summaries. Users can generate comprehensive BEO documents directly from event summary modal with configurable templates (Standard, Luxury, Corporate, Wedding, Minimal), customizable BEO sections (Floor Plan, Timeline, Catering, AV Requirements, Vendor Info, Setup/Breakdown), and professional formatting with print/download capabilities. BEO settings are fully configurable in the settings page with template selection and toggle options for different document sections.
-- ✅ **Enhanced Event Action Buttons (August 2025)**: Redesigned event summary modal with sticky action buttons at bottom featuring Edit, Duplicate Event, and BEO buttons. Buttons use semi-transparent background with backdrop blur for modern frosted glass effect and remain accessible when scrolling through long event details.
-- ✅ **One-Click Service & Package Duplication (August 2025)**: Implemented comprehensive duplication feature allowing users to instantly duplicate any service or package with a single click. Duplicated items automatically append "(Copy)" to the name and preserve all original properties including pricing, categories, descriptions, and included services. Features clean button layout with Edit and Duplicate buttons side-by-side on all cards, proper error handling, success notifications, and prevention of card click-through events.
-- ✅ **Service Category Management System (August 2025)**: Added complete category management with visual category overview showing service counts, "Manage Categories" modal for creating/editing/deleting categories with color customization, dynamic category dropdowns in service forms, and color-coded category badges throughout the interface.
-- ✅ **Per-Hour Service Pricing Model (August 2025)**: Extended service pricing models to include "Per Hour" option alongside "Fixed Price" and "Per Person". Services can now charge based on event duration with automatic calculation between start/end times. Enhanced event creation and details modals show proper hourly calculations (e.g., "$150 x 8.0 hours = $1,200"). Updated both service creation in packages page and event creation modal.
-- ✅ **Package-Service Pricing Logic Fix (August 2025)**: Completely corrected the package and service pricing relationship. Packages now properly include their bundled services at no extra cost, with only additional services being charged. Clear visual indicators show "Included" for bundled services vs. actual prices for add-ons, matching real venue business logic.
-- ✅ **Event Creation Modal Redesign (August 2025)**: Successfully redesigned Step 2 of event creation modal to match event edit modal design with clean grid layout, professional package selection cards, improved visual organization, and copy configuration feature for multi-date events. Applied clean two-column layout with packages/services on left and summary on right.
-- ✅ **Enhanced Customer Communication System (August 2025)**: Added comprehensive customer communication panel in event summary modal with direct messaging capabilities. Users can now send emails, SMS, or internal notes directly from event details, plus quick access to email and phone contact options.
-- ✅ **Fixed Proposal Creation System (August 2025)**: Resolved all proposal creation errors including date formatting issues, TypeScript conflicts, and time conversion problems. Proposals now work correctly for both single events and multi-date contracts with proper status tracking.
-- ✅ **Integrated Proposal System (August 2025)**: Completely restructured proposals to be part of the event creation process rather than separate entities. Events can now be sent directly as proposals with integrated status tracking (sent, viewed, accepted, declined) visible on both event cards and table views. Removed separate Proposals page and navigation as proposals are now seamlessly integrated into the event workflow.
-- ✅ **Mobile-Responsive Proposal System (August 2025)**: Completely redesigned proposal creation modal and pages for mobile devices with responsive layouts, touch-friendly controls, mobile card views, and optimized spacing for all screen sizes
-- ✅ **Adjustable Pricing in Proposals (August 2025)**: Added comprehensive custom pricing functionality allowing venue managers to modify package and service prices within individual proposals for custom quotes, discounts, and special offers with quick discount buttons and visual indicators
-- ✅ **Enhanced Calendar Design with Collapsible Sidebar (December 2025)**: Major calendar redesign with collapsible sidebar functionality, wider spacious layout, better event visibility showing up to 3 events per day with comprehensive details, responsive spacing, and calendar as the default primary view
-- ✅ **Comprehensive Booking Conflict Detection**: Enhanced conflict detection system with space-specific checking, detailed conflict warnings showing event names, customers, times, and status to prevent overbooking
-- ✅ **Real-Time Availability Display**: Calendar shows actual booking status instead of generic "Available" messages with enhanced event cards displaying customer names, times, guest counts, and venue spaces
-- ✅ **Integrated Contract System Throughout UI**: Complete contract system integration with Events & Bookings page showing contract summaries, calendar using full edit modal, and contract-aware display with purple highlighting for multi-date events
-- ✅ **Multi-Date Contract System**: Fully functional contract system that automatically groups multi-date events under a single contract while creating individual bookings for each date, with proper date validation and error handling
-- ✅ **Enhanced Reports & Analytics Page**: Comprehensive reporting dashboard with real-time data refresh, interactive charts, AI-powered insights, performance scoring, and export functionality
-- ✅ **AI-Powered Insights with Real Actions**: AI suggestions that can be applied with one click to create actual packages and services based on Google Gemini recommendations
-- ✅ **Comprehensive AI Disclaimers**: Clear warnings throughout the interface that AI suggestions may contain errors and should be verified before implementation
-- ✅ **Real-Time Analytics Data**: Live dashboard with auto-refresh functionality showing actual venue performance metrics, revenue trends, and utilization rates
-- ✅ **Intelligent Voice Booking with Error Correction**: Enhanced voice booking system that automatically corrects speech recognition errors and understands context using Google Gemini AI
-- ✅ **Comprehensive Event Editing Modal**: Enhanced event editing to match creation modal functionality with complete component editing capabilities including Copy Config, New Service creation, advanced pricing calculations, and multi-date management
-- ✅ **Copy Config Functionality**: Added "Copy to Other Dates" button that copies booking configurations between multiple event dates in both creation and editing modals
-- ✅ **New Service Creation**: Added "+ New Service" button in event modals to create services directly during booking process without leaving the workflow
-- ✅ **Enhanced Per-Guest Calculation**: Replaced "Apply guest count" with automatic package calculation that shows total price based on guest count
-- ✅ **Tax and Fees System**: Created comprehensive tax/fee management section in settings with percentage and fixed-rate options
-
-### Previously Completed Features:
-- ✅ **Functional Settings System**: All 6 settings areas (Business, Notifications, AI Features, Payment, Security, Integrations) are fully functional with form validation and API integration
-- ✅ **One-Click Stripe Connect Integration**: Implemented using provided setup link instead of manual API key entry - users can connect their Stripe account with a single click
-- ✅ **Global Search Functionality**: Comprehensive search across events, services, packages, venues, and customers with real-time results and keyboard shortcuts (Cmd/Ctrl+K)
-- ✅ **Mobile Navigation**: Fixed mobile navigation to properly show all sections including Venues, Packages, and Settings
-- ✅ **Real Dashboard Data**: Replaced dummy data with comprehensive real booking data showing actual metrics and venue utilization
+"Venuine" is a comprehensive event venue management system designed for venue owners and event managers. It provides tools to manage bookings, customers, proposals, payments, and tasks. The system incorporates AI-powered features such as smart scheduling, automated email replies, lead scoring, and predictive analytics to optimize venue operations and enhance customer experience. The business vision is to streamline venue management, increase efficiency, and provide data-driven insights to maximize revenue and customer satisfaction in the event industry.
 
 ## User Preferences
 
@@ -54,62 +11,76 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### Frontend Architecture
-- **Framework**: React with TypeScript using Vite as the build tool
-- **Routing**: Wouter for client-side routing with pages for dashboard, events, customers, proposals, payments, tasks, venues, packages, and settings
-- **State Management**: TanStack Query (React Query) for server state management and caching
-- **UI Components**: Radix UI primitives with custom styling using Tailwind CSS and shadcn/ui components
-- **Forms**: React Hook Form with Zod validation for type-safe form handling
-- **Styling**: Tailwind CSS with CSS variables for theming and custom design tokens
+- **Framework**: React with TypeScript, using Vite.
+- **Routing**: Wouter.
+- **State Management**: TanStack Query (React Query) for server state and caching.
+- **UI Components**: Radix UI primitives with custom styling using Tailwind CSS and shadcn/ui.
+- **Forms**: React Hook Form with Zod validation.
+- **Styling**: Tailwind CSS with CSS variables.
+- **UI/UX Decisions**:
+    - Default view for Events & Bookings is cards for immediate overview.
+    - Full-width calendar layout for enhanced event visibility.
+    - Modern settings redesign with organized tabs for clear configuration.
+    - Enhanced event action buttons with sticky, semi-transparent design.
+    - Clean, grid-based layouts for modals (e.g., event creation/editing).
+    - Mobile-responsive design for all key features like proposals.
+    - Visual indicators for pricing, categories, and booking statuses.
 
 ### Backend Architecture
-- **Framework**: Express.js with TypeScript running on Node.js
-- **API Design**: RESTful API structure with organized route handlers in `/server/routes.ts`
-- **Database Layer**: Abstracted storage interface (`IStorage`) allowing for flexible database implementations
-- **Development Setup**: Custom Vite integration for development with hot module replacement
-- **Error Handling**: Centralized error handling middleware with proper HTTP status codes
+- **Framework**: Express.js with TypeScript on Node.js.
+- **API Design**: RESTful API.
+- **Database Layer**: Abstracted storage interface (`IStorage`) for flexible database implementations.
+- **Error Handling**: Centralized middleware.
 
 ### Data Storage
-- **ORM**: Drizzle ORM configured for PostgreSQL with schema definitions in `/shared/schema.ts`
-- **Database**: PostgreSQL (configured via Neon serverless) with connection pooling
-- **Migrations**: Drizzle Kit for database schema migrations stored in `/migrations` directory
-- **Schema**: Comprehensive data model including users, venues, customers, bookings, proposals, payments, tasks, and AI insights
+- **ORM**: Drizzle ORM configured for PostgreSQL.
+- **Database**: PostgreSQL (Neon serverless).
+- **Migrations**: Drizzle Kit.
+- **Schema**: Comprehensive data model for users, venues, customers, bookings, proposals, payments, tasks, and AI insights.
 
 ### Authentication & Authorization
-- **Session Management**: Express sessions with PostgreSQL session store using `connect-pg-simple`
-- **User System**: Role-based access with user authentication (manager role by default)
-- **Security**: Secure session handling with proper cookie configuration
+- **Session Management**: Express sessions with PostgreSQL session store.
+- **User System**: Role-based access (manager role by default).
+- **Security**: Secure session handling.
+
+### Core Technical Implementations & Feature Specifications
+- **Dedicated Floor Plans & Setup Section**: Centralized management and design of venue floor plans, independent of venue editing, with interactive 2D designer (drag-and-drop, resizable objects, multiple setup styles, capacity tracking).
+- **Modern Settings**: Comprehensive configuration for General, Notifications, Appearance, Integrations, BEO, Taxes, Security.
+- **BEO (Banquet Event Orders) System**: Template-based professional BEO generation from event summaries with customizable sections and print/download capabilities.
+- **Service & Package Management**: One-click duplication, comprehensive category management (visual overview, color coding), and flexible pricing models including "Per Hour," "Fixed Price," and "Per Person." Corrected package-service pricing logic to include bundled services at no extra cost.
+- **Event Workflow**: Seamless integration of proposals into event creation with status tracking (sent, viewed, accepted, declined). Enhanced event creation and editing modals with component editing, copy configuration for multi-date events, and in-workflow service creation.
+- **Customer Communication**: Integrated panel for direct messaging (email, SMS, internal notes) from event details.
+- **Booking Conflict Detection**: Space-specific checking with detailed warnings.
+- **Real-Time Availability**: Calendar shows actual booking status with detailed event cards.
+- **Contract System**: Multi-date contract system grouping events, with UI integration and highlighting.
+- **Reports & Analytics**: Comprehensive dashboard with real-time data, interactive charts, and AI-powered insights.
+- **Tax and Fees System**: Configurable percentage and fixed-rate options.
 
 ### AI Integration
-- **Provider**: Google Gemini API integration for AI-powered features
-- **Voice-to-Text Booking**: Speech recognition for hands-free event creation with automatic field population
-- **Smart Scheduling**: AI-driven optimal booking time suggestions based on venue utilization and event patterns
-- **Email Automation**: Automated email reply generation with contextual understanding
-- **Lead Scoring**: Intelligent lead prioritization using machine learning algorithms
-- **Predictive Analytics**: Revenue forecasting and booking trend analysis
-- **Content Generation**: AI-powered proposal generation based on customer and event data
-- **Natural Language Processing**: Voice transcript parsing to extract booking details automatically
+- **Provider**: Google Gemini API.
+- **Features**: Voice-to-Text Booking (with error correction), Smart Scheduling, Automated Email Replies, Lead Scoring, Predictive Analytics, AI-powered Proposal Generation, Natural Language Processing for voice data extraction.
+- **AI-Powered Insights**: Suggestions for packages and services with one-click application.
+- **Disclaimers**: Clear warnings about potential AI errors.
 
 ## External Dependencies
 
 ### Core Backend Services
-- **Database**: Neon PostgreSQL serverless database for data persistence
-- **Session Store**: PostgreSQL-backed session storage for user authentication
-- **ORM**: Drizzle ORM for type-safe database operations
+- **Database**: Neon PostgreSQL serverless database.
+- **Session Store**: PostgreSQL-backed session storage (`connect-pg-simple`).
+- **ORM**: Drizzle ORM.
 
 ### AI & Machine Learning
-- **Google Gemini API**: Gemini 2.5 Flash model for natural language processing and content generation
-- **Voice Recognition**: Browser Web Speech API for voice-to-text functionality
-- **Smart Features**: Voice booking, scheduling optimization, email automation, and predictive analytics
+- **Google Gemini API**: Gemini 2.5 Flash model.
+- **Voice Recognition**: Browser Web Speech API.
 
 ### Frontend Libraries
-- **UI Framework**: Radix UI component primitives for accessible design system
-- **Styling**: Tailwind CSS for utility-first styling approach
-- **Validation**: Zod for runtime type validation and schema definitions
-- **Date Handling**: date-fns for date manipulation and formatting
-- **Carousel**: Embla Carousel for interactive UI components
+- **UI Framework**: Radix UI.
+- **Styling**: Tailwind CSS.
+- **Validation**: Zod.
+- **Date Handling**: date-fns.
+- **Carousel**: Embla Carousel.
 
 ### Development Tools
-- **Build System**: Vite for fast development and optimized production builds
-- **Type Checking**: TypeScript for static type checking across the entire codebase
-- **Code Quality**: ESLint and Prettier configurations for consistent code style
-- **Development**: Replit-specific plugins for seamless cloud development experience
+- **Build System**: Vite.
+- **Type Checking**: TypeScript.
+- **Code Quality**: ESLint, Prettier.
