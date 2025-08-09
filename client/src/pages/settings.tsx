@@ -175,36 +175,36 @@ export default function Settings() {
         
         <main className="flex-1 overflow-y-auto p-6">
           <Tabs defaultValue="business" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
-              <TabsTrigger value="business" className="flex items-center gap-2">
+            <TabsList className="flex flex-wrap w-full justify-start gap-1 h-auto p-1">
+              <TabsTrigger value="business" className="flex items-center gap-1 px-3 py-2 text-sm">
                 <Building className="w-4 h-4" />
                 <span className="hidden sm:inline">Business</span>
               </TabsTrigger>
-              <TabsTrigger value="notifications" className="flex items-center gap-2">
+              <TabsTrigger value="notifications" className="flex items-center gap-1 px-3 py-2 text-sm">
                 <Bell className="w-4 h-4" />
                 <span className="hidden sm:inline">Notifications</span>
               </TabsTrigger>
-              <TabsTrigger value="email" className="flex items-center gap-2">
+              <TabsTrigger value="email" className="flex items-center gap-1 px-3 py-2 text-sm">
                 <Mail className="w-4 h-4" />
                 <span className="hidden sm:inline">Email</span>
               </TabsTrigger>
-              <TabsTrigger value="ai" className="flex items-center gap-2">
+              <TabsTrigger value="ai" className="flex items-center gap-1 px-3 py-2 text-sm">
                 <SettingsIcon className="w-4 h-4" />
                 <span className="hidden sm:inline">AI Features</span>
               </TabsTrigger>
-              <TabsTrigger value="payments" className="flex items-center gap-2">
+              <TabsTrigger value="payments" className="flex items-center gap-1 px-3 py-2 text-sm">
                 <CreditCard className="w-4 h-4" />
                 <span className="hidden sm:inline">Payments</span>
               </TabsTrigger>
-              <TabsTrigger value="taxes" className="flex items-center gap-2">
+              <TabsTrigger value="taxes" className="flex items-center gap-1 px-3 py-2 text-sm">
                 <DollarSign className="w-4 h-4" />
                 <span className="hidden sm:inline">Tax & Fees</span>
               </TabsTrigger>
-              <TabsTrigger value="security" className="flex items-center gap-2">
+              <TabsTrigger value="security" className="flex items-center gap-1 px-3 py-2 text-sm">
                 <Shield className="w-4 h-4" />
                 <span className="hidden sm:inline">Security</span>
               </TabsTrigger>
-              <TabsTrigger value="integrations" className="flex items-center gap-2">
+              <TabsTrigger value="integrations" className="flex items-center gap-1 px-3 py-2 text-sm">
                 <Key className="w-4 h-4" />
                 <span className="hidden sm:inline">Integrations</span>
               </TabsTrigger>
