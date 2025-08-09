@@ -10,7 +10,7 @@ import Payments from "@/pages/payments";
 import Tasks from "@/pages/tasks";
 import Venues from "@/pages/venues";
 import Packages from "@/pages/packages";
-import FunctionalSettings from "@/pages/functional-settings";
+import Settings from "@/pages/settings";
 import AIAnalytics from "@/pages/ai-analytics";
 import Reports from "@/pages/reports";
 import VoiceBooking from "@/pages/voice-booking";
@@ -29,7 +29,7 @@ function Router() {
       <Route path="/ai-analytics" component={AIAnalytics} />
       <Route path="/reports" component={Reports} />
       <Route path="/voice-booking" component={VoiceBooking} />
-      <Route path="/settings" component={FunctionalSettings} />
+      <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>
   );

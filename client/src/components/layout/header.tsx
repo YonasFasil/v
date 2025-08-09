@@ -1,4 +1,4 @@
-import { Search, Bell, Plus, Menu } from "lucide-react";
+import { Search, Bell, Plus, Menu, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
@@ -85,6 +85,15 @@ export function Header({ title, subtitle, action, onMobileMenuToggle, onNewBooki
               <span className="hidden sm:inline">New Booking</span>
             </Button>
           )}
+
+          {/* Settings */}
+          <button 
+            onClick={() => window.location.href = '/settings'}
+            className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
+            title="Settings"
+          >
+            <Settings className="w-5 h-5 sm:w-6 sm:h-6" />
+          </button>
 
           {/* Notifications */}
           <button className="relative p-2 text-slate-400 hover:text-slate-600 transition-colors">

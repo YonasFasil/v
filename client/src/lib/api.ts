@@ -1,5 +1,8 @@
 import { apiRequest } from "./queryClient";
 
+// Re-export apiRequest for external use
+export { apiRequest };
+
 export interface SmartSchedulingSuggestion {
   suggestedDate: string;
   suggestedTime: string;
