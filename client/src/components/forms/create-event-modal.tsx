@@ -1209,7 +1209,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                           <div className="flex items-start gap-3">
                                             <Checkbox 
                                               checked={isSelected}
-                                              onChange={() => {
+                                              onCheckedChange={() => {
                                                 const currentServices = activeDate.selectedServices || [];
                                                 const newServices = isSelected 
                                                   ? currentServices.filter(id => id !== service.id)
