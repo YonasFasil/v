@@ -940,8 +940,8 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
-                            {/* Left Column: Package & Services */}
+                          <div className="space-y-6">
+                            {/* Package & Services - Full Width */}
                             <div className="space-y-6">
                               {/* Guest Count */}
                               <div>
@@ -1185,74 +1185,6 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                 </Card>
                               )}
 
-                              {/* Price Summary */}
-                              <Card className="p-4">
-                                <h5 className="font-medium mb-3">Price Summary</h5>
-                                <div className="space-y-2 text-sm">
-                                  {selectedPackageData && (
-                                    <div className="flex justify-between">
-                                      <span>{selectedPackageData.name}</span>
-                                      <span>
-                                        ${selectedPackageData.pricingModel === 'per_person' 
-                                          ? (parseFloat(selectedPackageData.price) * (activeDate.guestCount || 1)).toFixed(2)
-                                          : parseFloat(selectedPackageData.price).toFixed(2)}
-                                      </span>
-                                    </div>
-                                  )}
-                                  
-                                  {activeDate.selectedServices?.map(serviceId => {
-                                    const service = (services as any[]).find((s: any) => s.id === serviceId);
-                                    if (!service) return null;
-                                    
-                                    // Check if service is included in the selected package
-                                    const selectedPackage = activeDate.packageId 
-                                      ? (packages as any[]).find((p: any) => p.id === activeDate.packageId)
-                                      : null;
-                                    const isIncludedInPackage = selectedPackage?.includedServiceIds?.includes(serviceId) || false;
-                                    
-                                    const basePrice = parseFloat(service.price || 0);
-                                    const overridePrice = activeDate.pricingOverrides?.servicePrices?.[serviceId];
-                                    const price = overridePrice ?? basePrice;
-                                    const quantity = activeDate.itemQuantities?.[serviceId] || 1;
-                                    const total = service.pricingModel === 'per_person' 
-                                      ? price * (activeDate.guestCount || 1)
-                                      : price * quantity;
-                                    
-                                    return (
-                                      <div key={serviceId} className="flex justify-between">
-                                        <span className="flex items-center gap-2">
-                                          {service.name}
-                                          {isIncludedInPackage && (
-                                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
-                                              Included
-                                            </span>
-                                          )}
-                                        </span>
-                                        <span>
-                                          {isIncludedInPackage ? "Included" : `$${total.toFixed(2)}`}
-                                        </span>
-                                      </div>
-                                    );
-                                  })}
-                                  
-                                  <div className="border-t border-slate-200 pt-2 flex justify-between font-medium">
-                                    <span>Date Total</span>
-                                    <span>${(
-                                      (selectedPackageData && activeDate.packageId ? 
-                                        (selectedPackageData.pricingModel === 'per_person' 
-                                          ? parseFloat(selectedPackageData.price) * (activeDate.guestCount || 1)
-                                          : parseFloat(selectedPackageData.price)) : 0) +
-                                      (activeDate.selectedServices?.reduce((sum, serviceId) => {
-                                        const service = (services as any[]).find((s: any) => s.id === serviceId);
-                                        if (!service) return sum;
-                                        const price = activeDate.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
-                                        const quantity = activeDate.itemQuantities?.[serviceId] || 1;
-                                        return sum + (service.pricingModel === 'per_person' ? price * (activeDate.guestCount || 1) : price * quantity);
-                                      }, 0) || 0)
-                                    ).toFixed(2)}</span>
-                                  </div>
-                                </div>
-                              </Card>
                             </div>
                           </div>
                         </div>
