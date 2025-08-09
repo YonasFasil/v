@@ -63,6 +63,8 @@ export function FloorPlan3DDesigner({ isOpen, onClose, venueId, setupStyle, onSa
   const [zoom, setZoom] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [tool, setTool] = useState<'select' | 'table' | 'chair' | 'stage' | 'bar'>('select');
+  const [dragHandlePosition, setDragHandlePosition] = useState<{ x: number, y: number } | null>(null);
+  const [isResizing, setIsResizing] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
   const [history, setHistory] = useState<FloorPlanObject[][]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -301,6 +303,75 @@ export function FloorPlan3DDesigner({ isOpen, onClose, venueId, setupStyle, onSa
       ctx.restore();
     });
 
+    // Draw selection handles and drag indicators for selected object
+    if (selectedObject) {
+      const obj = objects.find(o => o.id === selectedObject);
+      if (obj) {
+        // Selection outline with glow effect
+        ctx.save();
+        ctx.shadowColor = '#2563eb';
+        ctx.shadowBlur = 8;
+        ctx.strokeStyle = '#2563eb';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(obj.x - 4, obj.y - 4, obj.width + 8, obj.height + 8);
+        ctx.setLineDash([]);
+        
+        // Corner drag handles (for resizing)
+        const handleSize = 8;
+        const handleColor = '#2563eb';
+        const handles = [
+          { x: obj.x - handleSize/2, y: obj.y - handleSize/2, type: 'nw-resize' },
+          { x: obj.x + obj.width - handleSize/2, y: obj.y - handleSize/2, type: 'ne-resize' },
+          { x: obj.x - handleSize/2, y: obj.y + obj.height - handleSize/2, type: 'sw-resize' },
+          { x: obj.x + obj.width - handleSize/2, y: obj.y + obj.height - handleSize/2, type: 'se-resize' },
+        ];
+        
+        // Draw corner handles
+        ctx.fillStyle = handleColor;
+        ctx.shadowBlur = 2;
+        handles.forEach(handle => {
+          ctx.fillRect(handle.x, handle.y, handleSize, handleSize);
+          // Add white border for better visibility
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(handle.x, handle.y, handleSize, handleSize);
+        });
+        
+        // Center move handle (larger and more prominent for dragging)
+        const moveHandleSize = 16;
+        ctx.fillStyle = 'rgba(37, 99, 235, 0.9)';
+        ctx.shadowBlur = 4;
+        ctx.fillRect(obj.x + obj.width/2 - moveHandleSize/2, obj.y + obj.height/2 - moveHandleSize/2, moveHandleSize, moveHandleSize);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(obj.x + obj.width/2 - moveHandleSize/2, obj.y + obj.height/2 - moveHandleSize/2, moveHandleSize, moveHandleSize);
+        
+        // Add drag cursor icon
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⌖', obj.x + obj.width/2, obj.y + obj.height/2);
+        
+        // Edge handles for easier dragging
+        const edgeHandleSize = 6;
+        const edgeHandles = [
+          { x: obj.x + obj.width/2 - edgeHandleSize/2, y: obj.y - edgeHandleSize/2 }, // top
+          { x: obj.x + obj.width/2 - edgeHandleSize/2, y: obj.y + obj.height - edgeHandleSize/2 }, // bottom
+          { x: obj.x - edgeHandleSize/2, y: obj.y + obj.height/2 - edgeHandleSize/2 }, // left
+          { x: obj.x + obj.width - edgeHandleSize/2, y: obj.y + obj.height/2 - edgeHandleSize/2 } // right
+        ];
+        
+        ctx.fillStyle = 'rgba(37, 99, 235, 0.7)';
+        edgeHandles.forEach(handle => {
+          ctx.fillRect(handle.x, handle.y, edgeHandleSize, edgeHandleSize);
+        });
+        
+        ctx.restore();
+      }
+    }
+
     ctx.restore();
   }, [objects, selectedObject, zoom, panOffset, canvasSize]);
 
@@ -308,6 +379,53 @@ export function FloorPlan3DDesigner({ isOpen, onClose, venueId, setupStyle, onSa
   useEffect(() => {
     drawCanvas();
   }, [drawCanvas]);
+
+  // Check if click is on a drag handle
+  const isClickOnHandle = (x: number, y: number, obj: FloorPlanObject) => {
+    const handleSize = 8;
+    const moveHandleSize = 16;
+    const edgeHandleSize = 6;
+    
+    // Check center move handle (priority)
+    const centerX = obj.x + obj.width/2;
+    const centerY = obj.y + obj.height/2;
+    if (x >= centerX - moveHandleSize/2 && x <= centerX + moveHandleSize/2 &&
+        y >= centerY - moveHandleSize/2 && y <= centerY + moveHandleSize/2) {
+      return 'move';
+    }
+    
+    // Check corner handles
+    const corners = [
+      { x: obj.x - handleSize/2, y: obj.y - handleSize/2, type: 'nw-resize' },
+      { x: obj.x + obj.width - handleSize/2, y: obj.y - handleSize/2, type: 'ne-resize' },
+      { x: obj.x - handleSize/2, y: obj.y + obj.height - handleSize/2, type: 'sw-resize' },
+      { x: obj.x + obj.width - handleSize/2, y: obj.y + obj.height - handleSize/2, type: 'se-resize' },
+    ];
+    
+    for (const corner of corners) {
+      if (x >= corner.x && x <= corner.x + handleSize &&
+          y >= corner.y && y <= corner.y + handleSize) {
+        return corner.type;
+      }
+    }
+    
+    // Check edge handles
+    const edges = [
+      { x: obj.x + obj.width/2 - edgeHandleSize/2, y: obj.y - edgeHandleSize/2, type: 'move' },
+      { x: obj.x + obj.width/2 - edgeHandleSize/2, y: obj.y + obj.height - edgeHandleSize/2, type: 'move' },
+      { x: obj.x - edgeHandleSize/2, y: obj.y + obj.height/2 - edgeHandleSize/2, type: 'move' },
+      { x: obj.x + obj.width - edgeHandleSize/2, y: obj.y + obj.height/2 - edgeHandleSize/2, type: 'move' }
+    ];
+    
+    for (const edge of edges) {
+      if (x >= edge.x && x <= edge.x + edgeHandleSize &&
+          y >= edge.y && y <= edge.y + edgeHandleSize) {
+        return edge.type;
+      }
+    }
+    
+    return null;
+  };
 
   // Handle canvas mouse events
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -319,6 +437,24 @@ export function FloorPlan3DDesigner({ isOpen, onClose, venueId, setupStyle, onSa
     const y = (e.clientY - rect.top) / zoom - panOffset.y;
 
     if (tool === 'select') {
+      // Check if clicking on a selected object's handle first
+      if (selectedObject) {
+        const selectedObj = objects.find(obj => obj.id === selectedObject);
+        if (selectedObj) {
+          const handleType = isClickOnHandle(x, y, selectedObj);
+          if (handleType) {
+            setIsDragging(true);
+            setDragOffset({
+              x: x - selectedObj.x,
+              y: y - selectedObj.y
+            });
+            // Visual feedback for dragging
+            canvas.style.cursor = handleType === 'move' ? 'grabbing' : 'grabbing';
+            return;
+          }
+        }
+      }
+      
       // Find clicked object
       const clickedObject = objects.find(obj =>
         x >= obj.x && x <= obj.x + obj.width &&
@@ -327,11 +463,16 @@ export function FloorPlan3DDesigner({ isOpen, onClose, venueId, setupStyle, onSa
 
       if (clickedObject) {
         setSelectedObject(clickedObject.id);
-        setIsDragging(true);
-        setDragOffset({
-          x: x - clickedObject.x,
-          y: y - clickedObject.y
-        });
+        // Check if clicking on handle of newly selected object
+        const handleType = isClickOnHandle(x, y, clickedObject);
+        if (handleType) {
+          setIsDragging(true);
+          setDragOffset({
+            x: x - clickedObject.x,
+            y: y - clickedObject.y
+          });
+          canvas.style.cursor = 'grabbing';
+        }
       } else {
         setSelectedObject(null);
       }
@@ -364,8 +505,6 @@ export function FloorPlan3DDesigner({ isOpen, onClose, venueId, setupStyle, onSa
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDragging || !selectedObject) return;
-
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -373,16 +512,50 @@ export function FloorPlan3DDesigner({ isOpen, onClose, venueId, setupStyle, onSa
     const x = (e.clientX - rect.left) / zoom - panOffset.x;
     const y = (e.clientY - rect.top) / zoom - panOffset.y;
 
-    const newObjects = objects.map(obj =>
-      obj.id === selectedObject
-        ? { ...obj, x: x - dragOffset.x, y: y - dragOffset.y }
-        : obj
-    );
+    // Update cursor based on what we're hovering over
+    if (!isDragging && selectedObject && tool === 'select') {
+      const selectedObj = objects.find(obj => obj.id === selectedObject);
+      if (selectedObj) {
+        const handleType = isClickOnHandle(x, y, selectedObj);
+        if (handleType) {
+          canvas.style.cursor = handleType === 'move' ? 'grab' : 'pointer';
+        } else if (x >= selectedObj.x && x <= selectedObj.x + selectedObj.width &&
+                   y >= selectedObj.y && y <= selectedObj.y + selectedObj.height) {
+          canvas.style.cursor = 'grab';
+        } else {
+          canvas.style.cursor = 'default';
+        }
+      } else {
+        canvas.style.cursor = 'default';
+      }
+    }
 
-    setObjects(newObjects);
+    // Handle dragging with boundary constraints
+    if (isDragging && selectedObject) {
+      const newObjects = objects.map(obj => {
+        if (obj.id === selectedObject) {
+          const newX = Math.max(0, Math.min(canvasSize.width - obj.width, x - dragOffset.x));
+          const newY = Math.max(0, Math.min(canvasSize.height - obj.height, y - dragOffset.y));
+          
+          return {
+            ...obj,
+            x: newX,
+            y: newY
+          };
+        }
+        return obj;
+      });
+
+      setObjects(newObjects);
+    }
   };
 
   const handleMouseUp = () => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.style.cursor = 'default';
+    }
+    
     if (isDragging && selectedObject) {
       saveToHistory(objects);
     }
