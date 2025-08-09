@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, getDay } from "date-fns";
-import { ChevronLeft, ChevronRight, X, Plus, RotateCcw, Trash2, Save, Edit, Minus, FileText, Send, MessageSquare, Mail, Phone } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Plus, RotateCcw, Trash2, Save, Edit, Minus, FileText, Send, MessageSquare, Mail, Phone, Users, Grid3X3, MapPin } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -52,6 +52,10 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   
   // Copy config functionality
   const [showCopyModal, setShowCopyModal] = useState(false);
+  
+  // Package and service selection states
+  const [showPackageSelection, setShowPackageSelection] = useState(false);
+  const [showAdditionalServices, setShowAdditionalServices] = useState(false);
   
   // New service creation
   const [showNewServiceForm, setShowNewServiceForm] = useState(false);
@@ -210,8 +214,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   // Create customer mutation
   const createCustomer = useMutation({
     mutationFn: async (customerData: any) => {
-      const response = await apiRequest("POST", "/api/customers", customerData);
-      return response.json();
+      const response = await apiRequest("/api/customers", "POST", customerData);
+      return response;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
@@ -228,8 +232,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   // Create service mutation
   const createService = useMutation({
     mutationFn: async (serviceData: any) => {
-      const response = await apiRequest("POST", "/api/services", serviceData);
-      return response.json();
+      const response = await apiRequest("/api/services", "POST", serviceData);
+      return response;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });
@@ -248,8 +252,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
 
   const updateBooking = useMutation({
     mutationFn: async (bookingData: any) => {
-      const response = await apiRequest("PATCH", `/api/bookings/${booking.id}`, bookingData);
-      return response.json();
+      const response = await apiRequest(`/api/bookings/${booking.id}`, "PATCH", bookingData);
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
@@ -265,8 +269,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
 
   const deleteBooking = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("DELETE", `/api/bookings/${booking.id}`);
-      return response.json();
+      const response = await apiRequest(`/api/bookings/${booking.id}`, "DELETE");
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
@@ -282,6 +286,38 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
 
   const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 3));
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
+
+  // Handle new service creation
+  const handleCreateNewService = () => {
+    if (!newService.name.trim() || !newService.price.trim()) {
+      toast({ title: "Please fill in all required fields", variant: "destructive" });
+      return;
+    }
+
+    createService.mutate({
+      ...newService,
+      price: parseFloat(newService.price)
+    });
+  };
+
+  // Copy configuration to other dates
+  const copyConfigToOtherDates = () => {
+    if (!activeDate) return;
+    
+    const configToCopy = {
+      packageId: activeDate.packageId,
+      selectedServices: activeDate.selectedServices,
+      itemQuantities: activeDate.itemQuantities,
+      pricingOverrides: activeDate.pricingOverrides
+    };
+    
+    setSelectedDates(prev => prev.map(date => 
+      date === activeDate ? date : { ...date, ...configToCopy }
+    ));
+    
+    setShowCopyModal(false);
+    toast({ title: "Configuration copied successfully!" });
+  };
 
   const handleDateClick = (day: Date) => {
     if (!isSameMonth(day, currentDate)) return;
@@ -735,176 +771,355 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                       {activeDate && (
                         <div className="bg-white border rounded-lg p-6 space-y-6">
                           <div className="flex items-center justify-between">
-                            <h4 className="font-semibold">
-                              {format(activeDate.date, 'EEEE, MMMM d, yyyy')}
-                            </h4>
-                            <div className="text-sm text-slate-600">
-                              {activeDate.startTime} - {activeDate.endTime}
+                            <div>
+                              <h4 className="font-semibold">
+                                {format(activeDate.date, 'EEEE, MMMM d, yyyy')}
+                              </h4>
+                              <div className="text-sm text-slate-600 mt-1">
+                                {activeDate.startTime} - {activeDate.endTime}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-6">
+                              {/* Guests Field - Simplified */}
+                              <div className="flex items-center gap-2">
+                                <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                                  <Users className="w-4 h-4 text-slate-500" />
+                                  Guests
+                                  <span className="text-red-500 text-xs">*</span>
+                                </Label>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  max="999"
+                                  value={activeDate.guestCount || 1}
+                                  onChange={(e) => {
+                                    const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
+                                    updateDateConfig('guestCount', value);
+                                  }}
+                                  className="w-20 h-8 text-center text-sm"
+                                />
+                                {(() => {
+                                  const selectedSpace = selectedVenueData?.spaces?.find((space: any) => space.id === activeDate.spaceId);
+                                  const guestCount = activeDate.guestCount || 1;
+                                  const capacity = selectedSpace?.capacity || 0;
+                                  
+                                  if (selectedSpace && guestCount > capacity) {
+                                    return (
+                                      <span className="text-xs text-amber-600">
+                                        Exceeds capacity ({capacity})
+                                      </span>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+                              </div>
+
+                              {/* Setup Style Field with Floor Plan Integration */}
+                              <div className="flex items-center gap-2">
+                                <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                                  <Grid3X3 className="w-4 h-4 text-slate-500" />
+                                  Setup Style
+                                </Label>
+                                <div className="flex items-center gap-2">
+                                  <Select
+                                    value={activeDate.setupStyle || ''}
+                                    onValueChange={(value) => updateDateConfig('setupStyle', value)}
+                                  >
+                                    <SelectTrigger className="w-40 h-8 text-sm">
+                                      <SelectValue placeholder="Select style" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="round-tables">Round Tables</SelectItem>
+                                      <SelectItem value="u-shape">U-Shape</SelectItem>
+                                      <SelectItem value="classroom">Classroom</SelectItem>
+                                      <SelectItem value="theater">Theater</SelectItem>
+                                      <SelectItem value="cocktail">Cocktail</SelectItem>
+                                      <SelectItem value="banquet">Banquet</SelectItem>
+                                      <SelectItem value="conference">Conference</SelectItem>
+                                      <SelectItem value="custom">Custom</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  {activeDate.setupStyle && (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-8 px-3 text-xs"
+                                      onClick={() => {
+                                        // Open floor plan designer for this setup style
+                                        toast({
+                                          title: "Floor Plan Designer",
+                                          description: "Visit Floor Plans & Setup section to design custom layouts for this setup style"
+                                        });
+                                      }}
+                                    >
+                                      <Grid3X3 className="w-3 h-3 mr-1" />
+                                      Edit Layout
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
-                            {/* Left Column: Package & Services */}
-                            <div className="space-y-6">
-                              {/* Guest Count */}
-                              <div>
-                                <Label className="text-base font-medium">Guest Count</Label>
-                                <div className="mt-2 flex items-center gap-3">
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => updateDateConfig('guestCount', Math.max(1, (activeDate.guestCount || 1) - 1))}
-                                  >
-                                    <Minus className="h-4 w-4" />
-                                  </Button>
-                                  <span className="text-lg font-medium px-4">{activeDate.guestCount || 1}</span>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => updateDateConfig('guestCount', (activeDate.guestCount || 1) + 1)}
-                                  >
-                                    <Plus className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </div>
+                          <div className="space-y-6">
+                            {/* Package & Services - Full Width */}
+                            <div className="space-y-4">
 
                               {/* Package Selection */}
                               <div>
-                                <Label className="text-base font-medium">Event Package</Label>
-                                <div className="mt-3 max-h-60 overflow-y-auto">
+                                <div className="flex items-center justify-between mb-3">
+                                  <Label className="text-base font-medium">Event Package</Label>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowPackageSelection(!showPackageSelection)}
+                                    className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                                  >
+                                    {showPackageSelection ? "Hide Packages" : "Show Packages"}
+                                  </Button>
+                                </div>
+                                
+                                {showPackageSelection && (
+                                  <div className="mt-3 max-h-80 overflow-y-auto">
                                   <div className="grid grid-cols-1 gap-3">
                                     <div
                                       className={cn(
-                                        "p-4 border rounded-lg cursor-pointer transition-all",
+                                        "p-3 border rounded-lg cursor-pointer transition-all relative",
                                         !activeDate.packageId ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
                                       )}
                                       onClick={() => updateDateConfig('packageId', "")}
                                     >
-                                      <div className="font-medium">No Package</div>
-                                      <div className="text-sm text-slate-600">Build custom event with individual services</div>
-                                      <div className="text-lg font-semibold text-green-600 mt-2">$0.00</div>
+                                      {!activeDate.packageId && (
+                                        <div className="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                          </svg>
+                                        </div>
+                                      )}
+                                      <div className="font-medium text-sm">No Package</div>
+                                      <div className="text-xs text-slate-600 mt-1">Build custom event with individual services</div>
+                                      <div className="text-sm font-semibold text-green-600 mt-2">$0.00</div>
                                     </div>
                                     
-                                    {(packages as any[]).map((pkg: any) => (
-                                      <div
-                                        key={pkg.id}
-                                        className={cn(
-                                          "p-4 border rounded-lg cursor-pointer transition-all",
-                                          activeDate.packageId === pkg.id ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
-                                        )}
-                                        onClick={() => updateDateConfig('packageId', pkg.id)}
-                                      >
-                                        <div className="font-medium">{pkg.name}</div>
-                                        <div className="text-sm text-slate-600">{pkg.description}</div>
-                                        <div className="text-lg font-semibold text-green-600 mt-2">
-                                          ${pkg.pricingModel === 'per_person' 
-                                            ? `${parseFloat(pkg.price)} per person` 
-                                            : parseFloat(pkg.price).toFixed(2)}
-                                        </div>
-                                        {pkg.pricingModel === 'per_person' && (
-                                          <div className="text-sm text-slate-500">
-                                            Total: ${(parseFloat(pkg.price) * (activeDate.guestCount || 1)).toFixed(2)} for {activeDate.guestCount || 1} guests
+                                    {(packages as any[]).map((pkg: any) => {
+                                      const isSelected = activeDate.packageId === pkg.id;
+                                      const basePrice = parseFloat(pkg.price);
+                                      const overridePrice = activeDate.pricingOverrides?.packagePrice;
+                                      const displayPrice = overridePrice ?? basePrice;
+                                      const totalPrice = pkg.pricingModel === 'per_person' 
+                                        ? displayPrice * (activeDate.guestCount || 1)
+                                        : displayPrice;
+                                      
+                                      return (
+                                        <div
+                                          key={pkg.id}
+                                          className={cn(
+                                            "p-3 border rounded-lg cursor-pointer transition-all relative",
+                                            isSelected ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
+                                          )}
+                                          onClick={() => updateDateConfig('packageId', pkg.id)}
+                                        >
+                                          {isSelected && (
+                                            <div className="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                              </svg>
+                                            </div>
+                                          )}
+                                          
+                                          <div className="pr-8">
+                                            <div className="font-medium text-sm">{pkg.name}</div>
+                                            <div className="text-xs text-slate-600 mt-1">{pkg.description}</div>
+                                            
+                                            {/* Included Services */}
+                                            {pkg.includedServiceIds && pkg.includedServiceIds.length > 0 && (
+                                              <div className="mt-2">
+                                                <div className="text-xs text-slate-500 mb-1">Includes:</div>
+                                                <div className="space-y-1">
+                                                  {pkg.includedServiceIds.map((serviceId: string) => {
+                                                    const service = (services as any[]).find((s: any) => s.id === serviceId);
+                                                    if (!service) return null;
+                                                    
+                                                    return (
+                                                      <div key={serviceId} className="flex items-center justify-between">
+                                                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                                                          {service.name}
+                                                        </span>
+                                                        {isSelected && service.pricingModel !== 'per_person' && (
+                                                          <div className="flex items-center gap-1">
+                                                            <span className="text-xs">Qty:</span>
+                                                            <Input
+                                                              type="number"
+                                                              min="1"
+                                                              value={activeDate.itemQuantities?.[serviceId] || 1}
+                                                              onChange={(e) => {
+                                                                const newQuantities = {
+                                                                  ...activeDate.itemQuantities,
+                                                                  [serviceId]: Math.max(1, parseInt(e.target.value, 10) || 1)
+                                                                };
+                                                                updateDateConfig('itemQuantities', newQuantities);
+                                                              }}
+                                                              className="w-12 h-6 text-xs text-center"
+                                                            />
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                    );
+                                                  })}
+                                                </div>
+                                              </div>
+                                            )}
+                                            
+                                            <div className="text-sm font-semibold text-green-600 mt-2">
+                                              ${pkg.pricingModel === 'per_person' 
+                                                ? `${displayPrice} per person` 
+                                                : displayPrice.toFixed(2)}
+                                            </div>
+                                            {pkg.pricingModel === 'per_person' && (
+                                              <div className="text-xs text-slate-500">
+                                                Total: ${totalPrice.toFixed(2)} for {activeDate.guestCount || 1} guests
+                                              </div>
+                                            )}
+                                            
+                                            {/* Package Price Override */}
+                                            {isSelected && (
+                                              <div className="mt-2 pt-2 border-t border-slate-200">
+                                                <div className="flex items-center gap-2">
+                                                  <span className="text-xs">Custom Price: $</span>
+                                                  <Input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={activeDate.pricingOverrides?.packagePrice ?? ''}
+                                                    onChange={(e) => {
+                                                      const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                                      updateDateConfig('pricingOverrides', {
+                                                        ...activeDate.pricingOverrides,
+                                                        packagePrice: value
+                                                      });
+                                                    }}
+                                                    className="w-20 h-6 text-xs"
+                                                    placeholder={pkg.price}
+                                                  />
+                                                </div>
+                                              </div>
+                                            )}
                                           </div>
-                                        )}
-                                      </div>
-                                    ))}
+                                        </div>
+                                      );
+                                    })}
                                   </div>
-                                </div>
+                                  </div>
+                                )}
                               </div>
 
                               {/* Services Selection */}
                               <div>
                                 <div className="flex items-center justify-between mb-3">
                                   <Label className="text-base font-medium">Additional Services</Label>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setShowNewServiceForm(!showNewServiceForm)}
-                                    className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                                  >
-                                    <Plus className="w-4 h-4 mr-1" />
-                                    {showNewServiceForm ? "Cancel" : "New Service"}
-                                  </Button>
-                                </div>
-
-                                {/* New Service Form */}
-                                {showNewServiceForm && (
-                                  <Card className="p-4 mb-4 border-blue-200 bg-blue-50">
-                                    <h5 className="font-medium mb-3">Create New Service</h5>
-                                    <div className="grid grid-cols-2 gap-3">
-                                      <div>
-                                        <Label className="text-xs">Name *</Label>
-                                        <Input
-                                          value={newService.name}
-                                          onChange={(e) => setNewService(prev => ({ ...prev, name: e.target.value }))}
-                                          placeholder="Service name"
-                                          className="mt-1 h-8 text-xs"
-                                        />
-                                      </div>
-                                      <div>
-                                        <Label className="text-xs">Price *</Label>
-                                        <Input
-                                          type="number"
-                                          step="0.01"
-                                          value={newService.price}
-                                          onChange={(e) => setNewService(prev => ({ ...prev, price: e.target.value }))}
-                                          placeholder="0.00"
-                                          className="mt-1 h-8 text-xs"
-                                        />
-                                      </div>
-                                      <div className="col-span-2">
-                                        <Label className="text-xs">Description</Label>
-                                        <Input
-                                          value={newService.description}
-                                          onChange={(e) => setNewService(prev => ({ ...prev, description: e.target.value }))}
-                                          placeholder="Service description"
-                                          className="mt-1 h-8 text-xs"
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="flex gap-2 mt-3">
-                                      <Button
-                                        type="button"
-                                        size="sm"
-                                        onClick={handleCreateService}
-                                        disabled={createService.isPending}
-                                        className="bg-blue-600 hover:bg-blue-700"
-                                      >
-                                        {createService.isPending ? "Creating..." : "Create Service"}
-                                      </Button>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setShowAdditionalServices(!showAdditionalServices)}
+                                      className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                                    >
+                                      {showAdditionalServices ? "Hide Services" : "Show Services"}
+                                    </Button>
+                                    {showAdditionalServices && (
                                       <Button
                                         type="button"
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => setShowNewServiceForm(false)}
+                                        onClick={() => setShowNewServiceForm(!showNewServiceForm)}
+                                        className="text-blue-600 border-blue-200 hover:bg-blue-50"
                                       >
-                                        Cancel
+                                        <Plus className="w-4 h-4 mr-1" />
+                                        {showNewServiceForm ? "Cancel" : "New Service"}
                                       </Button>
-                                    </div>
-                                  </Card>
-                                )}
+                                    )}
+                                  </div>
+                                </div>
 
-                                <div className="mt-3 space-y-3 max-h-60 overflow-y-auto">
-                                  {(services as any[]).map((service: any) => {
-                                    const isSelected = activeDate.selectedServices?.includes(service.id) || false;
-                                    const basePrice = parseFloat(service.price || 0);
-                                    const overridePrice = activeDate.pricingOverrides?.servicePrices?.[service.id];
-                                    const displayPrice = overridePrice ?? basePrice;
-                                    
-                                    return (
-                                      <label key={service.id} className="block">
-                                        <div className={cn(
-                                          "p-3 border rounded-lg cursor-pointer transition-all",
-                                          isSelected ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
-                                        )}>
-                                          <div className="flex items-start gap-3">
-                                            <Checkbox 
-                                              checked={isSelected}
-                                              onChange={() => {
-                                                const currentServices = activeDate.selectedServices || [];
+                                {showAdditionalServices && (
+                                  <div>
+                                    {/* New Service Form */}
+                                    {showNewServiceForm && (
+                                      <Card className="p-4 mb-4 border-blue-200 bg-blue-50">
+                                        <h5 className="font-medium mb-3">Create New Service</h5>
+                                        <div className="grid grid-cols-2 gap-3">
+                                          <div>
+                                            <Label className="text-xs">Name *</Label>
+                                            <Input
+                                              value={newService.name}
+                                              onChange={(e) => setNewService(prev => ({ ...prev, name: e.target.value }))}
+                                              placeholder="Service name"
+                                              className="mt-1 h-8 text-xs"
+                                            />
+                                          </div>
+                                          <div>
+                                            <Label className="text-xs">Price *</Label>
+                                            <Input
+                                              type="number"
+                                              step="0.01"
+                                              value={newService.price}
+                                              onChange={(e) => setNewService(prev => ({ ...prev, price: e.target.value }))}
+                                              placeholder="0.00"
+                                              className="mt-1 h-8 text-xs"
+                                            />
+                                          </div>
+                                          <div className="col-span-2">
+                                            <Label className="text-xs">Description</Label>
+                                            <Input
+                                              value={newService.description}
+                                              onChange={(e) => setNewService(prev => ({ ...prev, description: e.target.value }))}
+                                              placeholder="Service description"
+                                              className="mt-1 h-8 text-xs"
+                                            />
+                                          </div>
+                                        </div>
+                                        <div className="flex gap-2 mt-3">
+                                          <Button
+                                            type="button"
+                                            size="sm"
+                                            onClick={handleCreateNewService}
+                                            disabled={createService.isPending}
+                                            className="bg-blue-600 hover:bg-blue-700"
+                                          >
+                                            {createService.isPending ? "Creating..." : "Create Service"}
+                                          </Button>
+                                          <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setShowNewServiceForm(false)}
+                                          >
+                                            Cancel
+                                          </Button>
+                                        </div>
+                                      </Card>
+                                    )}
+
+                                    <div className="mt-3 space-y-3 max-h-80 overflow-y-auto">
+                                      {(services as any[]).map((service: any) => {
+                                        const isSelected = activeDate.selectedServices?.includes(service.id) || false;
+                                        const basePrice = parseFloat(service.price || 0);
+                                        const overridePrice = activeDate.pricingOverrides?.servicePrices?.[service.id];
+                                        const displayPrice = overridePrice ?? basePrice;
+                                        
+                                        return (
+                                          <label key={service.id} className="block">
+                                            <div className={cn(
+                                              "p-3 border rounded-lg cursor-pointer transition-all",
+                                              isSelected ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
+                                            )}>
+                                              <div className="flex items-start gap-3">
+                                                <Checkbox 
+                                                  checked={isSelected}
+                                                  onCheckedChange={() => {
+                                                    const currentServices = activeDate.selectedServices || [];
                                                 const newServices = isSelected 
                                                   ? currentServices.filter(id => id !== service.id)
                                                   : [...currentServices, service.id];
@@ -963,7 +1178,9 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                                       </label>
                                     );
                                   })}
-                                </div>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
 
