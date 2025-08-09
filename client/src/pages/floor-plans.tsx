@@ -1,248 +1,518 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { AppLayout } from "@/components/layout/app-layout";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Grid3X3, Search, MapPin, Users, Plus, Edit, Eye } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { FloorPlanDesigner } from "@/components/venues/floor-plan-designer";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ObjectUploader } from "@/components/ObjectUploader";
+import { Upload, FileImage, Layout, Download, Sparkles, Eye, Maximize, Users } from "lucide-react";
 
-const SETUP_STYLES = [
-  { value: 'round-tables', label: 'Round Tables', description: 'Perfect for dining and networking events' },
-  { value: 'u-shape', label: 'U-Shape', description: 'Great for presentations and discussions' },
-  { value: 'classroom', label: 'Classroom', description: 'Ideal for training and educational events' },
-  { value: 'theater', label: 'Theater', description: 'Best for presentations and performances' },
-  { value: 'cocktail', label: 'Cocktail', description: 'Standing reception style setup' },
-  { value: 'banquet', label: 'Banquet', description: 'Formal dining with long tables' },
-  { value: 'conference', label: 'Conference', description: 'Professional meeting setup' },
-  { value: 'custom', label: 'Custom', description: 'Design your own unique layout' },
-];
+interface FloorPlan {
+  id: string;
+  name: string;
+  description: string;
+  venueId: string;
+  venueName: string;
+  templateImageUrl?: string;
+  elements: any[];
+  dimensions: { width: number; height: number };
+  scale: number;
+  colorCoding: Record<string, string>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Venue {
+  id: string;
+  name: string;
+  description: string;
+}
 
 export default function FloorPlans() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedVenue, setSelectedVenue] = useState("all");
-  const [selectedSetupStyle, setSelectedSetupStyle] = useState("all");
-  const [showDesigner, setShowDesigner] = useState(false);
-  const [selectedSpace, setSelectedSpace] = useState<any>(null);
+  const [selectedFloorPlan, setSelectedFloorPlan] = useState<FloorPlan | null>(null);
+  const [isDesignerOpen, setIsDesignerOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [newFloorPlan, setNewFloorPlan] = useState({
+    name: '',
+    description: '',
+    venueId: '',
+    templateImageUrl: '',
+    dimensions: { width: 800, height: 600 },
+    scale: 1
+  });
+  const { toast } = useToast();
 
-  // Fetch venues with spaces
+  const { data: floorPlans = [], isLoading: isLoadingFloorPlans } = useQuery({
+    queryKey: ['/api/floor-plans'],
+  });
+
   const { data: venues = [] } = useQuery({
-    queryKey: ["/api/venues"],
+    queryKey: ['/api/venues'],
   });
 
-  // Get all spaces from all venues
-  const allSpaces = (venues as any[]).flatMap((venue: any) => 
-    (venue.spaces || []).map((space: any) => ({
-      ...space,
-      venueName: venue.name,
-      venueId: venue.id
-    }))
-  );
-
-  // Filter spaces
-  const filteredSpaces = allSpaces.filter((space: any) => {
-    const matchesSearch = space.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         space.venueName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesVenue = !selectedVenue || selectedVenue === "all" || space.venueId === selectedVenue;
-    const matchesSetup = !selectedSetupStyle || selectedSetupStyle === "all" || 
-                        (space.availableSetupStyles && space.availableSetupStyles.includes(selectedSetupStyle));
-    
-    return matchesSearch && matchesVenue && matchesSetup;
+  const createFloorPlanMutation = useMutation({
+    mutationFn: (data: any) => apiRequest('/api/floor-plans', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/floor-plans'] });
+      setIsCreateModalOpen(false);
+      setNewFloorPlan({
+        name: '',
+        description: '',
+        venueId: '',
+        templateImageUrl: '',
+        dimensions: { width: 800, height: 600 },
+        scale: 1
+      });
+      toast({
+        title: "Floor plan created",
+        description: "Your floor plan has been created successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create floor plan.",
+        variant: "destructive",
+      });
+    },
   });
 
-  const handleEditFloorPlan = (space: any) => {
-    setSelectedSpace(space);
-    setShowDesigner(true);
+  const updateFloorPlanMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => 
+      apiRequest(`/api/floor-plans/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/floor-plans'] });
+      toast({
+        title: "Floor plan updated",
+        description: "Your floor plan has been saved successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update floor plan.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const generateAILayoutMutation = useMutation({
+    mutationFn: (data: { floorPlanId: string; guestCount: number; eventType: string; preferences: string }) =>
+      apiRequest('/api/floor-plans/generate-ai-layout', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    onSuccess: (result) => {
+      if (selectedFloorPlan) {
+        setSelectedFloorPlan({ ...selectedFloorPlan, elements: result.elements });
+      }
+      queryClient.invalidateQueries({ queryKey: ['/api/floor-plans'] });
+      toast({
+        title: "AI Layout Generated",
+        description: "AI has generated an optimized layout for your event.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to generate AI layout.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleTemplateUpload = async () => {
+    try {
+      const response = await apiRequest('/api/objects/upload', { method: 'POST' });
+      return { method: 'PUT' as const, url: response.uploadURL };
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to get upload URL.",
+        variant: "destructive",
+      });
+      throw error;
+    }
   };
 
-  const handleFloorPlanSave = (floorPlan: any) => {
-    // This would typically save to the API
-    console.log("Floor plan saved:", floorPlan);
-    setShowDesigner(false);
+  const handleTemplateUploadComplete = (result: any) => {
+    if (result.successful && result.successful[0]) {
+      const uploadedUrl = result.successful[0].uploadURL;
+      setNewFloorPlan(prev => ({ ...prev, templateImageUrl: uploadedUrl }));
+      toast({
+        title: "Template uploaded",
+        description: "Floor plan template has been uploaded successfully.",
+      });
+    }
   };
 
-  return (
-    <AppLayout>
-      <div className="p-6 space-y-6">
-        {/* Header */}
+  const handleSaveFloorPlan = (floorPlanData: any) => {
+    if (selectedFloorPlan) {
+      updateFloorPlanMutation.mutate({
+        id: selectedFloorPlan.id,
+        data: {
+          ...selectedFloorPlan,
+          ...floorPlanData,
+          updatedAt: new Date().toISOString()
+        }
+      });
+    }
+    setIsDesignerOpen(false);
+  };
+
+  const exportToPDF = async (floorPlan: FloorPlan) => {
+    try {
+      const response = await apiRequest(`/api/floor-plans/${floorPlan.id}/export-pdf`, {
+        method: 'POST'
+      });
+      
+      // Create download link
+      const link = document.createElement('a');
+      link.href = response.downloadUrl;
+      link.download = `${floorPlan.name}-floor-plan.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "Export successful",
+        description: "Floor plan has been exported to PDF.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to export floor plan.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (isLoadingFloorPlans) {
+    return (
+      <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-              <Grid3X3 className="w-8 h-8 text-blue-600" />
-              Floor Plans & Setup
-            </h1>
-            <p className="text-slate-600 mt-1">
-              Design and manage floor plans for all your venue spaces
-            </p>
-          </div>
+          <h1 className="text-3xl font-bold">Floor Plans</h1>
         </div>
-
-        {/* Filters */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex flex-wrap gap-4 items-center">
-              <div className="flex-1 min-w-64">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                  <Input
-                    placeholder="Search spaces or venues..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              
-              <Select value={selectedVenue} onValueChange={setSelectedVenue}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="All venues" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All venues</SelectItem>
-                  {(venues as any[]).map((venue: any) => (
-                    <SelectItem key={venue.id} value={venue.id}>
-                      {venue.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={selectedSetupStyle} onValueChange={setSelectedSetupStyle}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="All setup styles" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All setup styles</SelectItem>
-                  {SETUP_STYLES.map((style) => (
-                    <SelectItem key={style.value} value={style.value}>
-                      {style.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Spaces Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredSpaces.map((space: any) => (
-            <Card key={space.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg">{space.name}</CardTitle>
-                    <div className="flex items-center gap-1 text-sm text-slate-600 mt-1">
-                      <MapPin className="w-4 h-4" />
-                      {space.venueName}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 text-sm text-slate-600">
-                    <Users className="w-4 h-4" />
-                    {space.capacity}
-                  </div>
-                </div>
-              </CardHeader>
-              
-              <CardContent className="space-y-4">
-                {/* Floor Plan Status */}
-                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                  <div>
-                    <div className="font-medium text-sm">Floor Plan</div>
-                    <div className="text-xs text-slate-600">
-                      {space.floorPlan ? 
-                        `${space.floorPlan.elements?.length || 0} elements configured` : 
-                        "No floor plan configured"
-                      }
-                    </div>
-                  </div>
-                  <Badge variant={space.floorPlan ? "default" : "secondary"}>
-                    {space.floorPlan ? "Configured" : "Not Set"}
-                  </Badge>
-                </div>
-
-                {/* Available Setup Styles */}
-                <div>
-                  <div className="font-medium text-sm mb-2">Available Setup Styles</div>
-                  <div className="flex flex-wrap gap-1">
-                    {space.availableSetupStyles && space.availableSetupStyles.length > 0 ? (
-                      space.availableSetupStyles.map((style: string) => {
-                        const styleData = SETUP_STYLES.find(s => s.value === style);
-                        return (
-                          <Badge key={style} variant="outline" className="text-xs">
-                            {styleData?.label || style}
-                          </Badge>
-                        );
-                      })
-                    ) : (
-                      <span className="text-xs text-slate-500">No setup styles configured</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    onClick={() => handleEditFloorPlan(space)}
-                    className="flex-1"
-                    size="sm"
-                  >
-                    <Edit className="w-4 h-4 mr-2" />
-                    Edit Floor Plan
-                  </Button>
-                  {space.floorPlan && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEditFloorPlan(space)}
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
+          {[...Array(6)].map((_, i) => (
+            <Card key={i} className="p-6">
+              <div className="animate-pulse space-y-4">
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                <div className="h-32 bg-gray-200 rounded"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+              </div>
             </Card>
           ))}
         </div>
+      </div>
+    );
+  }
 
-        {filteredSpaces.length === 0 && (
-          <div className="text-center py-12">
-            <Grid3X3 className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-slate-900 mb-2">No spaces found</h3>
-            <p className="text-slate-600">
-              {searchTerm || selectedVenue || selectedSetupStyle 
-                ? "Try adjusting your filters"
-                : "No spaces are available with floor plan configurations"
-              }
-            </p>
-          </div>
-        )}
-
-        {/* Floor Plan Designer Modal */}
-        <Dialog open={showDesigner} onOpenChange={setShowDesigner}>
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Floor Plans</h1>
+          <p className="text-muted-foreground">
+            Manage venue floor plans with templates, drag-and-drop design, and AI suggestions
+          </p>
+        </div>
+        <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Layout className="w-4 h-4 mr-2" />
+              Create Floor Plan
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Grid3X3 className="w-5 h-5" />
-                Floor Plan Designer: {selectedSpace?.name}
-              </DialogTitle>
+              <DialogTitle>Create New Floor Plan</DialogTitle>
             </DialogHeader>
-            
-            {selectedSpace && (
-              <div className="flex-1 min-h-[70vh]">
-                <FloorPlanDesigner
-                  spaceId={selectedSpace.id}
-                  initialFloorPlan={selectedSpace.floorPlan}
-                  onSave={handleFloorPlanSave}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Name</Label>
+                <Input
+                  value={newFloorPlan.name}
+                  onChange={(e) => setNewFloorPlan(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter floor plan name"
                 />
               </div>
-            )}
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Input
+                  value={newFloorPlan.description}
+                  onChange={(e) => setNewFloorPlan(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Enter description"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Venue</Label>
+                <Select value={newFloorPlan.venueId} onValueChange={(value) => setNewFloorPlan(prev => ({ ...prev, venueId: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select venue" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {venues.map((venue: Venue) => (
+                      <SelectItem key={venue.id} value={venue.id}>
+                        {venue.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Template Image (Optional)</Label>
+                <ObjectUploader
+                  maxNumberOfFiles={1}
+                  maxFileSize={10485760}
+                  onGetUploadParameters={handleTemplateUpload}
+                  onComplete={handleTemplateUploadComplete}
+                  buttonClassName="w-full"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Template
+                </ObjectUploader>
+                {newFloorPlan.templateImageUrl && (
+                  <div className="flex items-center gap-2 text-sm text-green-600">
+                    <FileImage className="w-4 h-4" />
+                    Template uploaded
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Width (px)</Label>
+                  <Input
+                    type="number"
+                    value={newFloorPlan.dimensions.width}
+                    onChange={(e) => setNewFloorPlan(prev => ({ 
+                      ...prev, 
+                      dimensions: { ...prev.dimensions, width: parseInt(e.target.value) || 800 }
+                    }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Height (px)</Label>
+                  <Input
+                    type="number"
+                    value={newFloorPlan.dimensions.height}
+                    onChange={(e) => setNewFloorPlan(prev => ({ 
+                      ...prev, 
+                      dimensions: { ...prev.dimensions, height: parseInt(e.target.value) || 600 }
+                    }))}
+                  />
+                </div>
+              </div>
+              <Button 
+                onClick={() => createFloorPlanMutation.mutate(newFloorPlan)}
+                disabled={!newFloorPlan.name || !newFloorPlan.venueId || createFloorPlanMutation.isPending}
+                className="w-full"
+              >
+                {createFloorPlanMutation.isPending ? "Creating..." : "Create Floor Plan"}
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
-    </AppLayout>
+
+      <Tabs defaultValue="all" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="all">All Floor Plans</TabsTrigger>
+          <TabsTrigger value="recent">Recent</TabsTrigger>
+          <TabsTrigger value="templates">Templates</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="all" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {floorPlans.map((floorPlan: FloorPlan) => (
+              <Card key={floorPlan.id} className="overflow-hidden">
+                <div className="aspect-video bg-gradient-to-br from-slate-100 to-slate-200 relative">
+                  {floorPlan.templateImageUrl ? (
+                    <img 
+                      src={floorPlan.templateImageUrl} 
+                      alt={floorPlan.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-slate-400">
+                      <Layout className="w-12 h-12" />
+                    </div>
+                  )}
+                  <div className="absolute top-2 right-2 flex gap-1">
+                    <Badge variant="secondary" className="text-xs">
+                      {floorPlan.elements?.length || 0} elements
+                    </Badge>
+                  </div>
+                </div>
+                <div className="p-4 space-y-3">
+                  <div>
+                    <h3 className="font-semibold">{floorPlan.name}</h3>
+                    <p className="text-sm text-muted-foreground">{floorPlan.venueName}</p>
+                    {floorPlan.description && (
+                      <p className="text-xs text-muted-foreground mt-1">{floorPlan.description}</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setSelectedFloorPlan(floorPlan);
+                        setIsDesignerOpen(true);
+                      }}
+                      className="flex-1"
+                    >
+                      <Eye className="w-4 h-4 mr-1" />
+                      Design
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => exportToPDF(floorPlan)}
+                    >
+                      <Download className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <div className="flex gap-2">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button size="sm" variant="outline" className="flex-1">
+                          <Sparkles className="w-4 h-4 mr-1" />
+                          AI Layout
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Generate AI Layout</DialogTitle>
+                        </DialogHeader>
+                        <AILayoutGenerator 
+                          floorPlan={floorPlan} 
+                          onGenerate={(data) => {
+                            setSelectedFloorPlan(floorPlan);
+                            generateAILayoutMutation.mutate(data);
+                          }}
+                        />
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="recent">
+          <div className="text-center py-8 text-muted-foreground">
+            Recent floor plans will appear here
+          </div>
+        </TabsContent>
+
+        <TabsContent value="templates">
+          <div className="text-center py-8 text-muted-foreground">
+            Floor plan templates will appear here
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Floor Plan Designer Modal */}
+      <Dialog open={isDesignerOpen} onOpenChange={setIsDesignerOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Layout className="w-5 h-5" />
+              {selectedFloorPlan?.name} - Floor Plan Designer
+            </DialogTitle>
+          </DialogHeader>
+          {selectedFloorPlan && (
+            <FloorPlanDesigner
+              floorPlan={selectedFloorPlan}
+              onSave={handleSaveFloorPlan}
+              onClose={() => setIsDesignerOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// AI Layout Generator Component
+function AILayoutGenerator({ 
+  floorPlan, 
+  onGenerate 
+}: { 
+  floorPlan: FloorPlan; 
+  onGenerate: (data: any) => void;
+}) {
+  const [guestCount, setGuestCount] = useState(50);
+  const [eventType, setEventType] = useState('');
+  const [preferences, setPreferences] = useState('');
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label>Guest Count</Label>
+        <Input
+          type="number"
+          value={guestCount}
+          onChange={(e) => setGuestCount(parseInt(e.target.value) || 50)}
+          placeholder="Number of guests"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Event Type</Label>
+        <Select value={eventType} onValueChange={setEventType}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select event type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="wedding">Wedding</SelectItem>
+            <SelectItem value="corporate">Corporate Event</SelectItem>
+            <SelectItem value="party">Party</SelectItem>
+            <SelectItem value="conference">Conference</SelectItem>
+            <SelectItem value="gala">Gala</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label>Layout Preferences</Label>
+        <Select value={preferences} onValueChange={setPreferences}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select preference" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="maximize_space">Maximize Space</SelectItem>
+            <SelectItem value="maximize_visibility">Maximize Visibility</SelectItem>
+            <SelectItem value="social_interaction">Encourage Social Interaction</SelectItem>
+            <SelectItem value="formal_arrangement">Formal Arrangement</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <Button 
+        onClick={() => onGenerate({
+          floorPlanId: floorPlan.id,
+          guestCount,
+          eventType,
+          preferences
+        })}
+        disabled={!eventType || !preferences}
+        className="w-full"
+      >
+        <Sparkles className="w-4 h-4 mr-2" />
+        Generate AI Layout
+      </Button>
+    </div>
   );
 }

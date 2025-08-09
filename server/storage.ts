@@ -147,6 +147,13 @@ export interface IStorage {
   deleteVenue(id: string): Promise<boolean>;
   deleteSpace(id: string): Promise<boolean>;
   deleteBooking(id: string): Promise<boolean>;
+
+  // Floor Plans
+  getFloorPlans(): Promise<any[]>;
+  getFloorPlan(id: string): Promise<any | null>;
+  createFloorPlan(data: any): Promise<any>;
+  updateFloorPlan(id: string, data: any): Promise<any | null>;
+  deleteFloorPlan(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -166,6 +173,7 @@ export class MemStorage implements IStorage {
   private taxSettings: Map<string, TaxSetting>;
   private communications: Map<string, Communication>;
   private settings: Map<string, Setting>;
+  private floorPlans: Map<string, any>;
 
   constructor() {
     this.users = new Map();
@@ -184,6 +192,7 @@ export class MemStorage implements IStorage {
     this.taxSettings = new Map();
     this.communications = new Map();
     this.settings = new Map();
+    this.floorPlans = new Map();
 
     this.initializeData();
   }
@@ -1248,6 +1257,44 @@ export class MemStorage implements IStorage {
 
   async deleteSetupStyle(id: string): Promise<boolean> {
     return this.setupStyles.delete(id);
+  }
+
+  // Floor Plans implementation
+  async getFloorPlans(): Promise<any[]> {
+    return Array.from(this.floorPlans.values());
+  }
+
+  async getFloorPlan(id: string): Promise<any | null> {
+    return this.floorPlans.get(id) || null;
+  }
+
+  async createFloorPlan(data: any): Promise<any> {
+    const id = crypto.randomUUID();
+    const floorPlan = {
+      id,
+      ...data,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.floorPlans.set(id, floorPlan);
+    return floorPlan;
+  }
+
+  async updateFloorPlan(id: string, data: any): Promise<any | null> {
+    const existing = this.floorPlans.get(id);
+    if (!existing) return null;
+
+    const updated = {
+      ...existing,
+      ...data,
+      updatedAt: new Date(),
+    };
+    this.floorPlans.set(id, updated);
+    return updated;
+  }
+
+  async deleteFloorPlan(id: string): Promise<boolean> {
+    return this.floorPlans.delete(id);
   }
 }
 

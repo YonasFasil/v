@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 interface FloorPlanElement {
   id: string;
-  type: 'table' | 'stage' | 'bar' | 'door' | 'wall' | 'chair';
+  type: 'table' | 'stage' | 'bar' | 'door' | 'wall' | 'chair' | 'booth' | 'dance_floor' | 'buffet';
   shape: 'rectangle' | 'circle' | 'square';
   x: number;
   y: number;
@@ -22,6 +22,7 @@ interface FloorPlanElement {
   seats?: number;
   label?: string;
   color: string;
+  colorCode?: 'standard' | 'vip' | 'staff' | 'reserved' | 'disabled';
 }
 
 interface SetupStyleFloorPlanModalProps {
@@ -32,14 +33,25 @@ interface SetupStyleFloorPlanModalProps {
 }
 
 const ELEMENT_TYPES = [
-  { type: 'table', label: 'Round Table', shape: 'circle', defaultSize: { width: 60, height: 60 }, color: '#8B4513', icon: Circle },
-  { type: 'table', label: 'Rectangle Table', shape: 'rectangle', defaultSize: { width: 80, height: 40 }, color: '#8B4513', icon: Square },
-  { type: 'chair', label: 'Chair', shape: 'rectangle', defaultSize: { width: 20, height: 20 }, color: '#654321', icon: Square },
-  { type: 'stage', label: 'Stage', shape: 'rectangle', defaultSize: { width: 120, height: 80 }, color: '#4A5568', icon: Square },
-  { type: 'bar', label: 'Bar', shape: 'rectangle', defaultSize: { width: 100, height: 30 }, color: '#2D3748', icon: Square },
-  { type: 'door', label: 'Door', shape: 'rectangle', defaultSize: { width: 40, height: 10 }, color: '#F7FAFC', icon: Square },
-  { type: 'wall', label: 'Wall', shape: 'rectangle', defaultSize: { width: 10, height: 100 }, color: '#1A202C', icon: Square },
+  { type: 'table', label: 'Round Table', shape: 'circle', defaultSize: { width: 60, height: 60 }, color: '#8B4513', icon: Circle, category: 'seating' },
+  { type: 'table', label: 'Rectangle Table', shape: 'rectangle', defaultSize: { width: 80, height: 40 }, color: '#8B4513', icon: Square, category: 'seating' },
+  { type: 'chair', label: 'Chair', shape: 'rectangle', defaultSize: { width: 20, height: 20 }, color: '#654321', icon: Square, category: 'seating' },
+  { type: 'stage', label: 'Stage', shape: 'rectangle', defaultSize: { width: 120, height: 80 }, color: '#4A5568', icon: Square, category: 'entertainment' },
+  { type: 'bar', label: 'Bar', shape: 'rectangle', defaultSize: { width: 100, height: 30 }, color: '#2D3748', icon: Square, category: 'service' },
+  { type: 'booth', label: 'Booth', shape: 'rectangle', defaultSize: { width: 80, height: 60 }, color: '#7C2D12', icon: Square, category: 'seating' },
+  { type: 'dance_floor', label: 'Dance Floor', shape: 'rectangle', defaultSize: { width: 100, height: 100 }, color: '#7C3AED', icon: Square, category: 'entertainment' },
+  { type: 'buffet', label: 'Buffet Area', shape: 'rectangle', defaultSize: { width: 120, height: 40 }, color: '#059669', icon: Square, category: 'service' },
+  { type: 'door', label: 'Door', shape: 'rectangle', defaultSize: { width: 40, height: 10 }, color: '#F7FAFC', icon: Square, category: 'structure' },
+  { type: 'wall', label: 'Wall', shape: 'rectangle', defaultSize: { width: 10, height: 100 }, color: '#1A202C', icon: Square, category: 'structure' },
 ];
+
+const COLOR_CODES = {
+  'standard': '#8B4513',
+  'vip': '#DC2626',
+  'staff': '#059669',
+  'reserved': '#7C3AED',
+  'disabled': '#6B7280'
+};
 
 export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSave }: SetupStyleFloorPlanModalProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -352,6 +364,77 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
           </div>
         );
 
+      case 'booth':
+        return (
+          <div style={baseStyle}>
+            {/* Booth back */}
+            <div 
+              className="absolute bg-amber-900 border border-amber-800 rounded-t"
+              style={{
+                width: '100%',
+                height: '30%',
+                top: 0,
+                left: 0
+              }}
+            />
+            {/* Booth seating */}
+            <div 
+              className="absolute bg-amber-700 border border-amber-800"
+              style={{
+                width: '100%',
+                height: '70%',
+                bottom: 0,
+                left: 0,
+                background: 'linear-gradient(135deg, #92400e, #78350f)'
+              }}
+            />
+          </div>
+        );
+
+      case 'dance_floor':
+        return (
+          <div style={baseStyle}>
+            {/* Dance floor with pattern */}
+            <div 
+              className="absolute border-2 border-purple-600 rounded"
+              style={{
+                width: '100%',
+                height: '100%',
+                background: 'linear-gradient(45deg, #7c3aed 25%, #8b5cf6 25%, #8b5cf6 50%, #7c3aed 50%, #7c3aed 75%, #8b5cf6 75%)',
+                backgroundSize: '20px 20px'
+              }}
+            />
+          </div>
+        );
+
+      case 'buffet':
+        return (
+          <div style={baseStyle}>
+            {/* Buffet table */}
+            <div 
+              className="absolute bg-green-700 border-2 border-green-800 rounded"
+              style={{
+                width: '100%',
+                height: '100%',
+                background: 'linear-gradient(135deg, #059669, #047857)'
+              }}
+            />
+            {/* Food indication */}
+            <div 
+              className="absolute w-2 h-2 bg-yellow-500 rounded-full"
+              style={{ top: '25%', left: '20%' }}
+            />
+            <div 
+              className="absolute w-2 h-2 bg-red-500 rounded-full"
+              style={{ top: '25%', right: '20%' }}
+            />
+            <div 
+              className="absolute w-2 h-2 bg-green-500 rounded-full"
+              style={{ bottom: '25%', left: '50%', transform: 'translateX(-50%)' }}
+            />
+          </div>
+        );
+
       default:
         return null;
     }
@@ -481,19 +564,41 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
                     />
                   </div>
 
-                  {selectedElementData.type === 'table' && (
+                  {(selectedElementData.type === 'table' || selectedElementData.type === 'booth') && (
                     <div className="space-y-2">
                       <Label className="text-xs">Seats</Label>
                       <Input
                         type="number"
                         value={selectedElementData.seats || 0}
                         onChange={(e) => updateSelectedElement({ seats: parseInt(e.target.value) || 0 })}
-                        min="1"
-                        max="20"
-                        size="sm"
+                        min={1}
+                        max={20}
+
                       />
                     </div>
                   )}
+
+                  <div className="space-y-2">
+                    <Label className="text-xs">Color Code</Label>
+                    <Select 
+                      value={selectedElementData.colorCode || 'standard'} 
+                      onValueChange={(value) => updateSelectedElement({ 
+                        colorCode: value as any,
+                        color: COLOR_CODES[value as keyof typeof COLOR_CODES] || selectedElementData.color
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="standard">Standard</SelectItem>
+                        <SelectItem value="vip">VIP</SelectItem>
+                        <SelectItem value="staff">Staff</SelectItem>
+                        <SelectItem value="reserved">Reserved</SelectItem>
+                        <SelectItem value="disabled">Disabled Access</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
                   <div className="flex gap-2">
                     <Button
@@ -534,24 +639,25 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
                 </div>
               </div>
               
-              <div
-                ref={canvasRef}
-                className={cn(
-                  "relative border-2 border-dashed border-slate-300 overflow-hidden transition-transform duration-300",
-                  mode === 'add' ? "cursor-crosshair" : "cursor-default",
-                  viewMode === '3d' ? "bg-gradient-to-b from-slate-100 to-slate-300" : "bg-slate-50"
-                )}
-                style={{
-                  width: canvasSize.width,
-                  height: canvasSize.height,
-                  transform: get3DCanvasTransform(),
-                  transformOrigin: 'center bottom',
-                }}
-                onClick={handleCanvasClick}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-              >
+              <div className="overflow-hidden border-2 border-dashed border-slate-300 bg-slate-100">
+                <div
+                  ref={canvasRef}
+                  className={cn(
+                    "relative transition-transform duration-300",
+                    mode === 'add' ? "cursor-crosshair" : "cursor-default",
+                    viewMode === '3d' ? "bg-gradient-to-b from-slate-100 to-slate-300" : "bg-slate-50"
+                  )}
+                  style={{
+                    width: canvasSize.width,
+                    height: canvasSize.height,
+                    transform: get3DCanvasTransform(),
+                    transformOrigin: 'center center',
+                  }}
+                  onClick={handleCanvasClick}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                >
                 {/* Grid pattern */}
                 <div 
                   className={cn(
@@ -648,6 +754,7 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
                     3D Preview
                   </div>
                 )}
+                </div>
               </div>
 
               <div className="mt-4 text-xs text-slate-600">
