@@ -1639,7 +1639,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="addon">Add-on</SelectItem>
+                    <SelectItem value="additional">Additional Services</SelectItem>
                     <SelectItem value="catering">Catering</SelectItem>
                     <SelectItem value="entertainment">Entertainment</SelectItem>
                     <SelectItem value="decor">Decor</SelectItem>
@@ -1686,7 +1686,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
               variant="outline" 
               onClick={() => {
                 setShowNewServiceForm(false);
-                setNewService({ name: "", description: "", category: "addon", price: "", pricingModel: "fixed" });
+                setNewService({ name: "", description: "", category: "additional", price: "", pricingModel: "fixed" });
               }}
             >
               Cancel

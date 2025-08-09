@@ -23,7 +23,7 @@ export function EditServiceModal({ open, onOpenChange, service }: Props) {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("");
-  const [unit, setUnit] = useState("");
+  const [pricingModel, setPricingModel] = useState("");
 
   useEffect(() => {
     if (service && open) {
@@ -31,7 +31,7 @@ export function EditServiceModal({ open, onOpenChange, service }: Props) {
       setDescription(service.description || "");
       setPrice(service.price?.toString() || "");
       setCategory(service.category || "");
-      setUnit(service.unit || "each");
+      setPricingModel(service.pricingModel || "fixed");
     }
   }, [service, open]);
 
@@ -71,7 +71,7 @@ export function EditServiceModal({ open, onOpenChange, service }: Props) {
       description,
       price: parseFloat(price) || 0,
       category,
-      unit
+      pricingModel
     });
   };
 
@@ -86,7 +86,7 @@ export function EditServiceModal({ open, onOpenChange, service }: Props) {
       <DialogContent className="max-w-lg p-0" aria-describedby="edit-service-description">
         <DialogTitle className="sr-only">Edit Service</DialogTitle>
         <div id="edit-service-description" className="sr-only">
-          Edit service information including name, pricing, category, and billing unit.
+          Edit service information including name, pricing, category, and pricing model.
         </div>
         
         <div className="border-b border-slate-200 p-6 flex items-center justify-between">
@@ -129,18 +129,15 @@ export function EditServiceModal({ open, onOpenChange, service }: Props) {
             </div>
             
             <div>
-              <Label>Billing Unit</Label>
-              <Select value={unit} onValueChange={setUnit}>
+              <Label>Pricing Model</Label>
+              <Select value={pricingModel} onValueChange={setPricingModel}>
                 <SelectTrigger className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="each">Each</SelectItem>
-                  <SelectItem value="hour">Per Hour</SelectItem>
-                  <SelectItem value="day">Per Day</SelectItem>
-                  <SelectItem value="person">Per Person</SelectItem>
-                  <SelectItem value="table">Per Table</SelectItem>
-                  <SelectItem value="package">Package</SelectItem>
+                  <SelectItem value="fixed">Fixed Price</SelectItem>
+                  <SelectItem value="per_person">Per Person</SelectItem>
+                  <SelectItem value="per_hour">Per Hour</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -153,13 +150,12 @@ export function EditServiceModal({ open, onOpenChange, service }: Props) {
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="catering">Food & Beverage</SelectItem>
-                <SelectItem value="equipment">Equipment</SelectItem>
-                <SelectItem value="decoration">Decoration</SelectItem>
+                <SelectItem value="catering">Catering</SelectItem>
                 <SelectItem value="entertainment">Entertainment</SelectItem>
-                <SelectItem value="staff">Staffing</SelectItem>
-                <SelectItem value="transportation">Transportation</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
+                <SelectItem value="decor">Decor</SelectItem>
+                <SelectItem value="photography">Photography</SelectItem>
+                <SelectItem value="equipment">Equipment</SelectItem>
+                <SelectItem value="additional">Additional Services</SelectItem>
               </SelectContent>
             </Select>
           </div>

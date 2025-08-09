@@ -46,7 +46,7 @@ export default function Packages() {
     name: "",
     description: "",
     price: "",
-    category: "catering",
+    category: "additional",
     pricingModel: "fixed"
   });
 
@@ -115,7 +115,7 @@ export default function Packages() {
         name: "",
         description: "",
         price: "",
-        category: "catering",
+        category: "additional",
         pricingModel: "fixed"
       });
       
@@ -183,7 +183,7 @@ export default function Packages() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header 
           title="Packages & Services" 
-          subtitle="Manage event packages and add-on services"
+          subtitle="Manage event packages and additional services"
           onMobileMenuToggle={() => setMobileNavOpen(true)}
           action={
             <div className="flex gap-2">
@@ -252,11 +252,11 @@ export default function Packages() {
                         className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
                       >
                         <option value="catering">Catering</option>
-                        <option value="decoration">Decoration</option>
                         <option value="entertainment">Entertainment</option>
+                        <option value="decor">Decor</option>
                         <option value="photography">Photography</option>
-                        <option value="transport">Transport</option>
-                        <option value="other">Other</option>
+                        <option value="equipment">Equipment</option>
+                        <option value="additional">Additional Services</option>
                       </select>
                     </div>
                     
