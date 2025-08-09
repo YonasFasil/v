@@ -716,9 +716,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                   <Mic className="h-4 w-4 mr-2" />
                   Voice Booking
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-                  <X className="h-4 w-4" />
-                </Button>
+
               </div>
             </div>
 
