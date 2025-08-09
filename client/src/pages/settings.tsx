@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -19,7 +20,8 @@ import {
   Key,
   AlertCircle,
   CheckCircle,
-  Globe
+  Globe,
+  FileOutput
 } from "lucide-react";
 
 export default function Settings() {
@@ -68,6 +70,15 @@ export default function Settings() {
     dataBackupFrequency: "daily"
   });
 
+  // BEO Settings
+  const [beoSettings, setBeoSettings] = useState({
+    defaultTemplate: "standard",
+    enabledBeoTypes: ["floor_plan", "timeline", "catering", "av_requirements"],
+    autoGenerate: true,
+    includeVendorInfo: true,
+    showPricing: false
+  });
+
   const saveSettings = (section: string) => {
     toast({
       title: "Settings saved",
@@ -95,7 +106,7 @@ export default function Settings() {
         
         <main className="flex-1 overflow-y-auto p-6">
           <Tabs defaultValue="business" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 gap-2">
+            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 gap-2">
               <TabsTrigger value="business" className="flex items-center gap-2 px-4 py-3">
                 <Building className="w-4 h-4" />
                 <span>Business</span>
@@ -107,6 +118,10 @@ export default function Settings() {
               <TabsTrigger value="payments" className="flex items-center gap-2 px-4 py-3">
                 <CreditCard className="w-4 h-4" />
                 <span>Payments</span>
+              </TabsTrigger>
+              <TabsTrigger value="beo" className="flex items-center gap-2 px-4 py-3">
+                <FileOutput className="w-4 h-4" />
+                <span>BEO</span>
               </TabsTrigger>
               <TabsTrigger value="security" className="flex items-center gap-2 px-4 py-3">
                 <Shield className="w-4 h-4" />
@@ -472,6 +487,118 @@ export default function Settings() {
                   <Button onClick={() => saveSettings("Payment")} className="bg-blue-600 hover:bg-blue-700">
                     <Save className="w-4 h-4 mr-2" />
                     Save Payment Settings
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* BEO Settings */}
+            <TabsContent value="beo" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileOutput className="w-5 h-5" />
+                    BEO (Banquet Event Orders) Settings
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Template Selection */}
+                  <div>
+                    <Label htmlFor="defaultTemplate">Default BEO Template</Label>
+                    <Select value={beoSettings.defaultTemplate} onValueChange={(value) => setBeoSettings(prev => ({ ...prev, defaultTemplate: value }))}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="standard">Standard Template</SelectItem>
+                        <SelectItem value="luxury">Luxury Template</SelectItem>
+                        <SelectItem value="corporate">Corporate Template</SelectItem>
+                        <SelectItem value="wedding">Wedding Template</SelectItem>
+                        <SelectItem value="minimal">Minimal Template</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* BEO Types */}
+                  <div>
+                    <Label className="text-base font-medium">BEO Types to Display</Label>
+                    <p className="text-sm text-gray-600 mb-3">Select which types of BEO documents should be available in the BEO modal</p>
+                    <div className="space-y-3">
+                      {[
+                        { value: "floor_plan", label: "Floor Plan & Layout" },
+                        { value: "timeline", label: "Event Timeline" },
+                        { value: "catering", label: "Catering & Menu Details" },
+                        { value: "av_requirements", label: "AV & Technical Requirements" },
+                        { value: "vendor_contact", label: "Vendor Contact Information" },
+                        { value: "setup_breakdown", label: "Setup & Breakdown Schedule" }
+                      ].map((type) => (
+                        <div key={type.value} className="flex items-center justify-between">
+                          <Label htmlFor={type.value} className="text-sm font-normal">
+                            {type.label}
+                          </Label>
+                          <Switch
+                            id={type.value}
+                            checked={beoSettings.enabledBeoTypes.includes(type.value)}
+                            onCheckedChange={(checked) => {
+                              setBeoSettings(prev => ({
+                                ...prev,
+                                enabledBeoTypes: checked 
+                                  ? [...prev.enabledBeoTypes, type.value]
+                                  : prev.enabledBeoTypes.filter(t => t !== type.value)
+                              }));
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Additional Options */}
+                  <div className="space-y-4">
+                    <Label className="text-base font-medium">Additional Options</Label>
+                    
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="autoGenerate" className="text-sm font-normal">Auto-generate BEO on event creation</Label>
+                        <p className="text-xs text-gray-500">Automatically create BEO documents when a new event is saved</p>
+                      </div>
+                      <Switch
+                        id="autoGenerate"
+                        checked={beoSettings.autoGenerate}
+                        onCheckedChange={(checked) => setBeoSettings(prev => ({ ...prev, autoGenerate: checked }))}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="includeVendorInfo" className="text-sm font-normal">Include vendor information</Label>
+                        <p className="text-xs text-gray-500">Show vendor contacts and details in BEO documents</p>
+                      </div>
+                      <Switch
+                        id="includeVendorInfo"
+                        checked={beoSettings.includeVendorInfo}
+                        onCheckedChange={(checked) => setBeoSettings(prev => ({ ...prev, includeVendorInfo: checked }))}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="showPricing" className="text-sm font-normal">Show pricing in BEO</Label>
+                        <p className="text-xs text-gray-500">Display pricing information in generated BEO documents</p>
+                      </div>
+                      <Switch
+                        id="showPricing"
+                        checked={beoSettings.showPricing}
+                        onCheckedChange={(checked) => setBeoSettings(prev => ({ ...prev, showPricing: checked }))}
+                      />
+                    </div>
+                  </div>
+
+                  <Button onClick={() => saveSettings("BEO")} className="bg-blue-600 hover:bg-blue-700">
+                    <Save className="w-4 h-4 mr-2" />
+                    Save BEO Settings
                   </Button>
                 </CardContent>
               </Card>

@@ -15,7 +15,9 @@ import {
   Phone,
   Mail,
   FileText,
-  Send
+  Send,
+  Copy,
+  FileOutput
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -91,12 +93,7 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
               </div>
             )}
           </div>
-          <div className="flex gap-2 mr-8">
-            <Button variant="outline" onClick={onEditClick} className="gap-2">
-              <Edit3 className="h-4 w-4" />
-              Edit {booking.isContract ? "Contract" : "Event"}
-            </Button>
-          </div>
+
         </div>
 
         {/* Contract Summary Banner */}
@@ -549,6 +546,28 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
             </CardContent>
           </Card>
         )}
+
+        {/* Action Buttons */}
+        <div className="flex gap-3 justify-end mt-6 pt-4 border-t">
+          <Button variant="outline" onClick={onEditClick} className="gap-2">
+            <Edit3 className="h-4 w-4" />
+            Edit {booking.isContract ? "Contract" : "Event"}
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={() => {
+            // TODO: Implement duplicate functionality
+            console.log('Duplicate event clicked');
+          }}>
+            <Copy className="h-4 w-4" />
+            Duplicate Event
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={() => {
+            // TODO: Implement BEO modal
+            console.log('BEO clicked');
+          }}>
+            <FileOutput className="h-4 w-4" />
+            BEO
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
