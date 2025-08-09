@@ -974,39 +974,112 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                   <div className="grid grid-cols-1 gap-3">
                                     <div
                                       className={cn(
-                                        "p-4 border rounded-lg cursor-pointer transition-all",
+                                        "p-3 border rounded-lg cursor-pointer transition-all relative",
                                         !activeDate.packageId ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
                                       )}
                                       onClick={() => updateDateConfig('packageId', "")}
                                     >
-                                      <div className="font-medium">No Package</div>
-                                      <div className="text-sm text-slate-600">Build custom event with individual services</div>
-                                      <div className="text-lg font-semibold text-green-600 mt-2">$0.00</div>
+                                      {!activeDate.packageId && (
+                                        <div className="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                          </svg>
+                                        </div>
+                                      )}
+                                      <div className="font-medium text-sm">No Package</div>
+                                      <div className="text-xs text-slate-600 mt-1">Build custom event with individual services</div>
+                                      <div className="text-sm font-semibold text-green-600 mt-2">$0.00</div>
                                     </div>
                                     
-                                    {(packages as any[]).map((pkg: any) => (
-                                      <div
-                                        key={pkg.id}
-                                        className={cn(
-                                          "p-4 border rounded-lg cursor-pointer transition-all",
-                                          activeDate.packageId === pkg.id ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
-                                        )}
-                                        onClick={() => updateDateConfig('packageId', pkg.id)}
-                                      >
-                                        <div className="font-medium">{pkg.name}</div>
-                                        <div className="text-sm text-slate-600">{pkg.description}</div>
-                                        <div className="text-lg font-semibold text-green-600 mt-2">
-                                          ${pkg.pricingModel === 'per_person' 
-                                            ? `${parseFloat(pkg.price)} per person` 
-                                            : parseFloat(pkg.price).toFixed(2)}
-                                        </div>
-                                        {pkg.pricingModel === 'per_person' && (
-                                          <div className="text-sm text-slate-500">
-                                            Total: ${(parseFloat(pkg.price) * (activeDate.guestCount || 1)).toFixed(2)} for {activeDate.guestCount || 1} guests
+                                    {(packages as any[]).map((pkg: any) => {
+                                      const isSelected = activeDate.packageId === pkg.id;
+                                      const basePrice = parseFloat(pkg.price);
+                                      const overridePrice = activeDate.pricingOverrides?.packagePrice;
+                                      const displayPrice = overridePrice ?? basePrice;
+                                      const totalPrice = pkg.pricingModel === 'per_person' 
+                                        ? displayPrice * (activeDate.guestCount || 1)
+                                        : displayPrice;
+                                      
+                                      return (
+                                        <div
+                                          key={pkg.id}
+                                          className={cn(
+                                            "p-3 border rounded-lg cursor-pointer transition-all relative",
+                                            isSelected ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
+                                          )}
+                                          onClick={() => updateDateConfig('packageId', pkg.id)}
+                                        >
+                                          {isSelected && (
+                                            <div className="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                              </svg>
+                                            </div>
+                                          )}
+                                          
+                                          <div className="pr-8">
+                                            <div className="font-medium text-sm">{pkg.name}</div>
+                                            <div className="text-xs text-slate-600 mt-1">{pkg.description}</div>
+                                            
+                                            {/* Included Services */}
+                                            {pkg.includedServiceIds && pkg.includedServiceIds.length > 0 && (
+                                              <div className="mt-2">
+                                                <div className="text-xs text-slate-500 mb-1">Includes:</div>
+                                                <div className="flex flex-wrap gap-1">
+                                                  {pkg.includedServiceIds.slice(0, 3).map((serviceId: string) => {
+                                                    const service = (services as any[]).find((s: any) => s.id === serviceId);
+                                                    return service ? (
+                                                      <span key={serviceId} className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                                                        {service.name}
+                                                      </span>
+                                                    ) : null;
+                                                  })}
+                                                  {pkg.includedServiceIds.length > 3 && (
+                                                    <span className="text-xs text-slate-500">+{pkg.includedServiceIds.length - 3} more</span>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            )}
+                                            
+                                            <div className="flex items-center justify-between mt-2">
+                                              <div className="text-sm font-semibold text-green-600">
+                                                ${pkg.pricingModel === 'per_person' 
+                                                  ? `${displayPrice.toFixed(2)} per person` 
+                                                  : displayPrice.toFixed(2)}
+                                              </div>
+                                              
+                                              {isSelected && (
+                                                <div className="flex items-center gap-1">
+                                                  <span className="text-xs">$</span>
+                                                  <Input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={overridePrice ?? ''}
+                                                    onChange={(e) => {
+                                                      e.stopPropagation();
+                                                      const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                                      updateDateConfig('pricingOverrides', {
+                                                        ...activeDate.pricingOverrides,
+                                                        packagePrice: value
+                                                      });
+                                                    }}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="w-20 h-6 text-xs"
+                                                    placeholder={pkg.price}
+                                                  />
+                                                </div>
+                                              )}
+                                            </div>
+                                            
+                                            {pkg.pricingModel === 'per_person' && (
+                                              <div className="text-xs text-slate-500 mt-1">
+                                                Total: ${totalPrice.toFixed(2)} for {activeDate.guestCount || 1} guests
+                                              </div>
+                                            )}
                                           </div>
-                                        )}
-                                      </div>
-                                    ))}
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 </div>
                               </div>
