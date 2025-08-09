@@ -153,6 +153,7 @@ export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private venues: Map<string, Venue>;
   private spaces: Map<string, Space>;
+  private setupStyles: Map<string, SetupStyle>;
   private customers: Map<string, Customer>;
   private contracts: Map<string, Contract>;
   private bookings: Map<string, Booking>;
@@ -170,6 +171,7 @@ export class MemStorage implements IStorage {
     this.users = new Map();
     this.venues = new Map();
     this.spaces = new Map();
+    this.setupStyles = new Map();
     this.customers = new Map();
     this.contracts = new Map();
     this.bookings = new Map();
@@ -188,6 +190,7 @@ export class MemStorage implements IStorage {
 
   private initializeData() {
     this.initializeSamplePackagesAndServices();
+    this.initializeSampleSetupStyles();
     // Initialize with some default venues
     const defaultVenues: InsertVenue[] = [
       {
@@ -523,6 +526,79 @@ export class MemStorage implements IStorage {
 
     sampleServices.forEach(svc => this.services.set(svc.id, svc));
     samplePackages.forEach(pkg => this.packages.set(pkg.id, pkg));
+  }
+
+  private initializeSampleSetupStyles() {
+    const sampleSetupStyles = [
+      {
+        id: randomUUID(),
+        name: "Round Tables",
+        description: "Traditional round tables for dining and socializing",
+        iconName: "Circle",
+        category: "dining",
+        minCapacity: 50,
+        maxCapacity: 200,
+        isActive: true,
+        createdAt: new Date()
+      },
+      {
+        id: randomUUID(),
+        name: "Theater Style",
+        description: "Rows of chairs facing the presentation area",
+        iconName: "Presentation",
+        category: "presentation",
+        minCapacity: 100,
+        maxCapacity: 500,
+        isActive: true,
+        createdAt: new Date()
+      },
+      {
+        id: randomUUID(),
+        name: "U-Shape Conference",
+        description: "U-shaped table arrangement for meetings",
+        iconName: "Users",
+        category: "meeting",
+        minCapacity: 15,
+        maxCapacity: 50,
+        isActive: true,
+        createdAt: new Date()
+      },
+      {
+        id: randomUUID(),
+        name: "Cocktail Reception",
+        description: "Standing reception with high-top tables",
+        iconName: "Coffee",
+        category: "social",
+        minCapacity: 30,
+        maxCapacity: 150,
+        isActive: true,
+        createdAt: new Date()
+      },
+      {
+        id: randomUUID(),
+        name: "Classroom Setup",
+        description: "Tables and chairs in classroom formation",
+        iconName: "Grid3X3",
+        category: "meeting",
+        minCapacity: 20,
+        maxCapacity: 100,
+        isActive: true,
+        createdAt: new Date()
+      },
+      {
+        id: randomUUID(),
+        name: "Banquet Style",
+        description: "Long rectangular tables for formal dining",
+        iconName: "Utensils",
+        category: "dining",
+        minCapacity: 40,
+        maxCapacity: 300,
+        isActive: true,
+        createdAt: new Date()
+      }
+    ];
+
+    sampleSetupStyles.forEach(style => this.setupStyles.set(style.id, style));
   }
 
   // Users
@@ -1135,6 +1211,43 @@ export class MemStorage implements IStorage {
       // Create new setting if it doesn't exist
       return this.createSetting({ key, value });
     }
+  }
+
+  // Setup Styles methods
+  async getSetupStyles(): Promise<SetupStyle[]> {
+    return Array.from(this.setupStyles.values());
+  }
+
+  async getSetupStyle(id: string): Promise<SetupStyle | undefined> {
+    return this.setupStyles.get(id);
+  }
+
+  async createSetupStyle(setupStyle: InsertSetupStyle): Promise<SetupStyle> {
+    const newSetupStyle: SetupStyle = {
+      id: randomUUID(),
+      ...setupStyle,
+      createdAt: new Date(),
+      isActive: setupStyle.isActive ?? true,
+      description: setupStyle.description || null,
+      iconName: setupStyle.iconName || null,
+      minCapacity: setupStyle.minCapacity || null,
+      maxCapacity: setupStyle.maxCapacity || null
+    };
+    this.setupStyles.set(newSetupStyle.id, newSetupStyle);
+    return newSetupStyle;
+  }
+
+  async updateSetupStyle(id: string, setupStyle: Partial<InsertSetupStyle>): Promise<SetupStyle | undefined> {
+    const existing = this.setupStyles.get(id);
+    if (!existing) return undefined;
+    
+    const updated = { ...existing, ...setupStyle };
+    this.setupStyles.set(id, updated);
+    return updated;
+  }
+
+  async deleteSetupStyle(id: string): Promise<boolean> {
+    return this.setupStyles.delete(id);
   }
 }
 

@@ -11,7 +11,8 @@ import {
   insertAiInsightSchema,
   insertTaxSettingSchema,
   insertSettingsSchema,
-  insertCommunicationSchema
+  insertCommunicationSchema,
+  insertSetupStyleSchema
 } from "@shared/schema";
 import { 
   generateAIInsights,
@@ -71,6 +72,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(spaces);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch venue spaces" });
+    }
+  });
+
+  // Setup Styles
+  app.get("/api/setup-styles", async (req, res) => {
+    try {
+      const setupStyles = await storage.getSetupStyles();
+      res.json(setupStyles);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch setup styles" });
+    }
+  });
+
+  app.get("/api/setup-styles/:id", async (req, res) => {
+    try {
+      const setupStyle = await storage.getSetupStyle(req.params.id);
+      if (!setupStyle) {
+        return res.status(404).json({ message: "Setup style not found" });
+      }
+      res.json(setupStyle);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch setup style" });
+    }
+  });
+
+  app.post("/api/setup-styles", async (req, res) => {
+    try {
+      const result = insertSetupStyleSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: "Invalid setup style data", errors: result.error.errors });
+      }
+      const setupStyle = await storage.createSetupStyle(result.data);
+      res.status(201).json(setupStyle);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create setup style" });
+    }
+  });
+
+  app.patch("/api/setup-styles/:id", async (req, res) => {
+    try {
+      const setupStyle = await storage.updateSetupStyle(req.params.id, req.body);
+      if (!setupStyle) {
+        return res.status(404).json({ message: "Setup style not found" });
+      }
+      res.json(setupStyle);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update setup style" });
+    }
+  });
+
+  app.delete("/api/setup-styles/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteSetupStyle(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Setup style not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete setup style" });
     }
   });
 

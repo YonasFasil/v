@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Grid3X3, Plus, Edit, Trash2, Users, Search, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -320,6 +320,12 @@ export default function SetupStyles() {
               <DialogTitle>
                 {editingStyle ? "Edit Setup Style" : "Create New Setup Style"}
               </DialogTitle>
+              <DialogDescription>
+                {editingStyle 
+                  ? "Update the setup style configuration below."
+                  : "Create a new setup style that can be applied to any venue during event booking."
+                }
+              </DialogDescription>
             </DialogHeader>
             
             <div className="space-y-4">
