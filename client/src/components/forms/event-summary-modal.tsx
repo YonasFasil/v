@@ -282,16 +282,7 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
                       onClick={() => setShowCommunication(!showCommunication)}
                     >
                       <MessageSquare className="h-3 w-3" />
-                      Message
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="gap-1"
-                      onClick={() => window.open(`mailto:${selectedCustomerData.email}?subject=Regarding your event: ${booking.eventName}`)}
-                    >
-                      <Mail className="h-3 w-3" />
-                      Email
+                      Contact
                     </Button>
                     {selectedCustomerData.phone && (
                       <Button 
