@@ -892,260 +892,263 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
 
               {/* Step 2: Per-Date Configuration */}
               {currentStep === 2 && (
-                <div className="flex flex-col min-h-0 pb-4">
-                  {/* Configuration for Active Date */}
-                  <div className="w-full flex flex-col overflow-y-auto min-h-0">
+                <div className="flex flex-col lg:flex-row min-h-0 pb-4 gap-6">
+                  {/* Left: Date Tabs (Mobile: Top, Desktop: Left) */}
+                  {selectedDates.length > 1 && (
+                    <div className="w-full lg:w-1/4 border-b lg:border-b-0 lg:border-r border-slate-200">
+                      <div className="p-3 bg-slate-50 rounded-t-lg lg:rounded-none lg:rounded-tl-lg">
+                        <h4 className="font-medium text-sm">Event Dates</h4>
+                      </div>
+                      <div className="flex lg:flex-col overflow-x-auto lg:overflow-x-visible lg:overflow-y-auto max-h-40 lg:max-h-none">
+                        {selectedDates.map((dateInfo, index) => (
+                          <div 
+                            key={index} 
+                            onClick={() => setActiveTabIndex(index)}
+                            className={cn(
+                              "p-3 cursor-pointer border-b lg:border-b lg:border-r-0 transition-colors min-w-fit lg:min-w-0",
+                              activeTabIndex === index 
+                                ? "bg-blue-50 border-l-4 border-l-blue-500 text-blue-900" 
+                                : "hover:bg-slate-50"
+                            )}
+                          >
+                            <div className="text-sm font-medium">{format(dateInfo.date, 'MMM d')}</div>
+                            <div className="text-xs text-slate-500">{format(dateInfo.date, 'EEE')}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Right: Configuration Panel */}
+                  <div className="flex-1 overflow-y-auto">
                     {activeDate && (
-                      <div className="p-3 sm:p-6 flex-grow">
-                        <div className="flex justify-between items-center mb-1">
-                          <h3 className="text-xl font-semibold">Configure Event</h3>
+                      <div className="space-y-6">
+                        {/* Header */}
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <h3 className="text-lg font-semibold">Configure Event</h3>
+                            <p className="text-sm text-slate-500">
+                              {format(activeDate.date, 'EEEE, MMMM d')} • {selectedVenueData?.spaces?.find((s: any) => s.id === activeDate.spaceId)?.name}
+                            </p>
+                          </div>
                           {selectedDates.length > 1 && (
                             <Button 
                               variant="outline" 
                               size="sm"
                               onClick={() => setShowCopyModal(true)}
+                              className="text-blue-600"
                             >
-                              Copy to Other Dates
+                              Copy Config
                             </Button>
                           )}
                         </div>
-                        <p className="text-sm text-gray-500 mb-4">
-                          For {format(activeDate.date, 'EEEE, MMMM d')} in {selectedVenueData?.spaces?.find((s: any) => s.id === activeDate.spaceId)?.name || 'selected space'}
-                        </p>
 
-                        <div className="space-y-4">
-                          <div>
-                            <Label className="text-base font-medium">Guest Count</Label>
-                            <div className="mt-2 flex items-center gap-3">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => updateDateConfig('guestCount', Math.max(1, (activeDate.guestCount || 1) - 1))}
-                              >
-                                <Minus className="h-4 w-4" />
-                              </Button>
-                              <span className="text-lg font-medium px-4">{activeDate.guestCount || 1}</span>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => updateDateConfig('guestCount', (activeDate.guestCount || 1) + 1)}
-                              >
-                                <Plus className="h-4 w-4" />
-                              </Button>
+                        {/* Guest Count - Compact */}
+                        <div className="flex items-center gap-4">
+                          <Label className="text-sm font-medium">Guests:</Label>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateDateConfig('guestCount', Math.max(1, (activeDate.guestCount || 1) - 1))}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="text-sm font-medium px-3">{activeDate.guestCount || 1}</span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateDateConfig('guestCount', (activeDate.guestCount || 1) + 1)}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Package Selection - Grid Layout */}
+                        <div>
+                          <Label className="text-sm font-medium mb-3 block">Event Package</Label>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
+                            {/* No Package Option */}
+                            <div
+                              className={cn(
+                                "p-3 border rounded-lg cursor-pointer transition-all",
+                                !activeDate.packageId ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
+                              )}
+                              onClick={() => {
+                                updateDateConfig('packageId', "");
+                                updateDateConfig('selectedServices', []);
+                              }}
+                            >
+                              <div className="font-medium text-sm">No Package</div>
+                              <div className="text-xs text-slate-600 mb-1">Custom services only</div>
+                              <div className="text-lg font-semibold text-green-600">$0.00</div>
                             </div>
+                            
+                            {/* Package Options */}
+                            {(packages as any[]).map((pkg: any) => (
+                              <div
+                                key={pkg.id}
+                                className={cn(
+                                  "p-3 border rounded-lg cursor-pointer transition-all",
+                                  activeDate.packageId === pkg.id ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
+                                )}
+                                onClick={() => {
+                                  updateDateConfig('packageId', pkg.id);
+                                  if (pkg?.includedServiceIds) {
+                                    updateDateConfig('selectedServices', [...(pkg.includedServiceIds || [])]);
+                                  }
+                                }}
+                              >
+                                <div className="font-medium text-sm">{pkg.name}</div>
+                                <div className="text-xs text-slate-600 mb-1 line-clamp-2">{pkg.description}</div>
+                                <div className="text-lg font-semibold text-green-600">
+                                  ${pkg.pricingModel === 'per_person' 
+                                    ? `${parseFloat(pkg.price)}/person` 
+                                    : parseFloat(pkg.price).toFixed(2)}
+                                </div>
+                                {pkg.pricingModel === 'per_person' && (
+                                  <div className="text-xs text-slate-500">
+                                    Total: ${(parseFloat(pkg.price) * (activeDate.guestCount || 1)).toFixed(2)}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Services Selection - Simplified */}
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <Label className="text-sm font-medium">Additional Services</Label>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowNewServiceForm(!showNewServiceForm)}
+                              className="text-blue-600 border-blue-200 hover:bg-blue-50 h-8"
+                            >
+                              <Plus className="w-3 h-3 mr-1" />
+                              {showNewServiceForm ? "Cancel" : "New"}
+                            </Button>
                           </div>
 
-                          {/* Package Selection */}
-                          <div>
-                            <Label className="text-base font-medium">Event Package</Label>
-                            <div className="mt-3 max-h-60 overflow-y-auto">
-                              <div className="grid grid-cols-1 gap-3">
+                          {/* New Service Form - Compact */}
+                          {showNewServiceForm && (
+                            <Card className="p-3 mb-3 border-blue-200 bg-blue-50">
+                              <div className="grid grid-cols-3 gap-2">
+                                <Input
+                                  value={newService.name}
+                                  onChange={(e) => setNewService(prev => ({ ...prev, name: e.target.value }))}
+                                  placeholder="Service name"
+                                  className="h-8 text-xs"
+                                />
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={newService.price}
+                                  onChange={(e) => setNewService(prev => ({ ...prev, price: e.target.value }))}
+                                  placeholder="Price"
+                                  className="h-8 text-xs"
+                                />
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={handleCreateService}
+                                  disabled={createService.isPending}
+                                  className="bg-blue-600 hover:bg-blue-700 h-8 text-xs"
+                                >
+                                  {createService.isPending ? "..." : "Create"}
+                                </Button>
+                              </div>
+                            </Card>
+                          )}
+
+                          {/* Services Grid */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-64 overflow-y-auto">
+                            {(services as any[]).map((service: any) => {
+                              const isSelected = activeDate.selectedServices?.includes(service.id) || false;
+                              const basePrice = parseFloat(service.price || 0);
+                              const overridePrice = activeDate.pricingOverrides?.servicePrices?.[service.id];
+                              const displayPrice = overridePrice ?? basePrice;
+                              
+                              return (
                                 <div
+                                  key={service.id}
                                   className={cn(
-                                    "p-4 border rounded-lg cursor-pointer transition-all",
-                                    !activeDate.packageId ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
+                                    "p-3 border rounded-lg cursor-pointer transition-all",
+                                    isSelected ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
                                   )}
                                   onClick={() => {
-                                    updateDateConfig('packageId', "");
-                                    updateDateConfig('selectedServices', []);
+                                    const currentServices = activeDate.selectedServices || [];
+                                    const newServices = isSelected 
+                                      ? currentServices.filter(id => id !== service.id)
+                                      : [...currentServices, service.id];
+                                    updateDateConfig('selectedServices', newServices);
                                   }}
                                 >
-                                  <div className="font-medium">No Package</div>
-                                  <div className="text-sm text-slate-600">Build custom event with individual services</div>
-                                  <div className="text-lg font-semibold text-green-600 mt-2">$0.00</div>
-                                </div>
-                                
-                                {(packages as any[]).map((pkg: any) => (
-                                  <div
-                                    key={pkg.id}
-                                    className={cn(
-                                      "p-4 border rounded-lg cursor-pointer transition-all",
-                                      activeDate.packageId === pkg.id ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
-                                    )}
-                                    onClick={() => {
-                                      updateDateConfig('packageId', pkg.id);
-                                      // Auto-include package services
-                                      if (pkg?.includedServiceIds) {
-                                        updateDateConfig('selectedServices', [...(pkg.includedServiceIds || [])]);
-                                      }
-                                    }}
-                                  >
-                                    <div className="font-medium">{pkg.name}</div>
-                                    <div className="text-sm text-slate-600">{pkg.description}</div>
-                                    <div className="text-lg font-semibold text-green-600 mt-2">
-                                      ${pkg.pricingModel === 'per_person' 
-                                        ? `${parseFloat(pkg.price)} per person` 
-                                        : parseFloat(pkg.price).toFixed(2)}
-                                    </div>
-                                    {pkg.pricingModel === 'per_person' && (
-                                      <div className="text-sm text-slate-500">
-                                        Total: ${(parseFloat(pkg.price) * (activeDate.guestCount || 1)).toFixed(2)} for {activeDate.guestCount || 1} guests
+                                  <div className="flex items-start gap-2">
+                                    <Checkbox checked={isSelected} disabled className="mt-0.5" />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="font-medium text-sm">{service.name}</div>
+                                      <div className="text-xs text-slate-600 line-clamp-1">{service.description}</div>
+                                      <div className="text-base font-semibold text-green-600 mt-1">
+                                        ${displayPrice.toFixed(2)} {service.pricingModel === 'per_person' ? '/person' : ''}
                                       </div>
-                                    )}
+                                    </div>
                                   </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Services Selection */}
-                          <div>
-                            <div className="flex items-center justify-between mb-3">
-                              <Label className="text-base font-medium">Additional Services</Label>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setShowNewServiceForm(!showNewServiceForm)}
-                                className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                              >
-                                <Plus className="w-4 h-4 mr-1" />
-                                {showNewServiceForm ? "Cancel" : "New Service"}
-                              </Button>
-                            </div>
-
-                            {/* New Service Form */}
-                            {showNewServiceForm && (
-                              <Card className="p-4 mb-4 border-blue-200 bg-blue-50">
-                                <h5 className="font-medium mb-3">Create New Service</h5>
-                                <div className="grid grid-cols-2 gap-3">
-                                  <div>
-                                    <Label className="text-xs">Name *</Label>
-                                    <Input
-                                      value={newService.name}
-                                      onChange={(e) => setNewService(prev => ({ ...prev, name: e.target.value }))}
-                                      placeholder="Service name"
-                                      className="mt-1 h-8 text-xs"
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label className="text-xs">Price *</Label>
-                                    <Input
-                                      type="number"
-                                      step="0.01"
-                                      value={newService.price}
-                                      onChange={(e) => setNewService(prev => ({ ...prev, price: e.target.value }))}
-                                      placeholder="0.00"
-                                      className="mt-1 h-8 text-xs"
-                                    />
-                                  </div>
-                                  <div className="col-span-2">
-                                    <Label className="text-xs">Description</Label>
-                                    <Input
-                                      value={newService.description}
-                                      onChange={(e) => setNewService(prev => ({ ...prev, description: e.target.value }))}
-                                      placeholder="Service description"
-                                      className="mt-1 h-8 text-xs"
-                                    />
-                                  </div>
-                                </div>
-                                <div className="flex gap-2 mt-3">
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    onClick={handleCreateService}
-                                    disabled={createService.isPending}
-                                    className="bg-blue-600 hover:bg-blue-700"
-                                  >
-                                    {createService.isPending ? "Creating..." : "Create Service"}
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setShowNewServiceForm(false)}
-                                  >
-                                    Cancel
-                                  </Button>
-                                </div>
-                              </Card>
-                            )}
-
-                            <div className="mt-3 max-h-60 overflow-y-auto">
-                              <div className="grid grid-cols-1 gap-3">
-                                {(services as any[]).map((service: any) => {
-                                  const isSelected = activeDate.selectedServices?.includes(service.id) || false;
-                                  const basePrice = parseFloat(service.price || 0);
-                                  const overridePrice = activeDate.pricingOverrides?.servicePrices?.[service.id];
-                                  const displayPrice = overridePrice ?? basePrice;
                                   
-                                  return (
-                                    <div
-                                      key={service.id}
-                                      className={cn(
-                                        "p-4 border rounded-lg cursor-pointer transition-all",
-                                        isSelected ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
-                                      )}
-                                      onClick={() => {
-                                        const currentServices = activeDate.selectedServices || [];
-                                        const newServices = isSelected 
-                                          ? currentServices.filter(id => id !== service.id)
-                                          : [...currentServices, service.id];
-                                        updateDateConfig('selectedServices', newServices);
-                                      }}
-                                    >
-                                      <div className="flex items-center gap-3">
-                                        <Checkbox checked={isSelected} disabled />
-                                        <div className="flex-1">
-                                          <div className="font-medium">{service.name}</div>
-                                          <div className="text-sm text-slate-600">{service.description}</div>
-                                          <div className="text-lg font-semibold text-green-600 mt-2">
-                                            ${displayPrice.toFixed(2)} {service.pricingModel === 'per_person' ? 'per person' : ''}
-                                          </div>
+                                  {isSelected && (
+                                    <div className="mt-2 pt-2 border-t border-slate-200 flex items-center gap-2">
+                                      {service.pricingModel !== 'per_person' && (
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-xs">Qty:</span>
+                                          <Input
+                                            type="number"
+                                            min="1"
+                                            value={activeDate.itemQuantities?.[service.id] || 1}
+                                            onChange={(e) => {
+                                              e.stopPropagation();
+                                              const newQuantities = {
+                                                ...activeDate.itemQuantities,
+                                                [service.id]: Math.max(1, parseInt(e.target.value, 10) || 1)
+                                              };
+                                              updateDateConfig('itemQuantities', newQuantities);
+                                            }}
+                                            className="w-12 h-6 text-xs"
+                                          />
                                         </div>
+                                      )}
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-xs">$</span>
+                                        <Input
+                                          type="number"
+                                          step="0.01"
+                                          value={activeDate.pricingOverrides?.servicePrices?.[service.id] ?? ''}
+                                          onChange={(e) => {
+                                            e.stopPropagation();
+                                            const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                            updateDateConfig('pricingOverrides', {
+                                              ...activeDate.pricingOverrides,
+                                              servicePrices: {
+                                                ...activeDate.pricingOverrides?.servicePrices,
+                                                [service.id]: value
+                                              }
+                                            });
+                                          }}
+                                          className="w-16 h-6 text-xs"
+                                          placeholder={service.price}
+                                        />
                                       </div>
-                                      
-                                      {isSelected && (
-                                        <div className="mt-3 pt-3 border-t border-slate-200 flex items-center gap-4">
-                                          {service.pricingModel !== 'per_person' && (
-                                            <div className="flex items-center gap-2">
-                                              <span className="text-sm">Qty:</span>
-                                              <Input
-                                                type="number"
-                                                min="1"
-                                                value={activeDate.itemQuantities?.[service.id] || 1}
-                                                onChange={(e) => {
-                                                  e.stopPropagation();
-                                                  const newQuantities = {
-                                                    ...activeDate.itemQuantities,
-                                                    [service.id]: Math.max(1, parseInt(e.target.value, 10) || 1)
-                                                  };
-                                                  updateDateConfig('itemQuantities', newQuantities);
-                                                }}
-                                                className="w-16 h-8 text-xs"
-                                              />
-                                            </div>
-                                          )}
-                                          <div className="flex items-center gap-1">
-                                            <span className="text-sm">$</span>
-                                            <Input
-                                              type="number"
-                                              step="0.01"
-                                              value={activeDate.pricingOverrides?.servicePrices?.[service.id] ?? ''}
-                                              onChange={(e) => {
-                                                e.stopPropagation();
-                                                const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
-                                                updateDateConfig('pricingOverrides', {
-                                                  ...activeDate.pricingOverrides,
-                                                  servicePrices: {
-                                                    ...activeDate.pricingOverrides?.servicePrices,
-                                                    [service.id]: value
-                                                  }
-                                                });
-                                              }}
-                                              className="w-20 h-8 text-xs"
-                                              placeholder={service.price}
-                                            />
-                                          </div>
-                                        </div>
-                                      )}
                                     </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       </div>
