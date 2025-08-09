@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { FileText, CreditCard, Plus } from "lucide-react";
+import { Calendar, Users, Settings, CreditCard, Plus } from "lucide-react";
 import { useState } from "react";
 
 export function QuickActions() {
@@ -7,18 +7,32 @@ export function QuickActions() {
 
   const actions = [
     {
-      id: "proposal",
-      title: "Create Proposal",
-      icon: FileText,
+      id: "event",
+      title: "New Event",
+      icon: Calendar,
       color: "bg-blue-600 hover:bg-blue-700",
-      description: "Generate proposal"
+      description: "Create new event"
+    },
+    {
+      id: "customer",
+      title: "Add Customer",
+      icon: Users,
+      color: "bg-green-600 hover:bg-green-700",
+      description: "Add new customer"
     },
     {
       id: "payment",
-      title: "Process Payment",
+      title: "Payments",
       icon: CreditCard,
-      color: "bg-green-600 hover:bg-green-700",
-      description: "Handle payments"
+      color: "bg-purple-600 hover:bg-purple-700",
+      description: "Manage payments"
+    },
+    {
+      id: "settings",
+      title: "Settings",
+      icon: Settings,
+      color: "bg-gray-600 hover:bg-gray-700",
+      description: "App settings"
     }
   ];
 
@@ -26,13 +40,21 @@ export function QuickActions() {
     console.log(`Quick Action button clicked: ${actionId}`);
     
     switch (actionId) {
-      case "proposal":
-        console.log('Navigating to proposals...');
-        window.location.href = '/proposals';
+      case "event":
+        console.log('Navigating to events page...');
+        window.location.href = '/events';
+        break;
+      case "customer":
+        console.log('Navigating to customers page...');
+        window.location.href = '/customers';
         break;
       case "payment":
-        console.log('Opening payment form...');
+        console.log('Opening payments page...');
         window.location.href = '/payments';
+        break;
+      case "settings":
+        console.log('Opening settings...');
+        window.location.href = '/settings';
         break;
     }
     setIsExpanded(false);
