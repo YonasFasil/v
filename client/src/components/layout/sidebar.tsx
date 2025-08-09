@@ -26,7 +26,7 @@ const navigationItems = [
   { name: "Payments", href: "/payments", icon: CreditCard },
   { name: "Tasks & Team", href: "/tasks", icon: CheckSquare },
   { name: "Venues", href: "/venues", icon: MapPin },
-  { name: "Floor Plans", href: "/floor-plans", icon: Grid3X3 },
+
   { name: "Setup Styles", href: "/setup-styles", icon: Grid3X3 },
   { name: "Packages & Services", href: "/packages", icon: Package },
 ];
