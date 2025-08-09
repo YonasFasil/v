@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, timestamp, boolean, jsonb, real } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, decimal, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -299,24 +299,3 @@ export type SetupStyle = typeof setupStyles.$inferSelect;
 export type InsertSetupStyle = z.infer<typeof insertSetupStyleSchema>;
 export type TaxSetting = typeof taxSettings.$inferSelect;
 export type InsertTaxSetting = z.infer<typeof insertTaxSettingSchema>;
-
-// Floor Plans Schema
-export const floorPlans = pgTable('floor_plans', {
-  id: varchar('id', { length: 255 }).primaryKey(),
-  name: varchar('name', { length: 255 }).notNull(),
-  description: text('description'),
-  venueId: varchar('venue_id', { length: 255 }).notNull(),
-  venueName: varchar('venue_name', { length: 255 }).notNull(),
-  templateImageUrl: text('template_image_url'),
-  elements: text('elements').default('[]'),
-  dimensions: text('dimensions').default('{"width":800,"height":600}'),
-  scale: real('scale').default(1),
-  colorCoding: text('color_coding').default('{}'),
-  isTemplate: boolean('is_template').default(false),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-});
-
-export const insertFloorPlanSchema = createInsertSchema(floorPlans).omit({ id: true, createdAt: true });
-export type InsertFloorPlan = z.infer<typeof insertFloorPlanSchema>;
-export type FloorPlan = typeof floorPlans.$inferSelect;

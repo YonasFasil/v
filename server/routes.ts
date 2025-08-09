@@ -12,8 +12,7 @@ import {
   insertTaxSettingSchema,
   insertSettingsSchema,
   insertCommunicationSchema,
-  insertSetupStyleSchema,
-  insertFloorPlanSchema
+  insertSetupStyleSchema
 } from "@shared/schema";
 import { 
   generateAIInsights,
@@ -2117,121 +2116,6 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
       res.json(setting);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
-    }
-  });
-
-  // Floor Plans Routes
-  app.get("/api/floor-plans", async (req, res) => {
-    try {
-      const floorPlans = await storage.getFloorPlans();
-      res.json(floorPlans);
-    } catch (error) {
-      console.error("Error fetching floor plans:", error);
-      res.status(500).json({ message: "Failed to fetch floor plans" });
-    }
-  });
-
-  app.get("/api/floor-plans/:id", async (req, res) => {
-    try {
-      const floorPlan = await storage.getFloorPlan(req.params.id);
-      if (!floorPlan) {
-        return res.status(404).json({ message: "Floor plan not found" });
-      }
-      res.json(floorPlan);
-    } catch (error) {
-      console.error("Error fetching floor plan:", error);
-      res.status(500).json({ message: "Failed to fetch floor plan" });
-    }
-  });
-
-  app.post("/api/floor-plans", async (req, res) => {
-    try {
-      const validatedData = insertFloorPlanSchema.parse(req.body);
-      const floorPlan = await storage.createFloorPlan(validatedData);
-      res.status(201).json(floorPlan);
-    } catch (error) {
-      console.error("Error creating floor plan:", error);
-      res.status(500).json({ message: "Failed to create floor plan" });
-    }
-  });
-
-  app.put("/api/floor-plans/:id", async (req, res) => {
-    try {
-      const updates = req.body;
-      const floorPlan = await storage.updateFloorPlan(req.params.id, updates);
-      if (!floorPlan) {
-        return res.status(404).json({ message: "Floor plan not found" });
-      }
-      res.json(floorPlan);
-    } catch (error) {
-      console.error("Error updating floor plan:", error);
-      res.status(500).json({ message: "Failed to update floor plan" });
-    }
-  });
-
-  app.delete("/api/floor-plans/:id", async (req, res) => {
-    try {
-      const success = await storage.deleteFloorPlan(req.params.id);
-      if (!success) {
-        return res.status(404).json({ message: "Floor plan not found" });
-      }
-      res.json({ message: "Floor plan deleted" });
-    } catch (error) {
-      console.error("Error deleting floor plan:", error);
-      res.status(500).json({ message: "Failed to delete floor plan" });
-    }
-  });
-
-  app.post("/api/floor-plans/generate-ai-layout", async (req, res) => {
-    try {
-      const { floorPlanId, guestCount, eventType, preferences } = req.body;
-      
-      const optimizedElements = [
-        {
-          id: crypto.randomUUID(),
-          type: 'table',
-          shape: 'circle',
-          x: 100,
-          y: 100,
-          width: 60,
-          height: 60,
-          rotation: 0,
-          seats: Math.min(8, Math.ceil(guestCount / 10)),
-          label: 'Table 1',
-          color: '#8B4513',
-          colorCode: eventType === 'wedding' ? 'vip' : 'standard'
-        },
-        {
-          id: crypto.randomUUID(),
-          type: 'stage',
-          shape: 'rectangle',
-          x: 200,
-          y: 50,
-          width: 120,
-          height: 80,
-          rotation: 0,
-          label: 'Stage',
-          color: '#4A5568',
-          colorCode: 'standard'
-        }
-      ];
-
-      res.json({ elements: optimizedElements });
-    } catch (error) {
-      console.error("Error generating AI layout:", error);
-      res.status(500).json({ message: "Failed to generate AI layout" });
-    }
-  });
-
-  app.post("/api/floor-plans/:id/export-pdf", async (req, res) => {
-    try {
-      res.json({
-        downloadUrl: `/api/floor-plans/download/${req.params.id}/${Date.now()}.pdf`,
-        message: "Floor plan exported to PDF"
-      });
-    } catch (error) {
-      console.error("Error exporting floor plan:", error);
-      res.status(500).json({ message: "Failed to export floor plan" });
     }
   });
 
