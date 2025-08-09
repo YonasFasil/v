@@ -974,55 +974,56 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                       {activeDate && (
                         <div className="bg-white border rounded-lg p-6 space-y-6">
                           <div className="flex items-center justify-between">
-                            <h4 className="font-semibold">
-                              {format(activeDate.date, 'EEEE, MMMM d, yyyy')}
-                            </h4>
-                            <div className="text-sm text-slate-600">
-                              {activeDate.startTime} - {activeDate.endTime}
+                            <div>
+                              <h4 className="font-semibold">
+                                {format(activeDate.date, 'EEEE, MMMM d, yyyy')}
+                              </h4>
+                              <div className="text-sm text-slate-600 mt-1">
+                                {activeDate.startTime} - {activeDate.endTime}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Label className="text-sm font-medium flex items-center gap-1">
+                                Guests
+                                <span className="text-red-500 text-xs">*</span>
+                              </Label>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => updateDateConfig('guestCount', Math.max(1, (activeDate.guestCount || 1) - 1))}
+                                  className="h-7 w-7 p-0"
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </Button>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  max="999"
+                                  value={activeDate.guestCount || 1}
+                                  onChange={(e) => {
+                                    const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
+                                    updateDateConfig('guestCount', value);
+                                  }}
+                                  className="w-14 text-center text-sm font-medium h-7"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => updateDateConfig('guestCount', Math.min(999, (activeDate.guestCount || 1) + 1))}
+                                  className="h-7 w-7 p-0"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
 
                           <div className="space-y-6">
                             {/* Package & Services - Full Width */}
                             <div className="space-y-4">
-                              {/* Guest Count - Compact */}
-                              <div>
-                                <Label className="text-sm font-medium flex items-center gap-2">
-                                  Guest Count
-                                  <span className="text-red-500 text-xs">*</span>
-                                </Label>
-                                <div className="mt-1 flex items-center gap-2">
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => updateDateConfig('guestCount', Math.max(1, (activeDate.guestCount || 1) - 1))}
-                                    className="h-8 w-8 p-0"
-                                  >
-                                    <Minus className="h-3 w-3" />
-                                  </Button>
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    max="999"
-                                    value={activeDate.guestCount || 1}
-                                    onChange={(e) => {
-                                      const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
-                                      updateDateConfig('guestCount', value);
-                                    }}
-                                    className="w-16 text-center text-sm font-medium h-8"
-                                  />
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => updateDateConfig('guestCount', Math.min(999, (activeDate.guestCount || 1) + 1))}
-                                    className="h-8 w-8 p-0"
-                                  >
-                                    <Plus className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
 
                               {/* Package Selection */}
                               <div>
