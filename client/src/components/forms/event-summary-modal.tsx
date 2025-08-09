@@ -91,7 +91,7 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
               </div>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 mr-8">
             <Button variant="outline" onClick={onEditClick} className="gap-2">
               <Edit3 className="h-4 w-4" />
               Edit {booking.isContract ? "Contract" : "Event"}
