@@ -1247,50 +1247,98 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                               }}
                                             />
                                             <div className="flex-1">
-                                              <div className="font-medium text-sm">{service.name}</div>
+                                              <div className="flex items-center justify-between">
+                                                <div className="font-medium text-sm">{service.name}</div>
+                                                <div className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600">
+                                                  {service.pricingModel === 'per_person' && 'Per Person'}
+                                                  {service.pricingModel === 'per_hour' && 'Per Hour'}
+                                                  {service.pricingModel === 'fixed' && 'Fixed Price'}
+                                                </div>
+                                              </div>
                                               <div className="text-xs text-slate-600 mt-1">{service.description}</div>
+                                              <div className="text-sm font-medium text-green-600 mt-1">
+                                                ${basePrice.toFixed(2)}
+                                                {service.pricingModel === 'per_person' && ` × ${activeDate.guestCount || 1} guests`}
+                                                {service.pricingModel === 'per_hour' && ` × ${calculateEventDuration(activeDate.startTime, activeDate.endTime).toFixed(1)} hrs`}
+                                              </div>
                                             </div>
                                           </div>
                                           
                                           {isSelected && (
-                                            <div className="mt-3 pt-3 border-t border-slate-200 flex items-center gap-4">
-                                              {service.pricingModel !== 'per_person' && (
+                                            <div className="mt-3 pt-3 border-t border-slate-200 space-y-3">
+                                              <div className="flex items-center gap-4">
                                                 <div className="flex items-center gap-2">
-                                                  <span className="text-sm">Qty:</span>
+                                                  <span className="text-sm">Pricing:</span>
+                                                  <Select 
+                                                    value={service.pricingModel} 
+                                                    onValueChange={(value) => {
+                                                      // Note: This would ideally update the service in the database
+                                                      // For now, we'll just show the current pricing model
+                                                    }}
+                                                  >
+                                                    <SelectTrigger className="w-28 h-8 text-xs">
+                                                      <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                      <SelectItem value="fixed">Fixed</SelectItem>
+                                                      <SelectItem value="per_person">Per Person</SelectItem>
+                                                      <SelectItem value="per_hour">Per Hour</SelectItem>
+                                                    </SelectContent>
+                                                  </Select>
+                                                </div>
+                                                
+                                                {service.pricingModel !== 'per_person' && service.pricingModel !== 'per_hour' && (
+                                                  <div className="flex items-center gap-2">
+                                                    <span className="text-sm">Qty:</span>
+                                                    <Input
+                                                      type="number"
+                                                      min="1"
+                                                      value={activeDate.itemQuantities?.[service.id] || 1}
+                                                      onChange={(e) => {
+                                                        const newQuantities = {
+                                                          ...activeDate.itemQuantities,
+                                                          [service.id]: Math.max(1, parseInt(e.target.value, 10) || 1)
+                                                        };
+                                                        updateDateConfig('itemQuantities', newQuantities);
+                                                      }}
+                                                      className="w-16 h-8 text-xs"
+                                                    />
+                                                  </div>
+                                                )}
+                                                
+                                                <div className="flex items-center gap-1">
+                                                  <span className="text-sm">$</span>
                                                   <Input
                                                     type="number"
-                                                    min="1"
-                                                    value={activeDate.itemQuantities?.[service.id] || 1}
+                                                    step="0.01"
+                                                    value={activeDate.pricingOverrides?.servicePrices?.[service.id] ?? ''}
                                                     onChange={(e) => {
-                                                      const newQuantities = {
-                                                        ...activeDate.itemQuantities,
-                                                        [service.id]: Math.max(1, parseInt(e.target.value, 10) || 1)
-                                                      };
-                                                      updateDateConfig('itemQuantities', newQuantities);
+                                                      const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                                      updateDateConfig('pricingOverrides', {
+                                                        ...activeDate.pricingOverrides,
+                                                        servicePrices: {
+                                                          ...activeDate.pricingOverrides?.servicePrices,
+                                                          [service.id]: value
+                                                        }
+                                                      });
                                                     }}
-                                                    className="w-16 h-8 text-xs"
+                                                    className="w-20 h-8 text-xs"
+                                                    placeholder={service.price}
                                                   />
                                                 </div>
-                                              )}
-                                              <div className="flex items-center gap-1">
-                                                <span className="text-sm">$</span>
-                                                <Input
-                                                  type="number"
-                                                  step="0.01"
-                                                  value={activeDate.pricingOverrides?.servicePrices?.[service.id] ?? ''}
-                                                  onChange={(e) => {
-                                                    const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
-                                                    updateDateConfig('pricingOverrides', {
-                                                      ...activeDate.pricingOverrides,
-                                                      servicePrices: {
-                                                        ...activeDate.pricingOverrides?.servicePrices,
-                                                        [service.id]: value
-                                                      }
-                                                    });
-                                                  }}
-                                                  className="w-20 h-8 text-xs"
-                                                  placeholder={service.price}
-                                                />
+                                              </div>
+                                              
+                                              {/* Show calculation preview */}
+                                              <div className="text-xs text-slate-500">
+                                                {service.pricingModel === 'per_person' && 
+                                                  `Total: $${((activeDate.pricingOverrides?.servicePrices?.[service.id] ?? parseFloat(service.price)) * (activeDate.guestCount || 1)).toFixed(2)} (${activeDate.guestCount || 1} guests)`
+                                                }
+                                                {service.pricingModel === 'per_hour' && 
+                                                  `Total: $${((activeDate.pricingOverrides?.servicePrices?.[service.id] ?? parseFloat(service.price)) * calculateEventDuration(activeDate.startTime, activeDate.endTime)).toFixed(2)} (${calculateEventDuration(activeDate.startTime, activeDate.endTime).toFixed(1)} hours)`
+                                                }
+                                                {service.pricingModel === 'fixed' && 
+                                                  `Total: $${((activeDate.pricingOverrides?.servicePrices?.[service.id] ?? parseFloat(service.price)) * (activeDate.itemQuantities?.[service.id] || 1)).toFixed(2)} ${(activeDate.itemQuantities?.[service.id] || 1) > 1 ? `(qty: ${activeDate.itemQuantities?.[service.id] || 1})` : ''}`
+                                                }
                                               </div>
                                             </div>
                                           )}
