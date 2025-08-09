@@ -130,19 +130,28 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
   const calculateDateTotal = (dateConfig: SelectedDate) => {
     let dateTotal = 0;
     
+    // Get selected package info
+    const selectedPackage = dateConfig.packageId 
+      ? (packages as any[]).find((p: any) => p.id === dateConfig.packageId)
+      : null;
+    
     // Package price
-    if (dateConfig.packageId) {
-      const pkg = (packages as any[]).find((p: any) => p.id === dateConfig.packageId);
-      if (pkg) {
-        const packagePrice = dateConfig.pricingOverrides?.packagePrice ?? parseFloat(pkg.price || 0);
-        dateTotal += pkg.pricingModel === 'per_person' 
-          ? packagePrice * (dateConfig.guestCount || 1)
-          : packagePrice;
-      }
+    if (selectedPackage) {
+      const packagePrice = dateConfig.pricingOverrides?.packagePrice ?? parseFloat(selectedPackage.price || 0);
+      dateTotal += selectedPackage.pricingModel === 'per_person' 
+        ? packagePrice * (dateConfig.guestCount || 1)
+        : packagePrice;
     }
     
-    // Services price
+    // Additional services price (only services NOT included in the package)
+    const includedServiceIds = selectedPackage?.includedServiceIds || [];
+    
     dateConfig.selectedServices?.forEach(serviceId => {
+      // Skip if this service is included in the selected package
+      if (includedServiceIds.includes(serviceId)) {
+        return; // No charge for included services
+      }
+      
       const service = (services as any[]).find((s: any) => s.id === serviceId);
       if (service) {
         const servicePrice = dateConfig.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
@@ -522,31 +531,8 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
       };
 
       const bookingsData = selectedDates.map((date, index) => {
-        // Calculate individual date price
-        let datePrice = 0;
-        if (date.packageId) {
-          const pkg = (packages as any[]).find((p: any) => p.id === date.packageId);
-          if (pkg) {
-            const packagePrice = date.pricingOverrides?.packagePrice ?? parseFloat(pkg.price || 0);
-            datePrice += pkg.pricingModel === 'per_person' 
-              ? packagePrice * (date.guestCount || 1)
-              : packagePrice;
-          }
-        }
-        
-        // Add services price
-        date.selectedServices?.forEach(serviceId => {
-          const service = (services as any[]).find((s: any) => s.id === serviceId);
-          if (service) {
-            const servicePrice = date.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
-            if (service.pricingModel === 'per_person') {
-              datePrice += servicePrice * (date.guestCount || 1);
-            } else {
-              const quantity = date.itemQuantities?.[serviceId] || 1;
-              datePrice += servicePrice * quantity;
-            }
-          }
-        });
+        // Calculate individual date price using the same logic as calculateDateTotal
+        const datePrice = calculateDateTotal(date);
 
         return {
           eventName: `${eventName} - Day ${index + 1}`,
@@ -1216,6 +1202,12 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                     const service = (services as any[]).find((s: any) => s.id === serviceId);
                                     if (!service) return null;
                                     
+                                    // Check if service is included in the selected package
+                                    const selectedPackage = activeDate.packageId 
+                                      ? (packages as any[]).find((p: any) => p.id === activeDate.packageId)
+                                      : null;
+                                    const isIncludedInPackage = selectedPackage?.includedServiceIds?.includes(serviceId) || false;
+                                    
                                     const basePrice = parseFloat(service.price || 0);
                                     const overridePrice = activeDate.pricingOverrides?.servicePrices?.[serviceId];
                                     const price = overridePrice ?? basePrice;
@@ -1226,8 +1218,17 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                     
                                     return (
                                       <div key={serviceId} className="flex justify-between">
-                                        <span>{service.name}</span>
-                                        <span>${total.toFixed(2)}</span>
+                                        <span className="flex items-center gap-2">
+                                          {service.name}
+                                          {isIncludedInPackage && (
+                                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                                              Included
+                                            </span>
+                                          )}
+                                        </span>
+                                        <span>
+                                          {isIncludedInPackage ? "Included" : `$${total.toFixed(2)}`}
+                                        </span>
                                       </div>
                                     );
                                   })}
