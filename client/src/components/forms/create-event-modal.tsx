@@ -879,93 +879,95 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                 </Select>
                               </div>
                               
-                              <div className="space-y-2">
-                                <Label className="text-sm flex items-center gap-1">
-                                  Event Time
-                                  <span className="text-red-500 text-xs">*</span>
-                                </Label>
-                                <div className="flex items-center gap-2">
-                                  <Select
-                                    value={dateInfo.startTime}
-                                    onValueChange={(value) => updateDateTime(index, 'startTime', value)}
-                                  >
-                                    <SelectTrigger className={cn("w-32", !dateInfo.startTime && "border-red-200 bg-red-50/30")}>
-                                      <SelectValue placeholder="Start" />
-                                    </SelectTrigger>
-                                  <SelectContent>
-                                    {Array.from({length: 24}, (_, i) => {
-                                      const hour = i === 0 ? 12 : i <= 12 ? i : i - 12;
-                                      const ampm = i < 12 ? 'AM' : 'PM';
-                                      const time = `${hour.toString().padStart(2, '0')}:00 ${ampm}`;
-                                      return (
-                                        <SelectItem key={time} value={time}>{time}</SelectItem>
-                                      );
-                                    })}
-                                  </SelectContent>
-                                </Select>
-                                
-                                <span className="text-slate-500">to</span>
-                                
-                                <Select
-                                  value={dateInfo.endTime}
-                                  onValueChange={(value) => updateDateTime(index, 'endTime', value)}
-                                >
-                                  <SelectTrigger className={cn("w-32", !dateInfo.endTime && "border-red-200 bg-red-50/30")}>
-                                    <SelectValue placeholder="End" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {Array.from({length: 24}, (_, i) => {
-                                      const hour = i === 0 ? 12 : i <= 12 ? i : i - 12;
-                                      const ampm = i < 12 ? 'AM' : 'PM';
-                                      const time = `${hour.toString().padStart(2, '0')}:00 ${ampm}`;
-                                      return (
-                                        <SelectItem key={time} value={time}>{time}</SelectItem>
-                                      );
-                                    })}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              </div>
-                              
-                              <div>
-                                <Label className="text-sm flex items-center gap-1">
-                                  Guest Count
-                                  <span className="text-red-500 text-xs">*</span>
-                                </Label>
-                                <div className="mt-1 flex items-center bg-slate-50 border border-slate-200 rounded-lg p-1 w-fit">
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => updateDateTime(index, 'guestCount', Math.max(1, (dateInfo.guestCount || 1) - 1))}
-                                    className="h-6 w-6 p-0 hover:bg-slate-200 rounded"
-                                  >
-                                    <Minus className="h-3 w-3" />
-                                  </Button>
-                                  <div className="px-3 py-1 bg-white border border-slate-200 rounded mx-1 min-w-[3rem] text-center">
-                                    <Input
-                                      type="number"
-                                      min="1"
-                                      max="999"
-                                      value={dateInfo.guestCount || 1}
-                                      onChange={(e) => {
-                                        const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
-                                        updateDateTime(index, 'guestCount', value);
-                                      }}
-                                      className="border-0 p-0 text-center text-sm font-semibold bg-transparent focus:ring-0 focus:outline-none w-full"
-                                    />
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label className="text-sm flex items-center gap-1">
+                                    Event Time
+                                    <span className="text-red-500 text-xs">*</span>
+                                  </Label>
+                                  <div className="flex items-center gap-2">
+                                    <Select
+                                      value={dateInfo.startTime}
+                                      onValueChange={(value) => updateDateTime(index, 'startTime', value)}
+                                    >
+                                      <SelectTrigger className={cn("w-28", !dateInfo.startTime && "border-red-200 bg-red-50/30")}>
+                                        <SelectValue placeholder="Start" />
+                                      </SelectTrigger>
+                                    <SelectContent>
+                                      {Array.from({length: 24}, (_, i) => {
+                                        const hour = i === 0 ? 12 : i <= 12 ? i : i - 12;
+                                        const ampm = i < 12 ? 'AM' : 'PM';
+                                        const time = `${hour.toString().padStart(2, '0')}:00 ${ampm}`;
+                                        return (
+                                          <SelectItem key={time} value={time}>{time}</SelectItem>
+                                        );
+                                      })}
+                                    </SelectContent>
+                                    </Select>
+                                    
+                                    <span className="text-slate-500 text-xs">to</span>
+                                    
+                                    <Select
+                                      value={dateInfo.endTime}
+                                      onValueChange={(value) => updateDateTime(index, 'endTime', value)}
+                                    >
+                                      <SelectTrigger className={cn("w-28", !dateInfo.endTime && "border-red-200 bg-red-50/30")}>
+                                        <SelectValue placeholder="End" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {Array.from({length: 24}, (_, i) => {
+                                          const hour = i === 0 ? 12 : i <= 12 ? i : i - 12;
+                                          const ampm = i < 12 ? 'AM' : 'PM';
+                                          const time = `${hour.toString().padStart(2, '0')}:00 ${ampm}`;
+                                          return (
+                                            <SelectItem key={time} value={time}>{time}</SelectItem>
+                                          );
+                                        })}
+                                      </SelectContent>
+                                    </Select>
                                   </div>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => updateDateTime(index, 'guestCount', Math.min(999, (dateInfo.guestCount || 1) + 1))}
-                                    className="h-6 w-6 p-0 hover:bg-slate-200 rounded"
-                                  >
-                                    <Plus className="h-3 w-3" />
-                                  </Button>
                                 </div>
-                            </div>
+                                
+                                <div className="space-y-2">
+                                  <Label className="text-sm flex items-center gap-1">
+                                    Guest Count
+                                    <span className="text-red-500 text-xs">*</span>
+                                  </Label>
+                                  <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg p-1 w-fit">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => updateDateTime(index, 'guestCount', Math.max(1, (dateInfo.guestCount || 1) - 1))}
+                                      className="h-6 w-6 p-0 hover:bg-slate-200 rounded"
+                                    >
+                                      <Minus className="h-3 w-3" />
+                                    </Button>
+                                    <div className="px-3 py-1 bg-white border border-slate-200 rounded mx-1 min-w-[3rem] text-center">
+                                      <Input
+                                        type="number"
+                                        min="1"
+                                        max="999"
+                                        value={dateInfo.guestCount || 1}
+                                        onChange={(e) => {
+                                          const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
+                                          updateDateTime(index, 'guestCount', value);
+                                        }}
+                                        className="border-0 p-0 text-center text-sm font-semibold bg-transparent focus:ring-0 focus:outline-none w-full"
+                                      />
+                                    </div>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => updateDateTime(index, 'guestCount', Math.min(999, (dateInfo.guestCount || 1) + 1))}
+                                      className="h-6 w-6 p-0 hover:bg-slate-200 rounded"
+                                    >
+                                      <Plus className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </Card>
                         ))}
