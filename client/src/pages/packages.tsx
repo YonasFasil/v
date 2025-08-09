@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useQuery } from "@tanstack/react-query";
-import { Package, Plus, Edit, Trash2, DollarSign, Check, Copy, Upload } from "lucide-react";
+import { Package, Plus, Edit, Trash2, DollarSign, Check, Copy, Upload, Grid, List } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
@@ -29,6 +29,7 @@ export default function Packages() {
   const [duplicatingService, setDuplicatingService] = useState<any>(null);
   const [showImportPackages, setShowImportPackages] = useState(false);
   const [showImportServices, setShowImportServices] = useState(false);
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [categories, setCategories] = useState([
     { id: "catering", name: "Catering", color: "bg-orange-100 text-orange-800" },
     { id: "entertainment", name: "Entertainment", color: "bg-purple-100 text-purple-800" },
@@ -514,14 +515,130 @@ export default function Packages() {
         <main className="flex-1 overflow-y-auto p-6 space-y-8">
           {/* Event Packages Section */}
           <div>
-            <div className="flex items-center gap-2 mb-6">
-              <Package className="w-5 h-5 text-blue-600" />
-              <h2 className="text-xl font-semibold">Event Packages</h2>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Package className="w-5 h-5 text-blue-600" />
+                <h2 className="text-xl font-semibold">Event Packages</h2>
+              </div>
+              <div className="flex items-center gap-1 border rounded-lg p-1">
+                <Button
+                  variant={viewMode === 'table' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('table')}
+                  className="px-3 py-1"
+                >
+                  <List className="w-4 h-4 mr-1" />
+                  Table
+                </Button>
+                <Button
+                  variant={viewMode === 'cards' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('cards')}
+                  className="px-3 py-1"
+                >
+                  <Grid className="w-4 h-4 mr-1" />
+                  Cards
+                </Button>
+              </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Array.isArray(packages) && packages.map((pkg: any) => (
-                <Card key={pkg.id} className="hover:shadow-lg transition-shadow group">
+            {viewMode === 'table' ? (
+              // Table View
+              <div className="bg-white rounded-lg border">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-4 font-medium text-gray-600">Package Name</th>
+                        <th className="text-left p-4 font-medium text-gray-600">Category</th>
+                        <th className="text-left p-4 font-medium text-gray-600">Price</th>
+                        <th className="text-left p-4 font-medium text-gray-600">Pricing Model</th>
+                        <th className="text-left p-4 font-medium text-gray-600">Included Services</th>
+                        <th className="text-left p-4 font-medium text-gray-600">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.isArray(packages) && packages.map((pkg: any) => (
+                        <tr key={pkg.id} className="border-b hover:bg-gray-50">
+                          <td className="p-4">
+                            <div>
+                              <div className="font-medium text-gray-900">{pkg.name}</div>
+                              <div className="text-sm text-gray-500 line-clamp-2">
+                                {pkg.description || "No description available"}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <Badge className={getCategoryColor(pkg.category)}>
+                              {pkg.category}
+                            </Badge>
+                          </td>
+                          <td className="p-4">
+                            <div className="font-semibold text-green-600">
+                              ${pkg.price?.toLocaleString() || 0}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <Badge variant={pkg.pricingModel === 'fixed' ? 'default' : 'secondary'}>
+                              {pkg.pricingModel === 'fixed' ? 'Fixed Price' : 'Per Person'}
+                            </Badge>
+                          </td>
+                          <td className="p-4">
+                            <div className="text-sm text-gray-600">
+                              {pkg.includedServiceIds && pkg.includedServiceIds.length > 0 ? (
+                                <div>
+                                  {pkg.includedServiceIds.length} service{pkg.includedServiceIds.length > 1 ? 's' : ''}
+                                  <div className="text-xs text-gray-400">
+                                    {Array.isArray(services) && services
+                                      .filter((s: any) => pkg.includedServiceIds?.includes(s.id))
+                                      .slice(0, 2)
+                                      .map((s: any) => s.name)
+                                      .join(', ')}
+                                    {pkg.includedServiceIds.length > 2 && '...'}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400">No services</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEditingPackage(pkg)}
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeletePackage(pkg.id)}
+                                className="text-red-600 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {(!packages || packages.length === 0) && (
+                        <tr>
+                          <td colSpan={6} className="p-8 text-center text-gray-500">
+                            No packages available. Create your first package to get started.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              // Cards View
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array.isArray(packages) && packages.map((pkg: any) => (
+                  <Card key={pkg.id} className="hover:shadow-lg transition-shadow group">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">{pkg.name}</CardTitle>
@@ -588,8 +705,9 @@ export default function Packages() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <Separator />
@@ -630,13 +748,119 @@ export default function Packages() {
 
           {/* Services Section */}
           <div>
-            <div className="flex items-center gap-2 mb-6">
-              <DollarSign className="w-5 h-5 text-green-600" />
-              <h2 className="text-xl font-semibold">Services</h2>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-green-600" />
+                <h2 className="text-xl font-semibold">Services</h2>
+              </div>
+              <div className="flex items-center gap-1 border rounded-lg p-1">
+                <Button
+                  variant={viewMode === 'table' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('table')}
+                  className="px-3 py-1"
+                >
+                  <List className="w-4 h-4 mr-1" />
+                  Table
+                </Button>
+                <Button
+                  variant={viewMode === 'cards' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('cards')}
+                  className="px-3 py-1"
+                >
+                  <Grid className="w-4 h-4 mr-1" />
+                  Cards
+                </Button>
+              </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {Array.isArray(services) && services.map((service: any) => (
+            {viewMode === 'table' ? (
+              // Table View
+              <div className="bg-white rounded-lg border">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-4 font-medium text-gray-600">Service Name</th>
+                        <th className="text-left p-4 font-medium text-gray-600">Category</th>
+                        <th className="text-left p-4 font-medium text-gray-600">Price</th>
+                        <th className="text-left p-4 font-medium text-gray-600">Pricing Model</th>
+                        <th className="text-left p-4 font-medium text-gray-600">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.isArray(services) && services.map((service: any) => (
+                        <tr key={service.id} className="border-b hover:bg-gray-50">
+                          <td className="p-4">
+                            <div>
+                              <div className="font-medium text-gray-900">{service.name}</div>
+                              <div className="text-sm text-gray-500 line-clamp-2">
+                                {service.description || "No description available"}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <Badge variant="outline" className={`text-xs ${getCategoryColor(service.category)}`}>
+                              {service.category}
+                            </Badge>
+                          </td>
+                          <td className="p-4">
+                            <div className="font-semibold text-green-600">
+                              ${service.price}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <Badge variant={service.pricingModel === 'fixed' ? 'default' : 'secondary'}>
+                              {service.pricingModel === 'fixed' ? 'Fixed Price' : 
+                               service.pricingModel === 'per_person' ? 'Per Person' : 
+                               service.pricingModel === 'per_hour' ? 'Per Hour' : 'Fixed Price'}
+                            </Badge>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEditingService(service)}
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setDuplicatingService(service)}
+                                className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteService(service.id)}
+                                className="text-red-600 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {(!services || services.length === 0) && (
+                        <tr>
+                          <td colSpan={5} className="p-8 text-center text-gray-500">
+                            No services available. Create your first service to get started.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              // Cards View
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {Array.isArray(services) && services.map((service: any) => (
                 <Card key={service.id} className="hover:shadow-md transition-shadow group">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
@@ -689,8 +913,9 @@ export default function Packages() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
           
           <EditPackageModal 
