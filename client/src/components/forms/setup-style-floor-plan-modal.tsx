@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { RotateCcw, Square, Circle, Save, Plus, Trash2, Move, RotateCw, Layout, Box, Eye } from "lucide-react";
+import { RotateCcw, Square, Circle, Save, Plus, Trash2, Move, RotateCw, Layout, Box, Eye, ZoomIn, ZoomOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface FloorPlanElement {
@@ -34,6 +34,7 @@ interface SetupStyleFloorPlanModalProps {
 const ELEMENT_TYPES = [
   { type: 'table', label: 'Round Table', shape: 'circle', defaultSize: { width: 60, height: 60 }, color: '#8B4513', icon: Circle },
   { type: 'table', label: 'Rectangle Table', shape: 'rectangle', defaultSize: { width: 80, height: 40 }, color: '#8B4513', icon: Square },
+  { type: 'chair', label: 'Chair', shape: 'rectangle', defaultSize: { width: 20, height: 20 }, color: '#654321', icon: Square },
   { type: 'stage', label: 'Stage', shape: 'rectangle', defaultSize: { width: 120, height: 80 }, color: '#4A5568', icon: Square },
   { type: 'bar', label: 'Bar', shape: 'rectangle', defaultSize: { width: 100, height: 30 }, color: '#2D3748', icon: Square },
   { type: 'door', label: 'Door', shape: 'rectangle', defaultSize: { width: 40, height: 10 }, color: '#F7FAFC', icon: Square },
@@ -51,6 +52,7 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [canvasSize] = useState({ width: 600, height: 400 });
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
+  const [zoom, setZoom] = useState(100);
 
   const addElement = useCallback((x: number, y: number) => {
     if (mode !== 'add') return;
@@ -191,8 +193,168 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
   };
 
   const get3DCanvasTransform = () => {
-    if (viewMode === '2d') return '';
-    return 'perspective(800px) rotateX(45deg)';
+    const scaleValue = zoom / 100;
+    const baseTransform = `scale(${scaleValue})`;
+    if (viewMode === '2d') return baseTransform;
+    return `${baseTransform} perspective(800px) rotateX(45deg)`;
+  };
+
+  const handleZoomIn = () => {
+    setZoom(prev => Math.min(prev + 25, 200));
+  };
+
+  const handleZoomOut = () => {
+    setZoom(prev => Math.max(prev - 25, 50));
+  };
+
+  // Render realistic object shapes
+  const renderObjectShape = (element: FloorPlanElement) => {
+    const baseStyle = {
+      width: '100%',
+      height: '100%',
+      position: 'absolute' as const,
+      top: 0,
+      left: 0,
+    };
+
+    switch (element.type) {
+      case 'chair':
+        return (
+          <div style={baseStyle}>
+            {/* Chair back */}
+            <div 
+              className="absolute bg-amber-800 border border-amber-900"
+              style={{
+                width: '100%',
+                height: '30%',
+                top: 0,
+                left: 0,
+                borderRadius: '2px 2px 0 0'
+              }}
+            />
+            {/* Chair seat */}
+            <div 
+              className="absolute bg-amber-700 border border-amber-900"
+              style={{
+                width: '100%',
+                height: '70%',
+                bottom: 0,
+                left: 0,
+                borderRadius: '0 0 2px 2px'
+              }}
+            />
+          </div>
+        );
+
+      case 'table':
+        if (element.shape === 'circle') {
+          return (
+            <div style={baseStyle}>
+              {/* Table surface */}
+              <div 
+                className="absolute bg-amber-800 border-2 border-amber-900 rounded-full"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  background: 'radial-gradient(circle at 30% 30%, #a16207, #92400e)'
+                }}
+              />
+              {/* Table legs indication */}
+              <div 
+                className="absolute w-2 h-2 bg-amber-900 rounded-full"
+                style={{ top: '20%', left: '20%' }}
+              />
+              <div 
+                className="absolute w-2 h-2 bg-amber-900 rounded-full"
+                style={{ top: '20%', right: '20%' }}
+              />
+              <div 
+                className="absolute w-2 h-2 bg-amber-900 rounded-full"
+                style={{ bottom: '20%', left: '20%' }}
+              />
+              <div 
+                className="absolute w-2 h-2 bg-amber-900 rounded-full"
+                style={{ bottom: '20%', right: '20%' }}
+              />
+            </div>
+          );
+        } else {
+          return (
+            <div style={baseStyle}>
+              {/* Table surface */}
+              <div 
+                className="absolute bg-amber-800 border-2 border-amber-900 rounded"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  background: 'linear-gradient(135deg, #a16207, #92400e)'
+                }}
+              />
+              {/* Table legs */}
+              <div 
+                className="absolute w-1 h-full bg-amber-900"
+                style={{ left: '10%' }}
+              />
+              <div 
+                className="absolute w-1 h-full bg-amber-900"
+                style={{ right: '10%' }}
+              />
+            </div>
+          );
+        }
+
+      case 'stage':
+        return (
+          <div style={baseStyle}>
+            {/* Stage platform */}
+            <div 
+              className="absolute bg-slate-700 border-2 border-slate-800 rounded"
+              style={{
+                width: '100%',
+                height: '100%',
+                background: 'linear-gradient(135deg, #475569, #334155)',
+                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)'
+              }}
+            />
+            {/* Stage front edge */}
+            <div 
+              className="absolute bg-slate-800 h-1"
+              style={{
+                width: '100%',
+                bottom: 0,
+                left: 0
+              }}
+            />
+          </div>
+        );
+
+      case 'bar':
+        return (
+          <div style={baseStyle}>
+            {/* Bar counter */}
+            <div 
+              className="absolute bg-slate-800 border-2 border-slate-900 rounded"
+              style={{
+                width: '100%',
+                height: '100%',
+                background: 'linear-gradient(135deg, #1e293b, #0f172a)'
+              }}
+            />
+            {/* Bar stools indication */}
+            <div 
+              className="absolute w-3 h-3 bg-amber-700 rounded-full border border-amber-800"
+              style={{ top: '-6px', left: '20%' }}
+            />
+            <div 
+              className="absolute w-3 h-3 bg-amber-700 rounded-full border border-amber-800"
+              style={{ top: '-6px', right: '20%' }}
+            />
+          </div>
+        );
+
+      default:
+        return null;
+    }
   };
 
   return (
@@ -254,6 +416,31 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
                   >
                     <Box className="w-4 h-4 mr-1" />
                     3D
+                  </Button>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-4">
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Zoom ({zoom}%)</Label>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleZoomOut}
+                    disabled={zoom <= 50}
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </Button>
+                  <div className="flex-1 text-center text-xs">{zoom}%</div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleZoomIn}
+                    disabled={zoom >= 200}
+                  >
+                    <ZoomIn className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
@@ -423,7 +610,11 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
                       onClick={(e) => handleElementClick(e, element.id)}
                       onMouseDown={(e) => handleElementMouseDown(e, element.id)}
                     >
-                      <span className="text-center text-xs leading-tight pointer-events-none">
+                      {/* Render realistic object shapes */}
+                      {renderObjectShape(element)}
+                      
+                      {/* Label overlay */}
+                      <span className="absolute inset-0 flex items-center justify-center text-center text-xs leading-tight pointer-events-none text-white font-semibold z-10" style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.8)' }}>
                         {element.label}
                         {element.seats && <br />}
                         {element.seats && `${element.seats} seats`}
@@ -432,7 +623,7 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
                       {/* 3D Height indicator */}
                       {viewMode === '3d' && (element.type === 'table' || element.type === 'bar') && (
                         <div 
-                          className="absolute inset-0 border-2 border-gray-600 opacity-50"
+                          className="absolute inset-0 border-2 border-gray-600 opacity-30"
                           style={{
                             borderRadius: element.shape === 'circle' ? '50%' : '4px',
                             transform: 'translateZ(20px) translateY(-2px)',
