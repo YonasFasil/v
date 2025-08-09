@@ -56,6 +56,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
   
   // New service creation
   const [showNewServiceForm, setShowNewServiceForm] = useState(false);
+  const [showPackageSelection, setShowPackageSelection] = useState(false);
   const [newService, setNewService] = useState({
     name: "",
     description: "",
@@ -969,8 +970,21 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
 
                               {/* Package Selection */}
                               <div>
-                                <Label className="text-base font-medium">Event Package</Label>
-                                <div className="mt-3 max-h-60 overflow-y-auto">
+                                <div className="flex items-center justify-between mb-3">
+                                  <Label className="text-base font-medium">Event Package</Label>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowPackageSelection(!showPackageSelection)}
+                                    className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                                  >
+                                    {showPackageSelection ? "Hide Packages" : "Show Packages"}
+                                  </Button>
+                                </div>
+                                
+                                {showPackageSelection && (
+                                  <div className="mt-3 max-h-60 overflow-y-auto">
                                   <div className="grid grid-cols-1 gap-3">
                                     <div
                                       className={cn(
@@ -1025,14 +1039,38 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                             {pkg.includedServiceIds && pkg.includedServiceIds.length > 0 && (
                                               <div className="mt-2">
                                                 <div className="text-xs text-slate-500 mb-1">Includes:</div>
-                                                <div className="flex flex-wrap gap-1">
+                                                <div className="space-y-1">
                                                   {pkg.includedServiceIds.slice(0, 3).map((serviceId: string) => {
                                                     const service = (services as any[]).find((s: any) => s.id === serviceId);
-                                                    return service ? (
-                                                      <span key={serviceId} className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
-                                                        {service.name}
-                                                      </span>
-                                                    ) : null;
+                                                    if (!service) return null;
+                                                    
+                                                    return (
+                                                      <div key={serviceId} className="flex items-center justify-between">
+                                                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                                                          {service.name}
+                                                        </span>
+                                                        {isSelected && service.pricingModel !== 'per_person' && (
+                                                          <div className="flex items-center gap-1">
+                                                            <span className="text-xs">Qty:</span>
+                                                            <Input
+                                                              type="number"
+                                                              min="1"
+                                                              value={activeDate.itemQuantities?.[serviceId] || 1}
+                                                              onChange={(e) => {
+                                                                e.stopPropagation();
+                                                                const newQuantities = {
+                                                                  ...activeDate.itemQuantities,
+                                                                  [serviceId]: Math.max(1, parseInt(e.target.value, 10) || 1)
+                                                                };
+                                                                updateDateConfig('itemQuantities', newQuantities);
+                                                              }}
+                                                              onClick={(e) => e.stopPropagation()}
+                                                              className="w-12 h-5 text-xs"
+                                                            />
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                    );
                                                   })}
                                                   {pkg.includedServiceIds.length > 3 && (
                                                     <span className="text-xs text-slate-500">+{pkg.includedServiceIds.length - 3} more</span>
@@ -1082,6 +1120,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                     })}
                                   </div>
                                 </div>
+                                )}
                               </div>
 
                               {/* Services Selection */}
