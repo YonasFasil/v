@@ -146,19 +146,7 @@ export default function Settings() {
     testMode: false
   });
 
-  // Deposit Settings State
-  const [depositSettings, setDepositSettings] = useState({
-    defaultDepositType: "percentage", // percentage or fixed
-    defaultDepositValue: "25", // 25% or $amount
-    allowCustomDeposit: true,
-    minimumDepositPercentage: "10",
-    maximumDepositPercentage: "50",
-    minimumDepositAmount: "100",
-    autoCalculateDeposit: true,
-    requireDepositForBooking: true,
-    depositDueDays: "7", // days before event
-    reminderDays: "3" // days before due date to send reminder
-  });
+
 
   const saveSettings = (section: string) => {
     toast({
@@ -1205,7 +1193,7 @@ export default function Settings() {
                     </div>
                   </div>
 
-                  <Button onClick={() => handleSaveSettings('taxes')} className="bg-blue-600 hover:bg-blue-700">
+                  <Button onClick={() => saveSettings('taxes')} className="bg-blue-600 hover:bg-blue-700">
                     <Save className="w-4 h-4 mr-2" />
                     Save Tax Settings
                   </Button>
