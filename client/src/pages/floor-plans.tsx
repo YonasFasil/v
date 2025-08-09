@@ -23,8 +23,8 @@ const SETUP_STYLES = [
 
 export default function FloorPlans() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedVenue, setSelectedVenue] = useState("");
-  const [selectedSetupStyle, setSelectedSetupStyle] = useState("");
+  const [selectedVenue, setSelectedVenue] = useState("all");
+  const [selectedSetupStyle, setSelectedSetupStyle] = useState("all");
   const [showDesigner, setShowDesigner] = useState(false);
   const [selectedSpace, setSelectedSpace] = useState<any>(null);
 
@@ -46,8 +46,8 @@ export default function FloorPlans() {
   const filteredSpaces = allSpaces.filter((space: any) => {
     const matchesSearch = space.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          space.venueName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesVenue = !selectedVenue || space.venueId === selectedVenue;
-    const matchesSetup = !selectedSetupStyle || 
+    const matchesVenue = !selectedVenue || selectedVenue === "all" || space.venueId === selectedVenue;
+    const matchesSetup = !selectedSetupStyle || selectedSetupStyle === "all" || 
                         (space.availableSetupStyles && space.availableSetupStyles.includes(selectedSetupStyle));
     
     return matchesSearch && matchesVenue && matchesSetup;
@@ -101,7 +101,7 @@ export default function FloorPlans() {
                   <SelectValue placeholder="All venues" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All venues</SelectItem>
+                  <SelectItem value="all">All venues</SelectItem>
                   {(venues as any[]).map((venue: any) => (
                     <SelectItem key={venue.id} value={venue.id}>
                       {venue.name}
@@ -115,7 +115,7 @@ export default function FloorPlans() {
                   <SelectValue placeholder="All setup styles" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All setup styles</SelectItem>
+                  <SelectItem value="all">All setup styles</SelectItem>
                   {SETUP_STYLES.map((style) => (
                     <SelectItem key={style.value} value={style.value}>
                       {style.label}
