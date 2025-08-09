@@ -704,19 +704,19 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                 <div className="flex items-center gap-3">
                   <CalendarIcon className="h-5 w-5 text-blue-600" />
                   <h2 className="text-lg sm:text-xl font-semibold">Create Event</h2>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowVoicePanel(true)}
+                    className="text-purple-600 border-purple-200 hover:bg-purple-50"
+                  >
+                    <Mic className="h-4 w-4 mr-2" />
+                    Voice Booking
+                  </Button>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowVoicePanel(true)}
-                  className="text-purple-600 border-purple-200 hover:bg-purple-50"
-                >
-                  <Mic className="h-4 w-4 mr-2" />
-                  Voice Booking
-                </Button>
-
+                {/* Close button space */}
               </div>
             </div>
 
