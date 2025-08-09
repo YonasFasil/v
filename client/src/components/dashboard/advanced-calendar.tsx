@@ -159,59 +159,148 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
       </div>
 
       {viewMode === 'events' ? (
-        <div className="space-y-4">
-          {/* Day Headers */}
-          <div className="grid grid-cols-7 gap-px">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-              <div key={day} className="text-center py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                {day}
-              </div>
-            ))}
-          </div>
-
-          {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-px bg-slate-200 rounded-lg overflow-hidden">
-            {paddedDays.map((day, index) => {
-              const dayEvents = getEventsForDay(day);
+        <div>
+          {/* Mobile Calendar View */}
+          <div className="md:hidden space-y-3">
+            {paddedDays.filter(day => {
               const isCurrentMonth = isSameMonth(day, currentDate);
+              const dayEvents = getEventsForDay(day);
+              return isCurrentMonth && dayEvents.length > 0;
+            }).map((day, index) => {
+              const dayEvents = getEventsForDay(day);
               const isToday = isSameDay(day, new Date());
               
               return (
-                <div 
-                  key={index} 
-                  className={`min-h-[120px] bg-white p-3 ${
-                    !isCurrentMonth ? 'bg-slate-50' : ''
-                  }`}
-                >
-                  <div className={`text-sm font-medium mb-2 ${
-                    isToday 
-                      ? 'w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs' 
-                      : isCurrentMonth 
-                        ? 'text-slate-900' 
-                        : 'text-slate-400'
-                  }`}>
-                    {format(day, 'd')}
+                <div key={index} className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className={`text-lg font-semibold ${isToday ? 'text-blue-600' : 'text-slate-900'}`}>
+                      {format(day, 'EEEE, MMM d')}
+                    </div>
+                    <Badge variant="secondary" className="text-xs">
+                      {dayEvents.length} event{dayEvents.length !== 1 ? 's' : ''}
+                    </Badge>
                   </div>
                   
-                  <div className="space-y-1">
-                    {dayEvents.slice(0, 3).map((event) => (
-                      <div
-                        key={event.id}
-                        onClick={() => onEventClick?.(event)}
-                        className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-700 cursor-pointer hover:bg-blue-100 transition-colors truncate"
-                      >
-                        {event.title}
-                      </div>
-                    ))}
-                    {dayEvents.length > 3 && (
-                      <div className="text-xs text-slate-500 px-2">
-                        +{dayEvents.length - 3} more
-                      </div>
-                    )}
+                  <div className="space-y-2">
+                    {dayEvents.map((event, eventIndex) => {
+                      const colors = [
+                        'bg-blue-50 text-blue-700 border-blue-200',
+                        'bg-green-50 text-green-700 border-green-200', 
+                        'bg-purple-50 text-purple-700 border-purple-200',
+                        'bg-orange-50 text-orange-700 border-orange-200'
+                      ];
+                      const colorClass = colors[eventIndex % colors.length];
+                      
+                      return (
+                        <div
+                          key={event.id}
+                          onClick={() => onEventClick?.(event)}
+                          className={`p-3 rounded-md cursor-pointer transition-all hover:shadow-sm border ${colorClass}`}
+                        >
+                          <div className="font-semibold text-sm mb-2">{event.title}</div>
+                          <div className="text-xs space-y-1">
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-3 h-3" />
+                              <span>{event.startTime} - {event.endTime}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Users className="w-3 h-3" />
+                              <span>{event.guestCount} guests</span>
+                              <MapPin className="w-3 h-3 ml-2" />
+                              <span>{event.spaceName}</span>
+                            </div>
+                            <div className="font-medium">{event.customerName}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );
             })}
+          </div>
+
+          {/* Desktop Calendar View */}
+          <div className="hidden md:block space-y-4">
+            {/* Day Headers */}
+            <div className="grid grid-cols-7 gap-1">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                <div key={day} className="text-center py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Calendar Grid - Enhanced with Better Event Cards */}
+            <div className="grid grid-cols-7 gap-1">
+              {paddedDays.map((day, index) => {
+                const dayEvents = getEventsForDay(day);
+                const isCurrentMonth = isSameMonth(day, currentDate);
+                const isToday = isSameDay(day, new Date());
+                
+                return (
+                  <div 
+                    key={index} 
+                    className={`min-h-[160px] border border-slate-200 rounded-lg p-3 ${
+                      isCurrentMonth 
+                        ? 'bg-white hover:bg-slate-50' 
+                        : 'bg-slate-50/30'
+                    } transition-colors`}
+                  >
+                    {/* Day Number */}
+                    <div className={`text-sm font-semibold mb-3 ${
+                      isToday 
+                        ? 'w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs' 
+                        : isCurrentMonth 
+                          ? 'text-slate-900' 
+                          : 'text-slate-400'
+                    }`}>
+                      {format(day, 'd')}
+                    </div>
+                    
+                    {/* Enhanced Event Cards */}
+                    <div className="space-y-2">
+                      {dayEvents.slice(0, 3).map((event, eventIndex) => {
+                        const colors = [
+                          'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100',
+                          'bg-green-50 text-green-700 border-green-200 hover:bg-green-100', 
+                          'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100',
+                          'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100'
+                        ];
+                        const colorClass = colors[eventIndex % colors.length];
+                        
+                        return (
+                          <div
+                            key={event.id}
+                            onClick={() => onEventClick?.(event)}
+                            className={`text-xs p-2.5 rounded-md cursor-pointer transition-all hover:shadow-md border ${colorClass}`}
+                            title={`${event.title} - ${event.customerName} - ${event.startTime}`}
+                          >
+                            <div className="font-semibold leading-tight mb-1.5 line-clamp-2 text-xs">
+                              {event.title}
+                            </div>
+                            <div className="text-[10px] opacity-80 flex items-center gap-1 mb-1">
+                              <Clock className="w-2.5 h-2.5 flex-shrink-0" />
+                              <span className="truncate">{event.startTime}</span>
+                            </div>
+                            <div className="text-[10px] opacity-80 flex items-center gap-1">
+                              <Users className="w-2.5 h-2.5 flex-shrink-0" />
+                              <span className="truncate">{event.guestCount} guests</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      
+                      {dayEvents.length > 3 && (
+                        <div className="text-xs text-slate-500 px-2 py-1.5 text-center bg-slate-50 rounded-md border border-slate-200">
+                          +{dayEvents.length - 3} more
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       ) : (
