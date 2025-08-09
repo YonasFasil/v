@@ -214,6 +214,21 @@ export default function Events() {
                                 ${parseFloat(booking.totalAmount).toLocaleString()}
                               </div>
                             )}
+                            {/* Show proposal status */}
+                            {(booking as any).proposalStatus && (booking as any).proposalStatus !== 'none' && (
+                              <div className="flex items-center text-sm">
+                                <FileText className="w-4 h-4 mr-2" />
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  (booking as any).proposalStatus === 'sent' ? 'bg-blue-100 text-blue-800' :
+                                  (booking as any).proposalStatus === 'viewed' ? 'bg-yellow-100 text-yellow-800' :
+                                  (booking as any).proposalStatus === 'accepted' ? 'bg-green-100 text-green-800' :
+                                  (booking as any).proposalStatus === 'declined' ? 'bg-red-100 text-red-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  Proposal {(booking as any).proposalStatus}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
@@ -291,9 +306,22 @@ export default function Events() {
                               }
                             </TableCell>
                             <TableCell>
-                              <Badge className={getStatusColor(booking.status)}>
-                                {booking.status}
-                              </Badge>
+                              <div className="flex flex-col gap-1">
+                                <Badge className={getStatusColor(booking.status)}>
+                                  {booking.status}
+                                </Badge>
+                                {(booking as any).proposalStatus && (booking as any).proposalStatus !== 'none' && (
+                                  <Badge variant="outline" className={`text-xs ${
+                                    (booking as any).proposalStatus === 'sent' ? 'border-blue-500 text-blue-600' :
+                                    (booking as any).proposalStatus === 'viewed' ? 'border-yellow-500 text-yellow-600' :
+                                    (booking as any).proposalStatus === 'accepted' ? 'border-green-500 text-green-600' :
+                                    (booking as any).proposalStatus === 'declined' ? 'border-red-500 text-red-600' :
+                                    'border-gray-500 text-gray-600'
+                                  }`}>
+                                    Proposal {(booking as any).proposalStatus}
+                                  </Badge>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell className="font-medium text-green-600">
                               {booking.totalAmount ? `$${parseFloat(booking.totalAmount).toLocaleString()}` : '-'}

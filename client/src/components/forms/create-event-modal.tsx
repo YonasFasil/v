@@ -303,10 +303,16 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
       const response = await apiRequest("POST", "/api/bookings", bookingData);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/metrics"] });
-      toast({ title: "Event created successfully!" });
+      
+      // Show different success message based on submission type
+      const isProposal = variables.proposalStatus === 'sent';
+      toast({ 
+        title: isProposal ? "Proposal sent successfully!" : "Event created successfully!",
+        description: isProposal ? "The customer will receive an email with the proposal details." : undefined
+      });
       onOpenChange(false);
       resetForm();
     },
@@ -439,7 +445,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
     });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async (submitType: 'inquiry' | 'proposal' = 'inquiry') => {
     if (!eventName || !selectedCustomer || selectedDates.length === 0) {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
       return;
@@ -466,7 +472,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
         startTime: convertTimeToHours(firstDate.startTime),
         endTime: convertTimeToHours(firstDate.endTime),
         guestCount: firstDate.guestCount || 1,
-        status: eventStatus,
+        status: submitType === 'proposal' ? 'pending' : eventStatus,
         customerId: selectedCustomer,
         venueId: selectedVenue,
         spaceId: firstDate.spaceId,
@@ -476,7 +482,9 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
         itemQuantities: firstDate.itemQuantities || {},
         pricingOverrides: firstDate.pricingOverrides || null,
         totalAmount: totalPrice.toString(),
-        notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${firstDate.selectedServices?.length || 0} selected`
+        notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${firstDate.selectedServices?.length || 0} selected`,
+        proposalStatus: submitType === 'proposal' ? 'sent' : 'none',
+        proposalSentAt: submitType === 'proposal' ? new Date() : null
       };
 
       createBooking.mutate(bookingData, {
@@ -505,7 +513,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
         customerId: selectedCustomer,
         contractName: eventName,
         description: `Multi-date event with ${selectedDates.length} dates`,
-        status: eventStatus
+        status: submitType === 'proposal' ? 'pending' : eventStatus
       };
 
       const bookingsData = selectedDates.map((date, index) => {
@@ -542,7 +550,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
           startTime: convertTimeToHours(date.startTime),
           endTime: convertTimeToHours(date.endTime),
           guestCount: date.guestCount || 1,
-          status: eventStatus,
+          status: submitType === 'proposal' ? 'pending' : eventStatus,
           customerId: selectedCustomer,
           venueId: selectedVenue,
           spaceId: date.spaceId,
@@ -1345,14 +1353,15 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                   <div className="flex gap-2">
                     <Button 
                       variant="outline"
-                      onClick={() => setShowCreateProposal(true)}
-                      disabled={!eventName || !selectedCustomer || selectedDates.length === 0}
+                      onClick={() => handleSubmit('proposal')}
+                      disabled={!eventName || !selectedCustomer || selectedDates.length === 0 || createBooking.isPending}
+                      className="border-blue-500 text-blue-600 hover:bg-blue-50"
                     >
                       <FileText className="h-4 w-4 mr-2" />
-                      Create Proposal
+                      {createBooking.isPending ? 'Sending...' : 'Send as Proposal'}
                     </Button>
                     <Button 
-                      onClick={handleSubmit}
+                      onClick={() => handleSubmit('inquiry')}
                       className="bg-blue-600 hover:bg-blue-700"
                       disabled={createBooking.isPending}
                     >

@@ -22,7 +22,6 @@ const navigationItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Events & Bookings", href: "/events", icon: Calendar },
   { name: "Customers & Leads", href: "/customers", icon: Users },
-  { name: "Proposals & Contracts", href: "/proposals", icon: FileText },
   { name: "Payments", href: "/payments", icon: CreditCard },
   { name: "Tasks & Team", href: "/tasks", icon: CheckSquare },
   { name: "Venues", href: "/venues", icon: MapPin },

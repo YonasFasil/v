@@ -73,6 +73,11 @@ export const bookings = pgTable("bookings", {
   endTime: text("end_time").notNull(),
   guestCount: integer("guest_count").notNull(),
   packageId: varchar("package_id").references(() => packages.id),
+  // Proposal integration
+  proposalStatus: text("proposal_status").default("none"), // none, sent, viewed, accepted, declined
+  proposalSentAt: timestamp("proposal_sent_at"),
+  proposalViewedAt: timestamp("proposal_viewed_at"),
+  proposalRespondedAt: timestamp("proposal_responded_at"),
   selectedServices: text("selected_services").array(),
   pricingModel: text("pricing_model").default("fixed"),
   itemQuantities: jsonb("item_quantities"),

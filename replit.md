@@ -7,6 +7,7 @@ This is a comprehensive event venue management system called "Venuine" built wit
 ## Recent Updates (August 2025)
 
 ### Latest Completed Features:
+- ✅ **Integrated Proposal System (August 2025)**: Completely restructured proposals to be part of the event creation process rather than separate entities. Events can now be sent directly as proposals with integrated status tracking (sent, viewed, accepted, declined) visible on both event cards and table views. Removed separate Proposals page and navigation as proposals are now seamlessly integrated into the event workflow.
 - ✅ **Mobile-Responsive Proposal System (August 2025)**: Completely redesigned proposal creation modal and pages for mobile devices with responsive layouts, touch-friendly controls, mobile card views, and optimized spacing for all screen sizes
 - ✅ **Adjustable Pricing in Proposals (August 2025)**: Added comprehensive custom pricing functionality allowing venue managers to modify package and service prices within individual proposals for custom quotes, discounts, and special offers with quick discount buttons and visual indicators
 - ✅ **Enhanced Calendar Design with Collapsible Sidebar (December 2025)**: Major calendar redesign with collapsible sidebar functionality, wider spacious layout, better event visibility showing up to 3 events per day with comprehensive details, responsive spacing, and calendar as the default primary view
