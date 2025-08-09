@@ -128,10 +128,7 @@ export default function Settings() {
   // Save settings mutation
   const saveSettingsMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest("/api/settings", {
-        method: "POST",
-        body: JSON.stringify(data)
-      });
+      return apiRequest("POST", "/api/settings", data);
     },
     onSuccess: () => {
       toast({
