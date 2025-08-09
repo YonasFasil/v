@@ -22,7 +22,7 @@ export default function Events() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [viewMode, setViewMode] = useState<"calendar" | "cards" | "table">("calendar");
+  const [viewMode, setViewMode] = useState<"calendar" | "cards" | "table">("cards");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
