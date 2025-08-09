@@ -56,14 +56,22 @@ const COLOR_CODES = {
 };
 
 export function FloorPlanDesigner({ floorPlan, onSave, onClose }: FloorPlanDesignerProps) {
-  const [elements, setElements] = useState<FloorPlanElement[]>(floorPlan.elements || []);
+  // Parse JSON strings from database
+  const parsedElements = typeof floorPlan.elements === 'string' 
+    ? (floorPlan.elements ? JSON.parse(floorPlan.elements) : [])
+    : (floorPlan.elements || []);
+  const parsedDimensions = typeof floorPlan.dimensions === 'string'
+    ? JSON.parse(floorPlan.dimensions)
+    : (floorPlan.dimensions || { width: 800, height: 600 });
+
+  const [elements, setElements] = useState<FloorPlanElement[]>(parsedElements);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [mode, setMode] = useState<'select' | 'add'>('select');
   const [selectedType, setSelectedType] = useState(ELEMENT_TYPES[0]);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [canvasSize] = useState(floorPlan.dimensions || { width: 800, height: 600 });
+  const [canvasSize] = useState(parsedDimensions);
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
   const [zoom, setZoom] = useState(100);
   const [showGrid, setShowGrid] = useState(true);

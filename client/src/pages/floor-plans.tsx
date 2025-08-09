@@ -159,6 +159,9 @@ export default function FloorPlans() {
         data: {
           ...selectedFloorPlan,
           ...floorPlanData,
+          elements: JSON.stringify(floorPlanData.elements || []),
+          dimensions: JSON.stringify(floorPlanData.dimensions || selectedFloorPlan.dimensions),
+          colorCoding: JSON.stringify(floorPlanData.colorCoding || {}),
           updatedAt: new Date().toISOString()
         }
       });
