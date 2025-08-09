@@ -122,152 +122,6 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
           </div>
         )}
 
-        {/* Customer Information - Full Width */}
-        {selectedCustomerData && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Customer
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <div className="font-medium">{selectedCustomerData.name}</div>
-                <div className="text-sm text-gray-600">{selectedCustomerData.email}</div>
-                {selectedCustomerData.phone && (
-                  <div className="text-sm text-gray-600">{selectedCustomerData.phone}</div>
-                )}
-              </div>
-              
-              <div className="flex gap-2 pt-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="gap-1"
-                  onClick={() => setShowCommunication(!showCommunication)}
-                >
-                  <MessageSquare className="h-3 w-3" />
-                  Contact
-                </Button>
-                {selectedCustomerData.phone && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="gap-1"
-                    onClick={() => window.open(`tel:${selectedCustomerData.phone}`)}
-                  >
-                    <Phone className="h-3 w-3" />
-                    Call
-                  </Button>
-                )}
-              </div>
-              
-              {/* Communication Panel */}
-              {showCommunication && (
-                <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                  <h4 className="font-medium mb-3">Send Message to {selectedCustomerData.name}</h4>
-                  <div className="space-y-3">
-                    <select 
-                      value={communicationType}
-                      onChange={(e) => setCommunicationType(e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                    >
-                      <option value="email">Email</option>
-                      <option value="sms">SMS</option>
-                      <option value="internal">Internal Note</option>
-                    </select>
-                    
-                    <textarea
-                      value={communicationMessage}
-                      onChange={(e) => setCommunicationMessage(e.target.value)}
-                      placeholder={`Write your ${communicationType} message here...`}
-                      className="w-full p-3 border border-gray-300 rounded-md text-sm min-h-[100px] resize-none"
-                    />
-                    
-                    <div className="flex gap-2">
-                      <Button 
-                        size="sm" 
-                        className="gap-1"
-                        onClick={async () => {
-                          try {
-                            // Save communication to database
-                            const response = await fetch('/api/communications', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({
-                                bookingId: booking.id,
-                                customerId: selectedCustomerData.id,
-                                type: communicationType,
-                                direction: 'outbound',
-                                message: communicationMessage,
-                                subject: communicationType === 'email' ? `Regarding your event: ${booking.eventName}` : null,
-                                sentBy: 'Venue Manager'
-                              })
-                            });
-                            
-                            if (response.ok) {
-                              console.log('Communication saved successfully');
-                              // Refresh the page to show the new communication
-                              window.location.reload();
-                            } else {
-                              console.error('Failed to save communication');
-                            }
-                          } catch (error) {
-                            console.error('Error saving communication:', error);
-                          }
-                          
-                          setCommunicationMessage("");
-                          setShowCommunication(false);
-                        }}
-                        disabled={!communicationMessage.trim()}
-                      >
-                        <Send className="h-3 w-3" />
-                        Send {communicationType === 'email' ? 'Email' : communicationType === 'sms' ? 'SMS' : 'Note'}
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setShowCommunication(false)}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {/* Communication History */}
-              {(communications as any[]).length > 0 && (
-                <div className="mt-4 p-4 border border-blue-200 rounded-lg bg-blue-50">
-                  <h4 className="font-medium mb-3 text-blue-900">Communication History</h4>
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {(communications as any[]).map((comm: any) => (
-                      <div key={comm.id} className="p-3 bg-white rounded border text-sm">
-                        <div className="flex justify-between items-start mb-1">
-                          <span className="font-medium text-blue-800 capitalize">
-                            {comm.type} {comm.direction === 'outbound' ? '→' : '←'}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {comm.sentAt ? format(new Date(comm.sentAt), 'MMM d, h:mm a') : 'No date'}
-                          </span>
-                        </div>
-                        {comm.subject && (
-                          <div className="text-xs text-gray-600 mb-1">Subject: {comm.subject}</div>
-                        )}
-                        <div className="text-gray-700">{comm.message}</div>
-                        {comm.sentBy && (
-                          <div className="text-xs text-gray-500 mt-1">by {comm.sentBy}</div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Left Column - Event Details */}
           <div className="space-y-6">
@@ -549,6 +403,152 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
             )}
           </div>
         </div>
+
+        {/* Customer Information - Full Width at Bottom */}
+        {selectedCustomerData && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Customer
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <div className="font-medium">{selectedCustomerData.name}</div>
+                <div className="text-sm text-gray-600">{selectedCustomerData.email}</div>
+                {selectedCustomerData.phone && (
+                  <div className="text-sm text-gray-600">{selectedCustomerData.phone}</div>
+                )}
+              </div>
+              
+              <div className="flex gap-2 pt-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="gap-1"
+                  onClick={() => setShowCommunication(!showCommunication)}
+                >
+                  <MessageSquare className="h-3 w-3" />
+                  Contact
+                </Button>
+                {selectedCustomerData.phone && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-1"
+                    onClick={() => window.open(`tel:${selectedCustomerData.phone}`)}
+                  >
+                    <Phone className="h-3 w-3" />
+                    Call
+                  </Button>
+                )}
+              </div>
+              
+              {/* Communication Panel */}
+              {showCommunication && (
+                <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                  <h4 className="font-medium mb-3">Send Message to {selectedCustomerData.name}</h4>
+                  <div className="space-y-3">
+                    <select 
+                      value={communicationType}
+                      onChange={(e) => setCommunicationType(e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                    >
+                      <option value="email">Email</option>
+                      <option value="sms">SMS</option>
+                      <option value="internal">Internal Note</option>
+                    </select>
+                    
+                    <textarea
+                      value={communicationMessage}
+                      onChange={(e) => setCommunicationMessage(e.target.value)}
+                      placeholder={`Write your ${communicationType} message here...`}
+                      className="w-full p-3 border border-gray-300 rounded-md text-sm min-h-[100px] resize-none"
+                    />
+                    
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        className="gap-1"
+                        onClick={async () => {
+                          try {
+                            // Save communication to database
+                            const response = await fetch('/api/communications', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                bookingId: booking.id,
+                                customerId: selectedCustomerData.id,
+                                type: communicationType,
+                                direction: 'outbound',
+                                message: communicationMessage,
+                                subject: communicationType === 'email' ? `Regarding your event: ${booking.eventName}` : null,
+                                sentBy: 'Venue Manager'
+                              })
+                            });
+                            
+                            if (response.ok) {
+                              console.log('Communication saved successfully');
+                              // Refresh the page to show the new communication
+                              window.location.reload();
+                            } else {
+                              console.error('Failed to save communication');
+                            }
+                          } catch (error) {
+                            console.error('Error saving communication:', error);
+                          }
+                          
+                          setCommunicationMessage("");
+                          setShowCommunication(false);
+                        }}
+                        disabled={!communicationMessage.trim()}
+                      >
+                        <Send className="h-3 w-3" />
+                        Send {communicationType === 'email' ? 'Email' : communicationType === 'sms' ? 'SMS' : 'Note'}
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setShowCommunication(false)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Communication History */}
+              {(communications as any[]).length > 0 && (
+                <div className="mt-4 p-4 border border-blue-200 rounded-lg bg-blue-50">
+                  <h4 className="font-medium mb-3 text-blue-900">Communication History</h4>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {(communications as any[]).map((comm: any) => (
+                      <div key={comm.id} className="p-3 bg-white rounded border text-sm">
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="font-medium text-blue-800 capitalize">
+                            {comm.type} {comm.direction === 'outbound' ? '→' : '←'}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {comm.sentAt ? format(new Date(comm.sentAt), 'MMM d, h:mm a') : 'No date'}
+                          </span>
+                        </div>
+                        {comm.subject && (
+                          <div className="text-xs text-gray-600 mb-1">Subject: {comm.subject}</div>
+                        )}
+                        <div className="text-gray-700">{comm.message}</div>
+                        {comm.sentBy && (
+                          <div className="text-xs text-gray-500 mt-1">by {comm.sentBy}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </DialogContent>
     </Dialog>
   );
