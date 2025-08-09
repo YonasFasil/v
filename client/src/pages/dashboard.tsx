@@ -9,6 +9,12 @@ import { RecentBookings } from "@/components/dashboard/recent-bookings";
 import { AIRecommendations } from "@/components/dashboard/ai-recommendations";
 import { ActiveLeads } from "@/components/dashboard/active-leads";
 import { QuickActions } from "@/components/dashboard/quick-actions";
+import { VenueUtilization } from "@/components/dashboard/venue-utilization";
+import { UpcomingEvents } from "@/components/dashboard/upcoming-events";
+import { RevenueChart } from "@/components/dashboard/revenue-chart";
+import { QuickStats } from "@/components/dashboard/quick-stats";
+import { TaskOverview } from "@/components/dashboard/task-overview";
+import { WeatherDate } from "@/components/dashboard/weather-date";
 import { EventEditFullModal } from "@/components/forms/event-edit-full-modal";
 import { EventSummaryModal } from "@/components/forms/event-summary-modal";
 import { CreateEventModal } from "@/components/forms/create-event-modal";
@@ -102,24 +108,32 @@ export default function Dashboard() {
 
           <MetricsGrid />
           
+          {/* Quick Stats Section */}
+          <div className="mb-6">
+            <QuickStats />
+          </div>
+          
           {/* Full-width Calendar */}
-          <div className="mb-4 sm:mb-6">
+          <div className="mb-6">
             <AdvancedCalendar onEventClick={handleEventClick} />
           </div>
           
-          {/* Two-column layout for other components */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-            <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+          {/* Three-column layout for main content */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+            {/* Left Column - Main Content */}
+            <div className="lg:col-span-8 space-y-6">
               <RecentBookings />
             </div>
             
-            <div className="space-y-4 sm:space-y-6">
+            {/* Right Column - Side Widgets */}
+            <div className="lg:col-span-4 space-y-6">
+              <WeatherDate />
               <ActiveLeads />
             </div>
           </div>
           
-          {/* AI Recommendations moved below */}
-          <div className="mt-4 sm:mt-6">
+          {/* AI Recommendations - Full Width */}
+          <div className="mb-6">
             <AIRecommendations />
           </div>
         </main>
