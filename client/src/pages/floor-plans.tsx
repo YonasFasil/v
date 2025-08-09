@@ -58,10 +58,7 @@ export default function FloorPlans() {
   });
 
   const createFloorPlanMutation = useMutation({
-    mutationFn: (data: any) => apiRequest('/api/floor-plans', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
+    mutationFn: (data: any) => apiRequest('POST', '/api/floor-plans', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/floor-plans'] });
       setIsCreateModalOpen(false);
@@ -89,10 +86,7 @@ export default function FloorPlans() {
 
   const updateFloorPlanMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => 
-      apiRequest(`/api/floor-plans/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      }),
+      apiRequest('PUT', `/api/floor-plans/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/floor-plans'] });
       toast({
@@ -111,11 +105,9 @@ export default function FloorPlans() {
 
   const generateAILayoutMutation = useMutation({
     mutationFn: (data: { floorPlanId: string; guestCount: number; eventType: string; preferences: string }) =>
-      apiRequest('/api/floor-plans/generate-ai-layout', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }),
-    onSuccess: (result) => {
+      apiRequest('POST', '/api/floor-plans/generate-ai-layout', data),
+    onSuccess: async (response) => {
+      const result = await response.json();
       if (selectedFloorPlan) {
         setSelectedFloorPlan({ ...selectedFloorPlan, elements: result.elements });
       }
@@ -136,8 +128,9 @@ export default function FloorPlans() {
 
   const handleTemplateUpload = async () => {
     try {
-      const response = await apiRequest('/api/objects/upload', { method: 'POST' });
-      return { method: 'PUT' as const, url: response.uploadURL };
+      const response = await apiRequest('POST', '/api/objects/upload');
+      const data = await response.json();
+      return { method: 'PUT' as const, url: data.uploadURL };
     } catch (error) {
       toast({
         title: "Error",
