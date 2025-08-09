@@ -90,14 +90,17 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps = {}) {
             return (
               <Link key={item.name} href={item.href}>
                 <div
-                  className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                  className={`${collapsed ? 
+                    'flex items-center justify-center w-10 h-10 mx-auto rounded-lg text-sm font-medium transition-colors cursor-pointer' :
+                    'flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer'
+                  } ${
                     active
                       ? "bg-blue-600 text-white"
                       : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                   }`}
                   title={collapsed ? item.name : undefined}
                 >
-                  <Icon className="w-5 h-5 mr-3" />
+                  <Icon className={collapsed ? "w-5 h-5" : "w-5 h-5 mr-3"} />
                   {!collapsed && item.name}
                 </div>
               </Link>
@@ -166,46 +169,81 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps = {}) {
           </div>
         )}
 
-        {/* Analytics Section */}
-        <div className="pt-4">
-          <div className="px-3 mb-2">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Analytics
-            </span>
+        {/* Analytics Section - Expanded */}
+        {!collapsed && (
+          <div className="pt-4">
+            <div className="px-3 mb-2">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Analytics
+              </span>
+            </div>
+            {analyticsItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              
+              return (
+                <Link key={item.name} href={item.href}>
+                  <div
+                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                      active
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                    }`}
+                  >
+                    <Icon className="w-5 h-5 mr-3" />
+                    {item.name}
+                  </div>
+                </Link>
+              );
+            })}
           </div>
-          {analyticsItems.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.href);
-            
-            return (
-              <Link key={item.name} href={item.href}>
-                <div
-                  className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-                    active
-                      ? "bg-blue-600 text-white"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                  }`}
-                >
-                  <Icon className="w-5 h-5 mr-3" />
-                  {item.name}
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+        )}
+
+        {/* Analytics Section - Collapsed */}
+        {collapsed && (
+          <div className="pt-4 space-y-1">
+            {analyticsItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              
+              return (
+                <Link key={item.name} href={item.href}>
+                  <div
+                    className={`flex items-center justify-center w-10 h-10 mx-auto rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                      active
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                    }`}
+                    title={item.name}
+                  >
+                    <Icon className="w-5 h-5" />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </nav>
 
       {/* User Profile */}
       <div className="border-t border-slate-200 p-4">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-slate-300 rounded-full flex items-center justify-center">
-            <span className="text-sm font-medium text-slate-700">JD</span>
+        {collapsed ? (
+          <div className="flex justify-center">
+            <div className="w-8 h-8 bg-slate-300 rounded-full flex items-center justify-center" title="John Doe - Venue Manager">
+              <span className="text-sm font-medium text-slate-700">JD</span>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-900 truncate">John Doe</p>
-            <p className="text-xs text-slate-500 truncate">Venue Manager</p>
+        ) : (
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-slate-300 rounded-full flex items-center justify-center">
+              <span className="text-sm font-medium text-slate-700">JD</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-slate-900 truncate">John Doe</p>
+              <p className="text-xs text-slate-500 truncate">Venue Manager</p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
