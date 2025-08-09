@@ -39,13 +39,16 @@ export default function Settings() {
 
   // Email Settings
   const [emailSettings, setEmailSettings] = useState({
-    provider: "gmail",
+    provider: "custom",
     fromName: "Venuine Events",
     fromEmail: "noreply@venuine.com",
     replyToEmail: "contact@venuine.com",
     emailTemplate: "professional",
     includeSignature: true,
-    signatureText: "Best regards,\nThe Venuine Events Team"
+    signatureText: "Best regards,\nThe Venuine Events Team",
+    apiKey: "",
+    apiUrl: "",
+    apiProvider: ""
   });
 
   // Payment Settings
@@ -229,7 +232,7 @@ export default function Settings() {
                         <div>
                           <h4 className="font-medium text-amber-900">Demo Mode Active</h4>
                           <p className="text-sm text-amber-700 mt-1">
-                            Emails are currently in demo mode. Configure Gmail credentials in Replit Secrets to enable real email sending.
+                            Emails are currently in demo mode. Configure your email API credentials to enable real email sending.
                           </p>
                         </div>
                       </div>
@@ -244,38 +247,67 @@ export default function Settings() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="gmail">Gmail (Free - Recommended)</SelectItem>
                         <SelectItem value="sendgrid">SendGrid</SelectItem>
-                        <SelectItem value="custom">Custom SMTP</SelectItem>
+                        <SelectItem value="mailgun">Mailgun</SelectItem>
+                        <SelectItem value="resend">Resend</SelectItem>
+                        <SelectItem value="postmark">Postmark</SelectItem>
+                        <SelectItem value="custom">Custom Email API</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <Separator />
 
-                  {/* Gmail Configuration */}
-                  {emailSettings.provider === "gmail" && (
-                    <div className="space-y-4">
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <div className="flex items-start gap-3">
-                          <Mail className="w-5 h-5 text-blue-600 mt-0.5" />
-                          <div>
-                            <h5 className="font-medium text-blue-900">Gmail Setup Instructions</h5>
-                            <p className="text-sm text-blue-700 mt-1">
-                              To use Gmail for sending emails, you'll need to create an App Password.
-                            </p>
-                            <div className="mt-3 text-sm text-blue-700 space-y-1">
-                              <p><strong>Step 1:</strong> Go to Google Account → Security → 2-Step Verification</p>
-                              <p><strong>Step 2:</strong> Generate an "App Password" for Mail</p>
-                              <p><strong>Step 3:</strong> Add to Replit Secrets:</p>
-                              <ul className="ml-4 mt-2 space-y-1">
-                                <li>• <code className="bg-blue-100 px-2 py-1 rounded">EMAIL_USER</code> = your Gmail address</li>
-                                <li>• <code className="bg-blue-100 px-2 py-1 rounded">EMAIL_PASS</code> = your App Password (16 characters)</li>
-                              </ul>
-                            </div>
-                          </div>
+                  {/* API Configuration */}
+                  <div className="space-y-4">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <Key className="w-5 h-5 text-blue-600 mt-0.5" />
+                        <div>
+                          <h5 className="font-medium text-blue-900">API Configuration</h5>
+                          <p className="text-sm text-blue-700 mt-1">
+                            Configure your email service API credentials below. API keys will be stored securely in Replit Secrets.
+                          </p>
                         </div>
                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="apiProvider">API Provider</Label>
+                        <Input
+                          id="apiProvider"
+                          value={emailSettings.apiProvider}
+                          onChange={(e) => setEmailSettings(prev => ({ ...prev, apiProvider: e.target.value }))}
+                          placeholder="e.g., SendGrid, Mailgun, Resend"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="apiUrl">API Endpoint URL</Label>
+                        <Input
+                          id="apiUrl"
+                          value={emailSettings.apiUrl}
+                          onChange={(e) => setEmailSettings(prev => ({ ...prev, apiUrl: e.target.value }))}
+                          placeholder="https://api.emailservice.com/v1/send"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="apiKey">API Key</Label>
+                      <Input
+                        id="apiKey"
+                        type="password"
+                        value={emailSettings.apiKey}
+                        onChange={(e) => setEmailSettings(prev => ({ ...prev, apiKey: e.target.value }))}
+                        placeholder="Enter your API key here"
+                      />
+                      <p className="text-sm text-gray-500 mt-1">
+                        This will be stored securely and used for authentication
+                      </p>
+                    </div>
+
+                    <Separator />
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -336,7 +368,6 @@ export default function Settings() {
                         />
                       </div>
                     </div>
-                  )}
 
                   <Button onClick={() => saveSettings("Email")} className="bg-blue-600 hover:bg-blue-700">
                     <Save className="w-4 h-4 mr-2" />
