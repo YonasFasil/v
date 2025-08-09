@@ -131,8 +131,28 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
   
   // Calculate total price across all dates
   // Calculate total for a single date
+  const calculateEventDuration = (startTime: string, endTime: string) => {
+    const parseTime = (timeStr: string) => {
+      if (timeStr.includes('AM') || timeStr.includes('PM')) {
+        const cleanTime = timeStr.replace(/\s(AM|PM)/g, '');
+        const [hours, minutes] = cleanTime.split(':').map(Number);
+        const isAM = timeStr.includes('AM');
+        const hour24 = isAM ? (hours === 12 ? 0 : hours) : (hours === 12 ? 12 : hours + 12);
+        return hour24 + (minutes / 60);
+      } else {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        return hours + (minutes / 60);
+      }
+    };
+    
+    const start = parseTime(startTime);
+    const end = parseTime(endTime);
+    return Math.max(0, end - start); // Duration in hours
+  };
+
   const calculateDateTotal = (dateConfig: SelectedDate) => {
     let dateTotal = 0;
+    const eventDuration = calculateEventDuration(dateConfig.startTime, dateConfig.endTime);
     
     // Get selected package info
     const selectedPackage = dateConfig.packageId 
@@ -142,9 +162,13 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
     // Package price
     if (selectedPackage) {
       const packagePrice = dateConfig.pricingOverrides?.packagePrice ?? parseFloat(selectedPackage.price || 0);
-      dateTotal += selectedPackage.pricingModel === 'per_person' 
-        ? packagePrice * (dateConfig.guestCount || 1)
-        : packagePrice;
+      if (selectedPackage.pricingModel === 'per_person') {
+        dateTotal += packagePrice * (dateConfig.guestCount || 1);
+      } else if (selectedPackage.pricingModel === 'per_hour') {
+        dateTotal += packagePrice * eventDuration;
+      } else {
+        dateTotal += packagePrice;
+      }
     }
     
     // Additional services price (only services NOT included in the package)
@@ -161,6 +185,8 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
         const servicePrice = dateConfig.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
         if (service.pricingModel === 'per_person') {
           dateTotal += servicePrice * (dateConfig.guestCount || 1);
+        } else if (service.pricingModel === 'per_hour') {
+          dateTotal += servicePrice * eventDuration;
         } else {
           const quantity = dateConfig.itemQuantities?.[serviceId] || 1;
           dateTotal += servicePrice * quantity;
@@ -1627,6 +1653,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                   <SelectContent>
                     <SelectItem value="fixed">Fixed Price</SelectItem>
                     <SelectItem value="per_person">Per Person</SelectItem>
+                    <SelectItem value="per_hour">Per Hour</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1790,8 +1817,11 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                           const quantity = date.itemQuantities?.[service.id] || 1;
                           const overridePrice = date.pricingOverrides?.servicePrices?.[service.id];
                           const price = overridePrice ?? parseFloat(service.price || 0);
+                          const eventDuration = calculateEventDuration(date.startTime, date.endTime);
                           const totalPrice = service.pricingModel === 'per_person' 
                             ? price * (date.guestCount || 1)
+                            : service.pricingModel === 'per_hour'
+                            ? price * eventDuration
                             : price * quantity;
                           
                           return (
@@ -1802,6 +1832,8 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                 <span className="text-xs text-slate-600">
                                   {service.pricingModel === 'per_person' 
                                     ? `$${price.toFixed(2)} x ${date.guestCount || 1} guests`
+                                    : service.pricingModel === 'per_hour'
+                                    ? `$${price.toFixed(2)} x ${eventDuration.toFixed(1)} hours`
                                     : quantity > 1 
                                       ? `$${price.toFixed(2)} x ${quantity}`
                                       : `$${price.toFixed(2)}`

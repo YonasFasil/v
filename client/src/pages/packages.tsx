@@ -47,7 +47,7 @@ export default function Packages() {
     description: "",
     price: "",
     category: "catering",
-    unit: "per person"
+    pricingModel: "fixed"
   });
 
   const createPackage = async () => {
@@ -116,7 +116,7 @@ export default function Packages() {
         description: "",
         price: "",
         category: "catering",
-        unit: "per person"
+        pricingModel: "fixed"
       });
       
       toast({
@@ -231,13 +231,16 @@ export default function Packages() {
                         />
                       </div>
                       <div>
-                        <Label className="text-sm font-medium">Unit</Label>
-                        <Input
-                          placeholder="per hour"
-                          value={newService.unit}
-                          onChange={(e) => setNewService(prev => ({ ...prev, unit: e.target.value }))}
-                          className="mt-1"
-                        />
+                        <Label className="text-sm font-medium">Pricing Model</Label>
+                        <select
+                          value={newService.pricingModel || 'fixed'}
+                          onChange={(e) => setNewService(prev => ({ ...prev, pricingModel: e.target.value }))}
+                          className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        >
+                          <option value="fixed">Fixed Price</option>
+                          <option value="per_person">Per Person</option>
+                          <option value="per_hour">Per Hour</option>
+                        </select>
                       </div>
                     </div>
                     
@@ -369,9 +372,11 @@ export default function Packages() {
                                     </div>
                                     <div className="text-sm font-semibold text-green-600 mt-2">
                                       ${parseFloat(service.price).toFixed(2)}
-                                      {service.unit && (
-                                        <span className="text-xs text-slate-500"> {service.unit}</span>
-                                      )}
+                                      <span className="text-xs text-slate-500">
+                                        {service.pricingModel === 'per_person' && ' per person'}
+                                        {service.pricingModel === 'per_hour' && ' per hour'}
+                                        {service.pricingModel === 'fixed' && ' fixed'}
+                                      </span>
                                     </div>
                                   </div>
                                   <div className="ml-3">
@@ -465,7 +470,7 @@ export default function Packages() {
                         <p className="text-xs font-medium text-gray-700">Included Services:</p>
                         <div className="flex flex-wrap gap-1">
                           {pkg.includedServiceIds.slice(0, 3).map((serviceId: string, index: number) => {
-                            const service = services?.find((s: any) => s.id === serviceId);
+                            const service = Array.isArray(services) ? services.find((s: any) => s.id === serviceId) : null;
                             return (
                               <Badge key={index} variant="outline" className="text-xs">
                                 {service?.name || 'Unknown Service'}
@@ -519,7 +524,9 @@ export default function Packages() {
                         ${service.price}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {service.unit || "per item"}
+                        {service.pricingModel === 'per_person' && 'per person'}
+                        {service.pricingModel === 'per_hour' && 'per hour'}
+                        {service.pricingModel === 'fixed' && 'fixed price'}
                       </div>
                     </div>
                     
