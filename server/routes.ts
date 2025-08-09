@@ -285,6 +285,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         depositAmount: req.body.depositAmount && typeof req.body.depositAmount === 'string'
           ? req.body.depositAmount
           : req.body.depositAmount,
+        // Handle proposal dates
+        proposalSentAt: req.body.proposalSentAt && typeof req.body.proposalSentAt === 'string'
+          ? new Date(req.body.proposalSentAt)
+          : req.body.proposalSentAt,
+        proposalViewedAt: req.body.proposalViewedAt && typeof req.body.proposalViewedAt === 'string'
+          ? new Date(req.body.proposalViewedAt)
+          : req.body.proposalViewedAt,
+        proposalRespondedAt: req.body.proposalRespondedAt && typeof req.body.proposalRespondedAt === 'string'
+          ? new Date(req.body.proposalRespondedAt)
+          : req.body.proposalRespondedAt,
       };
       
       // Validate required fields
