@@ -91,6 +91,33 @@ export function FloorPlan3DDesigner({ isOpen, onClose, venueId, setupStyle, onSa
     }
   };
 
+  // Load setup style template when venueId or setupStyle changes
+  useEffect(() => {
+    if (setupStyle && objects.length === 0) {
+      loadSetupStyleTemplate();
+    }
+  }, [setupStyle]);
+
+  const loadSetupStyleTemplate = async () => {
+    if (!setupStyle) return;
+    
+    try {
+      const response = await fetch(`/api/setup-styles/${setupStyle}`);
+      if (response.ok) {
+        const style = await response.json();
+        if (style.floorPlan && style.floorPlan.objects) {
+          setObjects(style.floorPlan.objects);
+          if (style.floorPlan.canvasSize) {
+            setCanvasSize(style.floorPlan.canvasSize);
+          }
+          saveToHistory(style.floorPlan.objects);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load setup style template:', error);
+    }
+  };
+
   // Save to history for undo/redo
   const saveToHistory = useCallback((newObjects: FloorPlanObject[]) => {
     const newHistory = history.slice(0, historyIndex + 1);
@@ -114,55 +141,7 @@ export function FloorPlan3DDesigner({ isOpen, onClose, venueId, setupStyle, onSa
     }
   };
 
-  // Initialize with template based on setup style
-  useEffect(() => {
-    if (setupStyle && objects.length === 0) {
-      let templateObjects: FloorPlanObject[] = [];
-      
-      switch (setupStyle) {
-        case 'round-tables':
-          templateObjects = [
-            { id: '1', type: 'table', x: 200, y: 200, width: 60, height: 60, rotation: 0, color: '#8B4513', seats: 8, label: 'Table 1' },
-            { id: '2', type: 'table', x: 350, y: 200, width: 60, height: 60, rotation: 0, color: '#8B4513', seats: 8, label: 'Table 2' },
-            { id: '3', type: 'table', x: 500, y: 200, width: 60, height: 60, rotation: 0, color: '#8B4513', seats: 8, label: 'Table 3' },
-            { id: '4', type: 'stage', x: 350, y: 50, width: 120, height: 80, rotation: 0, color: '#4169E1', label: 'Main Stage' }
-          ];
-          break;
-        case 'theater':
-          templateObjects = [
-            { id: '1', type: 'stage', x: 350, y: 50, width: 200, height: 120, rotation: 0, color: '#4169E1', label: 'Main Stage' },
-            ...Array.from({ length: 24 }, (_, i) => ({
-              id: `chair-${i + 1}`,
-              type: 'chair' as const,
-              x: 150 + (i % 8) * 40,
-              y: 250 + Math.floor(i / 8) * 40,
-              width: 20,
-              height: 20,
-              rotation: 0,
-              color: '#654321',
-              seats: 1,
-              label: `Seat ${i + 1}`
-            }))
-          ];
-          break;
-        case 'cocktail':
-          templateObjects = [
-            { id: '1', type: 'bar', x: 100, y: 100, width: 100, height: 30, rotation: 0, color: '#800000', label: 'Main Bar' },
-            { id: '2', type: 'table', x: 300, y: 200, width: 50, height: 50, rotation: 0, color: '#8B4513', seats: 4, label: 'Cocktail Table 1' },
-            { id: '3', type: 'table', x: 450, y: 300, width: 50, height: 50, rotation: 0, color: '#8B4513', seats: 4, label: 'Cocktail Table 2' },
-            { id: '4', type: 'stage', x: 550, y: 100, width: 120, height: 80, rotation: 0, color: '#4169E1', label: 'DJ Booth' }
-          ];
-          break;
-        default:
-          templateObjects = [];
-      }
-      
-      setObjects(templateObjects);
-      if (templateObjects.length > 0) {
-        saveToHistory(templateObjects);
-      }
-    }
-  }, [setupStyle, objects.length, saveToHistory]);
+
 
   // Canvas drawing function
   const drawCanvas = useCallback(() => {

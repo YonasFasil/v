@@ -549,6 +549,19 @@ export class MemStorage implements IStorage {
         category: "dining",
         minCapacity: 50,
         maxCapacity: 200,
+        floorPlan: {
+          objects: [
+            { id: "rt1", type: "table", x: 200, y: 150, width: 60, height: 60, rotation: 0, color: "#8B4513", seats: 8, label: "Table 1" },
+            { id: "rt2", type: "table", x: 350, y: 150, width: 60, height: 60, rotation: 0, color: "#8B4513", seats: 8, label: "Table 2" },
+            { id: "rt3", type: "table", x: 500, y: 150, width: 60, height: 60, rotation: 0, color: "#8B4513", seats: 8, label: "Table 3" },
+            { id: "rt4", type: "table", x: 275, y: 300, width: 60, height: 60, rotation: 0, color: "#8B4513", seats: 8, label: "Table 4" },
+            { id: "rt5", type: "table", x: 425, y: 300, width: 60, height: 60, rotation: 0, color: "#8B4513", seats: 8, label: "Table 5" },
+            { id: "stage", type: "stage", x: 300, y: 50, width: 200, height: 80, rotation: 0, color: "#4169E1", label: "Main Stage" },
+            { id: "bar", type: "bar", x: 100, y: 500, width: 120, height: 40, rotation: 0, color: "#800000", label: "Bar" }
+          ],
+          canvasSize: { width: 800, height: 600 },
+          totalSeats: 40
+        },
         isActive: true,
         createdAt: new Date()
       },
@@ -560,6 +573,31 @@ export class MemStorage implements IStorage {
         category: "presentation",
         minCapacity: 100,
         maxCapacity: 500,
+        floorPlan: {
+          objects: [
+            { id: "stage", type: "stage", x: 300, y: 50, width: 200, height: 80, rotation: 0, color: "#4169E1", label: "Presentation Stage" },
+            // Front row
+            { id: "c1", type: "chair", x: 200, y: 200, width: 20, height: 20, rotation: 0, color: "#654321", seats: 1 },
+            { id: "c2", type: "chair", x: 230, y: 200, width: 20, height: 20, rotation: 0, color: "#654321", seats: 1 },
+            { id: "c3", type: "chair", x: 260, y: 200, width: 20, height: 20, rotation: 0, color: "#654321", seats: 1 },
+            { id: "c4", type: "chair", x: 290, y: 200, width: 20, height: 20, rotation: 0, color: "#654321", seats: 1 },
+            { id: "c5", type: "chair", x: 320, y: 200, width: 20, height: 20, rotation: 0, color: "#654321", seats: 1 },
+            { id: "c6", type: "chair", x: 350, y: 200, width: 20, height: 20, rotation: 0, color: "#654321", seats: 1 },
+            { id: "c7", type: "chair", x: 380, y: 200, width: 20, height: 20, rotation: 0, color: "#654321", seats: 1 },
+            { id: "c8", type: "chair", x: 410, y: 200, width: 20, height: 20, rotation: 0, color: "#654321", seats: 1 },
+            // Second row
+            { id: "c9", type: "chair", x: 200, y: 230, width: 20, height: 20, rotation: 0, color: "#654321", seats: 1 },
+            { id: "c10", type: "chair", x: 230, y: 230, width: 20, height: 20, rotation: 0, color: "#654321", seats: 1 },
+            { id: "c11", type: "chair", x: 260, y: 230, width: 20, height: 20, rotation: 0, color: "#654321", seats: 1 },
+            { id: "c12", type: "chair", x: 290, y: 230, width: 20, height: 20, rotation: 0, color: "#654321", seats: 1 },
+            { id: "c13", type: "chair", x: 320, y: 230, width: 20, height: 20, rotation: 0, color: "#654321", seats: 1 },
+            { id: "c14", type: "chair", x: 350, y: 230, width: 20, height: 20, rotation: 0, color: "#654321", seats: 1 },
+            { id: "c15", type: "chair", x: 380, y: 230, width: 20, height: 20, rotation: 0, color: "#654321", seats: 1 },
+            { id: "c16", type: "chair", x: 410, y: 230, width: 20, height: 20, rotation: 0, color: "#654321", seats: 1 }
+          ],
+          canvasSize: { width: 800, height: 600 },
+          totalSeats: 16
+        },
         isActive: true,
         createdAt: new Date()
       },
@@ -571,6 +609,18 @@ export class MemStorage implements IStorage {
         category: "meeting",
         minCapacity: 15,
         maxCapacity: 50,
+        floorPlan: {
+          objects: [
+            // U-shape tables
+            { id: "ut1", type: "table", x: 200, y: 200, width: 80, height: 40, rotation: 0, color: "#8B4513", seats: 6, label: "Left Table" },
+            { id: "ut2", type: "table", x: 300, y: 320, width: 200, height: 40, rotation: 0, color: "#8B4513", seats: 8, label: "Center Table" },
+            { id: "ut3", type: "table", x: 520, y: 200, width: 80, height: 40, rotation: 0, color: "#8B4513", seats: 6, label: "Right Table" },
+            // Presentation area
+            { id: "screen", type: "stage", x: 350, y: 100, width: 100, height: 60, rotation: 0, color: "#4169E1", label: "Screen" }
+          ],
+          canvasSize: { width: 800, height: 600 },
+          totalSeats: 20
+        },
         isActive: true,
         createdAt: new Date()
       },
@@ -582,6 +632,19 @@ export class MemStorage implements IStorage {
         category: "social",
         minCapacity: 30,
         maxCapacity: 150,
+        floorPlan: {
+          objects: [
+            { id: "ht1", type: "table", x: 200, y: 180, width: 40, height: 40, rotation: 0, color: "#8B4513", seats: 4, label: "High Table 1" },
+            { id: "ht2", type: "table", x: 400, y: 180, width: 40, height: 40, rotation: 0, color: "#8B4513", seats: 4, label: "High Table 2" },
+            { id: "ht3", type: "table", x: 600, y: 180, width: 40, height: 40, rotation: 0, color: "#8B4513", seats: 4, label: "High Table 3" },
+            { id: "ht4", type: "table", x: 300, y: 320, width: 40, height: 40, rotation: 0, color: "#8B4513", seats: 4, label: "High Table 4" },
+            { id: "ht5", type: "table", x: 500, y: 320, width: 40, height: 40, rotation: 0, color: "#8B4513", seats: 4, label: "High Table 5" },
+            { id: "bar1", type: "bar", x: 150, y: 450, width: 150, height: 40, rotation: 0, color: "#800000", label: "Main Bar" },
+            { id: "bar2", type: "bar", x: 500, y: 450, width: 150, height: 40, rotation: 0, color: "#800000", label: "Service Bar" }
+          ],
+          canvasSize: { width: 800, height: 600 },
+          totalSeats: 20
+        },
         isActive: true,
         createdAt: new Date()
       },
@@ -593,6 +656,26 @@ export class MemStorage implements IStorage {
         category: "meeting",
         minCapacity: 20,
         maxCapacity: 100,
+        floorPlan: {
+          objects: [
+            // Presentation area
+            { id: "stage", type: "stage", x: 350, y: 50, width: 100, height: 60, rotation: 0, color: "#4169E1", label: "Presentation Area" },
+            // Row 1
+            { id: "t1", type: "table", x: 200, y: 180, width: 80, height: 40, rotation: 0, color: "#8B4513", seats: 3, label: "Table 1" },
+            { id: "t2", type: "table", x: 320, y: 180, width: 80, height: 40, rotation: 0, color: "#8B4513", seats: 3, label: "Table 2" },
+            { id: "t3", type: "table", x: 440, y: 180, width: 80, height: 40, rotation: 0, color: "#8B4513", seats: 3, label: "Table 3" },
+            // Row 2
+            { id: "t4", type: "table", x: 200, y: 260, width: 80, height: 40, rotation: 0, color: "#8B4513", seats: 3, label: "Table 4" },
+            { id: "t5", type: "table", x: 320, y: 260, width: 80, height: 40, rotation: 0, color: "#8B4513", seats: 3, label: "Table 5" },
+            { id: "t6", type: "table", x: 440, y: 260, width: 80, height: 40, rotation: 0, color: "#8B4513", seats: 3, label: "Table 6" },
+            // Row 3
+            { id: "t7", type: "table", x: 200, y: 340, width: 80, height: 40, rotation: 0, color: "#8B4513", seats: 3, label: "Table 7" },
+            { id: "t8", type: "table", x: 320, y: 340, width: 80, height: 40, rotation: 0, color: "#8B4513", seats: 3, label: "Table 8" },
+            { id: "t9", type: "table", x: 440, y: 340, width: 80, height: 40, rotation: 0, color: "#8B4513", seats: 3, label: "Table 9" }
+          ],
+          canvasSize: { width: 800, height: 600 },
+          totalSeats: 27
+        },
         isActive: true,
         createdAt: new Date()
       },
@@ -604,6 +687,21 @@ export class MemStorage implements IStorage {
         category: "dining",
         minCapacity: 40,
         maxCapacity: 300,
+        floorPlan: {
+          objects: [
+            // Long banquet tables
+            { id: "bt1", type: "table", x: 150, y: 150, width: 200, height: 50, rotation: 0, color: "#8B4513", seats: 12, label: "Banquet Table 1" },
+            { id: "bt2", type: "table", x: 150, y: 230, width: 200, height: 50, rotation: 0, color: "#8B4513", seats: 12, label: "Banquet Table 2" },
+            { id: "bt3", type: "table", x: 150, y: 310, width: 200, height: 50, rotation: 0, color: "#8B4513", seats: 12, label: "Banquet Table 3" },
+            { id: "bt4", type: "table", x: 450, y: 150, width: 200, height: 50, rotation: 0, color: "#8B4513", seats: 12, label: "Banquet Table 4" },
+            { id: "bt5", type: "table", x: 450, y: 230, width: 200, height: 50, rotation: 0, color: "#8B4513", seats: 12, label: "Banquet Table 5" },
+            { id: "bt6", type: "table", x: 450, y: 310, width: 200, height: 50, rotation: 0, color: "#8B4513", seats: 12, label: "Banquet Table 6" },
+            // Head table
+            { id: "head", type: "table", x: 300, y: 80, width: 200, height: 50, rotation: 0, color: "#8B4513", seats: 10, label: "Head Table" }
+          ],
+          canvasSize: { width: 800, height: 600 },
+          totalSeats: 82
+        },
         isActive: true,
         createdAt: new Date()
       }
