@@ -78,10 +78,7 @@ export default function FloorPlansPage() {
   // Create floor plan mutation
   const createPlanMutation = useMutation({
     mutationFn: async (planData: any) => {
-      return apiRequest('/api/floor-plans', {
-        method: 'POST',
-        body: planData
-      });
+      return apiRequest('/api/floor-plans', 'POST', planData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/floor-plans'] });
@@ -97,10 +94,7 @@ export default function FloorPlansPage() {
   // Update floor plan mutation
   const updatePlanMutation = useMutation({
     mutationFn: async ({ id, ...planData }: any) => {
-      return apiRequest(`/api/floor-plans/${id}`, {
-        method: 'PUT',
-        body: planData
-      });
+      return apiRequest(`/api/floor-plans/${id}`, 'PUT', planData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/floor-plans'] });
@@ -115,9 +109,7 @@ export default function FloorPlansPage() {
   // Delete floor plan mutation
   const deletePlanMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest(`/api/floor-plans/${id}`, {
-        method: 'DELETE'
-      });
+      return apiRequest(`/api/floor-plans/${id}`, 'DELETE');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/floor-plans'] });
@@ -197,7 +189,7 @@ export default function FloorPlansPage() {
   ];
 
   // Filter floor plans
-  const filteredPlans = floorPlans.filter((plan: FloorPlan) => {
+  const filteredPlans = (floorPlans as FloorPlan[]).filter((plan: FloorPlan) => {
     const matchesSearch = plan.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          plan.description?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStyle = !selectedSetupStyle || selectedSetupStyle === 'all' || plan.setupStyle === selectedSetupStyle;
@@ -236,7 +228,7 @@ export default function FloorPlansPage() {
   };
 
   const getVenueName = (venueId: string) => {
-    const venue = venues.find((v: any) => v.id === venueId);
+    const venue = (venues as any[]).find((v: any) => v.id === venueId);
     return venue?.name || 'Unknown Venue';
   };
 
@@ -245,17 +237,17 @@ export default function FloorPlansPage() {
   };
 
   return (
-    <div className="container mx-auto px-6 py-8">
+    <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Floor Plans & Setup</h1>
-          <p className="text-gray-600">Design and manage venue layouts for different event styles</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Floor Plans & Setup</h1>
+          <p className="text-sm sm:text-base text-gray-600">Design and manage venue layouts for different event styles</p>
         </div>
         
         <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
           <DialogTrigger asChild>
-            <Button className="bg-blue-600 hover:bg-blue-700">
+            <Button className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto">
               <Plus className="w-4 h-4 mr-2" />
               Create Floor Plan
             </Button>
@@ -291,7 +283,7 @@ export default function FloorPlansPage() {
                     <SelectValue placeholder="Select venue" />
                   </SelectTrigger>
                   <SelectContent>
-                    {venues.map((venue: any) => (
+                    {(venues as any[]).map((venue: any) => (
                       <SelectItem key={venue.id} value={venue.id}>
                         {venue.name}
                       </SelectItem>
@@ -377,7 +369,7 @@ export default function FloorPlansPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Venues</SelectItem>
-                    {venues.map((venue: any) => (
+                    {(venues as any[]).map((venue: any) => (
                       <SelectItem key={venue.id} value={venue.id}>
                         {venue.name}
                       </SelectItem>
