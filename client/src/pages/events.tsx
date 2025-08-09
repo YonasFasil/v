@@ -14,7 +14,7 @@ import { EventSummaryModal } from "@/components/forms/event-summary-modal";
 import { EventEditFullModal } from "@/components/forms/event-edit-full-modal";
 import { AdvancedCalendar } from "@/components/dashboard/advanced-calendar";
 import { useBookings } from "@/hooks/use-bookings";
-import { Calendar, Clock, MapPin, Users, Table as TableIcon, Grid3X3, DollarSign } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, Table as TableIcon, Grid3X3, DollarSign, FileText, Plus, Search, Filter, MoreHorizontal } from "lucide-react";
 import { format } from "date-fns";
 
 export default function Events() {
