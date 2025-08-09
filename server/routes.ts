@@ -829,7 +829,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let imported = 0;
       let errors = 0;
+      let warnings = 0;
       const importErrors: string[] = [];
+      const importWarnings: string[] = [];
 
       for (const item of items) {
         try {
@@ -855,6 +857,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (item.includedServices && item.includedServices.length > 0) {
             const allServices = await storage.getServices();
             const matchedServiceIds = [];
+            const unmatchedServices = [];
             
             for (const serviceName of item.includedServices) {
               const service = allServices.find(s => 
@@ -863,9 +866,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
               );
               if (service) {
                 matchedServiceIds.push(service.id);
+              } else {
+                unmatchedServices.push(serviceName);
               }
             }
             newPackage.includedServiceIds = matchedServiceIds;
+            
+            // Add warning for unmatched services
+            if (unmatchedServices.length > 0) {
+              warnings++;
+              importWarnings.push(`Row ${item.row}: Services not found: ${unmatchedServices.join(', ')} (${matchedServiceIds.length}/${item.includedServices.length} services matched)`);
+            }
           }
 
           await storage.createPackage(newPackage);
@@ -879,8 +890,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         imported,
         errors,
-        warnings: 0,
-        details: importErrors
+        warnings,
+        errorDetails: importErrors,
+        warningDetails: importWarnings
       });
     } catch (error) {
       console.error("Package import error:", error);

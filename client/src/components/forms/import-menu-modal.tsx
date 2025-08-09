@@ -96,10 +96,26 @@ export function ImportMenuModal({ open, onOpenChange, type }: ImportMenuModalPro
       return response.json();
     },
     onSuccess: (result) => {
+      const hasWarnings = result.warnings && result.warnings > 0;
+      const hasErrors = result.errors && result.errors > 0;
+      
       toast({
-        title: "Import Successful",
-        description: `Successfully imported ${result.imported} ${type}. ${result.errors || 0} errors, ${result.warnings || 0} warnings.`
+        title: hasErrors ? "Import Completed with Issues" : "Import Successful",
+        description: `Successfully imported ${result.imported} ${type}. ${result.errors || 0} errors, ${result.warnings || 0} warnings.`,
+        variant: hasErrors ? "destructive" : hasWarnings ? "default" : "default"
       });
+      
+      // Show detailed warnings if any
+      if (hasWarnings && result.warningDetails) {
+        setTimeout(() => {
+          toast({
+            title: "Import Warnings",
+            description: result.warningDetails.slice(0, 3).join('\n') + (result.warningDetails.length > 3 ? '\n...' : ''),
+            variant: "default"
+          });
+        }, 500);
+      }
+      
       queryClient.invalidateQueries({ queryKey: [`/api/${type}`] });
       onOpenChange(false);
       resetForm();
@@ -205,7 +221,7 @@ export function ImportMenuModal({ open, onOpenChange, type }: ImportMenuModalPro
             const numValue = parseFloat(value.replace(/[$,]/g, ''));
             item[mappedField] = isNaN(numValue) ? 0 : numValue;
           } else if (mappedField === 'includedServices') {
-            item[mappedField] = value.split(',').map(s => s.trim()).filter(s => s);
+            item[mappedField] = value.split(',').map((s: string) => s.trim()).filter((s: string) => s);
           } else {
             item[mappedField] = value;
           }
