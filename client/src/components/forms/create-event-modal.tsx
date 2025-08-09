@@ -160,6 +160,13 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
     }
   }, [duplicateFromBooking, open, toast]);
 
+  // Auto-select venue when there's only one venue available
+  useEffect(() => {
+    if (venues && Array.isArray(venues) && venues.length === 1 && !selectedVenue && open) {
+      setSelectedVenue((venues as any[])[0].id);
+    }
+  }, [venues, selectedVenue, open]);
+
   // Reset form when modal is closed (only if not duplicating)
   useEffect(() => {
     if (!open && !duplicateFromBooking) {
@@ -700,8 +707,19 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
   };
 
   const nextStep = () => {
-    if (currentStep === 1 && (!selectedVenue || selectedDates.length === 0)) {
-      toast({ title: "Please select a venue and at least one date", variant: "destructive" });
+    // For single venue systems, venue is auto-selected, so only check dates
+    // For multi-venue systems, require both venue selection and dates
+    const isMultiVenue = Array.isArray(venues) && venues.length > 1;
+    const venueRequired = isMultiVenue && !selectedVenue;
+    
+    if (currentStep === 1 && (venueRequired || selectedDates.length === 0)) {
+      if (venueRequired && selectedDates.length === 0) {
+        toast({ title: "Please select a venue and at least one date", variant: "destructive" });
+      } else if (venueRequired) {
+        toast({ title: "Please select a venue", variant: "destructive" });
+      } else {
+        toast({ title: "Please select at least one date", variant: "destructive" });
+      }
       return;
     }
     
@@ -1776,7 +1794,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
             <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
               {/* Left: Venue Selection & Summary */}
               <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                {currentStep === 1 && (
+                {currentStep === 1 && Array.isArray(venues) && venues.length > 1 && (
                   <div className="flex items-center gap-3">
                     <Label className="text-sm font-medium text-slate-700 whitespace-nowrap flex items-center gap-1">
                       <MapPin className="w-4 h-4" />
@@ -1823,7 +1841,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                   <Button 
                     onClick={nextStep}
                     className="bg-blue-600 hover:bg-blue-700"
-                    disabled={currentStep === 1 && (selectedDates.length === 0 || !selectedVenue)}
+                    disabled={currentStep === 1 && (selectedDates.length === 0 || (Array.isArray(venues) && venues.length > 1 && !selectedVenue))}
                   >
                     {currentStep === 1 ? `Configure ${selectedDates.length} Event Date${selectedDates.length !== 1 ? 's' : ''}` : 'Next'}
                   </Button>
