@@ -315,6 +315,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/calendar/events"] });
       
       // Show different success message based on submission type
       const isProposal = variables.proposalStatus === 'sent';
@@ -344,6 +345,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/contracts"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/metrics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/calendar/events"] });
       toast({ 
         title: "Multi-event contract created successfully!", 
         description: `Created contract with ${data.bookings.length} events` 
