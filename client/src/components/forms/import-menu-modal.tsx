@@ -6,9 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Upload, Download, FileText, Package, Utensils, 
-  AlertTriangle, CheckCircle, X, Eye, FileSpreadsheet 
+  AlertTriangle, CheckCircle, X, Eye, FileSpreadsheet, ArrowRight 
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -33,6 +34,15 @@ interface ImportItem {
   warnings?: string[];
 }
 
+interface ColumnMapping {
+  [csvColumn: string]: string; // Maps CSV column to our required field
+}
+
+interface ParsedCSV {
+  headers: string[];
+  rows: any[][];
+}
+
 const SAMPLE_CSV_PACKAGES = `name,description,category,price,pricingModel,includedServices
 Wedding Premium Package,"Full wedding service with catering and decor",wedding,5000,fixed,"Catering Service,Floral Arrangements,Photography"
 Corporate Meeting Package,"Professional meeting setup with AV equipment",corporate,1500,fixed,"AV Equipment,Catering Service"
@@ -46,6 +56,25 @@ AV Equipment,"Sound system and projector rental",equipment,200,fixed,fixed
 Entertainment,"Live DJ and music entertainment",entertainment,400,fixed,fixed
 Decorations,"Custom decorations and table settings",decor,150,fixed,fixed`;
 
+// Required fields for each import type
+const REQUIRED_FIELDS = {
+  packages: [
+    { key: "name", label: "Package Name", required: true, description: "The name of the package" },
+    { key: "description", label: "Description", required: false, description: "Package description" },
+    { key: "category", label: "Category", required: true, description: "Package category" },
+    { key: "price", label: "Price", required: true, description: "Package price (number)" },
+    { key: "pricingModel", label: "Pricing Model", required: true, description: "fixed or per_person" },
+    { key: "includedServices", label: "Included Services", required: false, description: "Comma-separated service names" }
+  ],
+  services: [
+    { key: "name", label: "Service Name", required: true, description: "The name of the service" },
+    { key: "description", label: "Description", required: false, description: "Service description" },
+    { key: "category", label: "Category", required: true, description: "Service category" },
+    { key: "price", label: "Price", required: true, description: "Service price (number)" },
+    { key: "pricingModel", label: "Pricing Model", required: true, description: "fixed, per_person, or per_hour" }
+  ]
+};
+
 export function ImportMenuModal({ open, onOpenChange, type }: ImportMenuModalProps) {
   const [activeTab, setActiveTab] = useState("upload");
   const [file, setFile] = useState<File | null>(null);
@@ -53,6 +82,9 @@ export function ImportMenuModal({ open, onOpenChange, type }: ImportMenuModalPro
   const [previewData, setPreviewData] = useState<ImportItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [rawCSVData, setRawCSVData] = useState<ParsedCSV | null>(null);
+  const [columnMapping, setColumnMapping] = useState<ColumnMapping>({});
+  const [showColumnMapping, setShowColumnMapping] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -88,9 +120,136 @@ export function ImportMenuModal({ open, onOpenChange, type }: ImportMenuModalPro
     setUploadProgress(0);
     setIsProcessing(false);
     setActiveTab("upload");
+    setRawCSVData(null);
+    setColumnMapping({});
+    setShowColumnMapping(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+  };
+
+  // Intelligent column mapping based on similarity
+  const suggestColumnMapping = (csvHeaders: string[], requiredFields: any[]) => {
+    const mapping: ColumnMapping = {};
+    
+    csvHeaders.forEach(csvHeader => {
+      const normalizedCSVHeader = csvHeader.toLowerCase().trim();
+      
+      // Find the best match among required fields
+      let bestMatch = '';
+      let bestScore = 0;
+      
+      requiredFields.forEach(field => {
+        const normalizedFieldKey = field.key.toLowerCase();
+        const normalizedFieldLabel = field.label.toLowerCase();
+        
+        // Exact match
+        if (normalizedCSVHeader === normalizedFieldKey || normalizedCSVHeader === normalizedFieldLabel) {
+          bestMatch = field.key;
+          bestScore = 1;
+          return;
+        }
+        
+        // Partial match or common variations
+        const variations = {
+          name: ['title', 'item_name', 'product_name', 'service_name', 'package_name'],
+          description: ['desc', 'details', 'info', 'summary'],
+          category: ['cat', 'type', 'group', 'classification'],
+          price: ['cost', 'amount', 'rate', 'fee'],
+          pricingModel: ['pricing_model', 'price_type', 'billing_type', 'rate_type', 'model']
+        };
+        
+        if (variations[field.key as keyof typeof variations]) {
+          const fieldVariations = variations[field.key as keyof typeof variations];
+          if (fieldVariations.some(variation => normalizedCSVHeader.includes(variation))) {
+            if (bestScore < 0.8) {
+              bestMatch = field.key;
+              bestScore = 0.8;
+            }
+          }
+        }
+        
+        // Fuzzy matching - contains check
+        if (normalizedCSVHeader.includes(normalizedFieldKey) || normalizedFieldKey.includes(normalizedCSVHeader)) {
+          if (bestScore < 0.6) {
+            bestMatch = field.key;
+            bestScore = 0.6;
+          }
+        }
+      });
+      
+      if (bestMatch && bestScore > 0.5) {
+        mapping[csvHeader] = bestMatch;
+      }
+    });
+    
+    return mapping;
+  };
+
+  // Parse CSV with intelligent column detection
+  const parseCSVWithMapping = (csvData: ParsedCSV, mapping: ColumnMapping) => {
+    const requiredFields = REQUIRED_FIELDS[type];
+    const items: ImportItem[] = [];
+    
+    csvData.rows.forEach((row, index) => {
+      const item: any = { row: index + 2 }; // +2 because of header row and 1-based indexing
+      
+      // Map CSV columns to required fields
+      csvData.headers.forEach((header, headerIndex) => {
+        const mappedField = mapping[header];
+        if (mappedField && row[headerIndex]) {
+          let value = row[headerIndex].toString().trim();
+          
+          // Type conversion based on field
+          if (mappedField === 'price') {
+            const numValue = parseFloat(value.replace(/[$,]/g, ''));
+            item[mappedField] = isNaN(numValue) ? 0 : numValue;
+          } else if (mappedField === 'includedServices') {
+            item[mappedField] = value.split(',').map(s => s.trim()).filter(s => s);
+          } else {
+            item[mappedField] = value;
+          }
+        }
+      });
+      
+      // Set defaults for missing fields
+      const defaults = {
+        name: '',
+        description: '',
+        category: '',
+        price: 0,
+        pricingModel: 'fixed',
+        includedServices: []
+      };
+      
+      Object.keys(defaults).forEach(key => {
+        if (!(key in item)) {
+          item[key] = defaults[key as keyof typeof defaults];
+        }
+      });
+      
+      // Validate required fields
+      const errors: string[] = [];
+      const warnings: string[] = [];
+      
+      requiredFields.forEach(field => {
+        if (field.required && (!item[field.key] || item[field.key] === '')) {
+          errors.push(`${field.label} is required`);
+        }
+      });
+      
+      if (item.pricingModel && !['fixed', 'per_person', 'per_hour'].includes(item.pricingModel)) {
+        warnings.push('Pricing model should be: fixed, per_person, or per_hour');
+      }
+      
+      item.status = errors.length > 0 ? 'error' : warnings.length > 0 ? 'warning' : 'valid';
+      item.errors = errors;
+      item.warnings = warnings;
+      
+      items.push(item as ImportItem);
+    });
+    
+    return items;
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -128,107 +287,85 @@ export function ImportMenuModal({ open, onOpenChange, type }: ImportMenuModalPro
       }
 
       const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-      setUploadProgress(50);
-
-      // Validate required headers
-      const requiredHeaders = type === "packages" 
-        ? ['name', 'description', 'category', 'price', 'pricingModel']
-        : ['name', 'description', 'category', 'price', 'pricingModel'];
-
-      const missingHeaders = requiredHeaders.filter(header => 
-        !headers.some(h => h.toLowerCase() === header.toLowerCase())
+      const rows = lines.slice(1).map(line => 
+        line.split(',').map(v => v.trim().replace(/"/g, ''))
       );
 
-      if (missingHeaders.length > 0) {
-        throw new Error(`Missing required columns: ${missingHeaders.join(', ')}`);
-      }
+      const csvData: ParsedCSV = { headers, rows };
+      setRawCSVData(csvData);
+      setUploadProgress(50);
 
-      setUploadProgress(70);
-
-      const items: ImportItem[] = [];
-      for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
-        const item: ImportItem = {
-          name: "",
-          description: "",
-          category: "",
-          price: 0,
-          pricingModel: "fixed",
-          row: i + 1,
-          status: "valid",
-          errors: [],
-          warnings: []
-        };
-
-        // Parse each column
-        headers.forEach((header, index) => {
-          const value = values[index] || "";
-          const headerLower = header.toLowerCase();
-
-          switch (headerLower) {
-            case 'name':
-              item.name = value;
-              if (!value) item.errors?.push("Name is required");
-              break;
-            case 'description':
-              item.description = value;
-              break;
-            case 'category':
-              item.category = value;
-              if (!value) item.errors?.push("Category is required");
-              break;
-            case 'price':
-              const price = parseFloat(value);
-              if (isNaN(price) || price < 0) {
-                item.errors?.push("Price must be a valid positive number");
-              } else {
-                item.price = price;
-              }
-              break;
-            case 'pricingmodel':
-              if (['fixed', 'per_person'].includes(value.toLowerCase())) {
-                item.pricingModel = value.toLowerCase();
-              } else {
-                item.errors?.push("Pricing model must be 'fixed' or 'per_person'");
-              }
-              break;
-            case 'includedservices':
-              if (type === "packages" && value) {
-                item.includedServices = value.split(';').map(s => s.trim()).filter(s => s);
-              }
-              break;
-          }
-        });
-
-        // Set status based on errors and warnings
-        if (item.errors && item.errors.length > 0) {
-          item.status = "error";
-        } else if (item.warnings && item.warnings.length > 0) {
-          item.status = "warning";
-        }
-
-        items.push(item);
-      }
-
-      setParsedData(items);
-      setPreviewData(items.slice(0, 10)); // Show first 10 for preview
-      setUploadProgress(100);
-      setActiveTab("preview");
+      // Try intelligent column mapping
+      const requiredFields = REQUIRED_FIELDS[type];
+      const suggestedMapping = suggestColumnMapping(headers, requiredFields);
       
-      toast({
-        title: "File Parsed Successfully",
-        description: `Found ${items.length} items. Review the preview before importing.`
-      });
+      // Check if we need manual column mapping
+      const requiredFieldKeys = requiredFields.filter(f => f.required).map(f => f.key);
+      const mappedRequiredFields = Object.values(suggestedMapping).filter(field => 
+        requiredFieldKeys.includes(field)
+      );
+      
+      if (mappedRequiredFields.length < requiredFieldKeys.length) {
+        // Need manual column mapping
+        setColumnMapping(suggestedMapping);
+        setShowColumnMapping(true);
+        setUploadProgress(100);
+        setIsProcessing(false);
+        setActiveTab("mapping");
+        return;
+      }
 
-    } catch (error) {
+      // Auto-mapping successful, proceed with parsing
+      setColumnMapping(suggestedMapping);
+      processWithMapping(csvData, suggestedMapping);
+
+    } catch (error: any) {
       toast({
-        title: "Parsing Failed",
-        description: error instanceof Error ? error.message : "Failed to parse file",
+        title: "File Processing Error",
+        description: error.message || "Failed to process the file. Please check the format and try again.",
         variant: "destructive"
       });
-    } finally {
-      setIsProcessing(false);
     }
+    setIsProcessing(false);
+  };
+
+  const processWithMapping = (csvData: ParsedCSV, mapping: ColumnMapping) => {
+    setUploadProgress(70);
+    const items = parseCSVWithMapping(csvData, mapping);
+    setParsedData(items);
+    setPreviewData(items.slice(0, 10));
+    setUploadProgress(100);
+    setIsProcessing(false);
+    setActiveTab("preview");
+  };
+
+  const handleColumnMappingUpdate = (csvColumn: string, targetField: string) => {
+    setColumnMapping(prev => ({
+      ...prev,
+      [csvColumn]: targetField
+    }));
+  };
+
+  const handleMappingComplete = () => {
+    if (!rawCSVData) return;
+    
+    // Validate that all required fields are mapped
+    const requiredFields = REQUIRED_FIELDS[type].filter(f => f.required);
+    const mappedFields = Object.values(columnMapping);
+    const missingRequiredFields = requiredFields.filter(field => 
+      !mappedFields.includes(field.key)
+    );
+
+    if (missingRequiredFields.length > 0) {
+      toast({
+        title: "Incomplete Mapping",
+        description: `Please map the following required fields: ${missingRequiredFields.map(f => f.label).join(', ')}`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    processWithMapping(rawCSVData, columnMapping);
   };
 
   const downloadTemplate = () => {
@@ -274,8 +411,9 @@ export function ImportMenuModal({ open, onOpenChange, type }: ImportMenuModalPro
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="upload">Upload File</TabsTrigger>
+            <TabsTrigger value="mapping" disabled={!showColumnMapping}>Column Mapping</TabsTrigger>
             <TabsTrigger value="preview" disabled={parsedData.length === 0}>Preview Data</TabsTrigger>
             <TabsTrigger value="template">Download Template</TabsTrigger>
           </TabsList>
@@ -349,6 +487,72 @@ export function ImportMenuModal({ open, onOpenChange, type }: ImportMenuModalPro
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="mapping" className="space-y-6">
+            {rawCSVData && (
+              <div className="space-y-4">
+                <Alert>
+                  <AlertTriangle className="w-4 h-4" />
+                  <AlertDescription>
+                    Map your CSV columns to the required fields. Auto-suggestions are provided based on column names.
+                  </AlertDescription>
+                </Alert>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Column Mapping</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-4">
+                      {rawCSVData.headers.map((csvColumn, index) => (
+                        <div key={index} className="flex items-center gap-4 p-4 border rounded-lg">
+                          <div className="flex-1">
+                            <div className="font-medium text-sm">{csvColumn}</div>
+                            <div className="text-xs text-gray-500">
+                              Sample: {rawCSVData.rows[0]?.[index] || 'N/A'}
+                            </div>
+                          </div>
+                          <ArrowRight className="w-4 h-4 text-gray-400" />
+                          <div className="flex-1">
+                            <Select
+                              value={columnMapping[csvColumn] || ""}
+                              onValueChange={(value) => handleColumnMappingUpdate(csvColumn, value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select target field" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="">Don't import</SelectItem>
+                                {REQUIRED_FIELDS[type].map(field => (
+                                  <SelectItem key={field.key} value={field.key}>
+                                    {field.label} {field.required && <span className="text-red-500">*</span>}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {REQUIRED_FIELDS[type].find(f => f.key === columnMapping[csvColumn])?.description && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                {REQUIRED_FIELDS[type].find(f => f.key === columnMapping[csvColumn])?.description}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-4 border-t">
+                      <div className="text-sm text-gray-600">
+                        Required fields: {REQUIRED_FIELDS[type].filter(f => f.required).map(f => f.label).join(', ')}
+                      </div>
+                      <Button onClick={handleMappingComplete}>
+                        Continue to Preview
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="preview" className="space-y-6">
