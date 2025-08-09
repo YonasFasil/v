@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useQuery } from "@tanstack/react-query";
-import { Package, Plus, Edit, Trash2, DollarSign, Check } from "lucide-react";
+import { Package, Plus, Edit, Trash2, DollarSign, Check, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
@@ -25,6 +25,7 @@ export default function Packages() {
   const [editingPackage, setEditingPackage] = useState<any>(null);
   const [editingService, setEditingService] = useState<any>(null);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [duplicatingService, setDuplicatingService] = useState<any>(null);
   const [categories, setCategories] = useState([
     { id: "catering", name: "Catering", color: "bg-orange-100 text-orange-800" },
     { id: "entertainment", name: "Entertainment", color: "bg-purple-100 text-purple-800" },
@@ -147,7 +148,57 @@ export default function Packages() {
     }
   };
 
+  const duplicateService = async (service: any) => {
+    try {
+      const duplicatedService = {
+        name: `${service.name} (Copy)`,
+        description: service.description,
+        price: service.price,
+        category: service.category,
+        pricingModel: service.pricingModel
+      };
+      
+      await apiRequest("POST", "/api/services", duplicatedService);
+      await queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+      
+      toast({
+        title: "Service duplicated",
+        description: `${duplicatedService.name} has been created successfully`
+      });
+    } catch (error) {
+      toast({
+        title: "Duplication failed",
+        description: "Could not duplicate service",
+        variant: "destructive"
+      });
+    }
+  };
 
+  const duplicatePackage = async (packageData: any) => {
+    try {
+      const duplicatedPackage = {
+        name: `${packageData.name} (Copy)`,
+        description: packageData.description,
+        price: packageData.price,
+        services: packageData.services || [],
+        category: packageData.category
+      };
+      
+      await apiRequest("POST", "/api/packages", duplicatedPackage);
+      await queryClient.invalidateQueries({ queryKey: ["/api/packages"] });
+      
+      toast({
+        title: "Package duplicated",
+        description: `${duplicatedPackage.name} has been created successfully`
+      });
+    } catch (error) {
+      toast({
+        title: "Duplication failed",
+        description: "Could not duplicate package",
+        variant: "destructive"
+      });
+    }
+  };
 
   if (packagesLoading || servicesLoading) {
     return (
@@ -451,7 +502,7 @@ export default function Packages() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {Array.isArray(packages) && packages.map((pkg: any) => (
-                <Card key={pkg.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setEditingPackage(pkg)}>
+                <Card key={pkg.id} className="hover:shadow-lg transition-shadow group">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">{pkg.name}</CardTitle>
@@ -490,8 +541,31 @@ export default function Packages() {
                       </div>
                     )}
                     
-                    <div className="flex justify-end pt-2">
-                      <span className="text-xs text-blue-600 hover:text-blue-800">Click to edit →</span>
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingPackage(pkg);
+                        }}
+                      >
+                        <Edit className="w-3 h-3 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 text-xs border-blue-200 text-blue-600 hover:bg-blue-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          duplicatePackage(pkg);
+                        }}
+                      >
+                        <Copy className="w-3 h-3 mr-1" />
+                        Duplicate
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -544,7 +618,7 @@ export default function Packages() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {Array.isArray(services) && services.map((service: any) => (
-                <Card key={service.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setEditingService(service)}>
+                <Card key={service.id} className="hover:shadow-md transition-shadow group">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-medium text-sm">{service.name}</h3>
@@ -568,8 +642,31 @@ export default function Packages() {
                       </div>
                     </div>
                     
-                    <div className="flex justify-end pt-2">
-                      <span className="text-xs text-blue-600 hover:text-blue-800">Click to edit →</span>
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingService(service);
+                        }}
+                      >
+                        <Edit className="w-3 h-3 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 text-xs border-blue-200 text-blue-600 hover:bg-blue-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          duplicateService(service);
+                        }}
+                      >
+                        <Copy className="w-3 h-3 mr-1" />
+                        Duplicate
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
