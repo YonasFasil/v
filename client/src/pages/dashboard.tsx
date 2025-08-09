@@ -99,17 +99,26 @@ export default function Dashboard() {
 
           <MetricsGrid />
           
+          {/* Full-width Calendar */}
+          <div className="mb-4 sm:mb-6">
+            <AdvancedCalendar onEventClick={handleEventClick} />
+          </div>
+          
+          {/* Two-column layout for other components */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-              <AdvancedCalendar onEventClick={handleEventClick} />
               <RecentBookings />
             </div>
             
             <div className="space-y-4 sm:space-y-6">
-              <AIRecommendations />
               <ActiveLeads />
               <QuickActions />
             </div>
+          </div>
+          
+          {/* AI Recommendations moved below */}
+          <div className="mt-4 sm:mt-6">
+            <AIRecommendations />
           </div>
         </main>
 
