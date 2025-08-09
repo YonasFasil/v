@@ -1868,12 +1868,31 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
         sentAt: new Date()
       });
 
-      // Send email to customer (simulated for now)
+      // Send email to customer
       try {
         const customer = await storage.getCustomer(proposal.customerId);
-        if (customer?.email) {
-          console.log(`Email sent to ${customer.email} for proposal: ${proposal.title}`);
-          // In a real implementation, you would use a service like SendGrid here
+        if (customer?.email && proposal.content) {
+          // Import email functions dynamically
+          const { sendEmail, generateProposalEmail } = await import("./services/email");
+          
+          const htmlContent = generateProposalEmail(
+            customer.name, 
+            proposal.content,
+            'Venuine Events'
+          );
+          
+          const emailSent = await sendEmail({
+            to: customer.email,
+            subject: `Your Event Proposal: ${proposal.title}`,
+            html: htmlContent,
+            from: 'noreply@venuine.com'
+          });
+          
+          if (emailSent) {
+            console.log(`✅ Proposal email sent to ${customer.email}`);
+          } else {
+            console.log(`❌ Failed to send proposal email to ${customer.email}`);
+          }
         }
       } catch (emailError) {
         console.error("Failed to send proposal email:", emailError);
