@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, getDay } from "date-fns";
-import { ChevronLeft, ChevronRight, X, Plus, RotateCcw, Trash2, Save, Edit, Minus } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Plus, RotateCcw, Trash2, Save, Edit, Minus, FileText, Send, MessageSquare, Mail, Phone } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -67,6 +67,11 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   const [eventName, setEventName] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState("");
   const [eventStatus, setEventStatus] = useState("inquiry");
+  
+  // Communication state
+  const [showCommunication, setShowCommunication] = useState(false);
+  const [communicationMessage, setCommunicationMessage] = useState("");
+  const [communicationType, setCommunicationType] = useState("email");
   
   // Customer creation
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);

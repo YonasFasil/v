@@ -13,7 +13,9 @@ import {
   DollarSign, 
   MessageSquare, 
   Phone,
-  Mail
+  Mail,
+  FileText,
+  Send
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -26,6 +28,10 @@ interface Props {
 }
 
 export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: Props) {
+  const [showCommunication, setShowCommunication] = useState(false);
+  const [communicationMessage, setCommunicationMessage] = useState("");
+  const [communicationType, setCommunicationType] = useState("email");
+  
   const { data: venues = [] } = useQuery({ queryKey: ["/api/venues-with-spaces"] });
   const { data: packages = [] } = useQuery({ queryKey: ["/api/packages"] });
   const { data: services = [] } = useQuery({ queryKey: ["/api/services"] });
@@ -53,16 +59,40 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
-          <DialogTitle className="text-2xl font-bold">
-            {booking.isContract 
-              ? booking.contractInfo?.contractName || "Multi-Date Contract"
-              : booking.eventName
-            }
-          </DialogTitle>
-          <Button variant="outline" onClick={onEditClick} className="gap-2">
-            <Edit3 className="h-4 w-4" />
-            Edit {booking.isContract ? "Contract" : "Event"}
-          </Button>
+          <div className="flex flex-col gap-2">
+            <DialogTitle className="text-2xl font-bold">
+              {booking.isContract 
+                ? booking.contractInfo?.contractName || "Multi-Date Contract"
+                : booking.eventName
+              }
+            </DialogTitle>
+            {/* Proposal Status */}
+            {booking.proposalStatus && booking.proposalStatus !== 'none' && (
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-blue-600" />
+                <Badge variant="outline" className={`${
+                  booking.proposalStatus === 'sent' ? 'border-blue-500 text-blue-600' :
+                  booking.proposalStatus === 'viewed' ? 'border-yellow-500 text-yellow-600' :
+                  booking.proposalStatus === 'accepted' ? 'border-green-500 text-green-600' :
+                  booking.proposalStatus === 'declined' ? 'border-red-500 text-red-600' :
+                  'border-gray-500 text-gray-600'
+                }`}>
+                  Proposal {booking.proposalStatus}
+                </Badge>
+                {booking.proposalSentAt && (
+                  <span className="text-sm text-gray-500">
+                    Sent {format(new Date(booking.proposalSentAt), 'MMM d, yyyy')}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onEditClick} className="gap-2">
+              <Edit3 className="h-4 w-4" />
+              Edit {booking.isContract ? "Contract" : "Event"}
+            </Button>
+          </div>
         </div>
 
         {/* Contract Summary Banner */}
@@ -241,17 +271,85 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
                   </div>
                   
                   <div className="flex gap-2 pt-2">
-                    <Button variant="outline" size="sm" className="gap-1">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-1"
+                      onClick={() => setShowCommunication(!showCommunication)}
+                    >
+                      <MessageSquare className="h-3 w-3" />
+                      Message
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-1"
+                      onClick={() => window.open(`mailto:${selectedCustomerData.email}?subject=Regarding your event: ${booking.eventName}`)}
+                    >
                       <Mail className="h-3 w-3" />
                       Email
                     </Button>
                     {selectedCustomerData.phone && (
-                      <Button variant="outline" size="sm" className="gap-1">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="gap-1"
+                        onClick={() => window.open(`tel:${selectedCustomerData.phone}`)}
+                      >
                         <Phone className="h-3 w-3" />
                         Call
                       </Button>
                     )}
                   </div>
+                  
+                  {/* Communication Panel */}
+                  {showCommunication && (
+                    <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                      <h4 className="font-medium mb-3">Send Message to {selectedCustomerData.name}</h4>
+                      <div className="space-y-3">
+                        <select 
+                          value={communicationType}
+                          onChange={(e) => setCommunicationType(e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                        >
+                          <option value="email">Email</option>
+                          <option value="sms">SMS</option>
+                          <option value="internal">Internal Note</option>
+                        </select>
+                        
+                        <textarea
+                          value={communicationMessage}
+                          onChange={(e) => setCommunicationMessage(e.target.value)}
+                          placeholder={`Write your ${communicationType} message here...`}
+                          className="w-full p-3 border border-gray-300 rounded-md text-sm min-h-[100px] resize-none"
+                        />
+                        
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            className="gap-1"
+                            onClick={() => {
+                              // Handle sending message
+                              console.log('Sending message:', communicationMessage, communicationType);
+                              setCommunicationMessage("");
+                              setShowCommunication(false);
+                            }}
+                            disabled={!communicationMessage.trim()}
+                          >
+                            <Send className="h-3 w-3" />
+                            Send {communicationType === 'email' ? 'Email' : communicationType === 'sms' ? 'SMS' : 'Note'}
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setShowCommunication(false)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
