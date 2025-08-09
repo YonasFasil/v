@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { RotateCcw, Square, Circle, Save, Plus, Trash2, Move, RotateCw, Layout } from "lucide-react";
+import { RotateCcw, Square, Circle, Save, Plus, Trash2, Move, RotateCw, Layout, Box, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface FloorPlanElement {
@@ -50,6 +50,7 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [canvasSize] = useState({ width: 600, height: 400 });
+  const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
 
   const addElement = useCallback((x: number, y: number) => {
     if (mode !== 'add') return;
@@ -175,6 +176,25 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
 
   const selectedElementData = elements.find(el => el.id === selectedElement);
 
+  // 3D perspective transform for elements
+  const get3DTransform = (element: FloorPlanElement) => {
+    if (viewMode === '2d') return '';
+    
+    // Perspective effect - elements further back appear smaller and higher
+    const perspective = 0.8; // Perspective strength
+    const depth = element.y / canvasSize.height; // 0 = front, 1 = back
+    const scale = 1 - (depth * 0.3); // Scale down elements at the back
+    const skewX = depth * -10; // Slight skew for depth
+    const translateY = -(depth * 20); // Move back elements up slightly
+    
+    return `perspective(800px) rotateX(45deg) scale(${scale}) skewX(${skewX}deg) translateY(${translateY}px)`;
+  };
+
+  const get3DCanvasTransform = () => {
+    if (viewMode === '2d') return '';
+    return 'perspective(800px) rotateX(45deg)';
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
@@ -210,6 +230,30 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
                   >
                     <Plus className="w-4 h-4 mr-1" />
                     Add
+                  </Button>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-4">
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">View Mode</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant={viewMode === '2d' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('2d')}
+                  >
+                    <Square className="w-4 h-4 mr-1" />
+                    2D
+                  </Button>
+                  <Button
+                    variant={viewMode === '3d' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('3d')}
+                  >
+                    <Box className="w-4 h-4 mr-1" />
+                    3D
                   </Button>
                 </div>
               </div>
@@ -306,12 +350,15 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
               <div
                 ref={canvasRef}
                 className={cn(
-                  "relative border-2 border-dashed border-slate-300 bg-slate-50 overflow-hidden",
-                  mode === 'add' ? "cursor-crosshair" : "cursor-default"
+                  "relative border-2 border-dashed border-slate-300 overflow-hidden transition-transform duration-300",
+                  mode === 'add' ? "cursor-crosshair" : "cursor-default",
+                  viewMode === '3d' ? "bg-gradient-to-b from-slate-100 to-slate-300" : "bg-slate-50"
                 )}
                 style={{
                   width: canvasSize.width,
                   height: canvasSize.height,
+                  transform: get3DCanvasTransform(),
+                  transformOrigin: 'center bottom',
                 }}
                 onClick={handleCanvasClick}
                 onMouseMove={handleMouseMove}
@@ -320,7 +367,10 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
               >
                 {/* Grid pattern */}
                 <div 
-                  className="absolute inset-0 opacity-20"
+                  className={cn(
+                    "absolute inset-0",
+                    viewMode === '3d' ? "opacity-10" : "opacity-20"
+                  )}
                   style={{
                     backgroundImage: `
                       linear-gradient(to right, #cbd5e1 1px, transparent 1px),
@@ -330,39 +380,81 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
                   }}
                 />
 
-                {/* Elements */}
-                {elements.map((element) => (
-                  <div
-                    key={element.id}
-                    className={cn(
-                      "absolute border-2 flex items-center justify-center text-xs font-medium text-white select-none",
-                      selectedElement === element.id ? "border-blue-500 ring-2 ring-blue-200 cursor-move" : "border-gray-400 cursor-pointer",
-                      isDragging && selectedElement === element.id ? "cursor-grabbing" : ""
-                    )}
+                {/* 3D Floor effect */}
+                {viewMode === '3d' && (
+                  <div 
+                    className="absolute inset-0 opacity-30"
                     style={{
-                      left: element.x,
-                      top: element.y,
-                      width: element.width,
-                      height: element.height,
-                      backgroundColor: element.color,
-                      borderRadius: element.shape === 'circle' ? '50%' : '4px',
-                      transform: `rotate(${element.rotation}deg)`,
-                      zIndex: selectedElement === element.id ? 10 : 1,
+                      background: 'linear-gradient(to bottom, rgba(148, 163, 184, 0.1) 0%, rgba(148, 163, 184, 0.4) 100%)'
                     }}
-                    onClick={(e) => handleElementClick(e, element.id)}
-                    onMouseDown={(e) => handleElementMouseDown(e, element.id)}
-                  >
-                    <span className="text-center text-xs leading-tight pointer-events-none">
-                      {element.label}
-                      {element.seats && <br />}
-                      {element.seats && `${element.seats} seats`}
-                    </span>
-                  </div>
-                ))}
+                  />
+                )}
+
+                {/* Elements */}
+                {elements.map((element) => {
+                  const depth = element.y / canvasSize.height;
+                  const shadowSize = viewMode === '3d' ? Math.max(2, 8 * (1 - depth)) : 0;
+                  
+                  return (
+                    <div
+                      key={element.id}
+                      className={cn(
+                        "absolute border-2 flex items-center justify-center text-xs font-medium text-white select-none transition-all duration-200",
+                        selectedElement === element.id ? "border-blue-500 ring-2 ring-blue-200 cursor-move" : "border-gray-400 cursor-pointer",
+                        isDragging && selectedElement === element.id ? "cursor-grabbing" : "",
+                        viewMode === '3d' && "shadow-lg"
+                      )}
+                      style={{
+                        left: element.x,
+                        top: element.y,
+                        width: element.width,
+                        height: element.height,
+                        backgroundColor: element.color,
+                        borderRadius: element.shape === 'circle' ? '50%' : '4px',
+                        transform: viewMode === '3d' 
+                          ? `rotate(${element.rotation}deg) ${get3DTransform(element)}`
+                          : `rotate(${element.rotation}deg)`,
+                        zIndex: selectedElement === element.id ? 10 : Math.floor((1 - depth) * 5) + 1,
+                        boxShadow: viewMode === '3d' 
+                          ? `0 ${shadowSize}px ${shadowSize * 2}px rgba(0,0,0,0.3)`
+                          : 'none',
+                        filter: viewMode === '3d' ? `brightness(${1 - depth * 0.2})` : 'none',
+                      }}
+                      onClick={(e) => handleElementClick(e, element.id)}
+                      onMouseDown={(e) => handleElementMouseDown(e, element.id)}
+                    >
+                      <span className="text-center text-xs leading-tight pointer-events-none">
+                        {element.label}
+                        {element.seats && <br />}
+                        {element.seats && `${element.seats} seats`}
+                      </span>
+                      
+                      {/* 3D Height indicator */}
+                      {viewMode === '3d' && (element.type === 'table' || element.type === 'bar') && (
+                        <div 
+                          className="absolute inset-0 border-2 border-gray-600 opacity-50"
+                          style={{
+                            borderRadius: element.shape === 'circle' ? '50%' : '4px',
+                            transform: 'translateZ(20px) translateY(-2px)',
+                            backgroundColor: 'transparent',
+                            borderTop: '2px solid rgba(0,0,0,0.3)',
+                          }}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
 
                 {mode === 'add' && (
-                  <div className="absolute top-2 left-2 bg-blue-600 text-white px-2 py-1 rounded text-xs">
+                  <div className="absolute top-2 left-2 bg-blue-600 text-white px-2 py-1 rounded text-xs z-20">
                     Click to place {selectedType.label}
+                  </div>
+                )}
+
+                {viewMode === '3d' && (
+                  <div className="absolute top-2 right-2 bg-green-600 text-white px-2 py-1 rounded text-xs z-20 flex items-center gap-1">
+                    <Eye className="w-3 h-3" />
+                    3D Preview
                   </div>
                 )}
               </div>
@@ -371,6 +463,7 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
                 <p>• <strong>Add mode:</strong> Click to place new elements</p>
                 <p>• <strong>Select mode:</strong> Click elements to select them</p>
                 <p>• <strong>Move:</strong> Drag selected elements to reposition them</p>
+                <p>• <strong>3D View:</strong> Get a spatial preview of your layout</p>
                 <p>• Use the tools panel to modify selected elements</p>
               </div>
             </Card>
