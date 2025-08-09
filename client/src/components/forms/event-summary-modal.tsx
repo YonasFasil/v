@@ -581,6 +581,7 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
       <CreateEventModal
         open={showDuplicateModal}
         onOpenChange={setShowDuplicateModal}
+        duplicateFromBooking={booking}
       />
     </Dialog>
   );

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import { ProposalCreationModal } from "../proposals/proposal-creation-modal";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  duplicateFromBooking?: any;
 }
 
 interface SelectedDate {
@@ -36,7 +37,7 @@ interface SelectedDate {
   };
 }
 
-export function CreateEventModal({ open, onOpenChange }: Props) {
+export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -95,6 +96,90 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
   const { data: services = [] } = useQuery({ queryKey: ["/api/services"] });
   const { data: customers = [] } = useQuery({ queryKey: ["/api/customers"] });
   const { data: existingBookings = [] } = useQuery({ queryKey: ["/api/bookings"] });
+
+  // Initialize form with duplicate data when provided
+  useEffect(() => {
+    if (duplicateFromBooking && open) {
+      // Reset to first step when duplicating
+      setCurrentStep(1);
+      setActiveTabIndex(0);
+      
+      // Set basic event details with (Copy) suffix
+      setEventName(duplicateFromBooking.eventName + " (Copy)");
+      setSelectedCustomer(duplicateFromBooking.customerId || "");
+      setEventStatus("inquiry"); // Always start as inquiry for duplicates
+      
+      // Set venue from the original booking
+      if (duplicateFromBooking.venueId) {
+        setSelectedVenue(duplicateFromBooking.venueId);
+      }
+      
+      // Create a new date entry for tomorrow (to avoid conflicts)
+      const tomorrowDate = new Date();
+      tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+      
+      // Build selected services and packages from the original booking
+      const selectedServices: string[] = [];
+      const selectedPackages: string[] = [];
+      
+      // Add selected packages
+      if (duplicateFromBooking.selectedPackages) {
+        duplicateFromBooking.selectedPackages.forEach((pkg: any) => {
+          selectedPackages.push(pkg.id);
+        });
+      }
+      
+      // Add selected services
+      if (duplicateFromBooking.selectedServices) {
+        duplicateFromBooking.selectedServices.forEach((service: any) => {
+          selectedServices.push(service.id);
+        });
+      }
+      
+      // Create date configuration with original booking data
+      const duplicatedDate: SelectedDate = {
+        date: tomorrowDate,
+        startTime: duplicateFromBooking.startTime || "09:00 AM",
+        endTime: duplicateFromBooking.endTime || "05:00 PM",
+        spaceId: duplicateFromBooking.spaceId || "",
+        packageId: selectedPackages[0] || "",
+        selectedServices: selectedServices,
+        guestCount: duplicateFromBooking.guestCount || 1,
+        itemQuantities: duplicateFromBooking.itemQuantities || {},
+        pricingOverrides: duplicateFromBooking.pricingOverrides || {}
+      };
+      
+      setSelectedDates([duplicatedDate]);
+      
+      // Show notification when duplicating
+      toast({
+        title: "Event Duplicated",
+        description: `Event details copied from "${duplicateFromBooking.eventName}". You can now modify and save as a new event.`
+      });
+    }
+  }, [duplicateFromBooking, open, toast]);
+
+  // Reset form when modal is closed (only if not duplicating)
+  useEffect(() => {
+    if (!open && !duplicateFromBooking) {
+      // Reset all form state
+      setCurrentStep(1);
+      setActiveTabIndex(0);
+      setSelectedVenue("");
+      setSelectedDates([]);
+      setEventName("");
+      setSelectedCustomer("");
+      setEventStatus("inquiry");
+      setShowPackageSelection(false);
+      setShowNewServiceForm(false);
+      setShowCopyModal(false);
+      setShowVoicePanel(false);
+      setVoiceExtractedData(null);
+      setShowNewCustomerForm(false);
+      setShowCreateProposal(false);
+      setShowSummaryDetails(false);
+    }
+  }, [open, duplicateFromBooking]);
 
   // Calendar calculations
   const monthStart = startOfMonth(currentDate);
@@ -703,7 +788,9 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                 )}
                 <div className="flex items-center gap-3">
                   <CalendarIcon className="h-5 w-5 text-blue-600" />
-                  <h2 className="text-lg sm:text-xl font-semibold">Create Event</h2>
+                  <h2 className="text-lg sm:text-xl font-semibold">
+                    {duplicateFromBooking ? "Duplicate Event" : "Create Event"}
+                  </h2>
                   <Button 
                     variant="outline" 
                     size="sm"
