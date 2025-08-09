@@ -678,49 +678,70 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                     {selectedDates.length > 0 && (
                       <div>
                         <Label className="text-base font-medium">Time Slots & Spaces</Label>
-                        <div className="mt-2 space-y-3">
+                        <div className="mt-3 space-y-3 max-h-64 overflow-y-auto">
                           {selectedDates.map((slot, index) => (
-                            <Card key={index} className="p-4">
-                              <div className="text-sm font-medium mb-3">
-                                {format(slot.date, 'EEEE, MMMM d, yyyy')}
+                            <Card key={index} className="group relative overflow-hidden border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
+                              {/* Modern gradient header */}
+                              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-100 p-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white font-semibold text-sm">
+                                      {format(slot.date, 'd')}
+                                    </div>
+                                    <div>
+                                      <h4 className="font-semibold text-slate-900 text-sm">
+                                        {format(slot.date, 'EEEE, MMMM d')}
+                                      </h4>
+                                      <p className="text-xs text-slate-600 mt-0.5">
+                                        {format(slot.date, 'yyyy')}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
+                                    Available
+                                  </Badge>
+                                </div>
                               </div>
                               
-                              <div className="grid grid-cols-3 gap-3">
-                                <div>
-                                  <Label className="text-xs">Start Time</Label>
-                                  <Input
-                                    type="time"
-                                    value={slot.startTime}
-                                    onChange={(e) => updateDateSlot(index, 'startTime', e.target.value)}
-                                    className="mt-1"
-                                  />
-                                </div>
-                                <div>
-                                  <Label className="text-xs">End Time</Label>
-                                  <Input
-                                    type="time"
-                                    value={slot.endTime}
-                                    onChange={(e) => updateDateSlot(index, 'endTime', e.target.value)}
-                                    className="mt-1"
-                                  />
-                                </div>
-                                <div>
-                                  <Label className="text-xs">Space</Label>
-                                  <Select 
-                                    value={slot.spaceId || ""} 
-                                    onValueChange={(value) => updateDateSlot(index, 'spaceId', value)}
-                                  >
-                                    <SelectTrigger className="mt-1">
-                                      <SelectValue placeholder="Select space" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {selectedVenueData?.spaces?.map((space: any) => (
-                                        <SelectItem key={space.id} value={space.id}>
-                                          {space.name} ({space.capacity} max)
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
+                              {/* Configuration content */}
+                              <div className="p-4">
+                                <div className="grid grid-cols-3 gap-3">
+                                  <div>
+                                    <Label className="text-xs font-medium text-slate-700">Start Time</Label>
+                                    <Input
+                                      type="time"
+                                      value={slot.startTime}
+                                      onChange={(e) => updateDateSlot(index, 'startTime', e.target.value)}
+                                      className="mt-1 h-8"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs font-medium text-slate-700">End Time</Label>
+                                    <Input
+                                      type="time"
+                                      value={slot.endTime}
+                                      onChange={(e) => updateDateSlot(index, 'endTime', e.target.value)}
+                                      className="mt-1 h-8"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs font-medium text-slate-700">Space</Label>
+                                    <Select 
+                                      value={slot.spaceId || ""} 
+                                      onValueChange={(value) => updateDateSlot(index, 'spaceId', value)}
+                                    >
+                                      <SelectTrigger className="mt-1 h-8">
+                                        <SelectValue placeholder="Select space" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {selectedVenueData?.spaces?.map((space: any) => (
+                                          <SelectItem key={space.id} value={space.id}>
+                                            {space.name} ({space.capacity} max)
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
                                 </div>
                               </div>
                             </Card>
@@ -769,17 +790,35 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
 
                       {/* Active Date Configuration */}
                       {activeDate && (
-                        <div className="bg-white border rounded-lg p-6 space-y-6">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="font-semibold">
-                                {format(activeDate.date, 'EEEE, MMMM d, yyyy')}
-                              </h4>
-                              <div className="text-sm text-slate-600 mt-1">
-                                {activeDate.startTime} - {activeDate.endTime}
+                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                          {/* Left Column: Package & Services Configuration */}
+                          <div className="xl:col-span-2 space-y-6">
+                            {/* Modern gradient header for current date */}
+                            <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
+                              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-100 p-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white font-semibold text-sm">
+                                      {format(activeDate.date, 'd')}
+                                    </div>
+                                    <div>
+                                      <h4 className="font-semibold text-slate-900 text-sm">
+                                        {format(activeDate.date, 'EEEE, MMMM d')}
+                                      </h4>
+                                      <p className="text-xs text-slate-600 mt-0.5">
+                                        {activeDate.startTime} - {activeDate.endTime}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
+                                    Configuring
+                                  </Badge>
+                                </div>
                               </div>
-                            </div>
-                            <div className="flex items-center gap-6">
+                              
+                              {/* Configuration content inside the card */}
+                              <div className="p-4">
+                                <div className="flex items-center gap-6">
                               {/* Guests Field - Simplified */}
                               <div className="flex items-center gap-2">
                                 <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
@@ -1259,6 +1298,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                                 </div>
                               </Card>
                             </div>
+                          </div>
+                            </Card>
                           </div>
                         </div>
                       )}
