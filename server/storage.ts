@@ -13,7 +13,8 @@ import {
   type Package, type InsertPackage,
   type Service, type InsertService,
   type TaxSetting, type InsertTaxSetting,
-  type Communication, type InsertCommunication
+  type Communication, type InsertCommunication,
+  type FloorPlan, type InsertFloorPlan
 } from "@shared/schema";
 
 // Additional types for new features
@@ -141,6 +142,14 @@ export interface IStorage {
   updateTaxSetting(id: string, taxSetting: Partial<InsertTaxSetting>): Promise<TaxSetting | undefined>;
   deleteTaxSetting(id: string): Promise<boolean>;
   
+  // Floor Plans
+  getFloorPlans(): Promise<FloorPlan[]>;
+  getFloorPlan(id: string): Promise<FloorPlan | undefined>;
+  getFloorPlansByVenue(venueId: string): Promise<FloorPlan[]>;
+  createFloorPlan(floorPlan: InsertFloorPlan): Promise<FloorPlan>;
+  updateFloorPlan(id: string, floorPlan: Partial<InsertFloorPlan>): Promise<FloorPlan | undefined>;
+  deleteFloorPlan(id: string): Promise<boolean>;
+  
   // Additional CRUD operations  
   deleteCustomer(id: string): Promise<boolean>;
   updateVenue(id: string, venueData: Partial<Venue>): Promise<Venue | null>;
@@ -166,6 +175,7 @@ export class MemStorage implements IStorage {
   private taxSettings: Map<string, TaxSetting>;
   private communications: Map<string, Communication>;
   private settings: Map<string, Setting>;
+  private floorPlans: Map<string, FloorPlan>;
 
   constructor() {
     this.users = new Map();
@@ -184,6 +194,7 @@ export class MemStorage implements IStorage {
     this.taxSettings = new Map();
     this.communications = new Map();
     this.settings = new Map();
+    this.floorPlans = new Map();
 
     this.initializeData();
   }
@@ -1248,6 +1259,50 @@ export class MemStorage implements IStorage {
 
   async deleteSetupStyle(id: string): Promise<boolean> {
     return this.setupStyles.delete(id);
+  }
+
+  // Floor Plans methods
+  async getFloorPlans(): Promise<FloorPlan[]> {
+    return Array.from(this.floorPlans.values());
+  }
+
+  async getFloorPlan(id: string): Promise<FloorPlan | undefined> {
+    return this.floorPlans.get(id);
+  }
+
+  async getFloorPlansByVenue(venueId: string): Promise<FloorPlan[]> {
+    return Array.from(this.floorPlans.values()).filter(plan => plan.venueId === venueId);
+  }
+
+  async createFloorPlan(floorPlan: InsertFloorPlan): Promise<FloorPlan> {
+    const newFloorPlan: FloorPlan = {
+      id: randomUUID(),
+      ...floorPlan,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isTemplate: floorPlan.isTemplate ?? false,
+      totalSeats: floorPlan.totalSeats ?? 0,
+      description: floorPlan.description || null
+    };
+    this.floorPlans.set(newFloorPlan.id, newFloorPlan);
+    return newFloorPlan;
+  }
+
+  async updateFloorPlan(id: string, floorPlan: Partial<InsertFloorPlan>): Promise<FloorPlan | undefined> {
+    const existing = this.floorPlans.get(id);
+    if (!existing) return undefined;
+    
+    const updated = { 
+      ...existing, 
+      ...floorPlan,
+      updatedAt: new Date()
+    };
+    this.floorPlans.set(id, updated);
+    return updated;
+  }
+
+  async deleteFloorPlan(id: string): Promise<boolean> {
+    return this.floorPlans.delete(id);
   }
 }
 
