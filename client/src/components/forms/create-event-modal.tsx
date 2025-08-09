@@ -85,6 +85,9 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
 
   // Proposal creation
   const [showCreateProposal, setShowCreateProposal] = useState(false);
+  
+  // Summary details modal
+  const [showSummaryDetails, setShowSummaryDetails] = useState(false);
 
   // Data queries
   const { data: venues = [] } = useQuery({ queryKey: ["/api/venues-with-spaces"] });
@@ -1427,7 +1430,18 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                     </div>
 
                     <div className="bg-slate-50 p-6 rounded-lg">
-                      <h4 className="font-semibold mb-4">Final Summary</h4>
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-semibold">Final Summary</h4>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowSummaryDetails(true)}
+                          className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                        >
+                          View Details
+                        </Button>
+                      </div>
                       <div className="space-y-3">
                         <div>
                           <span className="text-sm text-slate-600">Dates</span>
@@ -1665,6 +1679,160 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
             onBookingDataExtracted={handleVoiceDataExtracted}
             isCallMode={true}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Summary Details Modal */}
+      <Dialog open={showSummaryDetails} onOpenChange={setShowSummaryDetails}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Event Details Summary</DialogTitle>
+            <DialogDescription>
+              Complete breakdown of all selected packages, services, and pricing for your event.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {selectedDates.map((date, index) => {
+              const selectedPackage = date.packageId ? (packages as any[])?.find((p: any) => p.id === date.packageId) : null;
+              const selectedServicesList = (date.selectedServices || []).map(serviceId => 
+                (services as any[])?.find((s: any) => s.id === serviceId)
+              ).filter(Boolean);
+              const dateTotal = calculateDateTotal(date);
+              
+              return (
+                <div key={index} className="border rounded-lg p-4 bg-white">
+                  <div className="flex items-center justify-between mb-4">
+                    <h5 className="font-semibold text-lg">
+                      {format(date.date, 'EEEE, MMMM d, yyyy')}
+                    </h5>
+                    <div className="text-right">
+                      <div className="text-sm text-slate-600">Date Total</div>
+                      <div className="font-semibold text-lg">${dateTotal.toFixed(2)}</div>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Event Details */}
+                    <div>
+                      <h6 className="font-medium mb-3">Event Details</h6>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-slate-600">Time:</span>
+                          <span>{date.startTime} - {date.endTime}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-600">Guests:</span>
+                          <span>{date.guestCount || 1}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-600">Space:</span>
+                          <span>
+                            {date.spaceId 
+                              ? (venues as any[])?.find((v: any) => v.id === selectedVenue)?.spaces?.find((s: any) => s.id === date.spaceId)?.name || "Not specified"
+                              : "Not specified"
+                            }
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Package Information */}
+                    <div>
+                      <h6 className="font-medium mb-3">Package & Pricing</h6>
+                      {selectedPackage ? (
+                        <div className="space-y-3">
+                          <div className="p-3 bg-blue-50 rounded border border-blue-200">
+                            <div className="font-medium text-sm">{selectedPackage.name}</div>
+                            <div className="text-xs text-slate-600 mt-1">{selectedPackage.description}</div>
+                            <div className="flex justify-between items-center mt-2">
+                              <span className="text-xs text-slate-600">Package Price:</span>
+                              <span className="text-sm font-medium">
+                                ${(date.pricingOverrides?.packagePrice ?? parseFloat(selectedPackage.price)).toFixed(2)}
+                                {selectedPackage.pricingModel === 'per_person' && ` x ${date.guestCount || 1}`}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {/* Included Services */}
+                          {selectedPackage.includedServiceIds && selectedPackage.includedServiceIds.length > 0 && (
+                            <div>
+                              <div className="text-xs text-slate-600 mb-2">Included Services:</div>
+                              <div className="space-y-1">
+                                {selectedPackage.includedServiceIds.map((serviceId: string) => {
+                                  const service = (services as any[])?.find((s: any) => s.id === serviceId);
+                                  const quantity = date.itemQuantities?.[serviceId] || 1;
+                                  return service ? (
+                                    <div key={serviceId} className="flex justify-between text-xs">
+                                      <span className="text-green-700">{service.name}</span>
+                                      <span className="text-slate-600">
+                                        {service.pricingModel !== 'per_person' && quantity > 1 ? `Qty: ${quantity}` : 'Included'}
+                                      </span>
+                                    </div>
+                                  ) : null;
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-slate-500 italic">No package selected</div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Additional Services */}
+                  {selectedServicesList.length > 0 && (
+                    <div className="mt-4 pt-4 border-t">
+                      <h6 className="font-medium mb-3">Additional Services</h6>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {selectedServicesList.map((service: any) => {
+                          const quantity = date.itemQuantities?.[service.id] || 1;
+                          const overridePrice = date.pricingOverrides?.servicePrices?.[service.id];
+                          const price = overridePrice ?? parseFloat(service.price || 0);
+                          const totalPrice = service.pricingModel === 'per_person' 
+                            ? price * (date.guestCount || 1)
+                            : price * quantity;
+                          
+                          return (
+                            <div key={service.id} className="p-3 bg-slate-50 rounded border">
+                              <div className="font-medium text-sm">{service.name}</div>
+                              <div className="text-xs text-slate-600 mt-1">{service.description}</div>
+                              <div className="flex justify-between items-center mt-2">
+                                <span className="text-xs text-slate-600">
+                                  {service.pricingModel === 'per_person' 
+                                    ? `$${price.toFixed(2)} x ${date.guestCount || 1} guests`
+                                    : quantity > 1 
+                                      ? `$${price.toFixed(2)} x ${quantity}`
+                                      : `$${price.toFixed(2)}`
+                                  }
+                                </span>
+                                <span className="text-sm font-medium">${totalPrice.toFixed(2)}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            
+            {/* Grand Total */}
+            <div className="border-t pt-4">
+              <div className="flex justify-between items-center">
+                <span className="text-lg font-semibold">Grand Total</span>
+                <span className="text-xl font-bold text-blue-600">${totalPrice.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex justify-end mt-6">
+            <Button variant="outline" onClick={() => setShowSummaryDetails(false)}>
+              Close
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
