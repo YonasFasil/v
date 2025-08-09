@@ -1040,7 +1040,7 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                               <div className="mt-2">
                                                 <div className="text-xs text-slate-500 mb-1">Includes:</div>
                                                 <div className="space-y-1">
-                                                  {pkg.includedServiceIds.slice(0, 3).map((serviceId: string) => {
+                                                  {pkg.includedServiceIds.map((serviceId: string) => {
                                                     const service = (services as any[]).find((s: any) => s.id === serviceId);
                                                     if (!service) return null;
                                                     
@@ -1072,9 +1072,6 @@ export function CreateEventModal({ open, onOpenChange }: Props) {
                                                       </div>
                                                     );
                                                   })}
-                                                  {pkg.includedServiceIds.length > 3 && (
-                                                    <span className="text-xs text-slate-500">+{pkg.includedServiceIds.length - 3} more</span>
-                                                  )}
                                                 </div>
                                               </div>
                                             )}
