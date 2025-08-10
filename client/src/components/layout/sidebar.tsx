@@ -17,7 +17,8 @@ import {
   Mic,
   ChevronLeft,
   ChevronRight,
-  Grid3X3
+  Grid3X3,
+  Crown
 } from "lucide-react";
 
 const navigationItems = [
@@ -41,6 +42,10 @@ const aiFeatures = [
 const analyticsItems = [
   { name: "Reports & Analytics", href: "/reports", icon: BarChart3 },
   { name: "Settings", href: "/settings", icon: Settings },
+];
+
+const planItems = [
+  { name: "Plan & Billing", href: "/plan", icon: Crown },
 ];
 
 interface SidebarProps {
@@ -193,6 +198,61 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         {collapsed && (
           <div className="pt-4 space-y-1">
             {analyticsItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              
+              return (
+                <Link key={item.name} href={item.href}>
+                  <div
+                    className={`flex items-center justify-center w-10 h-10 mx-auto rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                      active
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                    }`}
+                    title={item.name}
+                  >
+                    <Icon className="w-5 h-5" />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Plan & Billing Section - Expanded */}
+        {!collapsed && (
+          <div className="pt-4">
+            <div className="px-3 mb-2">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Account
+              </span>
+            </div>
+            {planItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              
+              return (
+                <Link key={item.name} href={item.href}>
+                  <div
+                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                      active
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                    }`}
+                  >
+                    <Icon className="w-5 h-5 mr-3" />
+                    {item.name}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Plan & Billing Section - Collapsed */}
+        {collapsed && (
+          <div className="pt-4 space-y-1">
+            {planItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
               

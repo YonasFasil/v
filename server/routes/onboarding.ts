@@ -85,7 +85,7 @@ export function registerOnboardingRoutes(app: Express) {
         });
       }
 
-      // Create tenant
+      // Create tenant with clean environment
       const newTenant = await db
         .insert(tenants)
         .values({
@@ -100,6 +100,21 @@ export function registerOnboardingRoutes(app: Express) {
           stripeSubscriptionId: null,
         })
         .returning();
+
+      // Initialize empty tenant environment (no demo data)  
+      // The tenant starts completely clean with only their selected plan
+      
+      // Create basic tenant user relationship
+      await db
+        .insert(require('../../shared/schema').tenantUsers)
+        .values({
+          tenantId: newTenant[0].id,
+          userId: req.session.userId,
+          role: 'owner',
+        });
+
+      // Store tenant ID in session for future requests
+      req.session.currentTenantId = newTenant[0].id;
 
       res.status(201).json({
         message: 'Tenant created successfully',

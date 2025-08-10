@@ -7,6 +7,7 @@ import { registerPublicRoutes } from "./routes/public";
 import { registerSuperAdminRoutes } from "./routes/superadmin";
 import { registerDevRoutes } from "./routes/dev";
 import { registerOnboardingRoutes } from "./routes/onboarding";
+import { registerTenantRoutes } from "./routes/tenant";
 import { EmailService } from "./services/email";
 import { gmailService } from "./services/gmail";
 import { NotificationService } from "./services/notification";
@@ -67,6 +68,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/customers', tenantContext);
   app.use('/api/leads', tenantContext);
   app.use('/api/proposals', tenantContext);
+  app.use('/api/tenant', tenantContext);
+  
+  // Register tenant management routes
+  registerTenantRoutes(app);
 
   // Register development helper routes
   registerDevRoutes(app);

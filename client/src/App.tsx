@@ -36,6 +36,7 @@ import VoiceBooking from "@/pages/voice-booking";
 import ProposalView from "@/pages/proposal-view";
 import Proposals from "@/pages/proposals";
 import Onboarding from "@/pages/onboarding";
+import PlanManagement from "@/pages/plan-management";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -69,6 +70,7 @@ function Router() {
       <Route path="/t/:slug/app/settings" component={Settings} />
       <Route path="/t/:slug/app/proposals" component={Proposals} />
       <Route path="/t/:slug/app/proposal/:proposalId" component={ProposalView} />
+      <Route path="/t/:slug/app/plan" component={PlanManagement} />
       
       {/* Superadmin routes - secure hidden URLs */}
       <Route path="/sys-admin-x7k9p2w4" component={SuperAdminDashboard} />
