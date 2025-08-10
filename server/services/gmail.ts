@@ -187,6 +187,10 @@ ${this.config.email}
   isConfigured(): boolean {
     return this.transporter !== null && this.config !== null;
   }
+
+  getConfiguredEmail(): string {
+    return this.config?.email || "";
+  }
 }
 
 // Global instance

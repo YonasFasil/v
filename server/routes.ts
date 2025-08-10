@@ -1823,9 +1823,9 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
         calendarSync: "google",
         analyticsEnabled: true,
         gmailSettings: {
-          email: "",
-          appPassword: "",
-          isConfigured: false
+          email: gmailService.isConfigured() ? gmailService.getConfiguredEmail() : "",
+          appPassword: gmailService.isConfigured() ? "••••••••••••••••" : "",
+          isConfigured: gmailService.isConfigured()
         }
       }
     });
