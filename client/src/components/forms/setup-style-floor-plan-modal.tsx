@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -7,13 +7,19 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { RotateCcw, Square, Circle, Save, Plus, Trash2, Move, RotateCw, Layout, Box, Eye, ZoomIn, ZoomOut } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
+import { 
+  RotateCcw, Square, Circle, Save, Plus, Trash2, Move, RotateCw, Layout, Box, Eye, 
+  ZoomIn, ZoomOut, Copy, Clipboard, Grid3X3, Layers, Maximize2, MousePointer2,
+  Target, Palette, FlipHorizontal, FlipVertical, AlignCenter, MoreHorizontal
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface FloorPlanElement {
   id: string;
-  type: 'table' | 'stage' | 'bar' | 'door' | 'wall' | 'chair';
-  shape: 'rectangle' | 'circle' | 'square';
+  type: 'table' | 'stage' | 'bar' | 'door' | 'wall' | 'chair' | 'plant' | 'entrance' | 'restroom' | 'kitchen';
+  shape: 'rectangle' | 'circle' | 'square' | 'round-rectangle';
   x: number;
   y: number;
   width: number;
@@ -22,6 +28,13 @@ interface FloorPlanElement {
   seats?: number;
   label?: string;
   color: string;
+  opacity?: number;
+  zIndex?: number;
+  locked?: boolean;
+  visible?: boolean;
+  borderWidth?: number;
+  borderColor?: string;
+  gradient?: boolean;
 }
 
 interface SetupStyleFloorPlanModalProps {
@@ -32,67 +45,258 @@ interface SetupStyleFloorPlanModalProps {
 }
 
 const ELEMENT_TYPES = [
-  { type: 'table', label: 'Round Table', shape: 'circle', defaultSize: { width: 60, height: 60 }, color: '#8B4513', icon: Circle },
-  { type: 'table', label: 'Rectangle Table', shape: 'rectangle', defaultSize: { width: 80, height: 40 }, color: '#8B4513', icon: Square },
-  { type: 'chair', label: 'Chair', shape: 'rectangle', defaultSize: { width: 20, height: 20 }, color: '#654321', icon: Square },
-  { type: 'stage', label: 'Stage', shape: 'rectangle', defaultSize: { width: 120, height: 80 }, color: '#4A5568', icon: Square },
-  { type: 'bar', label: 'Bar', shape: 'rectangle', defaultSize: { width: 100, height: 30 }, color: '#2D3748', icon: Square },
-  { type: 'door', label: 'Door', shape: 'rectangle', defaultSize: { width: 40, height: 10 }, color: '#F7FAFC', icon: Square },
-  { type: 'wall', label: 'Wall', shape: 'rectangle', defaultSize: { width: 10, height: 100 }, color: '#1A202C', icon: Square },
+  { type: 'table', label: 'Round Table', shape: 'circle', defaultSize: { width: 80, height: 80 }, color: '#8B4513', icon: Circle, category: 'Seating' },
+  { type: 'table', label: 'Rectangle Table', shape: 'rectangle', defaultSize: { width: 120, height: 60 }, color: '#8B4513', icon: Square, category: 'Seating' },
+  { type: 'table', label: 'Square Table', shape: 'square', defaultSize: { width: 80, height: 80 }, color: '#8B4513', icon: Square, category: 'Seating' },
+  { type: 'chair', label: 'Chair', shape: 'round-rectangle', defaultSize: { width: 24, height: 24 }, color: '#654321', icon: Square, category: 'Seating' },
+  { type: 'stage', label: 'Stage', shape: 'rectangle', defaultSize: { width: 160, height: 100 }, color: '#4A5568', icon: Square, category: 'Features' },
+  { type: 'bar', label: 'Bar Counter', shape: 'rectangle', defaultSize: { width: 140, height: 40 }, color: '#2D3748', icon: Square, category: 'Features' },
+  { type: 'entrance', label: 'Entrance', shape: 'rectangle', defaultSize: { width: 60, height: 15 }, color: '#10B981', icon: Square, category: 'Structure' },
+  { type: 'door', label: 'Door', shape: 'rectangle', defaultSize: { width: 40, height: 12 }, color: '#F7FAFC', icon: Square, category: 'Structure' },
+  { type: 'wall', label: 'Wall', shape: 'rectangle', defaultSize: { width: 12, height: 120 }, color: '#1A202C', icon: Square, category: 'Structure' },
+  { type: 'restroom', label: 'Restroom', shape: 'square', defaultSize: { width: 60, height: 60 }, color: '#6366F1', icon: Square, category: 'Facilities' },
+  { type: 'kitchen', label: 'Kitchen', shape: 'rectangle', defaultSize: { width: 100, height: 80 }, color: '#EF4444', icon: Square, category: 'Facilities' },
+  { type: 'plant', label: 'Plant/Decor', shape: 'circle', defaultSize: { width: 30, height: 30 }, color: '#22C55E', icon: Circle, category: 'Decor' },
+];
+
+const TEMPLATES = [
+  {
+    name: 'Wedding Reception',
+    elements: [
+      { id: 'head-table', type: 'table', shape: 'rectangle', x: 250, y: 50, width: 120, height: 60, rotation: 0, seats: 8, label: 'Head Table', color: '#8B4513' },
+      { id: 'round-1', type: 'table', shape: 'circle', x: 100, y: 150, width: 80, height: 80, rotation: 0, seats: 8, label: 'Table 1', color: '#8B4513' },
+      { id: 'round-2', type: 'table', shape: 'circle', x: 250, y: 150, width: 80, height: 80, rotation: 0, seats: 8, label: 'Table 2', color: '#8B4513' },
+      { id: 'round-3', type: 'table', shape: 'circle', x: 400, y: 150, width: 80, height: 80, rotation: 0, seats: 8, label: 'Table 3', color: '#8B4513' },
+      { id: 'stage', type: 'stage', shape: 'rectangle', x: 200, y: 300, width: 160, height: 80, rotation: 0, label: 'Stage', color: '#4A5568' },
+    ]
+  },
+  {
+    name: 'Corporate Meeting',
+    elements: [
+      { id: 'main-table', type: 'table', shape: 'rectangle', x: 150, y: 100, width: 300, height: 80, rotation: 0, seats: 12, label: 'Conference Table', color: '#8B4513' },
+      { id: 'presentation', type: 'stage', shape: 'rectangle', x: 200, y: 50, width: 200, height: 40, rotation: 0, label: 'Presentation Area', color: '#4A5568' },
+    ]
+  },
+  {
+    name: 'Cocktail Party',
+    elements: [
+      { id: 'bar-1', type: 'bar', shape: 'rectangle', x: 50, y: 100, width: 140, height: 40, rotation: 0, label: 'Main Bar', color: '#2D3748' },
+      { id: 'high-1', type: 'table', shape: 'circle', x: 250, y: 100, width: 60, height: 60, rotation: 0, seats: 4, label: 'High Table 1', color: '#8B4513' },
+      { id: 'high-2', type: 'table', shape: 'circle', x: 350, y: 150, width: 60, height: 60, rotation: 0, seats: 4, label: 'High Table 2', color: '#8B4513' },
+      { id: 'high-3', type: 'table', shape: 'circle', x: 150, y: 200, width: 60, height: 60, rotation: 0, seats: 4, label: 'High Table 3', color: '#8B4513' },
+    ]
+  },
 ];
 
 export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSave }: SetupStyleFloorPlanModalProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [elements, setElements] = useState<FloorPlanElement[]>(setupStyle?.floorPlan?.elements || []);
-  const [selectedElement, setSelectedElement] = useState<string | null>(null);
-  const [mode, setMode] = useState<'select' | 'add'>('select');
+  const [selectedElements, setSelectedElements] = useState<string[]>([]);
+  const [mode, setMode] = useState<'select' | 'add' | 'pan'>('select');
   const [selectedType, setSelectedType] = useState(ELEMENT_TYPES[0]);
   const [isDragging, setIsDragging] = useState(false);
+  const [isMultiSelecting, setIsMultiSelecting] = useState(false);
+  const [selectionBox, setSelectionBox] = useState<{x: number, y: number, width: number, height: number} | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [canvasSize] = useState({ width: 600, height: 400 });
+  const [canvasSize] = useState({ width: 800, height: 600 });
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
   const [zoom, setZoom] = useState(100);
+  const [showGrid, setShowGrid] = useState(true);
+  const [snapToGrid, setSnapToGrid] = useState(true);
+  const [gridSize, setGridSize] = useState(20);
+  const [copiedElements, setCopiedElements] = useState<FloorPlanElement[]>([]);
+  const [showRulers, setShowRulers] = useState(true);
+  const [layerFilter, setLayerFilter] = useState<string>('all');
+  const [history, setHistory] = useState<FloorPlanElement[][]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (!open) return;
+      
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case 'c':
+            e.preventDefault();
+            copyElements();
+            break;
+          case 'v':
+            e.preventDefault();
+            pasteElements();
+            break;
+          case 'd':
+            e.preventDefault();
+            duplicateSelectedElements();
+            break;
+          case 'z':
+            e.preventDefault();
+            if (e.shiftKey) {
+              redo();
+            } else {
+              undo();
+            }
+            break;
+          case 'a':
+            e.preventDefault();
+            setSelectedElements(elements.map(el => el.id));
+            break;
+        }
+      }
+      
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        deleteSelectedElements();
+      }
+      
+      if (e.key === 'Escape') {
+        setSelectedElements([]);
+        setMode('select');
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyPress);
+    return () => document.removeEventListener('keydown', handleKeyPress);
+  }, [open, copyElements, pasteElements, duplicateSelectedElements, undo, redo, deleteSelectedElements, elements]);
+
+  // History management
+  const saveToHistory = useCallback((newElements: FloorPlanElement[]) => {
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push([...newElements]);
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  }, [history, historyIndex]);
+
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      setHistoryIndex(historyIndex - 1);
+      setElements([...history[historyIndex - 1]]);
+    }
+  }, [history, historyIndex]);
+
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      setHistoryIndex(historyIndex + 1);
+      setElements([...history[historyIndex + 1]]);
+    }
+  }, [history, historyIndex]);
+
+  // Grid snapping
+  const snapToGridPosition = useCallback((x: number, y: number) => {
+    if (!snapToGrid) return { x, y };
+    return {
+      x: Math.round(x / gridSize) * gridSize,
+      y: Math.round(y / gridSize) * gridSize
+    };
+  }, [snapToGrid, gridSize]);
 
   const addElement = useCallback((x: number, y: number) => {
     if (mode !== 'add') return;
 
+    const snappedPos = snapToGridPosition(x - selectedType.defaultSize.width / 2, y - selectedType.defaultSize.height / 2);
+    
     const newElement: FloorPlanElement = {
-      id: `element-${Date.now()}`,
+      id: `element-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type: selectedType.type as any,
       shape: selectedType.shape as any,
-      x: x - selectedType.defaultSize.width / 2,
-      y: y - selectedType.defaultSize.height / 2,
+      x: snappedPos.x,
+      y: snappedPos.y,
       width: selectedType.defaultSize.width,
       height: selectedType.defaultSize.height,
       rotation: 0,
       seats: selectedType.type === 'table' ? (selectedType.shape === 'circle' ? 6 : 8) : undefined,
-      label: `${selectedType.label} ${elements.length + 1}`,
+      label: `${selectedType.label} ${elements.filter(e => e.type === selectedType.type).length + 1}`,
       color: selectedType.color,
+      opacity: 1,
+      zIndex: elements.length + 1,
+      locked: false,
+      visible: true,
+      borderWidth: 2,
+      borderColor: '#000000',
+      gradient: false,
     };
 
-    setElements(prev => [...prev, newElement]);
-    setSelectedElement(newElement.id);
+    const newElements = [...elements, newElement];
+    setElements(newElements);
+    saveToHistory(newElements);
+    setSelectedElements([newElement.id]);
     setMode('select');
-  }, [mode, selectedType, elements.length]);
+  }, [mode, selectedType, elements, snapToGridPosition, saveToHistory]);
 
+  // Multi-selection and improved interaction
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
     if (!canvasRef.current) return;
     
     const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const x = (e.clientX - rect.left) / (zoom / 100);
+    const y = (e.clientY - rect.top) / (zoom / 100);
 
     if (mode === 'add') {
       addElement(x, y);
-    } else {
-      setSelectedElement(null);
+    } else if (!e.ctrlKey && !e.metaKey) {
+      setSelectedElements([]);
     }
-  }, [mode, addElement]);
+  }, [mode, addElement, zoom]);
+
+  const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
+    if (mode === 'select' && !isDragging) {
+      setIsMultiSelecting(true);
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (rect) {
+        const x = (e.clientX - rect.left) / (zoom / 100);
+        const y = (e.clientY - rect.top) / (zoom / 100);
+        setSelectionBox({ x, y, width: 0, height: 0 });
+      }
+    }
+  }, [mode, isDragging, zoom]);
+
+  const handleCanvasMouseMove = useCallback((e: React.MouseEvent) => {
+    if (isMultiSelecting && selectionBox && canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const currentX = (e.clientX - rect.left) / (zoom / 100);
+      const currentY = (e.clientY - rect.top) / (zoom / 100);
+      
+      setSelectionBox({
+        x: Math.min(selectionBox.x, currentX),
+        y: Math.min(selectionBox.y, currentY),
+        width: Math.abs(currentX - selectionBox.x),
+        height: Math.abs(currentY - selectionBox.y),
+      });
+
+      // Update selection based on box
+      const selected = elements.filter(element => {
+        const box = selectionBox;
+        return element.x < box.x + box.width &&
+               element.x + element.width > box.x &&
+               element.y < box.y + box.height &&
+               element.y + element.height > box.y;
+      }).map(el => el.id);
+      
+      setSelectedElements(selected);
+    }
+  }, [isMultiSelecting, selectionBox, elements, zoom]);
+
+  const handleCanvasMouseUp = useCallback(() => {
+    if (isMultiSelecting) {
+      setIsMultiSelecting(false);
+      setSelectionBox(null);
+    }
+  }, [isMultiSelecting]);
 
   const handleElementClick = useCallback((e: React.MouseEvent, elementId: string) => {
     e.stopPropagation();
-    setSelectedElement(elementId);
+    
+    if (e.ctrlKey || e.metaKey) {
+      // Multi-select
+      setSelectedElements(prev => 
+        prev.includes(elementId) 
+          ? prev.filter(id => id !== elementId)
+          : [...prev, elementId]
+      );
+    } else {
+      setSelectedElements([elementId]);
+    }
   }, []);
 
   const handleElementMouseDown = useCallback((e: React.MouseEvent, elementId: string) => {
@@ -100,41 +304,47 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
     e.preventDefault();
     
     const element = elements.find(el => el.id === elementId);
-    if (!element) return;
+    if (!element || element.locked) return;
 
-    setSelectedElement(elementId);
+    if (!selectedElements.includes(elementId)) {
+      setSelectedElements([elementId]);
+    }
     setIsDragging(true);
     
     const rect = canvasRef.current?.getBoundingClientRect();
     if (rect) {
       setDragStart({ x: e.clientX, y: e.clientY });
       setDragOffset({ 
-        x: e.clientX - rect.left - element.x, 
-        y: e.clientY - rect.top - element.y 
+        x: (e.clientX - rect.left) / (zoom / 100) - element.x, 
+        y: (e.clientY - rect.top) / (zoom / 100) - element.y 
       });
     }
-  }, [elements]);
+  }, [elements, selectedElements, zoom]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging || !selectedElement || !canvasRef.current) return;
+    if (!isDragging || selectedElements.length === 0 || !canvasRef.current) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left - dragOffset.x;
-    const y = e.clientY - rect.top - dragOffset.y;
+    const x = (e.clientX - rect.left) / (zoom / 100) - dragOffset.x;
+    const y = (e.clientY - rect.top) / (zoom / 100) - dragOffset.y;
 
-    // Constrain to canvas bounds
-    const element = elements.find(el => el.id === selectedElement);
-    if (!element) return;
+    const deltaX = x - (elements.find(el => el.id === selectedElements[0])?.x || 0);
+    const deltaY = y - (elements.find(el => el.id === selectedElements[0])?.y || 0);
 
-    const constrainedX = Math.max(0, Math.min(x, canvasSize.width - element.width));
-    const constrainedY = Math.max(0, Math.min(y, canvasSize.height - element.height));
-
-    setElements(prev => prev.map(el => 
-      el.id === selectedElement 
-        ? { ...el, x: constrainedX, y: constrainedY }
-        : el
-    ));
-  }, [isDragging, selectedElement, dragOffset, elements, canvasSize]);
+    setElements(prev => prev.map(el => {
+      if (selectedElements.includes(el.id) && !el.locked) {
+        const newX = el.x + deltaX;
+        const newY = el.y + deltaY;
+        
+        const snappedPos = snapToGridPosition(newX, newY);
+        const constrainedX = Math.max(0, Math.min(snappedPos.x, canvasSize.width - el.width));
+        const constrainedY = Math.max(0, Math.min(snappedPos.y, canvasSize.height - el.height));
+        
+        return { ...el, x: constrainedX, y: constrainedY };
+      }
+      return el;
+    }));
+  }, [isDragging, selectedElements, dragOffset, elements, canvasSize, zoom, snapToGridPosition]);
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
@@ -142,30 +352,160 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
     setDragOffset({ x: 0, y: 0 });
   }, []);
 
-  const deleteSelectedElement = useCallback(() => {
-    if (selectedElement) {
-      setElements(prev => prev.filter(el => el.id !== selectedElement));
-      setSelectedElement(null);
-    }
-  }, [selectedElement]);
+  // Copy/paste functionality
+  const copyElements = useCallback(() => {
+    const elementsToCopy = elements.filter(el => selectedElements.includes(el.id));
+    setCopiedElements(elementsToCopy);
+  }, [elements, selectedElements]);
 
-  const rotateSelectedElement = useCallback(() => {
-    if (selectedElement) {
-      setElements(prev => prev.map(el => 
-        el.id === selectedElement 
-          ? { ...el, rotation: (el.rotation + 90) % 360 }
-          : el
-      ));
-    }
-  }, [selectedElement]);
+  const pasteElements = useCallback(() => {
+    if (copiedElements.length === 0) return;
+    
+    const newElements = copiedElements.map(el => ({
+      ...el,
+      id: `element-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      x: el.x + 20,
+      y: el.y + 20,
+      label: `${el.label} (Copy)`,
+    }));
 
-  const updateSelectedElement = useCallback((updates: Partial<FloorPlanElement>) => {
-    if (selectedElement) {
-      setElements(prev => prev.map(el => 
-        el.id === selectedElement ? { ...el, ...updates } : el
-      ));
-    }
-  }, [selectedElement]);
+    const updatedElements = [...elements, ...newElements];
+    setElements(updatedElements);
+    saveToHistory(updatedElements);
+    setSelectedElements(newElements.map(el => el.id));
+  }, [copiedElements, elements, saveToHistory]);
+
+  const deleteSelectedElements = useCallback(() => {
+    if (selectedElements.length === 0) return;
+    
+    const newElements = elements.filter(el => !selectedElements.includes(el.id));
+    setElements(newElements);
+    saveToHistory(newElements);
+    setSelectedElements([]);
+  }, [selectedElements, elements, saveToHistory]);
+
+  const duplicateSelectedElements = useCallback(() => {
+    if (selectedElements.length === 0) return;
+    
+    const elementsToDuplicate = elements.filter(el => selectedElements.includes(el.id));
+    const newElements = elementsToDuplicate.map(el => ({
+      ...el,
+      id: `element-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      x: el.x + 30,
+      y: el.y + 30,
+      label: `${el.label} (Copy)`,
+    }));
+
+    const updatedElements = [...elements, ...newElements];
+    setElements(updatedElements);
+    saveToHistory(updatedElements);
+    setSelectedElements(newElements.map(el => el.id));
+  }, [selectedElements, elements, saveToHistory]);
+
+  const rotateSelectedElements = useCallback(() => {
+    if (selectedElements.length === 0) return;
+    
+    const newElements = elements.map(el => 
+      selectedElements.includes(el.id) 
+        ? { ...el, rotation: (el.rotation + 90) % 360 }
+        : el
+    );
+    setElements(newElements);
+    saveToHistory(newElements);
+  }, [selectedElements, elements, saveToHistory]);
+
+  const flipSelectedElements = useCallback((direction: 'horizontal' | 'vertical') => {
+    if (selectedElements.length === 0) return;
+    
+    const newElements = elements.map(el => {
+      if (selectedElements.includes(el.id)) {
+        if (direction === 'horizontal') {
+          return { ...el, rotation: (180 - el.rotation) % 360 };
+        } else {
+          return { ...el, rotation: (360 - el.rotation) % 360 };
+        }
+      }
+      return el;
+    });
+    setElements(newElements);
+    saveToHistory(newElements);
+  }, [selectedElements, elements, saveToHistory]);
+
+  const updateSelectedElements = useCallback((updates: Partial<FloorPlanElement>) => {
+    if (selectedElements.length === 0) return;
+    
+    const newElements = elements.map(el => 
+      selectedElements.includes(el.id) ? { ...el, ...updates } : el
+    );
+    setElements(newElements);
+    saveToHistory(newElements);
+  }, [selectedElements, elements, saveToHistory]);
+
+  // Template loading
+  const loadTemplate = useCallback((template: typeof TEMPLATES[0]) => {
+    const newElements = template.elements.map(el => ({
+      ...el,
+      id: `element-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      opacity: 1,
+      zIndex: 1,
+      locked: false,
+      visible: true,
+      borderWidth: 2,
+      borderColor: '#000000',
+      gradient: false,
+    })) as FloorPlanElement[];
+    
+    setElements(newElements);
+    saveToHistory(newElements);
+    setSelectedElements([]);
+  }, [saveToHistory]);
+
+  // Alignment functions
+  const alignElements = useCallback((alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => {
+    if (selectedElements.length < 2) return;
+    
+    const selectedElementsData = elements.filter(el => selectedElements.includes(el.id));
+    const bounds = {
+      left: Math.min(...selectedElementsData.map(el => el.x)),
+      right: Math.max(...selectedElementsData.map(el => el.x + el.width)),
+      top: Math.min(...selectedElementsData.map(el => el.y)),
+      bottom: Math.max(...selectedElementsData.map(el => el.y + el.height)),
+    };
+    
+    const newElements = elements.map(el => {
+      if (selectedElements.includes(el.id)) {
+        let newX = el.x;
+        let newY = el.y;
+        
+        switch (alignment) {
+          case 'left':
+            newX = bounds.left;
+            break;
+          case 'center':
+            newX = bounds.left + (bounds.right - bounds.left) / 2 - el.width / 2;
+            break;
+          case 'right':
+            newX = bounds.right - el.width;
+            break;
+          case 'top':
+            newY = bounds.top;
+            break;
+          case 'middle':
+            newY = bounds.top + (bounds.bottom - bounds.top) / 2 - el.height / 2;
+            break;
+          case 'bottom':
+            newY = bounds.bottom - el.height;
+            break;
+        }
+        
+        return { ...el, x: newX, y: newY };
+      }
+      return el;
+    });
+    
+    setElements(newElements);
+    saveToHistory(newElements);
+  }, [selectedElements, elements, saveToHistory]);
 
   const handleSave = () => {
     const floorPlan = {
@@ -176,7 +516,7 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
     onOpenChange(false);
   };
 
-  const selectedElementData = elements.find(el => el.id === selectedElement);
+  const selectedElementData = selectedElements.length === 1 ? elements.find(el => el.id === selectedElements[0]) : null;
 
   // 3D perspective transform for elements
   const get3DTransform = (element: FloorPlanElement) => {
@@ -373,16 +713,108 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Tools Panel */}
           <div className="space-y-4">
+            {/* Templates */}
+            <Card className="p-4">
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Quick Templates</Label>
+                <div className="space-y-2">
+                  {TEMPLATES.map((template) => (
+                    <Button
+                      key={template.name}
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() => loadTemplate(template)}
+                    >
+                      <Layout className="w-4 h-4 mr-2" />
+                      {template.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </Card>
+
+            {/* Multi-Selection Tools */}
+            {selectedElements.length > 1 && (
+              <Card className="p-4">
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Multi-Selection ({selectedElements.length})</Label>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={duplicateSelectedElements}
+                    >
+                      <Copy className="w-4 h-4 mr-1" />
+                      Duplicate
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={deleteSelectedElements}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      Delete
+                    </Button>
+                  </div>
+
+                  <Separator />
+                  
+                  <div className="space-y-2">
+                    <Label className="text-xs">Alignment</Label>
+                    <div className="grid grid-cols-3 gap-1">
+                      <Button variant="outline" size="sm" onClick={() => alignElements('left')}>L</Button>
+                      <Button variant="outline" size="sm" onClick={() => alignElements('center')}>C</Button>
+                      <Button variant="outline" size="sm" onClick={() => alignElements('right')}>R</Button>
+                      <Button variant="outline" size="sm" onClick={() => alignElements('top')}>T</Button>
+                      <Button variant="outline" size="sm" onClick={() => alignElements('middle')}>M</Button>
+                      <Button variant="outline" size="sm" onClick={() => alignElements('bottom')}>B</Button>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Grid & Snap Settings */}
+            <Card className="p-4">
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Grid & Snap</Label>
+                
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Show Grid</Label>
+                  <Switch checked={showGrid} onCheckedChange={setShowGrid} />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Snap to Grid</Label>
+                  <Switch checked={snapToGrid} onCheckedChange={setSnapToGrid} />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-xs">Grid Size: {gridSize}px</Label>
+                  <Slider
+                    value={[gridSize]}
+                    onValueChange={(value) => setGridSize(value[0])}
+                    min={10}
+                    max={50}
+                    step={5}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </Card>
             <Card className="p-4">
               <div className="space-y-3">
                 <Label className="text-sm font-medium">Mode</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <Button
                     variant={mode === 'select' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setMode('select')}
                   >
-                    <Move className="w-4 h-4 mr-1" />
+                    <MousePointer2 className="w-4 h-4 mr-1" />
                     Select
                   </Button>
                   <Button
@@ -392,6 +824,14 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
                   >
                     <Plus className="w-4 h-4 mr-1" />
                     Add
+                  </Button>
+                  <Button
+                    variant={mode === 'pan' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setMode('pan')}
+                  >
+                    <Move className="w-4 h-4 mr-1" />
+                    Pan
                   </Button>
                 </div>
               </div>
@@ -449,18 +889,31 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
             {mode === 'add' && (
               <Card className="p-4">
                 <Label className="text-sm font-medium mb-3 block">Add Element</Label>
-                <div className="space-y-2">
-                  {ELEMENT_TYPES.map((type) => (
-                    <Button
-                      key={`${type.type}-${type.shape}`}
-                      variant={selectedType === type ? 'default' : 'outline'}
-                      size="sm"
-                      className="w-full justify-start"
-                      onClick={() => setSelectedType(type)}
-                    >
-                      <type.icon className="w-4 h-4 mr-2" />
-                      {type.label}
-                    </Button>
+                <div className="space-y-3">
+                  {Object.entries(
+                    ELEMENT_TYPES.reduce((acc, type) => {
+                      if (!acc[type.category]) acc[type.category] = [];
+                      acc[type.category].push(type);
+                      return acc;
+                    }, {} as Record<string, typeof ELEMENT_TYPES>)
+                  ).map(([category, types]) => (
+                    <div key={category}>
+                      <Label className="text-xs text-muted-foreground mb-2 block">{category}</Label>
+                      <div className="space-y-1">
+                        {types.map((type) => (
+                          <Button
+                            key={`${type.type}-${type.shape}`}
+                            variant={selectedType === type ? 'default' : 'outline'}
+                            size="sm"
+                            className="w-full justify-start"
+                            onClick={() => setSelectedType(type)}
+                          >
+                            <type.icon className="w-4 h-4 mr-2" />
+                            {type.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </Card>
@@ -474,42 +927,60 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
                   <div className="space-y-2">
                     <Label className="text-xs">Label</Label>
                     <Input
-                      value={selectedElementData.label || ''}
-                      onChange={(e) => updateSelectedElement({ label: e.target.value })}
+                      value={selectedElementData?.label || ''}
+                      onChange={(e) => updateSelectedElements({ label: e.target.value })}
                       placeholder="Element label"
-                      size="sm"
+                      className="h-8"
                     />
                   </div>
 
-                  {selectedElementData.type === 'table' && (
+                  {selectedElementData?.type === 'table' && (
                     <div className="space-y-2">
                       <Label className="text-xs">Seats</Label>
                       <Input
                         type="number"
-                        value={selectedElementData.seats || 0}
-                        onChange={(e) => updateSelectedElement({ seats: parseInt(e.target.value) || 0 })}
+                        value={selectedElementData?.seats || 0}
+                        onChange={(e) => updateSelectedElements({ seats: parseInt(e.target.value) || 0 })}
                         min="1"
                         max="20"
-                        size="sm"
+                        className="h-8"
                       />
                     </div>
                   )}
 
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={rotateSelectedElement}
+                      onClick={rotateSelectedElements}
                     >
-                      <RotateCw className="w-4 h-4" />
+                      <RotateCw className="w-4 h-4 mr-1" />
+                      Rotate
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={deleteSelectedElement}
+                      onClick={() => flipSelectedElements('horizontal')}
+                    >
+                      <FlipHorizontal className="w-4 h-4 mr-1" />
+                      Flip H
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => flipSelectedElements('vertical')}
+                    >
+                      <FlipVertical className="w-4 h-4 mr-1" />
+                      Flip V
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={deleteSelectedElements}
                       className="text-red-600 hover:text-red-700"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      Delete
                     </Button>
                   </div>
                 </div>
@@ -526,9 +997,30 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setElements([])}
+                    onClick={undo}
+                    disabled={historyIndex <= 0}
                   >
                     <RotateCcw className="w-4 h-4 mr-1" />
+                    Undo
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={redo}
+                    disabled={historyIndex >= history.length - 1}
+                  >
+                    <RotateCw className="w-4 h-4 mr-1" />
+                    Redo
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setElements([]);
+                      setSelectedElements([]);
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
                     Clear All
                   </Button>
                 </div>
@@ -548,24 +1040,49 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
                   transformOrigin: 'center bottom',
                 }}
                 onClick={handleCanvasClick}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
+                onMouseDown={handleCanvasMouseDown}
+                onMouseMove={(e) => {
+                  handleMouseMove(e);
+                  handleCanvasMouseMove(e);
+                }}
+                onMouseUp={() => {
+                  handleMouseUp();
+                  handleCanvasMouseUp();
+                }}
+                onMouseLeave={() => {
+                  handleMouseUp();
+                  handleCanvasMouseUp();
+                }}
               >
                 {/* Grid pattern */}
-                <div 
-                  className={cn(
-                    "absolute inset-0",
-                    viewMode === '3d' ? "opacity-10" : "opacity-20"
-                  )}
-                  style={{
-                    backgroundImage: `
-                      linear-gradient(to right, #cbd5e1 1px, transparent 1px),
-                      linear-gradient(to bottom, #cbd5e1 1px, transparent 1px)
-                    `,
-                    backgroundSize: '20px 20px'
-                  }}
-                />
+                {showGrid && (
+                  <div 
+                    className={cn(
+                      "absolute inset-0",
+                      viewMode === '3d' ? "opacity-10" : "opacity-20"
+                    )}
+                    style={{
+                      backgroundImage: `
+                        linear-gradient(to right, #cbd5e1 1px, transparent 1px),
+                        linear-gradient(to bottom, #cbd5e1 1px, transparent 1px)
+                      `,
+                      backgroundSize: `${gridSize}px ${gridSize}px`
+                    }}
+                  />
+                )}
+
+                {/* Selection box */}
+                {isMultiSelecting && selectionBox && (
+                  <div
+                    className="absolute border-2 border-blue-500 bg-blue-100 bg-opacity-20 pointer-events-none z-30"
+                    style={{
+                      left: selectionBox.x,
+                      top: selectionBox.y,
+                      width: selectionBox.width,
+                      height: selectionBox.height,
+                    }}
+                  />
+                )}
 
                 {/* 3D Floor effect */}
                 {viewMode === '3d' && (
@@ -587,8 +1104,8 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
                       key={element.id}
                       className={cn(
                         "absolute border-2 flex items-center justify-center text-xs font-medium text-white select-none transition-all duration-200",
-                        selectedElement === element.id ? "border-blue-500 ring-2 ring-blue-200 cursor-move" : "border-gray-400 cursor-pointer",
-                        isDragging && selectedElement === element.id ? "cursor-grabbing" : "",
+                        selectedElements.includes(element.id) ? "border-blue-500 ring-2 ring-blue-200 cursor-move" : "border-gray-400 cursor-pointer",
+                        isDragging && selectedElements.includes(element.id) ? "cursor-grabbing" : "",
                         viewMode === '3d' && "shadow-lg"
                       )}
                       style={{
@@ -601,7 +1118,7 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
                         transform: viewMode === '3d' 
                           ? `rotate(${element.rotation}deg) ${get3DTransform(element)}`
                           : `rotate(${element.rotation}deg)`,
-                        zIndex: selectedElement === element.id ? 10 : Math.floor((1 - depth) * 5) + 1,
+                        zIndex: selectedElements.includes(element.id) ? 10 : Math.floor((1 - depth) * 5) + 1,
                         boxShadow: viewMode === '3d' 
                           ? `0 ${shadowSize}px ${shadowSize * 2}px rgba(0,0,0,0.3)`
                           : 'none',
@@ -650,12 +1167,19 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
                 )}
               </div>
 
-              <div className="mt-4 text-xs text-slate-600">
-                <p>• <strong>Add mode:</strong> Click to place new elements</p>
-                <p>• <strong>Select mode:</strong> Click elements to select them</p>
-                <p>• <strong>Move:</strong> Drag selected elements to reposition them</p>
-                <p>• <strong>3D View:</strong> Get a spatial preview of your layout</p>
-                <p>• Use the tools panel to modify selected elements</p>
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-slate-600">
+                <div>
+                  <p>• <strong>Add mode:</strong> Click to place elements</p>
+                  <p>• <strong>Select mode:</strong> Click/drag to select</p>
+                  <p>• <strong>Multi-select:</strong> Ctrl+Click elements</p>
+                  <p>• <strong>Pan mode:</strong> Drag to move viewport</p>
+                </div>
+                <div>
+                  <p>• <strong>Shortcuts:</strong> Ctrl+C/V (copy/paste), Del (delete)</p>
+                  <p>• <strong>3D View:</strong> Spatial preview with shadows</p>
+                  <p>• <strong>Grid Snap:</strong> Auto-align to grid points</p>
+                  <p>• <strong>Templates:</strong> Quick layout presets</p>
+                </div>
               </div>
             </Card>
           </div>
