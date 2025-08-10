@@ -368,24 +368,40 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
   };
 
   // Copy configuration to other dates
-  const copyConfigToOtherDates = () => {
-    if (!activeDate) return;
+  const handleCopyConfig = (selectedIndices: number[]) => {
+    if (!activeDate || selectedIndices.length === 0) return;
     
     const currentConfig = {
       guestCount: activeDate.guestCount,
       packageId: activeDate.packageId,
       selectedServices: [...(activeDate.selectedServices || [])],
       itemQuantities: { ...activeDate.itemQuantities },
-      pricingOverrides: { ...activeDate.pricingOverrides }
+      pricingOverrides: { ...activeDate.pricingOverrides },
+      setupStyle: activeDate.setupStyle
     };
 
     setSelectedDates(prev => 
-      prev.map((date, index) => 
-        index === activeTabIndex ? date : { ...date, ...currentConfig }
-      )
+      prev.map((date, index) => {
+        // Only apply to selected indices, but skip current active tab
+        if (index === activeTabIndex) return date;
+        
+        // Map checkbox indices to actual date indices (excluding current)
+        const nonCurrentIndices = prev
+          .map((_, i) => i)
+          .filter(i => i !== activeTabIndex);
+        
+        const isSelected = selectedIndices.some(checkboxIndex => 
+          nonCurrentIndices[checkboxIndex] === index
+        );
+        
+        return isSelected ? { ...date, ...currentConfig } : date;
+      })
     );
 
-    toast({ title: "Configuration copied to all other dates" });
+    toast({ 
+      title: "Settings applied", 
+      description: `Configuration applied to ${selectedIndices.length} selected dates` 
+    });
     setShowCopyModal(false);
   };
 
@@ -1573,9 +1589,9 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                               {/* Copy Config for Multi-Date Events */}
                               {selectedDates.length > 1 && (
                                 <Card className="p-4 border-blue-200 bg-blue-50">
-                                  <h5 className="font-medium mb-2">Copy Configuration</h5>
+                                  <h5 className="font-medium mb-2">Apply Settings</h5>
                                   <p className="text-sm text-slate-600 mb-3">
-                                    Copy this date's configuration to other dates
+                                    Apply this date's settings to other dates
                                   </p>
                                   <Button
                                     type="button"
@@ -1584,7 +1600,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                     onClick={() => setShowCopyModal(true)}
                                     className="w-full"
                                   >
-                                    Copy to Other Dates
+                                    Apply to Other Dates
                                   </Button>
                                 </Card>
                               )}
@@ -1866,33 +1882,50 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         </div>
       </DialogContent>
 
-      {/* Copy Configuration Modal */}
+      {/* Apply Settings Modal */}
       <Dialog open={showCopyModal} onOpenChange={setShowCopyModal}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Copy Configuration</DialogTitle>
-            <DialogDescription>
-              Copy the current event configuration to all other dates in this booking.
-            </DialogDescription>
+            <DialogTitle>Apply Settings</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-gray-600">
-              This will copy the following settings to all other event dates:
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600">
+              Apply the current date's settings to selected dates below:
             </p>
-            <ul className="mt-2 text-sm text-gray-600 list-disc list-inside space-y-1">
-              <li>Number of guests ({activeDate?.guestCount || 1})</li>
-              <li>Selected package {selectedPackageData ? `(${selectedPackageData.name})` : '(None)'}</li>
-              <li>Add-on services ({activeDate?.selectedServices?.length || 0} selected)</li>
-              <li>Quantities and pricing overrides</li>
-            </ul>
-          </div>
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setShowCopyModal(false)}>
-              Cancel
-            </Button>
-            <Button onClick={copyConfigToOtherDates}>
-              Copy to All Dates
-            </Button>
+            
+            <div className="space-y-2">
+              {selectedDates.map((date, index) => {
+                if (index === activeTabIndex) return null; // Don't show current date
+                
+                return (
+                  <label key={index} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
+                    <Checkbox />
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">{format(date.date, 'EEEE, MMMM d, yyyy')}</div>
+                      <div className="text-xs text-slate-600">{date.startTime} - {date.endTime}</div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+            
+            <div className="flex gap-2 pt-4">
+              <Button
+                onClick={() => {
+                  const checkboxes = document.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
+                  const selectedIndices = Array.from(checkboxes)
+                    .map((checkbox, index) => checkbox.checked ? index : -1)
+                    .filter(index => index !== -1);
+                  handleCopyConfig(selectedIndices);
+                }}
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
+              >
+                Apply Settings
+              </Button>
+              <Button variant="outline" onClick={() => setShowCopyModal(false)}>
+                Cancel
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
