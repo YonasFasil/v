@@ -241,6 +241,29 @@ export interface IStorage {
   getTenant(id: string): Promise<Tenant | undefined>;
   getCurrentTenantPackageFeatures(tenantId: string): Promise<any>;
   getTenantUserByEmailGlobal(email: string): TenantUser | undefined;
+
+  // Billing System Methods
+  getFeaturePackageBySlug(slug: string): Promise<FeaturePackage | undefined>;
+  countVenuesByTenant(tenantId: string): Promise<number>;
+  countSpacesByVenue(venueId: string): Promise<number>;
+  countUsersByTenant(tenantId: string): Promise<number>;
+  countMonthlyBookingsByTenant(tenantId: string): Promise<number>;
+  updateTenantBilling(tenantId: string, billing: {
+    status?: string;
+    stripeCustomerId?: string;
+    stripeSubscriptionId?: string;
+    planSlug?: string;
+    trialEnd?: Date;
+  }): Promise<Tenant | undefined>;
+  createAuditLog(log: {
+    actorUserId?: string;
+    tenantId?: string;
+    action: string;
+    entity: string;
+    meta?: any;
+    ip?: string;
+    userAgent?: string;
+  }): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -2675,6 +2698,72 @@ export class MemStorage implements IStorage {
 
     this.featurePackages.set(id, updatedPackage);
     return updatedPackage;
+  }
+
+  // Billing System Methods Implementation
+  async getFeaturePackageBySlug(slug: string): Promise<FeaturePackage | undefined> {
+    const packages = Array.from(this.featurePackages.values());
+    return packages.find(pkg => pkg.slug === slug);
+  }
+
+  async countVenuesByTenant(tenantId: string): Promise<number> {
+    // For now, return a simple count - in real app this would query by tenantId
+    return this.venues.size;
+  }
+
+  async countSpacesByVenue(venueId: string): Promise<number> {
+    const spaces = Array.from(this.spaces.values());
+    return spaces.filter(space => space.venueId === venueId).length;
+  }
+
+  async countUsersByTenant(tenantId: string): Promise<number> {
+    const users = Array.from(this.tenantUsers.values());
+    return users.filter(user => user.tenantId === tenantId).length;
+  }
+
+  async countMonthlyBookingsByTenant(tenantId: string): Promise<number> {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const bookings = Array.from(this.bookings.values());
+    return bookings.filter(booking => 
+      booking.createdAt >= startOfMonth
+    ).length;
+  }
+
+  async updateTenantBilling(tenantId: string, billing: {
+    status?: string;
+    stripeCustomerId?: string;
+    stripeSubscriptionId?: string;
+    planSlug?: string;
+    trialEnd?: Date;
+  }): Promise<Tenant | undefined> {
+    const tenant = this.tenants.get(tenantId);
+    if (!tenant) return undefined;
+
+    const updatedTenant = {
+      ...tenant,
+      ...billing,
+      updatedAt: new Date()
+    };
+
+    this.tenants.set(tenantId, updatedTenant);
+    return updatedTenant;
+  }
+
+  async createAuditLog(log: {
+    actorUserId?: string;
+    tenantId?: string;
+    action: string;
+    entity: string;
+    meta?: any;
+    ip?: string;
+    userAgent?: string;
+  }): Promise<void> {
+    // In memory storage for audit logs - in real app this would persist to DB
+    console.log('Audit Log:', {
+      ...log,
+      timestamp: new Date().toISOString()
+    });
   }
 
 }

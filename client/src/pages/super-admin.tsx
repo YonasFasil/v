@@ -758,11 +758,12 @@ function CreateTenantDialog() {
   );
 }
 
-// Package Management Component
+// Billing Management Component
 function PackageManagement({ packages }: { packages: any }) {
   const { toast } = useToast();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingPackage, setEditingPackage] = useState<any>(null);
+  const [selectedTab, setSelectedTab] = useState("plans");
   const queryClient = useQueryClient();
 
   const togglePackageMutation = useMutation({
@@ -773,13 +774,13 @@ function PackageManagement({ packages }: { packages: any }) {
       queryClient.invalidateQueries({ queryKey: ["/api/super-admin/packages"] });
       toast({
         title: "Success",
-        description: "Package status updated successfully",
+        description: "Plan status updated successfully",
       });
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to update package status",
+        description: error.message || "Failed to update plan status",
         variant: "destructive",
       });
     },
@@ -793,18 +794,94 @@ function PackageManagement({ packages }: { packages: any }) {
       queryClient.invalidateQueries({ queryKey: ["/api/super-admin/packages"] });
       toast({
         title: "Success",
-        description: "Package deleted successfully",
+        description: "Plan deleted successfully",
       });
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to delete package",
+        description: error.message || "Failed to delete plan",
         variant: "destructive",
       });
     },
   });
 
+  const syncStripeProductMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("POST", `/api/super-admin/packages/${id}/sync-stripe`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/super-admin/packages"] });
+      toast({
+        title: "Success",
+        description: "Stripe product synced successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to sync Stripe product",
+        variant: "destructive",
+      });
+    },
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Billing Management</h2>
+          <p className="text-slate-600 dark:text-slate-400">
+            Manage subscription plans, pricing, and billing features
+          </p>
+        </div>
+        <Button onClick={() => setShowCreateDialog(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          Create Plan
+        </Button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {((packages as any[]) || []).map((pkg: any) => (
+          <PlanCard 
+            key={pkg.id} 
+            plan={pkg} 
+            onEdit={setEditingPackage}
+            onToggle={togglePackageMutation.mutate}
+            onDelete={deletePackageMutation.mutate}
+            onSyncStripe={syncStripeProductMutation.mutate}
+          />
+        ))}
+      </div>
+
+      {/* Create Package Dialog */}
+      {showCreateDialog && (
+        <CreatePlanDialog 
+          isOpen={showCreateDialog}
+          onClose={() => setShowCreateDialog(false)}
+        />
+      )}
+
+      {/* Edit Package Dialog */}
+      {editingPackage && (
+        <EditPlanDialog 
+          plan={editingPackage}
+          isOpen={true}
+          onClose={() => setEditingPackage(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Enhanced Plan Card Component
+function PlanCard({ plan, onEdit, onToggle, onDelete, onSyncStripe }: {
+  plan: any;
+  onEdit: (plan: any) => void;
+  onToggle: (id: string) => void;
+  onDelete: (id: string) => void;
+  onSyncStripe: (id: string) => void;
+}) {
   const getPackageIcon = (pkg: any) => {
     if (pkg.id === "starter") return "🌱";
     if (pkg.id === "professional") return "💼";
@@ -821,377 +898,145 @@ function PackageManagement({ packages }: { packages: any }) {
     return "border-gray-200 bg-gray-50";
   };
 
-  const getFeatureList = (features: any) => {
-    const featureKeys = Object.keys(features).filter(key => features[key] === true);
-    return featureKeys.slice(0, 6); // Show first 6 features
-  };
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">Feature Packages</h2>
-          <p className="text-sm text-slate-600 mt-1">Manage subscription tiers and feature access</p>
+    <Card className={`relative ${getPackageColor(plan)} hover:shadow-lg transition-shadow`}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">{getPackageIcon(plan)}</span>
+            <CardTitle className="text-lg">{plan.displayName}</CardTitle>
+          </div>
+          <div className="flex items-center gap-1">
+            <Badge variant={plan.isActive ? "default" : "secondary"} className="text-xs">
+              {plan.isActive ? "Active" : "Inactive"}
+            </Badge>
+            {!plan.isCustom && (
+              <Badge variant="outline" className="text-xs">
+                System
+              </Badge>
+            )}
+          </div>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Package
-        </Button>
-      </div>
+        <p className="text-sm text-slate-600 dark:text-slate-400">{plan.description}</p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="text-center">
+          <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+            ${plan.price}
+          </div>
+          <div className="text-sm text-slate-500">per {plan.billingInterval}</div>
+        </div>
+        
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="bg-white dark:bg-slate-800 p-2 rounded">
+              <div className="font-medium">Users</div>
+              <div className="text-slate-600">{plan.maxUsers || "∞"}</div>
+            </div>
+            <div className="bg-white dark:bg-slate-800 p-2 rounded">
+              <div className="font-medium">Venues</div>
+              <div className="text-slate-600">{plan.maxVenues || "∞"}</div>
+            </div>
+            <div className="bg-white dark:bg-slate-800 p-2 rounded">
+              <div className="font-medium">Bookings</div>
+              <div className="text-slate-600">{plan.maxBookingsPerMonth || "∞"}</div>
+            </div>
+            <div className="bg-white dark:bg-slate-800 p-2 rounded">
+              <div className="font-medium">Storage</div>
+              <div className="text-slate-600">{plan.storageLimit}GB</div>
+            </div>
+          </div>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        {((packages as any[]) || []).map((pkg: any) => (
-          <Card key={pkg.id} className={`relative ${getPackageColor(pkg)} hover:shadow-lg transition-shadow`}>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">{getPackageIcon(pkg)}</span>
-                  <CardTitle className="text-lg">{pkg.displayName}</CardTitle>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Badge variant={pkg.isActive ? "default" : "secondary"} className="text-xs">
-                    {pkg.isActive ? "Active" : "Inactive"}
-                  </Badge>
-                  {!pkg.isCustom && (
-                    <Badge variant="outline" className="text-xs">
-                      System
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              <p className="text-sm text-slate-600 dark:text-slate-400">{pkg.description}</p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">
-                  ${pkg.price}
-                </div>
-                <div className="text-sm text-slate-500">per {pkg.billingInterval}</div>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="bg-white dark:bg-slate-800 p-2 rounded">
-                    <div className="font-medium">Users</div>
-                    <div className="text-slate-600">{pkg.maxUsers || "∞"}</div>
-                  </div>
-                  <div className="bg-white dark:bg-slate-800 p-2 rounded">
-                    <div className="font-medium">Venues</div>
-                    <div className="text-slate-600">{pkg.maxVenues || "∞"}</div>
-                  </div>
-                  <div className="bg-white dark:bg-slate-800 p-2 rounded">
-                    <div className="font-medium">Spaces</div>
-                    <div className="text-slate-600">{pkg.maxSpaces || "∞"}</div>
-                  </div>
-                  <div className="bg-white dark:bg-slate-800 p-2 rounded">
-                    <div className="font-medium">Storage</div>
-                    <div className="text-slate-600">{pkg.storageLimit}GB</div>
-                  </div>
-                </div>
+        <div className="flex gap-2 pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onEdit(plan)}
+            className="flex-1"
+          >
+            <Edit className="w-3 h-3 mr-1" />
+            Edit
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onToggle(plan.id)}
+            className="flex-1"
+          >
+            {plan.isActive ? "Disable" : "Enable"}
+          </Button>
+        </div>
 
-                {pkg.maxBookingsPerMonth && (
-                  <div className="bg-white dark:bg-slate-800 p-2 rounded text-xs">
-                    <div className="font-medium">Monthly Bookings</div>
-                    <div className="text-slate-600">{pkg.maxBookingsPerMonth || "∞"}</div>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <div className="text-xs font-medium text-slate-700 dark:text-slate-300">Key Features:</div>
-                <div className="space-y-1">
-                  {getFeatureList(pkg.features).map((feature: string) => (
-                    <div key={feature} className="flex items-center gap-1 text-xs text-slate-600">
-                      <CheckCircle className="w-3 h-3 text-green-500" />
-                      <span className="capitalize">{feature.replace(/([A-Z])/g, ' $1').trim()}</span>
-                    </div>
-                  ))}
-                  {Object.keys(pkg.features).length > 6 && (
-                    <div className="text-xs text-slate-500">
-                      +{Object.keys(pkg.features).length - 6} more features
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="flex-1"
-                  onClick={() => setEditingPackage(pkg)}
-                >
-                  <Edit className="w-3 h-3 mr-1" />
-                  Edit
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => togglePackageMutation.mutate(pkg.id)}
-                  disabled={togglePackageMutation.isPending}
-                >
-                  {pkg.isActive ? (
-                    <XCircle className="w-3 h-3" />
-                  ) : (
-                    <CheckCircle className="w-3 h-3" />
-                  )}
-                </Button>
-                {pkg.isCustom && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="text-red-600"
-                    onClick={() => {
-                      if (confirm("Are you sure you want to delete this package?")) {
-                        deletePackageMutation.mutate(pkg.id);
-                      }
-                    }}
-                    disabled={deletePackageMutation.isPending}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )) || (
-          <Card className="col-span-full">
-            <CardContent className="text-center py-8 text-slate-600">
-              <Package className="w-12 h-12 mx-auto mb-4 text-slate-400" />
-              <p>No packages found. Create the first package to get started.</p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {/* Package Creation/Edit Dialog would go here */}
-      <PackageDialog 
-        isOpen={showCreateDialog || !!editingPackage}
-        onClose={() => {
-          setShowCreateDialog(false);
-          setEditingPackage(null);
-        }}
-        package={editingPackage}
-        isEdit={!!editingPackage}
-      />
-    </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onSyncStripe(plan.id)}
+            className="flex-1"
+          >
+            <DollarSign className="w-3 h-3 mr-1" />
+            Sync Stripe
+          </Button>
+          {plan.isCustom && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (confirm(`Delete plan "${plan.displayName}"?`)) {
+                  onDelete(plan.id);
+                }
+              }}
+              className="text-red-600"
+            >
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
-// Package Creation/Edit Dialog Component
-function PackageDialog({ isOpen, onClose, package: pkg, isEdit }: {
+// Create Plan Dialog Component
+function CreatePlanDialog({ isOpen, onClose }: {
   isOpen: boolean;
   onClose: () => void;
-  package?: any;
-  isEdit: boolean;
 }) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
   const [formData, setFormData] = useState({
     name: "",
     displayName: "",
     description: "",
+    slug: "",
     price: "",
-    billingInterval: "monthly",
+    billingInterval: "month",
     maxUsers: "",
     maxVenues: "",
-    maxSpaces: "",
     maxBookingsPerMonth: "",
     storageLimit: "",
     features: {} as any
   });
 
-  const queryClient = useQueryClient();
-
-  // Complete list of all available features (functional features only)
-  const allFeatures = {
-    // Core Booking & Customer Management
-    bookingManagement: "Booking Management",
-    customerManagement: "Customer Management", 
-    proposalSystem: "Proposal System",
-    contractManagement: "Contract Management",
-    taskManagement: "Task Management",
-    
-    // Calendar & Scheduling
-    calendarView: "Calendar View",
-    realTimeAvailability: "Real-Time Availability",
-    conflictDetection: "Booking Conflict Detection",
-    
-    // Venue & Space Management
-    venueManagement: "Venue Management",
-    spaceManagement: "Space Management",
-    floorPlanDesigner: "Floor Plan Designer",
-    setupManagement: "Setup Management",
-    
-    // Services & Packages
-    serviceManagement: "Service Management",
-    packageManagement: "Package Management",
-    pricingConfiguration: "Pricing Configuration",
-    
-    // Financial Management
-    paymentProcessing: "Payment Processing",
-    invoicing: "Invoicing",
-    taxConfiguration: "Tax Configuration",
-    
-    // BEO & Documentation
-    beoGeneration: "BEO Generation",
-    beoTemplates: "BEO Templates",
-    contractGeneration: "Contract Generation",
-    
-    // Reporting & Analytics
-    basicReporting: "Basic Reporting",
-    advancedReporting: "Advanced Reporting",
-    realTimeAnalytics: "Real-Time Analytics",
-    dashboardInsights: "Dashboard Insights",
-    
-    // AI Features
-    aiInsights: "AI Insights",
-    voiceBooking: "Voice-to-Text Booking",
-    smartScheduling: "Smart Scheduling",
-    automatedEmailReplies: "Automated Email Replies",
-    leadScoring: "Lead Scoring",
-    
-    // Communication
-    emailIntegration: "Email Integration",
-    smsNotifications: "SMS Notifications",
-    internalNotes: "Internal Notes",
-    customerCommunication: "Customer Communication Panel",
-    
-    // Multi-tenant Features
-    multiVenueSupport: "Multi-Venue Support",
-    userRoleManagement: "User Role Management",
-    
-    // Data & Export
-    dataExport: "Data Export",
-    dataImport: "Data Import",
-    bulkOperations: "Bulk Operations"
-  };
-
-  // Initialize form data when editing
-  useEffect(() => {
-    if (isEdit && pkg) {
-      setFormData({
-        name: pkg.name || "",
-        displayName: pkg.displayName || "",
-        description: pkg.description || "",
-        price: pkg.price?.toString() || "",
-        billingInterval: pkg.billingInterval || "monthly",
-        maxUsers: pkg.maxUsers?.toString() || "",
-        maxVenues: pkg.maxVenues?.toString() || "",
-        maxSpaces: pkg.maxSpaces?.toString() || "",
-        maxBookingsPerMonth: pkg.maxBookingsPerMonth?.toString() || "",
-        storageLimit: pkg.storageLimit?.toString() || "",
-        features: pkg.features || {}
-      });
-    } else {
-      // Initialize with all features disabled for new packages
-      const initialFeatures = Object.keys(allFeatures).reduce((acc, key) => {
-        acc[key] = false;
-        return acc;
-      }, {} as any);
-      setFormData(prev => ({ ...prev, features: initialFeatures }));
-    }
-  }, [isEdit, pkg]);
-
-  const toggleFeature = (featureKey: string) => {
-    setFormData(prev => ({
-      ...prev,
-      features: {
-        ...prev.features,
-        [featureKey]: !prev.features[featureKey]
-      }
-    }));
-  };
-
-  const toggleAllFeatures = (enabled: boolean) => {
-    const allFeaturesState = Object.keys(allFeatures).reduce((acc, key) => {
-      acc[key] = enabled;
-      return acc;
-    }, {} as any);
-    setFormData(prev => ({ ...prev, features: allFeaturesState }));
-  };
-
-  const getFeaturesByCategory = () => {
-    return {
-      "Core Management": {
-        bookingManagement: "Booking Management",
-        customerManagement: "Customer Management",
-        proposalSystem: "Proposal System",
-        contractManagement: "Contract Management",
-        taskManagement: "Task Management"
-      },
-      "Calendar & Scheduling": {
-        calendarView: "Calendar View",
-        realTimeAvailability: "Real-Time Availability",
-        conflictDetection: "Booking Conflict Detection"
-      },
-      "Venue & Space": {
-        venueManagement: "Venue Management",
-        spaceManagement: "Space Management",
-        floorPlanDesigner: "Floor Plan Designer",
-        setupManagement: "Setup Management"
-      },
-      "Services & Pricing": {
-        serviceManagement: "Service Management",
-        packageManagement: "Package Management",
-        pricingConfiguration: "Pricing Configuration"
-      },
-      "Financial": {
-        paymentProcessing: "Payment Processing",
-        invoicing: "Invoicing",
-        taxConfiguration: "Tax Configuration"
-      },
-      "Documentation": {
-        beoGeneration: "BEO Generation",
-        beoTemplates: "BEO Templates",
-        contractGeneration: "Contract Generation"
-      },
-      "Analytics & Reporting": {
-        basicReporting: "Basic Reporting",
-        advancedReporting: "Advanced Reporting",
-        realTimeAnalytics: "Real-Time Analytics",
-        dashboardInsights: "Dashboard Insights"
-      },
-      "AI Features": {
-        aiInsights: "AI Insights",
-        voiceBooking: "Voice-to-Text Booking",
-        smartScheduling: "Smart Scheduling",
-        automatedEmailReplies: "Automated Email Replies",
-        leadScoring: "Lead Scoring"
-      },
-      "Communication": {
-        emailIntegration: "Email Integration",
-        smsNotifications: "SMS Notifications",
-        internalNotes: "Internal Notes",
-        customerCommunication: "Customer Communication Panel"
-      },
-      "Multi-tenant & Data": {
-        multiVenueSupport: "Multi-Venue Support",
-        userRoleManagement: "User Role Management",
-        dataExport: "Data Export",
-        dataImport: "Data Import",
-        bulkOperations: "Bulk Operations"
-      }
-    };
-  };
-
-  const createPackageMutation = useMutation({
+  const createPlanMutation = useMutation({
     mutationFn: async (data: any) => {
-      const endpoint = isEdit ? `/api/super-admin/packages/${pkg.id}` : "/api/super-admin/packages";
-      const method = isEdit ? "PUT" : "POST";
-      return apiRequest(method, endpoint, data);
+      const response = await apiRequest("POST", "/api/super-admin/packages", data);
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/super-admin/packages"] });
       toast({
         title: "Success",
-        description: `Package ${isEdit ? "updated" : "created"} successfully`,
+        description: "Plan created successfully",
       });
       onClose();
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || `Failed to ${isEdit ? "update" : "create"} package`,
+        description: error.message || "Failed to create plan",
         variant: "destructive",
       });
     },
@@ -1199,225 +1044,327 @@ function PackageDialog({ isOpen, onClose, package: pkg, isEdit }: {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const submitData = {
+    createPlanMutation.mutate({
       ...formData,
       price: parseFloat(formData.price),
       maxUsers: formData.maxUsers ? parseInt(formData.maxUsers) : null,
       maxVenues: formData.maxVenues ? parseInt(formData.maxVenues) : null,
-      maxSpaces: formData.maxSpaces ? parseInt(formData.maxSpaces) : null,
       maxBookingsPerMonth: formData.maxBookingsPerMonth ? parseInt(formData.maxBookingsPerMonth) : null,
-      storageLimit: parseInt(formData.storageLimit)
-    };
-
-    createPackageMutation.mutate(submitData);
+      storageLimit: formData.storageLimit ? parseInt(formData.storageLimit) : null,
+      isCustom: true,
+      isActive: true
+    });
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Package" : "Create New Package"}</DialogTitle>
+          <DialogTitle>Create New Plan</DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Package Information */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Basic Information</h3>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="name">Package Name</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g. custom-package"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="displayName">Display Name</Label>
-                <Input
-                  id="displayName"
-                  value={formData.displayName}
-                  onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
-                  placeholder="e.g. Custom Package"
-                  required
-                />
-              </div>
-            </div>
-
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Describe what this package includes..."
+              <Label htmlFor="name">Internal Name</Label>
+              <Input 
+                id="name" 
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="premium-plan" 
+                required
               />
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="price">Price</Label>
-                <Input
-                  id="price"
-                  type="number"
-                  step="0.01"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  placeholder="29.99"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="billingInterval">Billing Interval</Label>
-                <Select 
-                  value={formData.billingInterval} 
-                  onValueChange={(value) => setFormData({ ...formData, billingInterval: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                    <SelectItem value="yearly">Yearly</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label htmlFor="displayName">Display Name</Label>
+              <Input 
+                id="displayName" 
+                value={formData.displayName}
+                onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
+                placeholder="Premium Plan" 
+                required
+              />
             </div>
           </div>
 
-          {/* Package Limits */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Package Limits</h3>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="maxUsers">Max Users (leave empty for unlimited)</Label>
-                <Input
-                  id="maxUsers"
-                  type="number"
-                  value={formData.maxUsers}
-                  onChange={(e) => setFormData({ ...formData, maxUsers: e.target.value })}
-                  placeholder="10"
-                />
-              </div>
-              <div>
-                <Label htmlFor="maxVenues">Max Venues (leave empty for unlimited)</Label>
-                <Input
-                  id="maxVenues"
-                  type="number"
-                  value={formData.maxVenues}
-                  onChange={(e) => setFormData({ ...formData, maxVenues: e.target.value })}
-                  placeholder="5"
-                />
-              </div>
-            </div>
+          <div>
+            <Label htmlFor="description">Description</Label>
+            <Textarea 
+              id="description" 
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Plan description..." 
+            />
+          </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="maxSpaces">Max Spaces (leave empty for unlimited)</Label>
-                <Input
-                  id="maxSpaces"
-                  type="number"
-                  value={formData.maxSpaces}
-                  onChange={(e) => setFormData({ ...formData, maxSpaces: e.target.value })}
-                  placeholder="25"
-                />
-              </div>
-              <div>
-                <Label htmlFor="storageLimit">Storage Limit (GB)</Label>
-                <Input
-                  id="storageLimit"
-                  type="number"
-                  value={formData.storageLimit}
-                  onChange={(e) => setFormData({ ...formData, storageLimit: e.target.value })}
-                  placeholder="50"
-                  required
-                />
-              </div>
-            </div>
-
+          <div className="grid grid-cols-3 gap-4">
             <div>
-              <Label htmlFor="maxBookingsPerMonth">Max Monthly Bookings (leave empty for unlimited)</Label>
-              <Input
-                id="maxBookingsPerMonth"
+              <Label htmlFor="slug">Slug</Label>
+              <Input 
+                id="slug" 
+                value={formData.slug}
+                onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                placeholder="premium" 
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="price">Price</Label>
+              <Input 
+                id="price" 
+                type="number"
+                value={formData.price}
+                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                placeholder="99.00" 
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="billingInterval">Billing</Label>
+              <Select 
+                value={formData.billingInterval} 
+                onValueChange={(value) => setFormData({ ...formData, billingInterval: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="month">Monthly</SelectItem>
+                  <SelectItem value="year">Yearly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="maxUsers">Max Users</Label>
+              <Input 
+                id="maxUsers" 
+                type="number"
+                value={formData.maxUsers}
+                onChange={(e) => setFormData({ ...formData, maxUsers: e.target.value })}
+                placeholder="10" 
+              />
+            </div>
+            <div>
+              <Label htmlFor="maxVenues">Max Venues</Label>
+              <Input 
+                id="maxVenues" 
+                type="number"
+                value={formData.maxVenues}
+                onChange={(e) => setFormData({ ...formData, maxVenues: e.target.value })}
+                placeholder="5" 
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="maxBookingsPerMonth">Monthly Bookings</Label>
+              <Input 
+                id="maxBookingsPerMonth" 
                 type="number"
                 value={formData.maxBookingsPerMonth}
                 onChange={(e) => setFormData({ ...formData, maxBookingsPerMonth: e.target.value })}
-                placeholder="100"
+                placeholder="100" 
+              />
+            </div>
+            <div>
+              <Label htmlFor="storageLimit">Storage (GB)</Label>
+              <Input 
+                id="storageLimit" 
+                type="number"
+                value={formData.storageLimit}
+                onChange={(e) => setFormData({ ...formData, storageLimit: e.target.value })}
+                placeholder="10" 
+              />
+            </div>
+          </div>
+          
+          <div className="flex gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={createPlanMutation.isPending}>
+              {createPlanMutation.isPending ? "Creating..." : "Create Plan"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Edit Plan Dialog Component  
+function EditPlanDialog({ plan, isOpen, onClose }: {
+  plan: any;
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const [formData, setFormData] = useState({
+    name: plan?.name || "",
+    displayName: plan?.displayName || "",
+    description: plan?.description || "",
+    price: plan?.price?.toString() || "",
+    billingInterval: plan?.billingInterval || "month",
+    maxUsers: plan?.maxUsers?.toString() || "",
+    maxVenues: plan?.maxVenues?.toString() || "",
+    maxBookingsPerMonth: plan?.maxBookingsPerMonth?.toString() || "",
+    storageLimit: plan?.storageLimit?.toString() || "",
+  });
+
+  const updatePlanMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("PUT", `/api/super-admin/packages/${plan.id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/super-admin/packages"] });
+      toast({
+        title: "Success",
+        description: "Plan updated successfully",
+      });
+      onClose();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update plan",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updatePlanMutation.mutate({
+      ...formData,
+      price: parseFloat(formData.price),
+      maxUsers: formData.maxUsers ? parseInt(formData.maxUsers) : null,
+      maxVenues: formData.maxVenues ? parseInt(formData.maxVenues) : null,
+      maxBookingsPerMonth: formData.maxBookingsPerMonth ? parseInt(formData.maxBookingsPerMonth) : null,
+      storageLimit: formData.storageLimit ? parseInt(formData.storageLimit) : null,
+    });
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Edit Plan - {plan?.displayName}</DialogTitle>
+        </DialogHeader>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="edit-name">Internal Name</Label>
+              <Input 
+                id="edit-name" 
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-displayName">Display Name</Label>
+              <Input 
+                id="edit-displayName" 
+                value={formData.displayName}
+                onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
+                required
               />
             </div>
           </div>
 
-          {/* Feature Configuration */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium">Feature Configuration</h3>
-              <div className="flex gap-2">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => toggleAllFeatures(true)}
-                >
-                  Enable All
-                </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => toggleAllFeatures(false)}
-                >
-                  Disable All
-                </Button>
-              </div>
-            </div>
+          <div>
+            <Label htmlFor="edit-description">Description</Label>
+            <Textarea 
+              id="edit-description" 
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            />
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Object.entries(getFeaturesByCategory()).map(([category, features]) => (
-                <Card key={category} className="p-4">
-                  <h4 className="font-medium mb-3 text-sm">{category}</h4>
-                  <div className="space-y-2">
-                    {Object.entries(features).map(([featureKey, featureLabel]) => (
-                      <div key={featureKey} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id={featureKey}
-                          checked={formData.features[featureKey] || false}
-                          onChange={() => toggleFeature(featureKey)}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <Label 
-                          htmlFor={featureKey} 
-                          className="text-sm font-normal cursor-pointer"
-                        >
-                          {featureLabel}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              ))}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="edit-price">Price</Label>
+              <Input 
+                id="edit-price" 
+                type="number"
+                value={formData.price}
+                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                required
+              />
             </div>
-
-            {/* Feature Summary */}
-            <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
-              <div className="text-sm text-slate-600 dark:text-slate-400">
-                <strong>Selected Features: </strong>
-                {Object.values(formData.features).filter(Boolean).length} of {Object.keys(allFeatures).length} features enabled
-              </div>
+            <div>
+              <Label htmlFor="edit-billingInterval">Billing</Label>
+              <Select 
+                value={formData.billingInterval} 
+                onValueChange={(value) => setFormData({ ...formData, billingInterval: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="month">Monthly</SelectItem>
+                  <SelectItem value="year">Yearly</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          <div className="flex gap-2 pt-4 border-t">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="edit-maxUsers">Max Users</Label>
+              <Input 
+                id="edit-maxUsers" 
+                type="number"
+                value={formData.maxUsers}
+                onChange={(e) => setFormData({ ...formData, maxUsers: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-maxVenues">Max Venues</Label>
+              <Input 
+                id="edit-maxVenues" 
+                type="number"
+                value={formData.maxVenues}
+                onChange={(e) => setFormData({ ...formData, maxVenues: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="edit-maxBookingsPerMonth">Monthly Bookings</Label>
+              <Input 
+                id="edit-maxBookingsPerMonth" 
+                type="number"
+                value={formData.maxBookingsPerMonth}
+                onChange={(e) => setFormData({ ...formData, maxBookingsPerMonth: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-storageLimit">Storage (GB)</Label>
+              <Input 
+                id="edit-storageLimit" 
+                type="number"
+                value={formData.storageLimit}
+                onChange={(e) => setFormData({ ...formData, storageLimit: e.target.value })}
+              />
+            </div>
+          </div>
+          
+          <div className="flex gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createPackageMutation.isPending}>
-              {createPackageMutation.isPending ? "Saving..." : (isEdit ? "Update Package" : "Create Package")}
+            <Button type="submit" disabled={updatePlanMutation.isPending}>
+              {updatePlanMutation.isPending ? "Updating..." : "Update Plan"}
             </Button>
           </div>
         </form>
@@ -1429,41 +1376,39 @@ function PackageDialog({ isOpen, onClose, package: pkg, isEdit }: {
 // Activity Log Component
 function ActivityLog({ activities }: { activities: any }) {
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-semibold">Platform Activity Log</h2>
-      
-      <Card>
-        <CardContent className="p-0">
-          <div className="space-y-4 p-6">
-            {((activities as any[]) || []).map((activity: any) => (
-              <div key={activity.id} className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                <div className="w-2 h-2 bg-blue-600 rounded-full mt-2"></div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium">{activity.action}</p>
-                    <span className="text-xs text-slate-500">
-                      {new Date(activity.createdAt).toLocaleString()}
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                    Tenant: {activity.tenantName}
-                  </p>
-                  {activity.details && (
-                    <p className="text-xs text-slate-500 mt-1">
-                      {activity.details}
-                    </p>
-                  )}
-                </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Recent Activity</CardTitle>
+        <p className="text-sm text-slate-600">Platform events and system activities</p>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {((activities as any[]) || []).map((activity: any, index: number) => (
+            <div key={index} className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+              <div className="mt-0.5">
+                <Activity className="w-4 h-4 text-blue-600" />
               </div>
-            )) || (
-              <p className="text-center py-8 text-slate-600">
-                No activity logs found.
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  {activity.action}
+                </p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  {activity.description}
+                </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  {new Date(activity.timestamp).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          )) || (
+            <div className="text-center py-8 text-slate-600">
+              <Activity className="w-12 h-12 mx-auto mb-4 text-slate-400" />
+              <p>No recent activity to display.</p>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1471,23 +1416,37 @@ function ActivityLog({ activities }: { activities: any }) {
 function SystemSettings() {
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold">System Settings</h2>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div>
+        <h2 className="text-2xl font-bold">System Settings</h2>
+        <p className="text-slate-600 dark:text-slate-400">
+          Configure platform-wide settings and preferences
+        </p>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Platform Configuration</CardTitle>
+            <CardTitle>Security Settings</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="platformName">Platform Name</Label>
-              <Input id="platformName" defaultValue="Venuine" />
+              <Label htmlFor="sessionTimeout">Session Timeout (minutes)</Label>
+              <Input id="sessionTimeout" type="number" defaultValue="60" />
             </div>
             <div>
-              <Label htmlFor="supportEmail">Support Email</Label>
-              <Input id="supportEmail" defaultValue="support@venuine.com" />
+              <Label htmlFor="passwordPolicy">Password Policy</Label>
+              <Select defaultValue="strong">
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="basic">Basic</SelectItem>
+                  <SelectItem value="strong">Strong</SelectItem>
+                  <SelectItem value="enterprise">Enterprise</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Button>Save Settings</Button>
+            <Button>Save Security Settings</Button>
           </CardContent>
         </Card>
 

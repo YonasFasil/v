@@ -474,18 +474,15 @@ export const superAdmins = pgTable("super_admins", {
 // Feature packages/tiers that can be assigned to tenants
 export const featurePackages = pgTable("feature_packages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull().unique(), // Basic, Professional, Enterprise, Custom
-  displayName: text("display_name").notNull(),
-  description: text("description"),
-  price: decimal("price", { precision: 10, scale: 2 }), // Monthly price
-  billingInterval: text("billing_interval").notNull().default("monthly"), // monthly, yearly
-  features: jsonb("features").notNull(), // Feature flags and limits
-  maxUsers: integer("max_users"), // Max number of users per tenant
-  maxVenues: integer("max_venues"), // Max number of venues
-  maxBookingsPerMonth: integer("max_bookings_per_month"),
-  storageLimit: integer("storage_limit"), // In GB
-  isActive: boolean("is_active").default(true),
-  isCustom: boolean("is_custom").default(false), // Custom packages for enterprise clients
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  status: text("status").notNull().default("draft"), // draft, active, archived
+  billingModes: jsonb("billing_modes").notNull(), // { monthly: { amount: 6900, currency: "usd" }, yearly?: {...} }
+  stripeProductId: text("stripe_product_id"),
+  stripePriceIds: jsonb("stripe_price_ids"), // { monthly?: string, yearly?: string }
+  trialDays: integer("trial_days"),
+  limits: jsonb("limits").notNull(), // { venues: 1, spacesPerVenue: 5, staff: 3, monthlyBookings: 50 }
+  flags: jsonb("flags").notNull(), // Feature flags as booleans/strings
   sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -500,13 +497,11 @@ export const tenants = pgTable("tenants", {
   contactEmail: text("contact_email").notNull(),
   contactName: text("contact_name").notNull(),
   contactPhone: text("contact_phone"),
-  packageId: varchar("package_id").references(() => featurePackages.id).notNull(),
-  status: text("status").notNull().default("active"), // active, suspended, trial, cancelled
-  trialEndsAt: timestamp("trial_ends_at"),
-  subscriptionStatus: text("subscription_status").default("trial"), // trial, active, past_due, cancelled
-  billingEmail: text("billing_email"),
+  planSlug: text("plan_slug"), // References featurePackages.slug
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
+  status: text("status").notNull().default("active"), // active, past_due, canceled, suspended
+  trialEnd: timestamp("trial_end"), // When trial ends
   settings: jsonb("settings").default({}), // Tenant-specific configuration
   usage: jsonb("usage").default({}), // Current usage metrics
   isActive: boolean("is_active").default(true),
@@ -546,12 +541,26 @@ export const tenantActivities = pgTable("tenant_activities", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Audit logs for tracking all billing and plan actions
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  actorUserId: varchar("actor_user_id"), // Super admin or tenant user ID
+  tenantId: varchar("tenant_id"), // null for super admin actions
+  action: text("action").notNull(), // created_plan, updated_plan, subscription_updated, etc.
+  entity: text("entity").notNull(), // plan, tenant, subscription, etc.
+  meta: jsonb("meta"), // Additional context data
+  ip: text("ip"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Super Admin schemas
 export const insertSuperAdminSchema = createInsertSchema(superAdmins).omit({ id: true, createdAt: true });
 export const insertFeaturePackageSchema = createInsertSchema(featurePackages).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTenantSchema = createInsertSchema(tenants).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTenantUserSchema = createInsertSchema(tenantUsers).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTenantActivitySchema = createInsertSchema(tenantActivities).omit({ id: true, createdAt: true });
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
 
 // Super Admin types
 export type SuperAdmin = typeof superAdmins.$inferSelect;
@@ -564,3 +573,5 @@ export type TenantUser = typeof tenantUsers.$inferSelect;
 export type InsertTenantUser = z.infer<typeof insertTenantUserSchema>;
 export type TenantActivity = typeof tenantActivities.$inferSelect;
 export type InsertTenantActivity = z.infer<typeof insertTenantActivitySchema>;
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
