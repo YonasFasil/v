@@ -2038,21 +2038,118 @@ This is a test email from your Venuine venue management system.
   });
 
   // Stripe Connect endpoints
-  app.get("/api/stripe/status", async (req, res) => {
+  app.get("/api/stripe/connect/status", async (req, res) => {
     try {
+      // In a real app, you'd get the current user from session/auth
+      const userId = "current-user-id"; // TODO: Get from auth session
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.stripeAccountId) {
+        return res.json({
+          connected: false,
+          accountId: null,
+          onboardingCompleted: false,
+          chargesEnabled: false,
+          payoutsEnabled: false
+        });
+      }
+
+      // Check Stripe account status
+      const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+      const account = await stripe.accounts.retrieve(user.stripeAccountId);
+      
       res.json({
-        connected: false,
-        accountId: null
+        connected: true,
+        accountId: user.stripeAccountId,
+        onboardingCompleted: account.details_submitted,
+        chargesEnabled: account.charges_enabled,
+        payoutsEnabled: account.payouts_enabled,
+        status: account.requirements?.currently_due?.length > 0 ? 'restricted' : 'active'
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
-  app.delete("/api/stripe/disconnect", async (req, res) => {
+  app.post("/api/stripe/connect/create-account", async (req, res) => {
     try {
-      console.log('Disconnecting Stripe account');
-      res.json({ success: true, message: "Stripe account disconnected" });
+      const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+      const userId = "current-user-id"; // TODO: Get from auth session
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Create Stripe Connect account
+      const account = await stripe.accounts.create({
+        type: 'standard',
+        email: user.email,
+        business_profile: {
+          name: req.body.businessName || user.name,
+          product_description: 'Event venue management and booking services'
+        }
+      });
+
+      // Update user with Stripe account ID
+      await storage.updateUser(userId, {
+        stripeAccountId: account.id,
+        stripeAccountStatus: account.requirements?.currently_due?.length > 0 ? 'restricted' : 'pending',
+        stripeConnectedAt: new Date()
+      });
+
+      // Create account link for onboarding
+      const accountLink = await stripe.accountLinks.create({
+        account: account.id,
+        refresh_url: `${req.protocol}://${req.get('host')}/settings?tab=integrations&stripe_refresh=true`,
+        return_url: `${req.protocol}://${req.get('host')}/settings?tab=integrations&stripe_success=true`,
+        type: 'account_onboarding'
+      });
+
+      res.json({
+        accountId: account.id,
+        onboardingUrl: accountLink.url
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/stripe/connect/create-login-link", async (req, res) => {
+    try {
+      const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+      const userId = "current-user-id"; // TODO: Get from auth session
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.stripeAccountId) {
+        return res.status(400).json({ message: "No Stripe account connected" });
+      }
+
+      const loginLink = await stripe.accounts.createLoginLink(user.stripeAccountId);
+      
+      res.json({
+        loginUrl: loginLink.url
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/stripe/connect/disconnect", async (req, res) => {
+    try {
+      const userId = "current-user-id"; // TODO: Get from auth session
+      
+      // Update user to remove Stripe connection
+      await storage.updateUser(userId, {
+        stripeAccountId: null,
+        stripeAccountStatus: null,
+        stripeOnboardingCompleted: false,
+        stripeChargesEnabled: false,
+        stripePayoutsEnabled: false,
+        stripeConnectedAt: null
+      });
+
+      res.json({ success: true, message: "Stripe account disconnected successfully" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

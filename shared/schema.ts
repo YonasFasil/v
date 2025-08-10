@@ -10,6 +10,12 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   email: text("email").notNull(),
   role: text("role").notNull().default("manager"),
+  stripeAccountId: text("stripe_account_id"), // Stripe Connect account ID
+  stripeAccountStatus: text("stripe_account_status"), // pending, active, restricted, etc.
+  stripeOnboardingCompleted: boolean("stripe_onboarding_completed").default(false),
+  stripeChargesEnabled: boolean("stripe_charges_enabled").default(false),
+  stripePayoutsEnabled: boolean("stripe_payouts_enabled").default(false),
+  stripeConnectedAt: timestamp("stripe_connected_at"),
 });
 
 export const venues = pgTable("venues", {
