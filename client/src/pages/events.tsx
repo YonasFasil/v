@@ -28,16 +28,58 @@ export default function Events() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  const getStatusColor = (status: string) => {
+  const getDisplayStatus = (status: string, proposalStatus?: string) => {
+    // Handle proposal-based status display
+    if (status === "inquiry" && proposalStatus === "sent") {
+      return "Proposal Sent";
+    }
+    if (status === "inquiry" && proposalStatus === "viewed") {
+      return "Proposal Viewed";
+    }
+    if (status === "inquiry" && proposalStatus === "accepted") {
+      return "Proposal Accepted";
+    }
+    if (status === "inquiry" && proposalStatus === "declined") {
+      return "Proposal Declined";
+    }
+    
+    switch (status) {
+      case "inquiry": return "Inquiry";
+      case "confirmed": return "Confirmed";
+      case "completed": return "Completed";
+      case "cancelled": return "Cancelled";
+      // Legacy statuses for backwards compatibility
+      case "pending": return "Pending";
+      case "tentative": return "Tentative";
+      case "quoted": return "Quoted"; // Legacy support
+      default: return status.charAt(0).toUpperCase() + status.slice(1);
+    }
+  };
+
+  const getStatusColor = (status: string, proposalStatus?: string) => {
+    // Handle proposal-based status display
+    if (status === "inquiry" && proposalStatus === "sent") {
+      return "bg-blue-100 text-blue-800";
+    }
+    if (status === "inquiry" && proposalStatus === "viewed") {
+      return "bg-indigo-100 text-indigo-800";
+    }
+    if (status === "inquiry" && proposalStatus === "accepted") {
+      return "bg-emerald-100 text-emerald-800";
+    }
+    if (status === "inquiry" && proposalStatus === "declined") {
+      return "bg-orange-100 text-orange-800";
+    }
+    
     switch (status) {
       case "inquiry": return "bg-purple-100 text-purple-800";
-      case "quoted": return "bg-blue-100 text-blue-800";
       case "confirmed": return "bg-green-100 text-green-800";
       case "completed": return "bg-gray-100 text-gray-800";
       case "cancelled": return "bg-red-100 text-red-800";
       // Legacy statuses for backwards compatibility
       case "pending": return "bg-yellow-100 text-yellow-800";
       case "tentative": return "bg-blue-100 text-blue-800";
+      case "quoted": return "bg-blue-100 text-blue-800"; // Legacy support
       default: return "bg-gray-100 text-gray-800";
     }
   };
@@ -173,8 +215,8 @@ export default function Events() {
                               </CardTitle>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Badge className={getStatusColor(booking.status)}>
-                                {booking.status}
+                              <Badge className={getStatusColor(booking.status, booking.proposalStatus)}>
+                                {getDisplayStatus(booking.status, booking.proposalStatus)}
                               </Badge>
                               <Button
                                 variant="ghost"
@@ -236,20 +278,7 @@ export default function Events() {
                               </div>
                             )}
                             {/* Show proposal status */}
-                            {(booking as any).proposalStatus && (booking as any).proposalStatus !== 'none' && (
-                              <div className="flex items-center text-sm">
-                                <FileText className="w-4 h-4 mr-2" />
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                  (booking as any).proposalStatus === 'sent' ? 'bg-blue-100 text-blue-800' :
-                                  (booking as any).proposalStatus === 'viewed' ? 'bg-yellow-100 text-yellow-800' :
-                                  (booking as any).proposalStatus === 'accepted' ? 'bg-green-100 text-green-800' :
-                                  (booking as any).proposalStatus === 'declined' ? 'bg-red-100 text-red-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  Proposal {(booking as any).proposalStatus}
-                                </span>
-                              </div>
-                            )}
+
                           </div>
                         </CardContent>
                       </Card>
@@ -328,20 +357,10 @@ export default function Events() {
                             </TableCell>
                             <TableCell>
                               <div className="flex flex-col gap-1">
-                                <Badge className={getStatusColor(booking.status)}>
-                                  {booking.status}
+                                <Badge className={getStatusColor(booking.status, booking.proposalStatus)}>
+                                  {getDisplayStatus(booking.status, booking.proposalStatus)}
                                 </Badge>
-                                {(booking as any).proposalStatus && (booking as any).proposalStatus !== 'none' && (
-                                  <Badge variant="outline" className={`text-xs ${
-                                    (booking as any).proposalStatus === 'sent' ? 'border-blue-500 text-blue-600' :
-                                    (booking as any).proposalStatus === 'viewed' ? 'border-yellow-500 text-yellow-600' :
-                                    (booking as any).proposalStatus === 'accepted' ? 'border-green-500 text-green-600' :
-                                    (booking as any).proposalStatus === 'declined' ? 'border-red-500 text-red-600' :
-                                    'border-gray-500 text-gray-600'
-                                  }`}>
-                                    Proposal {(booking as any).proposalStatus}
-                                  </Badge>
-                                )}
+
                               </div>
                             </TableCell>
                             <TableCell className="font-medium text-green-600">

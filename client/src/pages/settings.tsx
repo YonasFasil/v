@@ -1451,20 +1451,28 @@ function StripePaymentSection() {
 
       {/* Setup Instructions */}
       {!isConfigured && (
-        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3 mb-4">
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-4">
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-orange-600 mt-0.5" />
+            <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
             <div>
-              <p className="font-medium text-orange-800 dark:text-orange-200">Setup Required</p>
-              <p className="text-orange-700 dark:text-orange-300 text-sm mt-1">
-                Configure your Stripe API keys in the Replit Secrets tab to enable payment processing.
+              <p className="font-medium text-blue-800 dark:text-blue-200">Connect Your Stripe Account</p>
+              <p className="text-blue-700 dark:text-blue-300 text-sm mt-1">
+                Connect your Stripe account to start accepting payments through the venue management system.
               </p>
-              <div className="mt-2 text-xs text-orange-600">
-                <p>Required secrets:</p>
-                <ul className="list-disc list-inside ml-2">
-                  <li>STRIPE_SECRET_KEY (starts with sk_)</li>
-                  <li>VITE_STRIPE_PUBLIC_KEY (starts with pk_)</li>
-                </ul>
+              <div className="mt-3">
+                <Button 
+                  asChild
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <a 
+                    href="https://connect.stripe.com/d/setup/s/_SqAltRcVdQLKVeCY6XaaPGrxJb/YWNjdF8xUnVVUHdFWWo5VGhEbmtk/d5dd17491555ab49a"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Connect Stripe Account
+                  </a>
+                </Button>
               </div>
             </div>
           </div>
