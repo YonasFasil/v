@@ -199,9 +199,9 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   const selectedVenueData = (venues as any[]).find((v: any) => v.id === selectedVenue);
   const selectedPackageData = (packages as any[]).find((p: any) => p.id === activeDate?.packageId);
 
-  // Calculate total price across all dates (same as create modal)
+  // Calculate total price including taxes and fees
   const totalPrice = useMemo(() => {
-    return selectedDates.reduce((total, dateConfig) => {
+    let subtotal = selectedDates.reduce((total, dateConfig) => {
       let dateTotal = 0;
       
       // Package price
@@ -231,7 +231,50 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
       
       return total + dateTotal;
     }, 0);
-  }, [selectedDates, packages, services]);
+
+    // Calculate fees
+    let feesTotal = 0;
+    (taxSettings as any[])?.forEach((fee: any) => {
+      if ((fee.type === 'fee' || fee.type === 'service_charge') && 
+          fee.isActive && 
+          taxFeeOverrides.enabledFeeIds.includes(fee.id)) {
+        
+        if (fee.calculation === 'percentage') {
+          feesTotal += subtotal * (parseFloat(fee.value) / 100);
+        } else {
+          feesTotal += parseFloat(fee.value);
+        }
+      }
+    });
+
+    // Calculate taxes on subtotal + taxable fees
+    const taxableFees = (taxSettings as any[])
+      ?.filter((fee: any) => 
+        (fee.type === 'fee' || fee.type === 'service_charge') && 
+        fee.isActive && 
+        fee.isTaxable &&
+        taxFeeOverrides.enabledFeeIds.includes(fee.id))
+      .reduce((sum, fee) => {
+        const feeAmount = fee.calculation === 'percentage' 
+          ? subtotal * (parseFloat(fee.value) / 100)
+          : parseFloat(fee.value);
+        return sum + feeAmount;
+      }, 0) || 0;
+
+    const taxableBase = subtotal + taxableFees;
+    
+    let taxesTotal = 0;
+    (taxSettings as any[])?.forEach((tax: any) => {
+      if (tax.type === 'tax' && 
+          tax.isActive && 
+          taxFeeOverrides.enabledTaxIds.includes(tax.id)) {
+        
+        taxesTotal += taxableBase * (parseFloat(tax.value) / 100);
+      }
+    });
+
+    return subtotal + feesTotal + taxesTotal;
+  }, [selectedDates, packages, services, taxSettings, taxFeeOverrides]);
 
   // Create customer mutation
   const createCustomer = useMutation({
@@ -1663,11 +1706,126 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                         </div>
                       )}
 
+                      {/* Pricing Breakdown */}
                       <div className="border-t pt-3">
-                        <div className="flex justify-between items-center">
-                          <span className="font-medium">Total Amount:</span>
-                          <span className="text-xl font-bold text-green-600">${totalPrice.toFixed(2)}</span>
-                        </div>
+                        {(() => {
+                          // Calculate fees and taxes
+                          const appliedFees: any[] = [];
+                          const appliedTaxes: any[] = [];
+                          let subtotal = 0;
+
+                          // Calculate subtotal from all dates
+                          selectedDates.forEach(date => {
+                            // Package price
+                            if (date.packageId) {
+                              const pkg = (packages as any[])?.find((p: any) => p.id === date.packageId);
+                              if (pkg) {
+                                const packagePrice = date.pricingOverrides?.packagePrice ?? parseFloat(pkg.price || 0);
+                                if (pkg.pricingModel === 'per_person') {
+                                  subtotal += packagePrice * (date.guestCount || 1);
+                                } else {
+                                  subtotal += packagePrice;
+                                }
+                              }
+                            }
+                            
+                            // Services price
+                            date.selectedServices?.forEach(serviceId => {
+                              const service = (services as any[]).find((s: any) => s.id === serviceId);
+                              if (service) {
+                                const servicePrice = date.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
+                                if (service.pricingModel === 'per_person') {
+                                  subtotal += servicePrice * (date.guestCount || 1);
+                                } else {
+                                  const quantity = date.itemQuantities?.[serviceId] || 1;
+                                  subtotal += servicePrice * quantity;
+                                }
+                              }
+                            });
+                          });
+
+                          // Calculate fees
+                          (taxSettings as any[])?.forEach((fee: any) => {
+                            if ((fee.type === 'fee' || fee.type === 'service_charge') && 
+                                fee.isActive && 
+                                taxFeeOverrides.enabledFeeIds.includes(fee.id)) {
+                              
+                              let feeAmount = 0;
+                              if (fee.calculation === 'percentage') {
+                                feeAmount = subtotal * (parseFloat(fee.value) / 100);
+                              } else {
+                                feeAmount = parseFloat(fee.value);
+                              }
+                              
+                              appliedFees.push({
+                                name: fee.name,
+                                amount: feeAmount,
+                                isTaxable: fee.isTaxable
+                              });
+                            }
+                          });
+
+                          // Calculate taxes on subtotal + taxable fees
+                          const taxableBase = subtotal + appliedFees.filter(f => f.isTaxable).reduce((sum, f) => sum + f.amount, 0);
+                          
+                          (taxSettings as any[])?.forEach((tax: any) => {
+                            if (tax.type === 'tax' && 
+                                tax.isActive && 
+                                taxFeeOverrides.enabledTaxIds.includes(tax.id)) {
+                              
+                              const taxAmount = taxableBase * (parseFloat(tax.value) / 100);
+                              appliedTaxes.push({
+                                name: tax.name,
+                                amount: taxAmount
+                              });
+                            }
+                          });
+
+                          const hasFeesOrTaxes = appliedFees.length > 0 || appliedTaxes.length > 0;
+
+                          return (
+                            <>
+                              {hasFeesOrTaxes ? (
+                                <>
+                                  {/* Subtotal */}
+                                  <div className="flex justify-between text-sm">
+                                    <span>Subtotal:</span>
+                                    <span>${subtotal.toFixed(2)}</span>
+                                  </div>
+                                  
+                                  {/* Individual Fees */}
+                                  {appliedFees.map((fee, index) => (
+                                    <div key={`fee-${index}`} className="flex justify-between text-sm text-blue-600">
+                                      <span className="pl-2">+ {fee.name}:</span>
+                                      <span>+${fee.amount.toFixed(2)}</span>
+                                    </div>
+                                  ))}
+                                  
+                                  {/* Individual Taxes */}
+                                  {appliedTaxes.map((tax, index) => (
+                                    <div key={`tax-${index}`} className="flex justify-between text-sm text-purple-600">
+                                      <span className="pl-2">+ {tax.name}:</span>
+                                      <span>+${tax.amount.toFixed(2)}</span>
+                                    </div>
+                                  ))}
+                                  
+                                  <div className="border-t pt-2 mt-2">
+                                    <div className="flex justify-between font-semibold text-lg">
+                                      <span>Grand Total:</span>
+                                      <span className="text-blue-700">${totalPrice.toFixed(2)}</span>
+                                    </div>
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="flex justify-between font-semibold text-lg">
+                                  <span>Total Price:</span>
+                                  <span className="text-green-600">${totalPrice.toFixed(2)}</span>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                        
                         <div className="text-sm text-slate-600 mt-1">
                           Includes {selectedPackageData ? 'package' : 'services'} and {activeDate?.selectedServices?.length || 0} additional services
                         </div>
@@ -1682,10 +1840,97 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
             {/* Fixed Footer */}
             <div className="border-t border-slate-200 p-3 sm:p-6 flex flex-col sm:flex-row gap-3 sm:gap-0 justify-between items-center bg-white flex-shrink-0 mt-auto">
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-600">Grand Total</span>
-                  <span className="text-lg font-semibold">${totalPrice.toFixed(2)}</span>
-                </div>
+                {/* Enhanced pricing display with breakdown */}
+                {(() => {
+                  const appliedFees: any[] = [];
+                  const appliedTaxes: any[] = [];
+                  let subtotal = 0;
+
+                  // Calculate subtotal from all dates
+                  selectedDates.forEach(date => {
+                    // Package price
+                    if (date.packageId) {
+                      const pkg = (packages as any[])?.find((p: any) => p.id === date.packageId);
+                      if (pkg) {
+                        const packagePrice = date.pricingOverrides?.packagePrice ?? parseFloat(pkg.price || 0);
+                        if (pkg.pricingModel === 'per_person') {
+                          subtotal += packagePrice * (date.guestCount || 1);
+                        } else {
+                          subtotal += packagePrice;
+                        }
+                      }
+                    }
+                    
+                    // Services price
+                    date.selectedServices?.forEach(serviceId => {
+                      const service = (services as any[]).find((s: any) => s.id === serviceId);
+                      if (service) {
+                        const servicePrice = date.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
+                        if (service.pricingModel === 'per_person') {
+                          subtotal += servicePrice * (date.guestCount || 1);
+                        } else {
+                          const quantity = date.itemQuantities?.[serviceId] || 1;
+                          subtotal += servicePrice * quantity;
+                        }
+                      }
+                    });
+                  });
+
+                  // Calculate fees
+                  (taxSettings as any[])?.forEach((fee: any) => {
+                    if ((fee.type === 'fee' || fee.type === 'service_charge') && 
+                        fee.isActive && 
+                        taxFeeOverrides.enabledFeeIds.includes(fee.id)) {
+                      
+                      let feeAmount = 0;
+                      if (fee.calculation === 'percentage') {
+                        feeAmount = subtotal * (parseFloat(fee.value) / 100);
+                      } else {
+                        feeAmount = parseFloat(fee.value);
+                      }
+                      
+                      appliedFees.push({ name: fee.name, amount: feeAmount, isTaxable: fee.isTaxable });
+                    }
+                  });
+
+                  // Calculate taxes
+                  const taxableBase = subtotal + appliedFees.filter(f => f.isTaxable).reduce((sum, f) => sum + f.amount, 0);
+                  
+                  (taxSettings as any[])?.forEach((tax: any) => {
+                    if (tax.type === 'tax' && 
+                        tax.isActive && 
+                        taxFeeOverrides.enabledTaxIds.includes(tax.id)) {
+                      
+                      const taxAmount = taxableBase * (parseFloat(tax.value) / 100);
+                      appliedTaxes.push({ name: tax.name, amount: taxAmount });
+                    }
+                  });
+
+                  const hasFeesOrTaxes = appliedFees.length > 0 || appliedTaxes.length > 0;
+
+                  return (
+                    <div className="flex items-center gap-2">
+                      {hasFeesOrTaxes ? (
+                        <div className="text-right">
+                          <div className="text-xs text-slate-500">
+                            Subtotal: ${subtotal.toFixed(2)}
+                            {appliedFees.length > 0 && ` + Fees: $${appliedFees.reduce((sum, f) => sum + f.amount, 0).toFixed(2)}`}
+                            {appliedTaxes.length > 0 && ` + Taxes: $${appliedTaxes.reduce((sum, t) => sum + t.amount, 0).toFixed(2)}`}
+                          </div>
+                          <div>
+                            <span className="text-sm text-slate-600">Grand Total</span>
+                            <span className="text-lg font-semibold ml-2 text-blue-700">${totalPrice.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-slate-600">Total</span>
+                          <span className="text-lg font-semibold text-green-600">${totalPrice.toFixed(2)}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 
                 <Button 
                   variant="outline" 
