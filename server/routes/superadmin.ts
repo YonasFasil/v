@@ -14,6 +14,91 @@ import { AuditService } from '../services/auditService';
 import { eq, desc, and, ilike, count, or, sql } from 'drizzle-orm';
 
 export function registerSuperAdminRoutes(app: Express) {
+  // GET /api/superadmin/users - Get all users with pagination
+  app.get('/api/superadmin/users', requireSuperAdmin, async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const offset = (page - 1) * limit;
+
+      // Get users with tenant information
+      const usersResult = await db.execute(sql`
+        SELECT 
+          u.id, u.email, u.first_name, u.last_name, u.email_verified, u.created_at,
+          t.name as tenant_name, t.slug as tenant_slug,
+          COUNT(*) OVER() as total_count
+        FROM users u
+        LEFT JOIN tenant_users tu ON u.id = tu.user_id
+        LEFT JOIN tenants t ON tu.tenant_id = t.id
+        WHERE u.email NOT LIKE '%@admin%' AND u.email != 'yonasfasil.sl@gmail.com' AND u.email != 'eyosiasyimer@gmail.com'
+        ORDER BY u.created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `);
+
+      const totalCount = usersResult.rows.length > 0 ? Number(usersResult.rows[0].total_count) : 0;
+
+      res.json({
+        data: usersResult.rows.map(row => ({
+          id: row.id,
+          email: row.email,
+          firstName: row.first_name,
+          lastName: row.last_name,
+          emailVerified: row.email_verified,
+          createdAt: row.created_at,
+          tenantName: row.tenant_name,
+          tenantSlug: row.tenant_slug,
+        })),
+        pagination: {
+          page,
+          limit,
+          total: totalCount,
+          totalPages: Math.ceil(totalCount / limit),
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // DELETE /api/superadmin/users/:id - Delete a user
+  app.delete('/api/superadmin/users/:id', requireSuperAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // Check if user exists
+      const userResult = await db.execute(sql`
+        SELECT id, email FROM users WHERE id = ${id} AND email NOT LIKE '%@admin%' AND email != 'yonasfasil.sl@gmail.com' AND email != 'eyosiasyimer@gmail.com'
+      `);
+
+      if (userResult.rows.length === 0) {
+        return res.status(404).json({ message: 'User not found or cannot delete super admin' });
+      }
+
+      // Check if user has tenants
+      const tenantCheck = await db.execute(sql`
+        SELECT COUNT(*) as tenant_count
+        FROM tenant_users
+        WHERE user_id = ${id}
+      `);
+
+      const hasTenants = Number(tenantCheck.rows[0]?.tenant_count || 0) > 0;
+
+      if (hasTenants) {
+        // Delete tenant relationships first
+        await db.execute(sql`DELETE FROM tenant_users WHERE user_id = ${id}`);
+      }
+
+      // Delete the user
+      await db.execute(sql`DELETE FROM users WHERE id = ${id}`);
+
+      res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   // Get all tenants with pagination and search
   app.get('/api/superadmin/tenants', requireSuperAdmin, async (req: any, res) => {
     try {

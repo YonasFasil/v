@@ -28,6 +28,7 @@ import {
 import { useLocation } from "wouter";
 import { useEffect } from "react";
 import { FeaturePackageForm } from './FeaturePackageForm';
+import UsersManagement from './UsersManagement';
 
 interface Tenant {
   id: string;
@@ -295,6 +296,7 @@ export default function SuperAdminDashboard() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="tenants">Tenants</TabsTrigger>
           <TabsTrigger value="packages">Feature Packages</TabsTrigger>
           <TabsTrigger value="activity">Activity Logs</TabsTrigger>
@@ -354,6 +356,10 @@ export default function SuperAdminDashboard() {
               </Card>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="users" className="space-y-4">
+          <UsersManagement />
         </TabsContent>
 
         <TabsContent value="tenants" className="space-y-4">
