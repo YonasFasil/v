@@ -316,8 +316,8 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
     // Inherit from package
     if (selectedPackage) {
       // Start with package defaults
-      (selectedPackage.appliedTaxes || []).forEach((taxId: string) => inheritedTaxIds.add(taxId));
-      (selectedPackage.appliedFees || []).forEach((feeId: string) => inheritedFeeIds.add(feeId));
+      (selectedPackage.enabledTaxIds || []).forEach((taxId: string) => inheritedTaxIds.add(taxId));
+      (selectedPackage.enabledFeeIds || []).forEach((feeId: string) => inheritedFeeIds.add(feeId));
       
       // Add any additional overrides for this specific package
       const packageOverrides = dateConfig.serviceTaxOverrides?.[selectedPackage.id];
@@ -336,8 +336,8 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
       const service = (services as any[]).find((s: any) => s.id === serviceId);
       if (service) {
         // Start with service defaults
-        (service.appliedTaxes || []).forEach((taxId: string) => inheritedTaxIds.add(taxId));
-        (service.appliedFees || []).forEach((feeId: string) => inheritedFeeIds.add(feeId));
+        (service.enabledTaxIds || []).forEach((taxId: string) => inheritedTaxIds.add(taxId));
+        (service.enabledFeeIds || []).forEach((feeId: string) => inheritedFeeIds.add(feeId));
         
         // Add any additional overrides for this specific service
         const serviceOverrides = dateConfig.serviceTaxOverrides?.[serviceId];
@@ -353,8 +353,8 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
     });
     
     // Merge with user-selected overrides
-    const finalTaxIds = new Set([...inheritedTaxIds, ...taxFeeOverrides.enabledTaxIds]);
-    const finalFeeIds = new Set([...inheritedFeeIds, ...taxFeeOverrides.enabledFeeIds]);
+    const finalTaxIds = new Set([...Array.from(inheritedTaxIds), ...taxFeeOverrides.enabledTaxIds]);
+    const finalFeeIds = new Set([...Array.from(inheritedFeeIds), ...taxFeeOverrides.enabledFeeIds]);
     
     // Apply fees first
     (taxSettings as any[])?.forEach((setting: any) => {
@@ -1530,7 +1530,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                                       {taxSettings
                                                         .filter((item: any) => item.type === 'tax' && item.isActive)
                                                         .map((tax: any) => {
-                                                          const isInherited = (pkg.appliedTaxes || []).includes(tax.id);
+                                                          const isInherited = (pkg.enabledTaxIds || []).includes(tax.id);
                                                           const isOverridden = (activeDate.serviceTaxOverrides?.[pkg.id]?.enabledTaxIds || []).includes(tax.id);
                                                           const isDisabled = (activeDate.serviceTaxOverrides?.[pkg.id]?.disabledInheritedTaxIds || []).includes(tax.id);
                                                           const isActive = (isInherited && !isDisabled) || isOverridden;
@@ -1591,7 +1591,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                                       {taxSettings
                                                         .filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive)
                                                         .map((fee: any) => {
-                                                          const isInherited = (pkg.appliedFees || []).includes(fee.id);
+                                                          const isInherited = (pkg.enabledFeeIds || []).includes(fee.id);
                                                           const isOverridden = (activeDate.serviceTaxOverrides?.[pkg.id]?.enabledFeeIds || []).includes(fee.id);
                                                           const isDisabled = (activeDate.serviceTaxOverrides?.[pkg.id]?.disabledInheritedFeeIds || []).includes(fee.id);
                                                           const isActive = (isInherited && !isDisabled) || isOverridden;
@@ -1850,7 +1850,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                                       {taxSettings
                                                         .filter((item: any) => item.type === 'tax' && item.isActive)
                                                         .map((tax: any) => {
-                                                          const isInherited = (service.appliedTaxes || []).includes(tax.id);
+                                                          const isInherited = (service.enabledTaxIds || []).includes(tax.id);
                                                           const isOverridden = (activeDate.serviceTaxOverrides?.[service.id]?.enabledTaxIds || []).includes(tax.id);
                                                           const isDisabled = (activeDate.serviceTaxOverrides?.[service.id]?.disabledInheritedTaxIds || []).includes(tax.id);
                                                           const isActive = (isInherited && !isDisabled) || isOverridden;
@@ -1911,7 +1911,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                                       {taxSettings
                                                         .filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive)
                                                         .map((fee: any) => {
-                                                          const isInherited = (service.appliedFees || []).includes(fee.id);
+                                                          const isInherited = (service.enabledFeeIds || []).includes(fee.id);
                                                           const isOverridden = (activeDate.serviceTaxOverrides?.[service.id]?.enabledFeeIds || []).includes(fee.id);
                                                           const isDisabled = (activeDate.serviceTaxOverrides?.[service.id]?.disabledInheritedFeeIds || []).includes(fee.id);
                                                           const isActive = (isInherited && !isDisabled) || isOverridden;
