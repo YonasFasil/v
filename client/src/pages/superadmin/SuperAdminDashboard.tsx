@@ -283,6 +283,7 @@ export default function SuperAdminDashboard() {
                         <SelectValue placeholder="Select package (optional)" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="">No package</SelectItem>
                         {featurePackages?.map(pkg => (
                           <SelectItem key={pkg.id} value={pkg.id}>
                             {pkg.name} - ${pkg.priceMonthly}/month

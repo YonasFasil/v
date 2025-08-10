@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { tenantContext, type TenantRequest } from "./middleware/tenantContext";
 import { registerSuperAdminRoutes } from "./routes/superadmin";
+import { registerDevRoutes } from "./routes/dev";
 import { EmailService } from "./services/email";
 import { gmailService } from "./services/gmail";
 import { NotificationService } from "./services/notification";
@@ -40,6 +41,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register superadmin routes
   registerSuperAdminRoutes(app);
+
+  // Register development helper routes
+  registerDevRoutes(app);
   
   // Venues
   app.get("/api/venues", async (req, res) => {
