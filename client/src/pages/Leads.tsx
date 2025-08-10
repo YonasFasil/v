@@ -43,22 +43,51 @@ export default function Leads() {
   // Lead status update mutation
   const updateLeadMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Lead> }) => {
-      const response = await fetch(`/api/leads/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data)
-      });
-      if (!response.ok) {
-        throw new Error('Failed to update lead');
-      }
-      return response.json();
+      return apiRequest("PATCH", `/api/leads/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
     }
   });
+
+  // Convert lead to customer mutation
+  const convertToCustomerMutation = useMutation({
+    mutationFn: async (leadId: string) => {
+      return apiRequest("POST", `/api/leads/${leadId}/convert`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+    }
+  });
+
+  // Handle lead status change
+  const handleStatusChange = (leadId: string, newStatus: string) => {
+    updateLeadMutation.mutate({ id: leadId, data: { status: newStatus } });
+  };
+
+  // Handle convert to customer
+  const handleConvertToCustomer = (leadId: string) => {
+    convertToCustomerMutation.mutate(leadId);
+  };
+
+  // Handle schedule tour
+  const handleScheduleTour = (leadId: string) => {
+    // Update status to tour scheduled and set a reminder/task
+    updateLeadMutation.mutate({ 
+      id: leadId, 
+      data: { status: "TOUR_SCHEDULED" } 
+    });
+  };
+
+  // Handle send proposal
+  const handleSendProposal = (leadId: string) => {
+    // Update status to proposal sent
+    updateLeadMutation.mutate({ 
+      id: leadId, 
+      data: { status: "PROPOSAL_SENT" } 
+    });
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -83,7 +112,7 @@ export default function Leads() {
     }
   };
 
-  const formatBudgetRange = (min?: number, max?: number) => {
+  const formatBudgetRange = (min?: number | null, max?: number | null) => {
     if (!min && !max) return "Budget not specified";
     if (min && max) return `$${min.toLocaleString()} - $${max.toLocaleString()}`;
     if (min) return `$${min.toLocaleString()}+`;
@@ -92,7 +121,8 @@ export default function Leads() {
   };
 
   const leadsArray = Array.isArray(leads) ? leads as Lead[] : [];
-  
+
+  // Apply filters to leads
   const filteredLeads = leadsArray.filter((lead: Lead) => {
     const matchesSearch = !searchQuery || 
       lead.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -299,9 +329,8 @@ export default function Leads() {
                     </Badge>
                     <Select 
                       value={lead.status} 
-                      onValueChange={(newStatus) => 
-                        updateLeadMutation.mutate({ id: lead.id, data: { status: newStatus } })
-                      }
+                      onValueChange={(newStatus) => handleStatusChange(lead.id, newStatus)}
+                      disabled={updateLeadMutation.isPending}
                     >
                       <SelectTrigger className="w-32">
                         <SelectValue />
@@ -339,7 +368,7 @@ export default function Leads() {
                   
                   <div className="flex items-center space-x-2">
                     <User className="h-4 w-4 text-muted-foreground" />
-                    <span>{lead.guestCount || 0} guests</span>
+                    <span>{lead.guestCount ?? 0} guests</span>
                   </div>
                 </div>
 
@@ -352,17 +381,33 @@ export default function Leads() {
                   </div>
                   
                   <div className="flex space-x-2">
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleScheduleTour(lead.id)}
+                      disabled={updateLeadMutation.isPending}
+                    >
                       <Calendar className="h-4 w-4 mr-1" />
                       Schedule Tour
                     </Button>
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleSendProposal(lead.id)}
+                      disabled={updateLeadMutation.isPending}
+                    >
                       <Mail className="h-4 w-4 mr-1" />
                       Send Proposal
                     </Button>
-                    <Button size="sm">
-                      View Details
-                    </Button>
+                    {lead.status === "QUALIFIED" && (
+                      <Button 
+                        size="sm"
+                        onClick={() => handleConvertToCustomer(lead.id)}
+                        disabled={convertToCustomerMutation.isPending}
+                      >
+                        Convert to Customer
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardContent>

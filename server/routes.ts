@@ -2531,6 +2531,49 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
     }
   });
 
+  app.post("/api/leads/:id/convert", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+
+      // Create customer from lead data
+      const customerData = {
+        name: `${lead.firstName} ${lead.lastName}`,
+        email: lead.email,
+        phone: lead.phone || "",
+        notes: lead.notes || "",
+        eventType: lead.eventType,
+        status: "ACTIVE",
+        source: "Lead Conversion"
+      };
+
+      const customer = await storage.createCustomer(customerData);
+
+      // Update lead status to converted
+      await storage.updateLead(id, { status: "WON" });
+
+      // Log the conversion activity
+      await storage.createLeadActivity({
+        leadId: id,
+        type: "CONVERTED",
+        body: `Lead converted to customer: ${customer.name}`,
+        meta: { 
+          customerId: customer.id,
+          customerName: customer.name
+        }
+      });
+
+      res.json({ customer, message: "Lead converted to customer successfully" });
+    } catch (error) {
+      console.error("Error converting lead:", error);
+      res.status(500).json({ message: "Failed to convert lead" });
+    }
+  });
+
   // Lead Activities
   app.post("/api/leads/:id/activities", async (req, res) => {
     try {
