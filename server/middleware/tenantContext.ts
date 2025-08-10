@@ -18,14 +18,14 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
     if (req.path.startsWith('/api/superadmin') || 
         req.path.startsWith('/api/public') || 
         req.path.startsWith('/api/auth') || 
-        !req.user?.id) {
+        !req.session?.userId) {
       return next();
     }
 
     // Check if user is superadmin - superadmins should not have tenant access
     try {
       const superAdminCheck = await db.execute(sql`
-        SELECT role FROM users WHERE id = ${req.user.id} AND role = 'superadmin'
+        SELECT role FROM users WHERE id = ${req.session.userId} AND role = 'superadmin'
       `);
       
       if (superAdminCheck.rows.length > 0) {
@@ -37,7 +37,7 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
       console.error('Superadmin check error:', error);
     }
 
-    const userId = req.user.id;
+    const userId = req.session.userId;
 
     // Get user's tenant context
     const tenantUser = await db

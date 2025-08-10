@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { db } from "../db";
 import { 
   tenants, 
+  tenantUsers,
   featurePackages,
   venues,
   spaces,
@@ -29,10 +30,38 @@ import { eq } from "drizzle-orm";
 import { tenantContext } from "../middleware/tenantContext";
 
 export function registerTenantRoutes(app: Express) {
-  // GET /api/tenant/plan-info - Get current tenant plan information
-  app.get('/api/tenant/plan-info', tenantContext, async (req: any, res) => {
+  // GET /api/tenant/plan-info - Get current tenant plan information  
+  app.get('/api/tenant/plan-info', async (req: any, res) => {
     try {
-      const tenantId = req.tenant.id;
+      console.log('Plan info request - session:', req.session?.userId);
+      console.log('Plan info request - tenant context:', req.tenant);
+      
+      if (!req.session?.userId) {
+        return res.status(401).json({ message: 'Authentication required' });
+      }
+
+      // Get user's tenant directly from session/database
+      const userId = req.session.userId;
+      const tenantUser = await db
+        .select({
+          tenantId: tenantUsers.tenantId,
+          tenant: {
+            id: tenants.id,
+            name: tenants.name,
+            slug: tenants.slug,
+            status: tenants.status,
+          }
+        })
+        .from(tenantUsers)
+        .innerJoin(tenants, eq(tenants.id, tenantUsers.tenantId))
+        .where(eq(tenantUsers.userId, userId))
+        .limit(1);
+
+      if (!tenantUser.length) {
+        return res.status(404).json({ message: 'No tenant found for user' });
+      }
+
+      const tenantId = tenantUser[0].tenantId;
 
       // Get tenant with current plan
       const [tenantWithPlan] = await db

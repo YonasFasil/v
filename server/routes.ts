@@ -68,7 +68,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/customers', tenantContext);
   app.use('/api/leads', tenantContext);
   app.use('/api/proposals', tenantContext);
-  app.use('/api/tenant', tenantContext);
   
   // Register tenant management routes
   registerTenantRoutes(app);
