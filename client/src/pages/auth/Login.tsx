@@ -44,6 +44,10 @@ export default function Login() {
       return response.json();
     },
     onSuccess: (data) => {
+      console.log("Login success data:", data);
+      console.log("hasTenant:", data.hasTenant);
+      console.log("tenant:", data.tenant);
+      
       toast({
         title: "Welcome back!",
         description: "You have successfully signed in.",
@@ -51,8 +55,10 @@ export default function Login() {
       
       // Redirect to tenant app if user has a tenant, otherwise to onboarding
       if (data.hasTenant && data.tenant) {
+        console.log("Redirecting to tenant app:", `/t/${data.tenant.slug}/app`);
         setLocation(`/t/${data.tenant.slug}/app`);
       } else {
+        console.log("Redirecting to onboarding");
         setLocation("/onboarding");
       }
     },
