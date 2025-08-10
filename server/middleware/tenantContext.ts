@@ -22,20 +22,8 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
       return next();
     }
 
-    // Check if user is superadmin - superadmins should not have tenant access
-    try {
-      const superAdminCheck = await db.execute(sql`
-        SELECT user_id FROM super_admins WHERE user_id = ${req.session.userId}
-      `);
-      
-      if (superAdminCheck.rows.length > 0) {
-        return res.status(403).json({ 
-          message: 'Superadmin users cannot access tenant routes' 
-        });
-      }
-    } catch (error) {
-      console.error('Superadmin check error:', error);
-    }
+    // Note: Removed superadmin restriction - superadmins can access tenant routes
+    // if they have valid tenant associations
 
     const userId = req.session.userId;
 
