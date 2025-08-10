@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import { useUserRole } from "@/hooks/useUserRole";
 import { apiRequest } from "@/lib/queryClient";
 import { 
   Crown,
@@ -29,18 +30,21 @@ import {
   Clock,
   AlertTriangle,
   CheckCircle,
-  XCircle
+  XCircle,
+  LogOut,
+  Shield,
+  Globe
 } from "lucide-react";
 
 export default function SuperAdmin() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { logout, userRoleData, isSuperAdmin } = useUserRole();
   const [selectedTab, setSelectedTab] = useState("overview");
 
-  // Check if user is super admin
-  const userRole = localStorage.getItem("userRole");
-  if (userRole !== "super_admin") {
-    navigate("/");
+  // Ensure only Super Admin can access this page
+  if (!isSuperAdmin) {
+    navigate("/login");
     return null;
   }
 
@@ -81,18 +85,18 @@ export default function SuperAdmin() {
           <div className="flex items-center gap-2">
             <Badge variant="default" className="bg-purple-600">
               <Crown className="w-3 h-3 mr-1" />
-              Super Admin
+              {userRoleData?.name || "Super Admin"}
             </Badge>
             <Button
               onClick={() => {
-                localStorage.removeItem("userRole");
-                localStorage.removeItem("userRoleData");
+                logout();
                 navigate("/login");
               }}
               variant="outline"
               size="sm"
             >
-              Switch User
+              <LogOut className="w-3 h-3 mr-1" />
+              Switch Role
             </Button>
           </div>
         </div>
@@ -117,9 +121,9 @@ export default function SuperAdmin() {
                   <Building2 className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{stats?.totalTenants || 0}</div>
+                  <div className="text-2xl font-bold">{(stats as any)?.totalTenants || 0}</div>
                   <p className="text-xs text-muted-foreground">
-                    +{stats?.newTenantsThisMonth || 0} this month
+                    +{(stats as any)?.newTenantsThisMonth || 0} this month
                   </p>
                 </CardContent>
               </Card>
@@ -130,7 +134,7 @@ export default function SuperAdmin() {
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{stats?.activeUsers || 0}</div>
+                  <div className="text-2xl font-bold">{(stats as any)?.activeUsers || 0}</div>
                   <p className="text-xs text-muted-foreground">
                     Across all tenants
                   </p>
@@ -143,7 +147,7 @@ export default function SuperAdmin() {
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">${stats?.monthlyRevenue || 0}</div>
+                  <div className="text-2xl font-bold">${(stats as any)?.monthlyRevenue || 0}</div>
                   <p className="text-xs text-muted-foreground">
                     Subscription revenue
                   </p>
@@ -171,7 +175,7 @@ export default function SuperAdmin() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {activities?.slice(0, 5).map((activity: any) => (
+                  {((activities as any[]) || []).slice(0, 5).map((activity: any) => (
                     <div key={activity.id} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
                       <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
                       <div className="flex-1">
@@ -212,7 +216,7 @@ export default function SuperAdmin() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {tenants?.map((tenant: any) => (
+                    {((tenants as any[]) || []).map((tenant: any) => (
                       <TableRow key={tenant.id}>
                         <TableCell>
                           <div>
@@ -347,7 +351,7 @@ function CreateTenantDialog() {
 }
 
 // Package Management Component
-function PackageManagement({ packages }: { packages: any[] }) {
+function PackageManagement({ packages }: { packages: any }) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -359,7 +363,7 @@ function PackageManagement({ packages }: { packages: any[] }) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {packages?.map((pkg: any) => (
+        {((packages as any[]) || []).map((pkg: any) => (
           <Card key={pkg.id}>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -416,7 +420,7 @@ function PackageManagement({ packages }: { packages: any[] }) {
 }
 
 // Activity Log Component
-function ActivityLog({ activities }: { activities: any[] }) {
+function ActivityLog({ activities }: { activities: any }) {
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-semibold">Platform Activity Log</h2>
@@ -424,7 +428,7 @@ function ActivityLog({ activities }: { activities: any[] }) {
       <Card>
         <CardContent className="p-0">
           <div className="space-y-4 p-6">
-            {activities?.map((activity: any) => (
+            {((activities as any[]) || []).map((activity: any) => (
               <div key={activity.id} className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
                 <div className="w-2 h-2 bg-blue-600 rounded-full mt-2"></div>
                 <div className="flex-1">

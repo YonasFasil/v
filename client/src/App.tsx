@@ -25,7 +25,7 @@ import SuperAdmin from "@/pages/super-admin";
 import NotFound from "@/pages/not-found";
 
 function Router() {
-  const { isAuthenticated, isLoading } = useUserRole();
+  const { isAuthenticated, isLoading, isSuperAdmin } = useUserRole();
   
   if (isLoading) {
     return (
@@ -44,10 +44,20 @@ function Router() {
     );
   }
 
+  // Super Admin gets their own isolated interface
+  if (isSuperAdmin) {
+    return (
+      <Switch>
+        <Route path="/login" component={LoginSelect} />
+        <Route component={SuperAdmin} />
+      </Switch>
+    );
+  }
+
+  // Regular venue users (Admin/Staff) get the venue management interface
   return (
     <Switch>
       <Route path="/login" component={LoginSelect} />
-      <Route path="/super-admin" component={SuperAdmin} />
       <Route path="/" component={Dashboard} />
       <Route path="/events" component={Events} />
       <Route path="/customers" component={Customers} />
