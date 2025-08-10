@@ -4042,9 +4042,42 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
       const packageData = req.body;
       const newPackage = await storage.createFeaturePackage(packageData);
       res.status(201).json(newPackage);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating package:", error);
-      res.status(500).json({ message: "Failed to create package" });
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/super-admin/packages/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updatedPackage = await storage.updateFeaturePackage(id, req.body);
+      res.json(updatedPackage);
+    } catch (error: any) {
+      console.error("Error updating package:", error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/super-admin/packages/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteFeaturePackage(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting package:", error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/super-admin/packages/:id/toggle", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updatedPackage = await storage.togglePackageStatus(id);
+      res.json(updatedPackage);
+    } catch (error: any) {
+      console.error("Error toggling package status:", error);
+      res.status(400).json({ error: error.message });
     }
   });
 

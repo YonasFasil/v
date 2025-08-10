@@ -390,70 +390,451 @@ function CreateTenantDialog() {
 
 // Package Management Component
 function PackageManagement({ packages }: { packages: any }) {
+  const { toast } = useToast();
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [editingPackage, setEditingPackage] = useState<any>(null);
+
+  const queryClient = apiRequest.queryClient || (() => {
+    throw new Error("Query client not available");
+  })();
+
+  const togglePackageMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("PATCH", `/api/super-admin/packages/${id}/toggle`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/super-admin/packages"] });
+      toast({
+        title: "Success",
+        description: "Package status updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update package status",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deletePackageMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/super-admin/packages/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/super-admin/packages"] });
+      toast({
+        title: "Success",
+        description: "Package deleted successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete package",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const getPackageIcon = (pkg: any) => {
+    if (pkg.id === "starter") return "🌱";
+    if (pkg.id === "professional") return "💼";
+    if (pkg.id === "business") return "🏢";
+    if (pkg.id === "enterprise") return "👑";
+    return "📦";
+  };
+
+  const getPackageColor = (pkg: any) => {
+    if (pkg.id === "starter") return "border-green-200 bg-green-50";
+    if (pkg.id === "professional") return "border-blue-200 bg-blue-50";
+    if (pkg.id === "business") return "border-purple-200 bg-purple-50";
+    if (pkg.id === "enterprise") return "border-yellow-200 bg-yellow-50";
+    return "border-gray-200 bg-gray-50";
+  };
+
+  const getFeatureList = (features: any) => {
+    const featureKeys = Object.keys(features).filter(key => features[key] === true);
+    return featureKeys.slice(0, 6); // Show first 6 features
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Feature Packages</h2>
-        <Button>
+        <div>
+          <h2 className="text-xl font-semibold">Feature Packages</h2>
+          <p className="text-sm text-slate-600 mt-1">Manage subscription tiers and feature access</p>
+        </div>
+        <Button onClick={() => setShowCreateDialog(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Create Package
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         {((packages as any[]) || []).map((pkg: any) => (
-          <Card key={pkg.id}>
-            <CardHeader>
+          <Card key={pkg.id} className={`relative ${getPackageColor(pkg)} hover:shadow-lg transition-shadow`}>
+            <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle>{pkg.displayName}</CardTitle>
-                <Badge variant={pkg.isActive ? "default" : "secondary"}>
-                  {pkg.isActive ? "Active" : "Inactive"}
-                </Badge>
-              </div>
-              <p className="text-sm text-slate-600">{pkg.description}</p>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="text-2xl font-bold">
-                  ${pkg.price}/{pkg.billingInterval}
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">{getPackageIcon(pkg)}</span>
+                  <CardTitle className="text-lg">{pkg.displayName}</CardTitle>
                 </div>
-                
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Max Users:</span>
-                    <span>{pkg.maxUsers || "Unlimited"}</span>
+                <div className="flex items-center gap-1">
+                  <Badge variant={pkg.isActive ? "default" : "secondary"} className="text-xs">
+                    {pkg.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                  {!pkg.isCustom && (
+                    <Badge variant="outline" className="text-xs">
+                      System
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 dark:text-slate-400">{pkg.description}</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+                  ${pkg.price}
+                </div>
+                <div className="text-sm text-slate-500">per {pkg.billingInterval}</div>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-white dark:bg-slate-800 p-2 rounded">
+                    <div className="font-medium">Users</div>
+                    <div className="text-slate-600">{pkg.maxUsers || "∞"}</div>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Max Venues:</span>
-                    <span>{pkg.maxVenues || "Unlimited"}</span>
+                  <div className="bg-white dark:bg-slate-800 p-2 rounded">
+                    <div className="font-medium">Venues</div>
+                    <div className="text-slate-600">{pkg.maxVenues || "∞"}</div>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Storage:</span>
-                    <span>{pkg.storageLimit}GB</span>
+                  <div className="bg-white dark:bg-slate-800 p-2 rounded">
+                    <div className="font-medium">Spaces</div>
+                    <div className="text-slate-600">{pkg.maxSpaces || "∞"}</div>
+                  </div>
+                  <div className="bg-white dark:bg-slate-800 p-2 rounded">
+                    <div className="font-medium">Storage</div>
+                    <div className="text-slate-600">{pkg.storageLimit}GB</div>
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    <Edit className="w-3 h-3 mr-1" />
-                    Edit
-                  </Button>
-                  <Button variant="outline" size="sm" className="text-red-600">
+                {pkg.maxBookingsPerMonth && (
+                  <div className="bg-white dark:bg-slate-800 p-2 rounded text-xs">
+                    <div className="font-medium">Monthly Bookings</div>
+                    <div className="text-slate-600">{pkg.maxBookingsPerMonth || "∞"}</div>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-slate-700 dark:text-slate-300">Key Features:</div>
+                <div className="space-y-1">
+                  {getFeatureList(pkg.features).map((feature: string) => (
+                    <div key={feature} className="flex items-center gap-1 text-xs text-slate-600">
+                      <CheckCircle className="w-3 h-3 text-green-500" />
+                      <span className="capitalize">{feature.replace(/([A-Z])/g, ' $1').trim()}</span>
+                    </div>
+                  ))}
+                  {Object.keys(pkg.features).length > 6 && (
+                    <div className="text-xs text-slate-500">
+                      +{Object.keys(pkg.features).length - 6} more features
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex-1"
+                  onClick={() => setEditingPackage(pkg)}
+                >
+                  <Edit className="w-3 h-3 mr-1" />
+                  Edit
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => togglePackageMutation.mutate(pkg.id)}
+                  disabled={togglePackageMutation.isPending}
+                >
+                  {pkg.isActive ? (
+                    <XCircle className="w-3 h-3" />
+                  ) : (
+                    <CheckCircle className="w-3 h-3" />
+                  )}
+                </Button>
+                {pkg.isCustom && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-red-600"
+                    onClick={() => {
+                      if (confirm("Are you sure you want to delete this package?")) {
+                        deletePackageMutation.mutate(pkg.id);
+                      }
+                    }}
+                    disabled={deletePackageMutation.isPending}
+                  >
                     <Trash2 className="w-3 h-3" />
                   </Button>
-                </div>
+                )}
               </div>
             </CardContent>
           </Card>
         )) || (
           <Card className="col-span-full">
             <CardContent className="text-center py-8 text-slate-600">
-              No packages found. Create the first package to get started.
+              <Package className="w-12 h-12 mx-auto mb-4 text-slate-400" />
+              <p>No packages found. Create the first package to get started.</p>
             </CardContent>
           </Card>
         )}
       </div>
+
+      {/* Package Creation/Edit Dialog would go here */}
+      <PackageDialog 
+        isOpen={showCreateDialog || !!editingPackage}
+        onClose={() => {
+          setShowCreateDialog(false);
+          setEditingPackage(null);
+        }}
+        package={editingPackage}
+        isEdit={!!editingPackage}
+      />
     </div>
+  );
+}
+
+// Package Creation/Edit Dialog Component
+function PackageDialog({ isOpen, onClose, package: pkg, isEdit }: {
+  isOpen: boolean;
+  onClose: () => void;
+  package?: any;
+  isEdit: boolean;
+}) {
+  const { toast } = useToast();
+  const [formData, setFormData] = useState({
+    name: "",
+    displayName: "",
+    description: "",
+    price: "",
+    billingInterval: "monthly",
+    maxUsers: "",
+    maxVenues: "",
+    maxSpaces: "",
+    maxBookingsPerMonth: "",
+    storageLimit: "",
+    features: {} as any
+  });
+
+  const queryClient = apiRequest.queryClient || (() => {
+    throw new Error("Query client not available");
+  })();
+
+  // Initialize form data when editing
+  useState(() => {
+    if (isEdit && pkg) {
+      setFormData({
+        name: pkg.name || "",
+        displayName: pkg.displayName || "",
+        description: pkg.description || "",
+        price: pkg.price?.toString() || "",
+        billingInterval: pkg.billingInterval || "monthly",
+        maxUsers: pkg.maxUsers?.toString() || "",
+        maxVenues: pkg.maxVenues?.toString() || "",
+        maxSpaces: pkg.maxSpaces?.toString() || "",
+        maxBookingsPerMonth: pkg.maxBookingsPerMonth?.toString() || "",
+        storageLimit: pkg.storageLimit?.toString() || "",
+        features: pkg.features || {}
+      });
+    }
+  });
+
+  const createPackageMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const endpoint = isEdit ? `/api/super-admin/packages/${pkg.id}` : "/api/super-admin/packages";
+      const method = isEdit ? "PUT" : "POST";
+      return apiRequest(method, endpoint, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/super-admin/packages"] });
+      toast({
+        title: "Success",
+        description: `Package ${isEdit ? "updated" : "created"} successfully`,
+      });
+      onClose();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || `Failed to ${isEdit ? "update" : "create"} package`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const submitData = {
+      ...formData,
+      price: parseFloat(formData.price),
+      maxUsers: formData.maxUsers ? parseInt(formData.maxUsers) : null,
+      maxVenues: formData.maxVenues ? parseInt(formData.maxVenues) : null,
+      maxSpaces: formData.maxSpaces ? parseInt(formData.maxSpaces) : null,
+      maxBookingsPerMonth: formData.maxBookingsPerMonth ? parseInt(formData.maxBookingsPerMonth) : null,
+      storageLimit: parseInt(formData.storageLimit)
+    };
+
+    createPackageMutation.mutate(submitData);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Edit Package" : "Create New Package"}</DialogTitle>
+        </DialogHeader>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="name">Package Name</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="e.g. custom-package"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="displayName">Display Name</Label>
+              <Input
+                id="displayName"
+                value={formData.displayName}
+                onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
+                placeholder="e.g. Custom Package"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Describe what this package includes..."
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="price">Price</Label>
+              <Input
+                id="price"
+                type="number"
+                step="0.01"
+                value={formData.price}
+                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                placeholder="29.99"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="billingInterval">Billing Interval</Label>
+              <Select 
+                value={formData.billingInterval} 
+                onValueChange={(value) => setFormData({ ...formData, billingInterval: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="yearly">Yearly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="maxUsers">Max Users (leave empty for unlimited)</Label>
+              <Input
+                id="maxUsers"
+                type="number"
+                value={formData.maxUsers}
+                onChange={(e) => setFormData({ ...formData, maxUsers: e.target.value })}
+                placeholder="10"
+              />
+            </div>
+            <div>
+              <Label htmlFor="maxVenues">Max Venues (leave empty for unlimited)</Label>
+              <Input
+                id="maxVenues"
+                type="number"
+                value={formData.maxVenues}
+                onChange={(e) => setFormData({ ...formData, maxVenues: e.target.value })}
+                placeholder="5"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="maxSpaces">Max Spaces (leave empty for unlimited)</Label>
+              <Input
+                id="maxSpaces"
+                type="number"
+                value={formData.maxSpaces}
+                onChange={(e) => setFormData({ ...formData, maxSpaces: e.target.value })}
+                placeholder="25"
+              />
+            </div>
+            <div>
+              <Label htmlFor="storageLimit">Storage Limit (GB)</Label>
+              <Input
+                id="storageLimit"
+                type="number"
+                value={formData.storageLimit}
+                onChange={(e) => setFormData({ ...formData, storageLimit: e.target.value })}
+                placeholder="50"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="maxBookingsPerMonth">Max Monthly Bookings (leave empty for unlimited)</Label>
+            <Input
+              id="maxBookingsPerMonth"
+              type="number"
+              value={formData.maxBookingsPerMonth}
+              onChange={(e) => setFormData({ ...formData, maxBookingsPerMonth: e.target.value })}
+              placeholder="100"
+            />
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={createPackageMutation.isPending}>
+              {createPackageMutation.isPending ? "Saving..." : (isEdit ? "Update Package" : "Create Package")}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

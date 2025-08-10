@@ -2003,71 +2003,167 @@ export class MemStorage implements IStorage {
   async getFeaturePackages(): Promise<any[]> {
     return [
       {
-        id: "basic",
-        name: "basic",
-        displayName: "Basic",
+        id: "starter",
+        name: "starter",
+        displayName: "Starter",
         description: "Perfect for small venues just getting started",
-        price: 49,
+        price: 29,
         billingInterval: "monthly",
-        maxUsers: 3,
+        maxUsers: 2,
         maxVenues: 1,
+        maxSpaces: 3,
+        maxBookingsPerMonth: 25,
         storageLimit: 5,
         isActive: true,
+        isCustom: false,
+        sortOrder: 1,
         features: {
           bookingManagement: true,
           customerManagement: true,
           basicReporting: true,
           emailSupport: true,
+          mobileApp: false,
           aiInsights: false,
           customBranding: false,
-          apiAccess: false
+          apiAccess: false,
+          multiVenueManagement: false,
+          whiteLabel: false,
+          sso: false,
+          customIntegrations: false,
+          dedicatedSupport: false,
+          proposalSystem: true,
+          basicCalendar: true,
+          paymentProcessing: true
         }
       },
       {
         id: "professional",
         name: "professional", 
         displayName: "Professional",
-        description: "Ideal for growing venues with advanced needs",
-        price: 149,
+        description: "Ideal for growing venue businesses with multiple spaces",
+        price: 79,
         billingInterval: "monthly",
         maxUsers: 10,
-        maxVenues: 5,
-        storageLimit: 50,
+        maxVenues: 3,
+        maxSpaces: 15,
+        maxBookingsPerMonth: 100,
+        storageLimit: 25,
         isActive: true,
+        isCustom: false,
+        sortOrder: 2,
         features: {
           bookingManagement: true,
           customerManagement: true,
           advancedReporting: true,
           prioritySupport: true,
+          mobileApp: true,
           aiInsights: true,
           customBranding: true,
-          apiAccess: true,
-          multiVenueManagement: true
+          apiAccess: false,
+          multiVenueManagement: true,
+          whiteLabel: false,
+          sso: false,
+          customIntegrations: false,
+          dedicatedSupport: false,
+          proposalSystem: true,
+          advancedCalendar: true,
+          paymentProcessing: true,
+          contractManagement: true,
+          taskManagement: true,
+          emailAutomation: true,
+          leadScoring: true
         }
       },
       {
-        id: "enterprise",
-        name: "enterprise",
-        displayName: "Enterprise",
-        description: "Complete solution for large venue operations",
-        price: 399,
+        id: "business",
+        name: "business",
+        displayName: "Business",
+        description: "Advanced features for established venue operators",
+        price: 149,
         billingInterval: "monthly",
-        maxUsers: null,
-        maxVenues: null,
-        storageLimit: 500,
+        maxUsers: 25,
+        maxVenues: 10,
+        maxSpaces: 50,
+        maxBookingsPerMonth: 500,
+        storageLimit: 100,
         isActive: true,
+        isCustom: false,
+        sortOrder: 3,
         features: {
           bookingManagement: true,
           customerManagement: true,
           enterpriseReporting: true,
-          dedicatedSupport: true,
+          prioritySupport: true,
+          mobileApp: true,
           aiInsights: true,
           customBranding: true,
           apiAccess: true,
           multiVenueManagement: true,
           whiteLabel: true,
           sso: true,
-          customIntegrations: true
+          customIntegrations: true,
+          dedicatedSupport: false,
+          proposalSystem: true,
+          advancedCalendar: true,
+          paymentProcessing: true,
+          contractManagement: true,
+          taskManagement: true,
+          emailAutomation: true,
+          leadScoring: true,
+          floorPlanDesigner: true,
+          beoGeneration: true,
+          advancedAnalytics: true,
+          bulkOperations: true,
+          customFields: true
+        }
+      },
+      {
+        id: "enterprise",
+        name: "enterprise",
+        displayName: "Enterprise",
+        description: "Complete solution for large venue operations and chains",
+        price: 299,
+        billingInterval: "monthly",
+        maxUsers: null, // Unlimited
+        maxVenues: null, // Unlimited
+        maxSpaces: null, // Unlimited
+        maxBookingsPerMonth: null, // Unlimited
+        storageLimit: 500,
+        isActive: true,
+        isCustom: false,
+        sortOrder: 4,
+        features: {
+          bookingManagement: true,
+          customerManagement: true,
+          enterpriseReporting: true,
+          dedicatedSupport: true,
+          mobileApp: true,
+          aiInsights: true,
+          customBranding: true,
+          apiAccess: true,
+          multiVenueManagement: true,
+          whiteLabel: true,
+          sso: true,
+          customIntegrations: true,
+          proposalSystem: true,
+          advancedCalendar: true,
+          paymentProcessing: true,
+          contractManagement: true,
+          taskManagement: true,
+          emailAutomation: true,
+          leadScoring: true,
+          floorPlanDesigner: true,
+          beoGeneration: true,
+          advancedAnalytics: true,
+          bulkOperations: true,
+          customFields: true,
+          multiTenantManagement: true,
+          advancedPermissions: true,
+          dataExport: true,
+          customReports: true,
+          webhooks: true,
+          priorityOnboarding: true,
+          accountManager: true
         }
       }
     ];
@@ -2078,18 +2174,63 @@ export class MemStorage implements IStorage {
       id: randomUUID(),
       ...pkg,
       isActive: true,
-      createdAt: new Date()
+      isCustom: true, // User-created packages are custom
+      sortOrder: 99, // Put at end
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
+    // In a real implementation, save to database
     return newPackage;
   }
 
   async updateFeaturePackage(id: string, updates: any): Promise<any> {
-    // Mock implementation
-    return { id, ...updates };
+    const existingPackages = await this.getFeaturePackages();
+    const packageToUpdate = existingPackages.find(pkg => pkg.id === id);
+    
+    if (!packageToUpdate) {
+      throw new Error(`Package with id ${id} not found`);
+    }
+    
+    const updatedPackage = {
+      ...packageToUpdate,
+      ...updates,
+      updatedAt: new Date()
+    };
+    
+    // In a real implementation, save to database
+    return updatedPackage;
   }
 
   async deleteFeaturePackage(id: string): Promise<void> {
-    // Mock implementation
+    const existingPackages = await this.getFeaturePackages();
+    const packageToDelete = existingPackages.find(pkg => pkg.id === id);
+    
+    if (!packageToDelete) {
+      throw new Error(`Package with id ${id} not found`);
+    }
+    
+    if (!packageToDelete.isCustom) {
+      throw new Error("Cannot delete default system packages");
+    }
+    
+    // In a real implementation, delete from database
+  }
+
+  async togglePackageStatus(id: string): Promise<any> {
+    const existingPackages = await this.getFeaturePackages();
+    const packageToToggle = existingPackages.find(pkg => pkg.id === id);
+    
+    if (!packageToToggle) {
+      throw new Error(`Package with id ${id} not found`);
+    }
+    
+    const updatedPackage = {
+      ...packageToToggle,
+      isActive: !packageToToggle.isActive,
+      updatedAt: new Date()
+    };
+    
+    return updatedPackage;
   }
 
   async getTenantActivities(): Promise<any[]> {
