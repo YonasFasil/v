@@ -13,6 +13,7 @@ import { FileText, Save, Send, Calendar, Users, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
+import { EmailPreviewModal } from "./email-preview-modal";
 
 interface ProposalCreationModalProps {
   open: boolean;
@@ -65,6 +66,10 @@ export function ProposalCreationModal({
   const [depositValue, setDepositValue] = useState(25);
   const [depositAmount, setDepositAmount] = useState(0);
   const [customPricing, setCustomPricing] = useState(false);
+  
+  // Email preview modal
+  const [showEmailPreview, setShowEmailPreview] = useState(false);
+  const [proposalId, setProposalId] = useState<string | null>(null);
 
   // Data queries
   const { data: customers = [] } = useQuery({ queryKey: ["/api/customers"] });
@@ -94,6 +99,66 @@ export function ProposalCreationModal({
       toast({
         title: "Error",
         description: "Failed to create customer",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Save proposal mutation
+  const saveProposalMutation = useMutation({
+    mutationFn: async (proposalData: any) => {
+      const response = await apiRequest("POST", "/api/proposals", proposalData);
+      return response.json();
+    },
+    onSuccess: (proposal) => {
+      setProposalId(proposal.id);
+      toast({
+        title: "Proposal Saved",
+        description: "Proposal has been saved successfully"
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/proposals"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save proposal",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Send email mutation
+  const sendEmailMutation = useMutation({
+    mutationFn: async (emailData: {
+      to: string;
+      subject: string;
+      message: string;
+      proposalViewLink: string;
+    }) => {
+      const response = await apiRequest("POST", "/api/proposals/send-email", {
+        proposalId,
+        customerId: selectedCustomer,
+        emailData
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Proposal Sent",
+        description: "Email sent successfully and communication logged"
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/communications", selectedCustomer] });
+      onOpenChange(false);
+      // Reset form
+      setProposalTitle("");
+      setProposalContent("");
+      setEvents([]);
+      setProposalId(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to send email",
         variant: "destructive"
       });
     }
@@ -306,7 +371,7 @@ export function ProposalCreationModal({
     createProposalMutation.mutate(proposalData);
   };
 
-  const handleSendProposal = () => {
+  const handleSendProposal = async () => {
     if (!proposalTitle || !selectedCustomer || events.length === 0) {
       toast({
         title: "Error", 
@@ -316,20 +381,46 @@ export function ProposalCreationModal({
       return;
     }
 
-    const proposalData = {
-      title: proposalTitle,
-      content: proposalContent,
-      customerId: selectedCustomer,
-      events: events,
-      totalAmount: totalAmount.toString(),
-      depositAmount: depositAmount.toString(),
-      depositType,
-      depositValue: depositValue.toString(),
-      validUntil: validUntil ? new Date(validUntil) : null,
-      status: "sent"
-    };
-    
-    sendProposalMutation.mutate(proposalData);
+    // First save as draft if not already saved
+    if (!proposalId) {
+      const proposalData = {
+        title: proposalTitle,
+        content: proposalContent,
+        customerId: selectedCustomer,
+        events: events,
+        totalAmount: totalAmount.toString(),
+        depositAmount: depositAmount.toString(),
+        depositType,
+        depositValue: depositValue.toString(),
+        validUntil: validUntil ? new Date(validUntil) : null,
+        status: "draft"
+      };
+
+      try {
+        const response = await apiRequest("POST", "/api/proposals", proposalData);
+        const proposal = await response.json();
+        setProposalId(proposal.id);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to save proposal before sending",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
+    // Open email preview modal
+    setShowEmailPreview(true);
+  };
+
+  const handleSendEmail = async (emailData: {
+    to: string;
+    subject: string;
+    message: string;
+    proposalViewLink: string;
+  }) => {
+    await sendEmailMutation.mutateAsync(emailData);
   };
 
   const customerData = customers.find((c: any) => c.id === selectedCustomer);
@@ -970,6 +1061,51 @@ export function ProposalCreationModal({
           </Button>
         </div>
       </DialogContent>
+      
+      {/* Email Preview Modal */}
+      <EmailPreviewModal
+        open={showEmailPreview}
+        onOpenChange={setShowEmailPreview}
+        eventData={{
+          eventName: proposalTitle,
+          customerId: selectedCustomer,
+          eventDates: events.map(event => ({
+            date: new Date(event.eventDate),
+            startTime: event.startTime,
+            endTime: event.endTime,
+            venue: venues.find((v: any) => v.id === event.selectedVenue)?.name || event.selectedVenue,
+            space: venues.find((v: any) => v.id === event.selectedVenue)?.spaces?.find((s: any) => s.id === event.selectedSpace)?.name || event.selectedSpace,
+            guestCount: event.guestCount,
+            totalAmount: (() => {
+              let eventTotal = 0;
+              if (event.selectedPackage && event.selectedPackage !== "none") {
+                const pkg = packages.find((p: any) => p.id === event.selectedPackage);
+                if (pkg) {
+                  const basePrice = event.customPackagePrice !== undefined ? event.customPackagePrice : parseFloat(pkg.price);
+                  eventTotal += pkg.pricingModel === "per_person" 
+                    ? basePrice * event.guestCount 
+                    : basePrice;
+                }
+              }
+              event.selectedServices.forEach(serviceId => {
+                const service = services.find((s: any) => s.id === serviceId);
+                if (service) {
+                  const basePrice = event.customServicePrices?.[serviceId] !== undefined 
+                    ? event.customServicePrices[serviceId] 
+                    : parseFloat(service.price);
+                  eventTotal += service.pricingModel === "per_person"
+                    ? basePrice * event.guestCount
+                    : basePrice;
+                }
+              });
+              return eventTotal;
+            })()
+          })),
+          totalAmount,
+          customerData
+        }}
+        onSend={handleSendEmail}
+      />
     </Dialog>
   );
 }

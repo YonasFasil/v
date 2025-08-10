@@ -1,94 +1,70 @@
 import nodemailer from 'nodemailer';
 
-// Create email transporter
-function createTransporter() {
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER, // Your Gmail address
-      pass: process.env.EMAIL_PASS  // Your Gmail app password
+export class EmailService {
+  private transporter: nodemailer.Transporter;
+
+  constructor() {
+    // Configure Gmail SMTP
+    this.transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD // App password, not regular password
+      }
+    });
+  }
+
+  async sendProposalEmail({
+    to,
+    subject,
+    htmlContent,
+    proposalViewLink
+  }: {
+    to: string;
+    subject: string;
+    htmlContent: string;
+    proposalViewLink: string;
+  }) {
+    try {
+      const mailOptions = {
+        from: `"Venuine Events" <${process.env.GMAIL_USER}>`,
+        to,
+        subject,
+        html: htmlContent,
+        text: `
+          Thank you for considering Venuine Events for your upcoming event.
+          
+          Please view your complete proposal at: ${proposalViewLink}
+          
+          If you have any questions, please reply to this email or contact us.
+          
+          Best regards,
+          Venuine Events Team
+        `
+      };
+
+      const result = await this.transporter.sendMail(mailOptions);
+      
+      return {
+        success: true,
+        messageId: result.messageId,
+        response: result.response
+      };
+    } catch (error) {
+      console.error('Email sending failed:', error);
+      throw new Error(`Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  });
-}
+  }
 
-export interface EmailOptions {
-  to: string;
-  subject: string;
-  html: string;
-  from?: string;
-}
-
-export async function sendEmail(options: EmailOptions): Promise<boolean> {
-  try {
-    // Use environment variables or fallback to demo mode
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      console.log('📧 EMAIL DEMO MODE - Would send email:');
-      console.log(`To: ${options.to}`);
-      console.log(`Subject: ${options.subject}`);
-      console.log(`From: ${options.from || 'noreply@venuine.com'}`);
-      console.log('---');
-      return true; // Return success for demo
+  async verifyConnection() {
+    try {
+      await this.transporter.verify();
+      return true;
+    } catch (error) {
+      console.error('Email service verification failed:', error);
+      return false;
     }
-
-    const transporter = createTransporter();
-    
-    const mailOptions = {
-      from: options.from || process.env.EMAIL_USER,
-      to: options.to,
-      subject: options.subject,
-      html: options.html
-    };
-
-    const result = await transporter.sendMail(mailOptions);
-    console.log('✅ Email sent successfully:', result.messageId);
-    return true;
-    
-  } catch (error) {
-    console.error('❌ Email sending failed:', error);
-    return false;
   }
 }
 
-export function generateProposalEmail(customerName: string, proposalContent: string, companyName: string = 'Venuine Events') {
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #3b82f6; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-        .content { background: #f8fafc; padding: 30px; border-radius: 0 0 8px 8px; }
-        .proposal { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
-        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
-        .button { background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 10px 0; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>${companyName}</h1>
-          <p>Your Event Proposal</p>
-        </div>
-        <div class="content">
-          <h2>Dear ${customerName},</h2>
-          <p>Thank you for considering ${companyName} for your upcoming event. We're excited to present you with a customized proposal tailored to your needs.</p>
-          
-          <div class="proposal">
-            ${proposalContent}
-          </div>
-          
-          <p>We believe this proposal perfectly captures your vision and we're excited to bring your event to life. Our team is standing by to answer any questions and make adjustments as needed.</p>
-          
-          <p>Please feel free to reach out if you'd like to discuss any details or schedule a visit to our venue.</p>
-          
-          <p>Best regards,<br>The ${companyName} Team</p>
-        </div>
-        <div class="footer">
-          <p>This proposal was generated by ${companyName} Event Management System</p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-}
+export const emailService = new EmailService();

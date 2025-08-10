@@ -1,0 +1,186 @@
+Core Features
+Public Lead Capture
+
+Public “Check Availability / Get a Quote” page.
+
+Fields: name, email, phone, event type, guest count, date range (start/end), budget range, preferred contact method, notes, consent checkbox.
+
+Progressive form (2–3 steps) + spam protection (honeypot + rate limit).
+
+Success screen with next steps (book a tour link + calendar embed).
+
+Lead Database
+
+Models: Lead, LeadActivity (notes/logs), CampaignSource, Tag, User (roles: SuperAdmin, VenueAdmin, Staff).
+
+Lead status enum: NEW, CONTACTED, TOUR_SCHEDULED, PROPOSAL_SENT, WON, LOST.
+
+Source tracking via UTM (utm_source, utm_medium, utm_campaign) + first/last touch.
+
+Pipeline & Tasks
+
+Kanban pipeline view (drag & drop between stages).
+
+Lead detail drawer: timeline, messages sent, files, tags, next task.
+
+Tasks with due dates/reminders; assignable to staff.
+
+Scheduling
+
+Lightweight booking link for venue tours (15/30/45 min).
+
+Availability rules (business hours, blackout dates).
+
+Send calendar invites (ICS).
+
+Messaging & Automations
+
+Email + SMS via providers (abstract a provider interface; default to placeholders).
+
+One-click sequences:
+
+Instant Thank-You on submit.
+
+48-hour nudge if no tour scheduled.
+
+Post-tour follow-up with proposal link.
+
+7-day re-engagement if proposal not accepted.
+
+Templates with variables: {{first_name}}, {{event_date}}, {{tour_link}}, etc.
+
+Opt-in/opt-out compliance; audit log of consent.
+
+Analytics
+
+Dashboard cards: Leads by source, Stage conversion %, Avg days to close, Revenue by source (input manual or from proposal acceptance).
+
+Funnel chart (from NEW → WON).
+
+Date range filters + CSV export.
+
+Retargeting Hooks
+
+Pixel/Tag manager: allow admins to paste Facebook Pixel ID and Google Ads tag; auto-fire on key events (page_view, lead_submit, schedule_tour, proposal_view).
+
+Admin Settings
+
+Provider keys via environment variables (don’t hardcode).
+
+Toggle automations on/off.
+
+Edit email/SMS templates (subject, body, variables).
+
+UTM source aliasing (map “fb” → “Facebook Ads”).
+
+Security & DX
+
+Auth with roles (SuperAdmin sees all venues; VenueAdmin sees their venue only).
+
+Input validation, server-side rate limiting, CSRF, HTTPS ready.
+
+Seed script with demo data and a demo venue.
+
+Clear README with .env sample and “how to run” steps.
+
+API Design (create these routes)
+POST /api/leads (create lead; capture UTM; returns lead id)
+
+GET /api/leads?status=&source=&q= (list with filters/search)
+
+GET /api/leads/:id (lead detail + activities + tasks)
+
+PATCH /api/leads/:id (update fields/status)
+
+POST /api/leads/:id/activities (log call/email/note)
+
+POST /api/leads/:id/tags (add/remove tags)
+
+POST /api/tasks (create task)
+
+GET /api/tasks?assignee=&due= (list tasks)
+
+POST /api/schedule/tour (create tour slot + send confirmations)
+
+POST /api/automations/run (idempotent runner for scheduled nudges)
+
+GET /api/analytics/summary?from=&to= (KPIs + funnel)
+
+POST /api/pixels/event (server-side event proxy—accepts event_name + lead_id)
+
+Data Models (minimum fields)
+Lead: id, venue_id, first_name, last_name, email, phone, event_type, guests, date_start, date_end, budget_min, budget_max, preferred_contact, notes, status, source_id, utm_source, utm_medium, utm_campaign, consent_email, consent_sms, created_at, updated_at.
+
+LeadActivity: id, lead_id, type (NOTE|EMAIL|SMS|CALL|STATUS_CHANGE), body, meta(json), created_by, created_at.
+
+Task: id, lead_id, title, due_at, assigned_to, status (OPEN|DONE), created_at.
+
+CampaignSource: id, name, slug, active.
+
+Tag: id, name, color.
+
+LeadTag: lead_id, tag_id.
+
+User: id, role, name, email, password_hash, venue_id (nullable).
+
+Venue: id, name, timezone, address, tour_rules(json).
+
+UI Requirements
+Clean, minimal “Apple-like” aesthetics.
+
+Public page: 2-step lead form, progress indicator, friendly copy.
+
+Admin: left nav (Leads, Pipeline, Tasks, Analytics, Settings).
+
+Pipeline: Kanban with column totals, drag-drop, inline status change.
+
+Lead drawer: contact info, quick actions (Call, Email, SMS), log note, schedule tour button.
+
+Analytics: simple cards + funnel chart; export CSV button.
+
+Automations (exact logic)
+On Lead Submit:
+
+Create Lead + Activity (NOTE: “Lead submitted”).
+
+Send Email “Thanks + Next step” to lead.
+
+Create Task “Call this lead” due in 24h.
+
+If no tour scheduled within 48h:
+
+Send SMS: “Want to lock a tour time? {tour_link}”.
+
+After Tour scheduled:
+
+Send Email with calendar invite; create Task “Send proposal” due in 24h.
+
+If status PROPOSAL_SENT for 7 days without WON/LOST:
+
+Send Email re-engagement and notify VenueAdmin.
+
+Dev Notes
+Use environment variables for provider keys: EMAIL_API_KEY, SMS_API_KEY, PIXEL_FB_ID, PIXEL_GADS_ID, etc.
+
+Provide a cron/worker (or simple interval) to trigger /api/automations/run.
+
+Include unit tests for lead creation, status move, and automation triggers.
+
+Ship with a seed command that creates:
+
+One SuperAdmin, one VenueAdmin, one Staff
+
+Demo venue + 25 mixed-stage leads + sample tasks/tours.
+
+Provide a lightweight email/SMS provider with a console logger if keys are missing.
+
+Deliverables
+Full project in a single Replit with:
+
+Source code
+
+README (setup, .env, run scripts, seed instructions)
+
+Postman/Insomnia collection (JSON) for all endpoints
+
+Screens for: Public Lead Form, Pipeline, Lead Detail, Tasks, Analytics, Settings

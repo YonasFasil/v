@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { EmailService } from "./services/email";
 import { 
   insertBookingSchema, 
   insertCustomerSchema, 
@@ -2116,6 +2117,97 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
       res.status(201).json(proposal);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
+    }
+  });
+
+  // New email sending route for proposals
+  app.post("/api/proposals/send-email", async (req, res) => {
+    try {
+      const { proposalId, customerId, emailData } = req.body;
+      
+      if (!proposalId || !customerId || !emailData) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      // Get customer information
+      const customer = await storage.getCustomer(customerId);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      // Get proposal information
+      const proposal = await storage.getProposal(proposalId);
+      if (!proposal) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+
+      // Initialize email service
+      const emailService = new EmailService();
+
+      // Send email
+      try {
+        const result = await emailService.sendProposalEmail({
+          to: emailData.to,
+          subject: emailData.subject,
+          htmlContent: emailData.message || `
+            <h2>Event Proposal</h2>
+            <p>Please view your complete proposal at: ${emailData.proposalViewLink}</p>
+            <p>Best regards,<br>Venuine Events Team</p>
+          `,
+          proposalViewLink: emailData.proposalViewLink
+        });
+
+        // Log communication in database
+        const communicationData = {
+          customerId: customerId,
+          type: "email",
+          direction: "outbound",
+          subject: emailData.subject,
+          message: emailData.message || `Proposal email sent to ${emailData.to}`,
+          sentBy: "system",
+          status: "sent"
+        };
+
+        await storage.createCommunication(communicationData);
+
+        // Update proposal status to sent
+        await storage.updateProposal(proposalId, {
+          status: "sent",
+          sentAt: new Date()
+        });
+
+        res.json({
+          success: true,
+          messageId: result.messageId,
+          communicationLogged: true
+        });
+
+      } catch (emailError) {
+        console.error("Email sending failed:", emailError);
+        
+        // Log failed communication
+        const communicationData = {
+          customerId: customerId,
+          type: "email",
+          direction: "outbound",
+          subject: emailData.subject,
+          message: `Failed to send proposal email: ${emailError instanceof Error ? emailError.message : 'Unknown error'}`,
+          sentBy: "system",
+          status: "failed"
+        };
+
+        await storage.createCommunication(communicationData);
+
+        res.status(500).json({
+          success: false,
+          message: "Failed to send email",
+          error: emailError instanceof Error ? emailError.message : 'Unknown error'
+        });
+      }
+
+    } catch (error) {
+      console.error("Proposal email sending error:", error);
+      res.status(500).json({ message: "Failed to process email request" });
     }
   });
 
