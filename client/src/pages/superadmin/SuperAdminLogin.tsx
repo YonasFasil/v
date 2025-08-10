@@ -21,12 +21,6 @@ export default function SuperAdminLogin() {
     retry: false,
   });
 
-  // Redirect if already authenticated
-  if (authUser && !authLoading) {
-    navigate('/sys-admin-x7k9p2w4');
-    return null;
-  }
-
   const loginMutation = useMutation({
     mutationFn: async (data: { email: string; password: string }) => {
       return await apiRequest("POST", "/api/auth/login", data);
@@ -59,6 +53,12 @@ export default function SuperAdminLogin() {
     }
     loginMutation.mutate({ email, password });
   };
+
+  // Redirect if already authenticated
+  if (authUser && !authLoading) {
+    navigate('/sys-admin-x7k9p2w4');
+    return null;
+  }
 
   if (authLoading) {
     return (
