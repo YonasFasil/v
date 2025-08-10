@@ -319,7 +319,7 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
     setElements(newElements);
     saveToHistory(newElements);
     setSelectedElements([newElement.id]);
-    setMode('select');
+    // Keep add mode active for continuous adding
   }, [mode, selectedType, elements, snapToGridPosition, saveToHistory]);
 
   // Multi-selection and improved interaction
@@ -521,25 +521,26 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
 
   const selectedElementData = selectedElements.length === 1 ? elements.find(el => el.id === selectedElements[0]) : null;
 
-  // 3D perspective transform for elements
+  // Enhanced 3D perspective transform for elements
   const get3DTransform = (element: FloorPlanElement) => {
     if (viewMode === '2d') return '';
     
-    // Perspective effect - elements further back appear smaller and higher
-    const perspective = 0.8; // Perspective strength
-    const depth = element.y / canvasSize.height; // 0 = front, 1 = back
-    const scale = 1 - (depth * 0.3); // Scale down elements at the back
-    const skewX = depth * -10; // Slight skew for depth
-    const translateY = -(depth * 20); // Move back elements up slightly
+    // Improved perspective for better 3D effect while staying in bounds
+    const depth = Math.min(element.y / canvasSize.height, 0.8); // Limit depth to prevent overflow
+    const scale = Math.max(0.7, 1 - (depth * 0.2)); // Less aggressive scaling
+    const skewX = depth * -5; // Reduced skew for subtlety
+    const translateY = -(depth * 10); // Reduced translation to stay in bounds
+    const rotateX = 30; // Fixed rotation angle for consistency
     
-    return `perspective(800px) rotateX(45deg) scale(${scale}) skewX(${skewX}deg) translateY(${translateY}px)`;
+    return `perspective(1000px) rotateX(${rotateX}deg) scale(${scale}) skewX(${skewX}deg) translateY(${translateY}px)`;
   };
 
   const get3DCanvasTransform = () => {
     const scaleValue = zoom / 100;
     const baseTransform = `scale(${scaleValue})`;
     if (viewMode === '2d') return baseTransform;
-    return `${baseTransform} perspective(800px) rotateX(45deg)`;
+    // Constrain 3D transform to prevent canvas overflow
+    return `${baseTransform} perspective(1000px) rotateX(20deg) translateZ(0)`;
   };
 
   const handleZoomIn = () => {
@@ -550,7 +551,7 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
     setZoom(prev => Math.max(prev - 25, 50));
   };
 
-  // Render realistic object shapes
+  // Enhanced realistic object shapes for 3D view
   const renderObjectShape = (element: FloorPlanElement) => {
     const baseStyle = {
       width: '100%',
@@ -560,32 +561,137 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
       left: 0,
     };
 
+    const is3D = viewMode === '3d';
+
     switch (element.type) {
+      case 'stage':
+        return (
+          <div style={baseStyle} className="relative">
+            {is3D ? (
+              <>
+                {/* 3D Stage - Platform with elevated appearance */}
+                <div 
+                  className="absolute bg-gray-700 border-2 border-gray-800"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: '4px',
+                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.4)',
+                    background: 'linear-gradient(145deg, #4a5568, #2d3748)',
+                  }}
+                />
+                {/* Stage edge highlight */}
+                <div 
+                  className="absolute border-t-2 border-gray-500"
+                  style={{
+                    width: '100%',
+                    height: '4px',
+                    top: '2px',
+                    left: 0,
+                    borderRadius: '2px 2px 0 0'
+                  }}
+                />
+                {/* Stage front panel */}
+                <div 
+                  className="absolute bg-gray-800"
+                  style={{
+                    width: '100%',
+                    height: '8px',
+                    bottom: '-6px',
+                    left: 0,
+                    borderRadius: '0 0 4px 4px',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.6)'
+                  }}
+                />
+              </>
+            ) : (
+              <div 
+                className="w-full h-full bg-gray-600 border-2 border-gray-700"
+                style={{ borderRadius: '4px' }}
+              />
+            )}
+          </div>
+        );
+
       case 'chair':
         return (
-          <div style={baseStyle}>
-            {/* Chair back */}
-            <div 
-              className="absolute bg-amber-800 border border-amber-900"
-              style={{
-                width: '100%',
-                height: '30%',
-                top: 0,
-                left: 0,
-                borderRadius: '2px 2px 0 0'
-              }}
-            />
-            {/* Chair seat */}
-            <div 
-              className="absolute bg-amber-700 border border-amber-900"
-              style={{
-                width: '100%',
-                height: '70%',
-                bottom: 0,
-                left: 0,
-                borderRadius: '0 0 2px 2px'
-              }}
-            />
+          <div style={baseStyle} className="relative">
+            {is3D ? (
+              <>
+                {/* 3D Chair - More realistic appearance */}
+                {/* Chair back */}
+                <div 
+                  className="absolute bg-amber-800 border border-amber-900"
+                  style={{
+                    width: '100%',
+                    height: '35%',
+                    top: 0,
+                    left: 0,
+                    borderRadius: '3px 3px 0 0',
+                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.3)',
+                    background: 'linear-gradient(145deg, #b45309, #92400e)',
+                  }}
+                />
+                {/* Chair seat */}
+                <div 
+                  className="absolute bg-amber-700 border border-amber-900"
+                  style={{
+                    width: '100%',
+                    height: '45%',
+                    top: '30%',
+                    left: 0,
+                    borderRadius: '2px',
+                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.3)',
+                    background: 'linear-gradient(145deg, #a16207, #92400e)',
+                  }}
+                />
+                {/* Chair legs */}
+                <div 
+                  className="absolute bg-amber-900"
+                  style={{
+                    width: '8%',
+                    height: '25%',
+                    bottom: 0,
+                    left: '10%',
+                    borderRadius: '0 0 1px 1px'
+                  }}
+                />
+                <div 
+                  className="absolute bg-amber-900"
+                  style={{
+                    width: '8%',
+                    height: '25%',
+                    bottom: 0,
+                    right: '10%',
+                    borderRadius: '0 0 1px 1px'
+                  }}
+                />
+              </>
+            ) : (
+              <>
+                {/* 2D Chair - Simplified */}
+                <div 
+                  className="absolute bg-amber-800 border border-amber-900"
+                  style={{
+                    width: '100%',
+                    height: '30%',
+                    top: 0,
+                    left: 0,
+                    borderRadius: '2px 2px 0 0'
+                  }}
+                />
+                <div 
+                  className="absolute bg-amber-700 border border-amber-900"
+                  style={{
+                    width: '100%',
+                    height: '70%',
+                    bottom: 0,
+                    left: 0,
+                    borderRadius: '0 0 2px 2px'
+                  }}
+                />
+              </>
+            )}
           </div>
         );
 
@@ -645,31 +751,6 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
             </div>
           );
         }
-
-      case 'stage':
-        return (
-          <div style={baseStyle}>
-            {/* Stage platform */}
-            <div 
-              className="absolute bg-slate-700 border-2 border-slate-800 rounded"
-              style={{
-                width: '100%',
-                height: '100%',
-                background: 'linear-gradient(135deg, #475569, #334155)',
-                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)'
-              }}
-            />
-            {/* Stage front edge */}
-            <div 
-              className="absolute bg-slate-800 h-1"
-              style={{
-                width: '100%',
-                bottom: 0,
-                left: 0
-              }}
-            />
-          </div>
-        );
 
       case 'bar':
         return (
@@ -1040,7 +1121,11 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
                   width: canvasSize.width,
                   height: canvasSize.height,
                   transform: get3DCanvasTransform(),
-                  transformOrigin: 'center bottom',
+                  transformOrigin: 'center center',
+                  // Constrain 3D view within bounds
+                  maxWidth: '100%',
+                  maxHeight: viewMode === '3d' ? '400px' : '600px',
+                  margin: viewMode === '3d' ? '40px auto' : '0',
                 }}
                 onClick={handleCanvasClick}
                 onMouseDown={handleCanvasMouseDown}
