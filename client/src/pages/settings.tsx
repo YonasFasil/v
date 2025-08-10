@@ -40,7 +40,8 @@ import {
   Eye,
   EyeOff,
   ExternalLink,
-  Check
+  Check,
+  XCircle
 } from "lucide-react";
 
 export default function Settings() {
