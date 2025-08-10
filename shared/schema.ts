@@ -271,8 +271,7 @@ export const insertTaxSettingSchema = createInsertSchema(taxSettings).omit({ id:
 // Types
 export type User = typeof users.$inferSelect;
 
-// Re-export floor plan schema
-export * from "./floor-plan-schema";
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Venue = typeof venues.$inferSelect;
 export type InsertVenue = z.infer<typeof insertVenueSchema>;

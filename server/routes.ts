@@ -13,7 +13,7 @@ import {
   insertSettingsSchema,
   insertCommunicationSchema,
   insertSetupStyleSchema,
-  insertFloorPlanSchema
+
 } from "@shared/schema";
 import { 
   generateAIInsights,
@@ -2251,68 +2251,7 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
     }
   });
 
-  // Floor Plans
-  app.get("/api/floor-plans", async (req, res) => {
-    try {
-      const { venueId } = req.query;
-      const floorPlans = venueId 
-        ? await storage.getFloorPlansByVenue(venueId as string)
-        : await storage.getFloorPlans();
-      res.json(floorPlans);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch floor plans" });
-    }
-  });
 
-  app.get("/api/floor-plans/:id", async (req, res) => {
-    try {
-      const floorPlan = await storage.getFloorPlan(req.params.id);
-      if (!floorPlan) {
-        return res.status(404).json({ message: "Floor plan not found" });
-      }
-      res.json(floorPlan);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch floor plan" });
-    }
-  });
-
-  app.post("/api/floor-plans", async (req, res) => {
-    try {
-      const validation = insertFloorPlanSchema.safeParse(req.body);
-      if (!validation.success) {
-        return res.status(400).json({ message: "Invalid floor plan data", errors: validation.error.issues });
-      }
-      
-      const floorPlan = await storage.createFloorPlan(validation.data);
-      res.status(201).json(floorPlan);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to create floor plan" });
-    }
-  });
-
-  app.put("/api/floor-plans/:id", async (req, res) => {
-    try {
-      const floorPlan = await storage.updateFloorPlan(req.params.id, req.body);
-      if (!floorPlan) {
-        return res.status(404).json({ message: "Floor plan not found" });
-      }
-      res.json(floorPlan);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to update floor plan" });
-    }
-  });
-
-  app.delete("/api/floor-plans/:id", async (req, res) => {
-    try {
-      const success = await storage.deleteFloorPlan(req.params.id);
-      if (!success) {
-        return res.status(404).json({ message: "Floor plan not found" });
-      }
-      res.json({ message: "Floor plan deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete floor plan" });
-    }
-  });
 
   const httpServer = createServer(app);
   return httpServer;

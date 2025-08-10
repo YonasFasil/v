@@ -10,7 +10,6 @@ import Customers from "@/pages/customers";
 import Payments from "@/pages/payments";
 import Tasks from "@/pages/tasks";
 import Venues from "@/pages/venues";
-import FloorPlans from "@/pages/floor-plans";
 import SetupStyles from "@/pages/setup-styles";
 import Packages from "@/pages/packages";
 import Settings from "@/pages/settings";
@@ -28,7 +27,6 @@ function Router() {
       <Route path="/payments" component={Payments} />
       <Route path="/tasks" component={Tasks} />
       <Route path="/venues" component={Venues} />
-      <Route path="/floor-plans" component={FloorPlans} />
       <Route path="/setup-styles" component={SetupStyles} />
       <Route path="/packages" component={Packages} />
       <Route path="/ai-analytics" component={AIAnalytics} />
