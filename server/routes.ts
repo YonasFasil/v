@@ -2016,7 +2016,10 @@ This is a test email from your Venuine venue management system.
   // Send proposal via Gmail
   app.post("/api/gmail/send-proposal", async (req, res) => {
     try {
-      const { to, customerName, proposalContent, totalAmount, validUntil, companyName } = req.body;
+      const { to, customerName, proposalContent, totalAmount, validUntil, companyName, eventData: reqEventData } = req.body;
+      
+      // Extract event data from emailData if it exists
+      const eventData = reqEventData || req.body.emailData?.eventData;
       
       if (!gmailService.isConfigured()) {
         return res.status(400).json({ message: "Gmail not configured. Please set up Gmail credentials in Settings > Integrations." });
@@ -2030,6 +2033,46 @@ This is a test email from your Venuine venue management system.
         validUntil,
         companyName
       });
+
+      // Create a tentative booking if event data is provided
+      if (eventData) {
+        try {
+          // Find or create customer
+          let customer = await storage.getCustomerByEmail(to);
+          if (!customer) {
+            customer = await storage.createCustomer({
+              name: customerName,
+              email: to,
+              phone: null,
+              notes: `Created from proposal on ${new Date().toDateString()}`
+            });
+          }
+
+          // Create tentative booking
+          const tentativeBooking = {
+            eventName: eventData.eventName || `Proposed Event for ${customerName}`,
+            eventType: eventData.eventType || "general",
+            eventDate: new Date(eventData.eventDate),
+            startTime: eventData.startTime,
+            endTime: eventData.endTime,
+            guestCount: eventData.guestCount,
+            customerId: customer.id,
+            venueId: eventData.venueId,
+            spaceId: eventData.spaceId,
+            status: "tentative", // New status for proposals
+            totalAmount: totalAmount || null,
+            notes: `Tentative booking created from sent proposal on ${new Date().toDateString()}`,
+            proposalStatus: "sent",
+            proposalSentAt: new Date()
+          };
+
+          await storage.createBooking(tentativeBooking);
+          console.log(`Tentative booking created for proposal sent to ${to}`);
+        } catch (bookingError) {
+          console.error('Failed to create tentative booking:', bookingError);
+          // Don't fail the proposal sending if booking creation fails
+        }
+      }
 
       res.json({ success: true, message: "Proposal sent successfully!" });
     } catch (error: any) {
@@ -2533,7 +2576,7 @@ This is a test email from your Venuine venue management system.
   // New email sending route for proposals
   app.post("/api/proposals/send-email", async (req, res) => {
     try {
-      const { proposalId, customerId, emailData } = req.body;
+      const { proposalId, customerId, emailData, eventData } = req.body;
       
       if (!proposalId || !customerId || !emailData) {
         return res.status(400).json({ message: "Missing required fields" });
@@ -2588,6 +2631,34 @@ This is a test email from your Venuine venue management system.
           status: "sent",
           sentAt: new Date()
         });
+
+        // Create tentative booking if event data is provided
+        if (eventData && eventData.eventDate) {
+          try {
+            const tentativeBooking = {
+              eventName: eventData.eventName || `Proposed Event for ${customer.name}`,
+              eventType: eventData.eventType || "general",
+              eventDate: new Date(eventData.eventDate),
+              startTime: eventData.startTime,
+              endTime: eventData.endTime,
+              guestCount: eventData.guestCount,
+              customerId: customer.id,
+              venueId: eventData.venueId,
+              spaceId: eventData.spaceId,
+              status: "tentative", // New status for proposals
+              totalAmount: proposal.totalAmount || null,
+              notes: `Tentative booking created from sent proposal on ${new Date().toDateString()}`,
+              proposalStatus: "sent",
+              proposalSentAt: new Date()
+            };
+
+            const createdBooking = await storage.createBooking(tentativeBooking);
+            console.log(`✅ Tentative booking created for proposal sent to ${customer.email}`);
+          } catch (bookingError) {
+            console.error('Failed to create tentative booking:', bookingError);
+            // Don't fail the email sending if booking creation fails
+          }
+        }
 
         res.json({
           success: true,

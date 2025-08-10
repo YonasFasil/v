@@ -113,6 +113,7 @@ export function EmailPreviewModal({
       });
       queryClient.invalidateQueries({ queryKey: ["/api/communications"] });
       queryClient.invalidateQueries({ queryKey: ["/api/proposals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings"] }); // Refresh bookings to show tentative booking
       onOpenChange(false);
     },
     onError: (error) => {
@@ -146,6 +147,17 @@ export function EmailPreviewModal({
         subject: emailSubject,
         message: emailMessage,
         proposalViewLink: `${window.location.origin}/proposals/${proposalId}` // This would be a real link in production
+      },
+      // Include event data to create tentative booking
+      eventData: {
+        eventName: eventData.eventDates?.[0]?.eventName || "Event",
+        eventType: eventData.eventType || "general",
+        eventDate: eventData.eventDates?.[0]?.date,
+        startTime: eventData.eventDates?.[0]?.startTime,
+        endTime: eventData.eventDates?.[0]?.endTime,
+        guestCount: eventData.eventDates?.[0]?.guestCount,
+        venueId: eventData.eventDates?.[0]?.venue,
+        spaceId: eventData.eventDates?.[0]?.space
       }
     };
 
