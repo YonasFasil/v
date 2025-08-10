@@ -2704,18 +2704,20 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
         title: `${lead.eventType} Event Proposal`,
         content: proposalContent.trim(),
         customerId: customer.id,
-        eventType: lead.eventType,
-        guestCount: lead.guestCount,
-        eventDate: lead.dateStart ? new Date(lead.dateStart) : null,
         status: "sent",
-        totalAmount: lead.budgetMax || 0,
-        venueId: lead.venueId || null
+        totalAmount: lead.budgetMax || 5000, // Default estimate if no budget provided
+        depositAmount: (lead.budgetMax || 5000) * 0.3, // 30% deposit
+        sentAt: new Date(),
+        validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Valid for 30 days
       };
 
       const proposal = await storage.createProposal(proposalData);
 
-      // Update lead status to proposal sent
-      await storage.updateLead(id, { status: "PROPOSAL_SENT" });
+      // Update lead status to proposal sent and link the proposal
+      await storage.updateLead(id, { 
+        status: "PROPOSAL_SENT",
+        proposalId: proposal.id 
+      });
 
       // Log the proposal sent activity
       await storage.createLeadActivity({

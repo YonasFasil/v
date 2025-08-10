@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Phone, Mail, Calendar, User, Building, Clock, Tag, Plus, Search, Filter } from "lucide-react";
+import { Phone, Mail, Calendar, User, Building, Clock, Tag, Plus, Search, Filter, Eye } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Lead, CampaignSource, Tag as TagType } from "@shared/schema";
@@ -40,6 +40,11 @@ export default function Leads() {
   // Fetch tags
   const { data: tags = [] } = useQuery({
     queryKey: ["/api/tags"]
+  });
+
+  // Fetch proposals to show which proposals were sent for leads
+  const { data: proposals = [] } = useQuery({
+    queryKey: ["/api/proposals"]
   });
 
   // Lead status update mutation
@@ -109,6 +114,15 @@ export default function Leads() {
     sendProposalMutation.mutate(leadId);
   };
 
+  // Find proposal for a lead
+  const getProposalForLead = (leadId: string) => {
+    // Find lead activities to get proposalId
+    const lead = leads.find(l => l.id === leadId);
+    if (!lead || !lead.proposalId) return null;
+    
+    return proposals.find(p => p.id === lead.proposalId);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "NEW": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
@@ -138,6 +152,13 @@ export default function Leads() {
     if (min) return `$${min.toLocaleString()}+`;
     if (max) return `Up to $${max.toLocaleString()}`;
     return "Budget not specified";
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount);
   };
 
   const leadsArray = Array.isArray(leads) ? leads as Lead[] : [];
@@ -392,6 +413,36 @@ export default function Leads() {
                   </div>
                 </div>
 
+                {/* Proposal Information */}
+                {lead.status === "PROPOSAL_SENT" && getProposalForLead(lead.id) && (
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Mail className="h-4 w-4 text-blue-600" />
+                        <span className="font-medium text-blue-800">Proposal Sent</span>
+                      </div>
+                      <Badge className="bg-blue-100 text-blue-800">
+                        {getProposalForLead(lead.id)?.status}
+                      </Badge>
+                    </div>
+                    <div className="mt-2 text-sm text-blue-700">
+                      <div><strong>Title:</strong> {getProposalForLead(lead.id)?.title}</div>
+                      <div><strong>Amount:</strong> {formatCurrency(parseFloat(getProposalForLead(lead.id)?.totalAmount || "0"))}</div>
+                      <div><strong>Valid Until:</strong> {new Date(getProposalForLead(lead.id)?.validUntil || "").toLocaleDateString()}</div>
+                    </div>
+                    <div className="mt-2 flex space-x-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => window.open(`/proposals/${getProposalForLead(lead.id)?.id}`, '_blank')}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        View Proposal
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="mt-4 flex justify-between items-center">
                   <div className="text-sm">
                     <span className="font-medium">{formatBudgetRange(lead.budgetMin, lead.budgetMax)}</span>
@@ -414,10 +465,11 @@ export default function Leads() {
                       variant="outline" 
                       size="sm"
                       onClick={() => handleSendProposal(lead.id)}
-                      disabled={sendProposalMutation.isPending || updateLeadMutation.isPending}
+                      disabled={sendProposalMutation.isPending || updateLeadMutation.isPending || lead.status === "PROPOSAL_SENT"}
                     >
                       <Mail className="h-4 w-4 mr-1" />
-                      {sendProposalMutation.isPending ? "Sending..." : "Send Proposal"}
+                      {sendProposalMutation.isPending ? "Sending..." : 
+                       lead.status === "PROPOSAL_SENT" ? "Proposal Sent" : "Send Proposal"}
                     </Button>
                     {lead.status === "QUALIFIED" && (
                       <Button 
@@ -437,6 +489,44 @@ export default function Leads() {
       </div>
           </div>
         </main>
+      </div>
+
+      {/* Proposals Tracking Section */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <Card className="w-80 max-h-96 overflow-y-auto shadow-lg">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              Recent Proposals Sent ({proposals.filter(p => p.status === 'sent').length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {proposals.filter(p => p.status === 'sent').slice(0, 5).map((proposal) => {
+              const relatedLead = leads.find(l => l.proposalId === proposal.id);
+              return (
+                <div key={proposal.id} className="p-2 bg-gray-50 rounded text-xs">
+                  <div className="font-medium truncate">{proposal.title}</div>
+                  <div className="text-gray-600">
+                    {relatedLead ? `${relatedLead.firstName} ${relatedLead.lastName}` : 'Unknown Lead'}
+                  </div>
+                  <div className="flex justify-between items-center mt-1">
+                    <span className="text-green-600 font-medium">
+                      {formatCurrency(parseFloat(proposal.totalAmount || "0"))}
+                    </span>
+                    <Badge variant="outline" className="text-xs">
+                      {proposal.status}
+                    </Badge>
+                  </div>
+                </div>
+              );
+            })}
+            {proposals.filter(p => p.status === 'sent').length === 0 && (
+              <div className="text-gray-500 text-xs text-center py-4">
+                No proposals sent yet
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Add Lead Modal */}

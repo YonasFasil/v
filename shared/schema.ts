@@ -280,6 +280,7 @@ export const leads = pgTable("leads", {
   consentEmail: boolean("consent_email").default(true),
   consentSms: boolean("consent_sms").default(false),
   convertedCustomerId: varchar("converted_customer_id").references(() => customers.id), // When lead converts to customer
+  proposalId: varchar("proposal_id").references(() => proposals.id), // Link to sent proposal
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
