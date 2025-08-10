@@ -618,58 +618,138 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
           <div style={baseStyle} className="relative">
             {is3D ? (
               <>
-                {/* 3D Chair - More realistic appearance */}
-                {/* Chair back */}
+                {/* Ultra-realistic 3D Chair */}
+                {/* Chair back with detailed structure */}
                 <div 
-                  className="absolute bg-amber-800 border border-amber-900"
+                  className="absolute"
                   style={{
-                    width: '100%',
+                    width: '90%',
+                    height: '40%',
+                    top: '5%',
+                    left: '5%',
+                    background: 'linear-gradient(145deg, #8B4513, #654321)',
+                    borderRadius: '4px 4px 0 0',
+                    boxShadow: 'inset 2px 2px 4px rgba(139,69,19,0.3), inset -1px -1px 3px rgba(0,0,0,0.4), 0 3px 6px rgba(0,0,0,0.4)',
+                    border: '1px solid #654321',
+                  }}
+                />
+                {/* Chair back cushion */}
+                <div 
+                  className="absolute"
+                  style={{
+                    width: '75%',
+                    height: '30%',
+                    top: '10%',
+                    left: '12.5%',
+                    background: 'linear-gradient(145deg, #CD853F, #A0522D)',
+                    borderRadius: '3px',
+                    boxShadow: 'inset 1px 1px 2px rgba(205,133,63,0.3), 0 1px 3px rgba(0,0,0,0.3)',
+                  }}
+                />
+                
+                {/* Chair seat with realistic padding */}
+                <div 
+                  className="absolute"
+                  style={{
+                    width: '90%',
                     height: '35%',
-                    top: 0,
-                    left: 0,
-                    borderRadius: '3px 3px 0 0',
-                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.3)',
-                    background: 'linear-gradient(145deg, #b45309, #92400e)',
+                    top: '40%',
+                    left: '5%',
+                    background: 'linear-gradient(145deg, #D2691E, #A0522D)',
+                    borderRadius: '4px',
+                    boxShadow: 'inset 2px 2px 4px rgba(210,105,30,0.3), inset -2px -2px 4px rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.4)',
+                    border: '1px solid #8B4513',
                   }}
                 />
-                {/* Chair seat */}
+                {/* Seat cushion detail */}
                 <div 
-                  className="absolute bg-amber-700 border border-amber-900"
+                  className="absolute"
                   style={{
-                    width: '100%',
-                    height: '45%',
-                    top: '30%',
-                    left: 0,
-                    borderRadius: '2px',
-                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.3)',
-                    background: 'linear-gradient(145deg, #a16207, #92400e)',
-                  }}
-                />
-                {/* Chair legs */}
-                <div 
-                  className="absolute bg-amber-900"
-                  style={{
-                    width: '8%',
+                    width: '80%',
                     height: '25%',
-                    bottom: 0,
+                    top: '45%',
                     left: '10%',
-                    borderRadius: '0 0 1px 1px'
+                    background: 'linear-gradient(135deg, #DEB887, #CD853F)',
+                    borderRadius: '2px',
+                    boxShadow: 'inset 1px 1px 2px rgba(222,184,135,0.4)',
+                  }}
+                />
+                
+                {/* Four realistic chair legs */}
+                <div 
+                  className="absolute bg-gradient-to-b from-amber-800 to-amber-900"
+                  style={{
+                    width: '6%',
+                    height: '30%',
+                    bottom: 0,
+                    left: '15%',
+                    borderRadius: '0 0 2px 2px',
+                    boxShadow: '1px 1px 2px rgba(0,0,0,0.4)'
                   }}
                 />
                 <div 
-                  className="absolute bg-amber-900"
+                  className="absolute bg-gradient-to-b from-amber-800 to-amber-900"
+                  style={{
+                    width: '6%',
+                    height: '30%',
+                    bottom: 0,
+                    right: '15%',
+                    borderRadius: '0 0 2px 2px',
+                    boxShadow: '1px 1px 2px rgba(0,0,0,0.4)'
+                  }}
+                />
+                <div 
+                  className="absolute bg-gradient-to-b from-amber-800 to-amber-900"
+                  style={{
+                    width: '6%',
+                    height: '30%',
+                    bottom: 0,
+                    left: '79%',
+                    borderRadius: '0 0 2px 2px',
+                    boxShadow: '1px 1px 2px rgba(0,0,0,0.4)'
+                  }}
+                />
+                <div 
+                  className="absolute bg-gradient-to-b from-amber-800 to-amber-900"
+                  style={{
+                    width: '6%',
+                    height: '30%',
+                    bottom: 0,
+                    right: '79%',
+                    borderRadius: '0 0 2px 2px',
+                    boxShadow: '1px 1px 2px rgba(0,0,0,0.4)'
+                  }}
+                />
+                
+                {/* Chair armrests */}
+                <div 
+                  className="absolute"
                   style={{
                     width: '8%',
                     height: '25%',
-                    bottom: 0,
-                    right: '10%',
-                    borderRadius: '0 0 1px 1px'
+                    top: '45%',
+                    left: '0%',
+                    background: 'linear-gradient(145deg, #8B4513, #654321)',
+                    borderRadius: '2px',
+                    boxShadow: '1px 1px 3px rgba(0,0,0,0.4)'
+                  }}
+                />
+                <div 
+                  className="absolute"
+                  style={{
+                    width: '8%',
+                    height: '25%',
+                    top: '45%',
+                    right: '0%',
+                    background: 'linear-gradient(145deg, #8B4513, #654321)',
+                    borderRadius: '2px',
+                    boxShadow: '1px 1px 3px rgba(0,0,0,0.4)'
                   }}
                 />
               </>
             ) : (
               <>
-                {/* 2D Chair - Simplified */}
+                {/* 2D Chair - Simplified but recognizable */}
                 <div 
                   className="absolute bg-amber-800 border border-amber-900"
                   style={{
@@ -699,55 +779,171 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
         if (element.shape === 'circle') {
           return (
             <div style={baseStyle}>
-              {/* Table surface */}
-              <div 
-                className="absolute bg-amber-800 border-2 border-amber-900 rounded-full"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  background: 'radial-gradient(circle at 30% 30%, #a16207, #92400e)'
-                }}
-              />
-              {/* Table legs indication */}
-              <div 
-                className="absolute w-2 h-2 bg-amber-900 rounded-full"
-                style={{ top: '20%', left: '20%' }}
-              />
-              <div 
-                className="absolute w-2 h-2 bg-amber-900 rounded-full"
-                style={{ top: '20%', right: '20%' }}
-              />
-              <div 
-                className="absolute w-2 h-2 bg-amber-900 rounded-full"
-                style={{ bottom: '20%', left: '20%' }}
-              />
-              <div 
-                className="absolute w-2 h-2 bg-amber-900 rounded-full"
-                style={{ bottom: '20%', right: '20%' }}
-              />
+              {is3D ? (
+                <>
+                  {/* Ultra-realistic round table */}
+                  {/* Table top with wood grain effect */}
+                  <div 
+                    className="absolute rounded-full"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      background: 'radial-gradient(ellipse at 30% 30%, #D2691E, #8B4513, #654321)',
+                      boxShadow: 'inset 3px 3px 8px rgba(139,69,19,0.3), inset -3px -3px 8px rgba(0,0,0,0.4), 0 6px 12px rgba(0,0,0,0.4)',
+                      border: '2px solid #654321',
+                    }}
+                  />
+                  {/* Wood grain lines */}
+                  <div 
+                    className="absolute rounded-full"
+                    style={{
+                      width: '90%',
+                      height: '90%',
+                      top: '5%',
+                      left: '5%',
+                      background: 'conic-gradient(from 45deg, rgba(139,69,19,0.2) 0deg, transparent 60deg, rgba(139,69,19,0.2) 120deg, transparent 180deg, rgba(139,69,19,0.2) 240deg, transparent 300deg)',
+                      borderRadius: '50%',
+                    }}
+                  />
+                  {/* Table edge highlight */}
+                  <div 
+                    className="absolute rounded-full"
+                    style={{
+                      width: '96%',
+                      height: '96%',
+                      top: '2%',
+                      left: '2%',
+                      border: '1px solid rgba(210,105,30,0.6)',
+                      boxShadow: 'inset 0 2px 4px rgba(210,105,30,0.3)',
+                    }}
+                  />
+                  
+                  {/* Center pedestal base */}
+                  <div 
+                    className="absolute rounded-full"
+                    style={{
+                      width: '25%',
+                      height: '25%',
+                      top: '37.5%',
+                      left: '37.5%',
+                      background: 'linear-gradient(145deg, #8B4513, #654321)',
+                      boxShadow: '0 4px 8px rgba(0,0,0,0.5), inset 1px 1px 3px rgba(139,69,19,0.3)',
+                      border: '1px solid #654321',
+                    }}
+                  />
+                </>
+              ) : (
+                <div 
+                  className="absolute bg-amber-800 border-2 border-amber-900 rounded-full"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    background: 'radial-gradient(circle at 30% 30%, #a16207, #92400e)'
+                  }}
+                />
+              )}
             </div>
           );
         } else {
           return (
             <div style={baseStyle}>
-              {/* Table surface */}
-              <div 
-                className="absolute bg-amber-800 border-2 border-amber-900 rounded"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  background: 'linear-gradient(135deg, #a16207, #92400e)'
-                }}
-              />
-              {/* Table legs */}
-              <div 
-                className="absolute w-1 h-full bg-amber-900"
-                style={{ left: '10%' }}
-              />
-              <div 
-                className="absolute w-1 h-full bg-amber-900"
-                style={{ right: '10%' }}
-              />
+              {is3D ? (
+                <>
+                  {/* Ultra-realistic rectangular table */}
+                  {/* Table top with detailed wood surface */}
+                  <div 
+                    className="absolute"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      background: 'linear-gradient(135deg, #D2691E 0%, #8B4513 40%, #654321 100%)',
+                      borderRadius: '6px',
+                      boxShadow: 'inset 3px 3px 8px rgba(139,69,19,0.3), inset -3px -3px 8px rgba(0,0,0,0.4), 0 6px 12px rgba(0,0,0,0.4)',
+                      border: '2px solid #654321',
+                    }}
+                  />
+                  {/* Wood grain pattern */}
+                  <div 
+                    className="absolute"
+                    style={{
+                      width: '95%',
+                      height: '95%',
+                      top: '2.5%',
+                      left: '2.5%',
+                      background: 'repeating-linear-gradient(90deg, rgba(139,69,19,0.1) 0px, transparent 2px, rgba(139,69,19,0.1) 4px, transparent 8px)',
+                      borderRadius: '4px',
+                    }}
+                  />
+                  {/* Table edge bevel */}
+                  <div 
+                    className="absolute"
+                    style={{
+                      width: '98%',
+                      height: '98%',
+                      top: '1%',
+                      left: '1%',
+                      border: '1px solid rgba(210,105,30,0.6)',
+                      borderRadius: '5px',
+                      boxShadow: 'inset 0 2px 4px rgba(210,105,30,0.3)',
+                    }}
+                  />
+                  
+                  {/* Four detailed table legs */}
+                  <div 
+                    className="absolute"
+                    style={{
+                      width: '8%',
+                      height: '100%',
+                      left: '8%',
+                      background: 'linear-gradient(180deg, #8B4513, #654321)',
+                      boxShadow: '2px 2px 4px rgba(0,0,0,0.4), inset 1px 1px 2px rgba(139,69,19,0.3)',
+                      borderRadius: '0 0 3px 3px',
+                    }}
+                  />
+                  <div 
+                    className="absolute"
+                    style={{
+                      width: '8%',
+                      height: '100%',
+                      right: '8%',
+                      background: 'linear-gradient(180deg, #8B4513, #654321)',
+                      boxShadow: '2px 2px 4px rgba(0,0,0,0.4), inset 1px 1px 2px rgba(139,69,19,0.3)',
+                      borderRadius: '0 0 3px 3px',
+                    }}
+                  />
+                  <div 
+                    className="absolute"
+                    style={{
+                      width: '8%',
+                      height: '100%',
+                      left: '84%',
+                      background: 'linear-gradient(180deg, #8B4513, #654321)',
+                      boxShadow: '2px 2px 4px rgba(0,0,0,0.4), inset 1px 1px 2px rgba(139,69,19,0.3)',
+                      borderRadius: '0 0 3px 3px',
+                    }}
+                  />
+                  <div 
+                    className="absolute"
+                    style={{
+                      width: '8%',
+                      height: '100%',
+                      right: '84%',
+                      background: 'linear-gradient(180deg, #8B4513, #654321)',
+                      boxShadow: '2px 2px 4px rgba(0,0,0,0.4), inset 1px 1px 2px rgba(139,69,19,0.3)',
+                      borderRadius: '0 0 3px 3px',
+                    }}
+                  />
+                </>
+              ) : (
+                <div 
+                  className="absolute bg-amber-800 border-2 border-amber-900 rounded"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    background: 'linear-gradient(135deg, #a16207, #92400e)'
+                  }}
+                />
+              )}
             </div>
           );
         }
@@ -755,24 +951,150 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
       case 'bar':
         return (
           <div style={baseStyle}>
-            {/* Bar counter */}
-            <div 
-              className="absolute bg-slate-800 border-2 border-slate-900 rounded"
-              style={{
-                width: '100%',
-                height: '100%',
-                background: 'linear-gradient(135deg, #1e293b, #0f172a)'
-              }}
-            />
-            {/* Bar stools indication */}
-            <div 
-              className="absolute w-3 h-3 bg-amber-700 rounded-full border border-amber-800"
-              style={{ top: '-6px', left: '20%' }}
-            />
-            <div 
-              className="absolute w-3 h-3 bg-amber-700 rounded-full border border-amber-800"
-              style={{ top: '-6px', right: '20%' }}
-            />
+            {is3D ? (
+              <>
+                {/* Ultra-realistic bar counter */}
+                {/* Main bar surface with marble-like finish */}
+                <div 
+                  className="absolute"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    background: 'linear-gradient(135deg, #2C3E50 0%, #34495E 30%, #1A252F 100%)',
+                    borderRadius: '8px 8px 4px 4px',
+                    boxShadow: 'inset 3px 3px 8px rgba(44,62,80,0.3), inset -3px -3px 8px rgba(0,0,0,0.4), 0 8px 16px rgba(0,0,0,0.5)',
+                    border: '2px solid #1A252F',
+                  }}
+                />
+                {/* Marble pattern */}
+                <div 
+                  className="absolute"
+                  style={{
+                    width: '95%',
+                    height: '95%',
+                    top: '2.5%',
+                    left: '2.5%',
+                    background: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.05) 0px, transparent 3px, rgba(255,255,255,0.05) 6px, transparent 12px)',
+                    borderRadius: '6px',
+                  }}
+                />
+                {/* Bar edge with brass trim */}
+                <div 
+                  className="absolute"
+                  style={{
+                    width: '100%',
+                    height: '8%',
+                    top: '0%',
+                    left: '0%',
+                    background: 'linear-gradient(135deg, #B8860B, #DAA520, #B8860B)',
+                    borderRadius: '8px 8px 0 0',
+                    boxShadow: 'inset 1px 1px 3px rgba(218,165,32,0.3), 0 2px 4px rgba(0,0,0,0.3)',
+                  }}
+                />
+                
+                {/* Bar base/cabinet */}
+                <div 
+                  className="absolute"
+                  style={{
+                    width: '100%',
+                    height: '25%',
+                    bottom: '0%',
+                    left: '0%',
+                    background: 'linear-gradient(180deg, #1A252F, #0F1419)',
+                    borderRadius: '0 0 4px 4px',
+                    boxShadow: 'inset 2px 2px 4px rgba(15,20,25,0.3), 0 4px 8px rgba(0,0,0,0.5)',
+                  }}
+                />
+                
+                {/* Realistic bar stools */}
+                <div 
+                  className="absolute rounded-full"
+                  style={{ 
+                    top: '-12px', 
+                    left: '15%',
+                    width: '12px',
+                    height: '12px',
+                    background: 'linear-gradient(145deg, #8B4513, #654321)',
+                    boxShadow: '1px 1px 3px rgba(0,0,0,0.4)',
+                    border: '1px solid #654321',
+                  }}
+                />
+                {/* Stool back */}
+                <div 
+                  className="absolute"
+                  style={{ 
+                    top: '-18px', 
+                    left: '16%',
+                    width: '10px',
+                    height: '8px',
+                    background: 'linear-gradient(145deg, #8B4513, #654321)',
+                    borderRadius: '2px 2px 0 0',
+                    boxShadow: '1px 1px 2px rgba(0,0,0,0.3)',
+                  }}
+                />
+                
+                <div 
+                  className="absolute rounded-full"
+                  style={{ 
+                    top: '-12px', 
+                    right: '15%',
+                    width: '12px',
+                    height: '12px',
+                    background: 'linear-gradient(145deg, #8B4513, #654321)',
+                    boxShadow: '1px 1px 3px rgba(0,0,0,0.4)',
+                    border: '1px solid #654321',
+                  }}
+                />
+                {/* Stool back */}
+                <div 
+                  className="absolute"
+                  style={{ 
+                    top: '-18px', 
+                    right: '16%',
+                    width: '10px',
+                    height: '8px',
+                    background: 'linear-gradient(145deg, #8B4513, #654321)',
+                    borderRadius: '2px 2px 0 0',
+                    boxShadow: '1px 1px 2px rgba(0,0,0,0.3)',
+                  }}
+                />
+                
+                {/* Center stool */}
+                <div 
+                  className="absolute rounded-full"
+                  style={{ 
+                    top: '-12px', 
+                    left: '44%',
+                    width: '12px',
+                    height: '12px',
+                    background: 'linear-gradient(145deg, #8B4513, #654321)',
+                    boxShadow: '1px 1px 3px rgba(0,0,0,0.4)',
+                    border: '1px solid #654321',
+                  }}
+                />
+                <div 
+                  className="absolute"
+                  style={{ 
+                    top: '-18px', 
+                    left: '45%',
+                    width: '10px',
+                    height: '8px',
+                    background: 'linear-gradient(145deg, #8B4513, #654321)',
+                    borderRadius: '2px 2px 0 0',
+                    boxShadow: '1px 1px 2px rgba(0,0,0,0.3)',
+                  }}
+                />
+              </>
+            ) : (
+              <div 
+                className="absolute bg-slate-800 border-2 border-slate-900 rounded"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  background: 'linear-gradient(135deg, #1e293b, #0f172a)'
+                }}
+              />
+            )}
           </div>
         );
 
@@ -971,7 +1293,16 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
             </Card>
 
             {mode === 'add' && (
-              <Card className="p-4">
+              <Card className="p-4 border-blue-200 bg-blue-50">
+                <div className="mb-3 p-2 bg-blue-100 rounded border border-blue-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
+                    <span className="text-xs font-medium text-blue-800">ADD MODE ACTIVE</span>
+                  </div>
+                  <p className="text-xs text-blue-700">
+                    1. Select object type below → 2. Click anywhere on floor plan to place
+                  </p>
+                </div>
                 <Label className="text-sm font-medium mb-3 block">Add Element</Label>
                 <div className="space-y-3">
                   {Object.entries(
@@ -1261,16 +1592,16 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
 
               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-slate-600">
                 <div>
-                  <p>• <strong>Add mode:</strong> Click to place elements</p>
-                  <p>• <strong>Select mode:</strong> Click/drag to select</p>
-                  <p>• <strong>Multi-select:</strong> Ctrl+Click elements</p>
-                  <p>• <strong>Pan mode:</strong> Drag to move viewport</p>
+                  <p>• <strong>Add Individual Objects:</strong> Select object type → Click "Add" mode → Click anywhere to place</p>
+                  <p>• <strong>Continuous Adding:</strong> Add mode stays active - keep clicking to add multiple objects</p>
+                  <p>• <strong>Multi-select:</strong> Ctrl+Click elements or drag selection box</p>
+                  <p>• <strong>Move Objects:</strong> Select mode → Click and drag objects around</p>
                 </div>
                 <div>
                   <p>• <strong>Shortcuts:</strong> Ctrl+C/V (copy/paste), Del (delete)</p>
-                  <p>• <strong>3D View:</strong> Spatial preview with shadows</p>
-                  <p>• <strong>Grid Snap:</strong> Auto-align to grid points</p>
-                  <p>• <strong>Templates:</strong> Quick layout presets</p>
+                  <p>• <strong>3D View:</strong> Ultra-realistic furniture with detailed materials</p>
+                  <p>• <strong>Grid Snap:</strong> Auto-align to grid points for precise placement</p>
+                  <p>• <strong>Templates:</strong> Quick layout presets or start from scratch</p>
                 </div>
               </div>
             </Card>
