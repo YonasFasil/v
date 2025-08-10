@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, getDay } from "date-fns";
-import { ChevronLeft, ChevronRight, X, Plus, Minus, RotateCcw, Calendar as CalendarIcon, Mic, FileText, Save, Users, Grid3X3, MapPin, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Plus, RotateCcw, Trash2, Save, Edit, Minus, FileText, Send, MessageSquare, Mail, Phone, Users, Grid3X3, MapPin, Calendar as CalendarIcon } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -47,7 +47,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   const queryClient = useQueryClient();
   
   // Step management
-  const [currentStep, setCurrentStep] = useState(2); // Start at step 2 (configuration) for editing
+  const [currentStep, setCurrentStep] = useState(1);
   const [currentDate, setCurrentDate] = useState(new Date());
   
   // Step 1: Date & Venue Selection
@@ -61,10 +61,12 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [selectedCopyIndices, setSelectedCopyIndices] = useState<number[]>([]);
   
+  // Package and service selection states
+  const [showPackageSelection, setShowPackageSelection] = useState(false);
+  const [showAdditionalServices, setShowAdditionalServices] = useState(false);
+  
   // New service creation
   const [showNewServiceForm, setShowNewServiceForm] = useState(false);
-  const [showPackageSelection, setShowPackageSelection] = useState(false);
-  const [showServiceSelection, setShowServiceSelection] = useState(false);
   const [newService, setNewService] = useState({
     name: "",
     description: "",
@@ -72,10 +74,18 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
     price: "",
     pricingModel: "fixed"
   });
-
-  // Customer info and other details
+  
+  // Step 3: Final Details
   const [eventName, setEventName] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState("");
+  const [eventStatus, setEventStatus] = useState("inquiry");
+  
+  // Communication state
+  const [showCommunication, setShowCommunication] = useState(false);
+  const [communicationMessage, setCommunicationMessage] = useState("");
+  const [communicationType, setCommunicationType] = useState("email");
+  
+  // Customer creation
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomer, setNewCustomer] = useState({
     name: "",
@@ -83,8 +93,15 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
     phone: "",
     company: ""
   });
-  const [eventType, setEventType] = useState("corporate");
-  const [eventNotes, setEventNotes] = useState("");
+
+  // Tax/Fee configuration
+  const [taxFeeOverrides, setTaxFeeOverrides] = useState<{
+    enabledTaxIds: string[];
+    enabledFeeIds: string[];
+  }>({
+    enabledTaxIds: [],
+    enabledFeeIds: []
+  });
 
   // Data queries
   const { data: venues = [] } = useQuery({ queryKey: ["/api/venues-with-spaces"] });
@@ -96,240 +113,406 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   // Initialize form data when booking changes
   useEffect(() => {
     if (booking && open) {
-      // Parse the booking.dateConfigs if it's a string
-      let dateConfigs = [];
-      try {
-        dateConfigs = typeof booking.dateConfigs === 'string' ? JSON.parse(booking.dateConfigs) : booking.dateConfigs || [];
-      } catch (error) {
-        console.error('Error parsing booking.dateConfigs:', error);
-        dateConfigs = [];
-      }
-
-      // Set basic info
-      setEventName(booking.eventName || "");
-      setSelectedCustomer(booking.customerId || "");
-      setEventType(booking.eventType || "corporate");
-      setEventNotes(booking.notes || "");
-      setSelectedVenue(booking.venueId || "");
-
-      // Convert booking dates to SelectedDate format
-      const convertedDates: SelectedDate[] = dateConfigs.map((config: any) => ({
-        date: new Date(config.date),
-        startTime: config.startTime || "09:00 AM",
-        endTime: config.endTime || "05:00 PM",
-        spaceId: config.spaceId,
-        packageId: config.packageId,
-        selectedServices: config.selectedServices || [],
-        guestCount: config.guestCount || 1,
-        setupStyle: config.setupStyle || "banquet",
-        itemQuantities: config.itemQuantities || {},
-        pricingOverrides: config.pricingOverrides || {},
-        serviceTaxOverrides: config.serviceTaxOverrides || {}
-      }));
-
-      setSelectedDates(convertedDates);
-      
-      // Set current date to first booking date if available
-      if (convertedDates.length > 0) {
-        setCurrentDate(convertedDates[0].date);
+      if (booking.isContract && booking.contractEvents) {
+        // Handle contract with multiple events
+        setEventName(booking.contractInfo?.contractName || "Multi-Date Contract");
+        setEventStatus(booking.status || "inquiry");
+        setSelectedVenue(booking.venueId || "");
+        setSelectedCustomer(booking.customerId || "");
+        
+        // Initialize all contract events as selected dates - preserve original dates
+        const contractDates = booking.contractEvents.map((event: any) => ({
+          date: event.eventDate ? new Date(event.eventDate) : new Date(),
+          startTime: event.startTime || "09:00",
+          endTime: event.endTime || "17:00",
+          spaceId: event.spaceId,
+          packageId: event.packageId || "",
+          selectedServices: event.selectedServices || [],
+          guestCount: event.guestCount || 1,
+          itemQuantities: event.itemQuantities || {},
+          pricingOverrides: event.pricingOverrides || {},
+          serviceTaxOverrides: event.serviceTaxOverrides || {}
+        }));
+        
+        setSelectedDates(contractDates);
+        setActiveTabIndex(0);
+        
+        // Initialize tax/fee overrides from contract data if available
+        if (booking.contractEvents?.[0]?.taxFeeOverrides) {
+          setTaxFeeOverrides(booking.contractEvents[0].taxFeeOverrides);
+        }
+      } else {
+        // Handle single event
+        setEventName(booking.eventName || "");
+        setEventStatus(booking.status || "inquiry");
+        setSelectedVenue(booking.venueId || "");
+        setSelectedCustomer(booking.customerId || "");
+        
+        // Initialize dates with existing booking data - preserve original date
+        const bookingDate: SelectedDate = {
+          date: booking.eventDate ? new Date(booking.eventDate) : new Date(),
+          startTime: booking.startTime || "09:00",
+          endTime: booking.endTime || "17:00", 
+          spaceId: booking.spaceId,
+          packageId: booking.packageId || "",
+          selectedServices: booking.selectedServices || [],
+          guestCount: booking.guestCount || 1,
+          itemQuantities: booking.itemQuantities || {},
+          pricingOverrides: booking.pricingOverrides || {},
+          serviceTaxOverrides: booking.serviceTaxOverrides || {}
+        };
+        
+        setSelectedDates([bookingDate]);
+        setActiveTabIndex(0);
+        
+        // Initialize tax/fee overrides from booking data
+        if (booking.taxFeeOverrides) {
+          setTaxFeeOverrides(booking.taxFeeOverrides);
+        }
       }
     }
   }, [booking, open]);
 
-  // Memoized price calculation
-  const calculateDateTotal = (dateConfig: SelectedDate) => {
-    if (!dateConfig) return 0;
-    
-    let subtotal = 0;
-    let feesTotal = 0;
-    let taxesTotal = 0;
-    
-    // Package calculation
-    if (dateConfig.packageId) {
-      const packageData = (packages as any[]).find((p: any) => p.id === dateConfig.packageId);
-      if (packageData) {
-        const packagePrice = dateConfig.pricingOverrides?.packagePrice ?? parseFloat(packageData.price || 0);
-        let packageSubtotal = 0;
-        
-        if (packageData.pricingModel === 'per_person') {
-          packageSubtotal = packagePrice * (dateConfig.guestCount || 1);
-        } else {
-          packageSubtotal = packagePrice;
-        }
-        
-        subtotal += packageSubtotal;
-        
-        // Get effective fee and tax IDs for package
-        const currentOverrides = dateConfig.serviceTaxOverrides?.[packageData.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
-        
-        // Calculate effective fee IDs (inherited + additional - disabled)
-        const inheritedFeeIds = packageData.enabledFeeIds || [];
-        const additionalFeeIds = currentOverrides.enabledFeeIds || [];
-        const disabledFeeIds = currentOverrides.disabledInheritedFeeIds || [];
-        const effectiveFeeIds = [...inheritedFeeIds.filter(id => !disabledFeeIds.includes(id)), ...additionalFeeIds];
-        
-        // Calculate effective tax IDs (inherited + additional - disabled)
-        const inheritedTaxIds = packageData.enabledTaxIds || [];
-        const additionalTaxIds = currentOverrides.enabledTaxIds || [];
-        const disabledTaxIds = currentOverrides.disabledInheritedTaxIds || [];
-        const effectiveTaxIds = [...inheritedTaxIds.filter(id => !disabledTaxIds.includes(id)), ...additionalTaxIds];
-        
-        // Apply package fees and track them for potential tax application
-        let packageFeeAmount = 0;
-        effectiveFeeIds.forEach((feeId: string) => {
-          const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
-          if (feeSetting && (feeSetting.type === 'fee' || feeSetting.type === 'service_charge')) {
-            let feeAmount = 0;
-            if (feeSetting.calculation === 'percentage') {
-              feeAmount = (packageSubtotal * parseFloat(feeSetting.value)) / 100;
-            } else {
-              feeAmount = parseFloat(feeSetting.value);
-            }
-            feesTotal += feeAmount;
-            packageFeeAmount += feeAmount;
-          }
-        });
-        
-        // Apply package taxes (to base package amount + fees if fee is taxable)
-        effectiveTaxIds.forEach((taxId: string) => {
-          const taxSetting = (taxSettings as any[])?.find((s: any) => s.id === taxId && s.isActive);
-          if (taxSetting) {
-            // Tax on base package amount
-            let taxableAmount = packageSubtotal;
-            
-            // Add fees to taxable amount if any applied fees are taxable
-            effectiveFeeIds.forEach((feeId: string) => {
-              const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
-              if (feeSetting && feeSetting.isTaxable && (feeSetting.applicableTaxIds || []).includes(taxId)) {
-                let feeAmount = 0;
-                if (feeSetting.calculation === 'percentage') {
-                  feeAmount = (packageSubtotal * parseFloat(feeSetting.value)) / 100;
-                } else {
-                  feeAmount = parseFloat(feeSetting.value);
-                }
-                taxableAmount += feeAmount;
-              }
-            });
-            
-            const taxAmount = (taxableAmount * parseFloat(taxSetting.value)) / 100;
-            taxesTotal += taxAmount;
-          }
-        });
-      }
-    }
-    
-    // Services calculation
-    dateConfig.selectedServices?.forEach(serviceId => {
-      const service = (services as any[]).find((s: any) => s.id === serviceId);
-      if (service) {
-        const servicePrice = dateConfig.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
-        let serviceSubtotal = 0;
-        
-        if (service.pricingModel === 'per_person') {
-          serviceSubtotal = servicePrice * (dateConfig.guestCount || 1);
-        } else {
-          const quantity = dateConfig.itemQuantities?.[serviceId] || 1;
-          serviceSubtotal = servicePrice * quantity;
-        }
-        
-        subtotal += serviceSubtotal;
-        
-        // Get effective fee and tax IDs for service
-        const currentOverrides = dateConfig.serviceTaxOverrides?.[serviceId] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
-        
-        // Calculate effective fee IDs (inherited + additional - disabled)
-        const inheritedFeeIds = service.enabledFeeIds || [];
-        const additionalFeeIds = currentOverrides.enabledFeeIds || [];
-        const disabledFeeIds = currentOverrides.disabledInheritedFeeIds || [];
-        const effectiveFeeIds = [...inheritedFeeIds.filter(id => !disabledFeeIds.includes(id)), ...additionalFeeIds];
-        
-        // Calculate effective tax IDs (inherited + additional - disabled)
-        const inheritedTaxIds = service.enabledTaxIds || [];
-        const additionalTaxIds = currentOverrides.enabledTaxIds || [];
-        const disabledTaxIds = currentOverrides.disabledInheritedTaxIds || [];
-        const effectiveTaxIds = [...inheritedTaxIds.filter(id => !disabledTaxIds.includes(id)), ...additionalTaxIds];
-        
-        // Apply service fees and track them for potential tax application
-        let serviceFeeAmount = 0;
-        effectiveFeeIds.forEach((feeId: string) => {
-          const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
-          if (feeSetting && (feeSetting.type === 'fee' || feeSetting.type === 'service_charge')) {
-            let feeAmount = 0;
-            if (feeSetting.calculation === 'percentage') {
-              feeAmount = (serviceSubtotal * parseFloat(feeSetting.value)) / 100;
-            } else {
-              feeAmount = parseFloat(feeSetting.value);
-            }
-            feesTotal += feeAmount;
-            serviceFeeAmount += feeAmount;
-          }
-        });
-        
-        // Apply service taxes (to base service amount + fees if fee is taxable)
-        effectiveTaxIds.forEach((taxId: string) => {
-          const taxSetting = (taxSettings as any[])?.find((s: any) => s.id === taxId && s.isActive);
-          if (taxSetting) {
-            // Tax on base service amount
-            let taxableAmount = serviceSubtotal;
-            
-            // Add fees to taxable amount if any applied fees are taxable
-            effectiveFeeIds.forEach((feeId: string) => {
-              const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
-              if (feeSetting && feeSetting.isTaxable && (feeSetting.applicableTaxIds || []).includes(taxId)) {
-                let feeAmount = 0;
-                if (feeSetting.calculation === 'percentage') {
-                  feeAmount = (serviceSubtotal * parseFloat(feeSetting.value)) / 100;
-                } else {
-                  feeAmount = parseFloat(feeSetting.value);
-                }
-                taxableAmount += feeAmount;
-              }
-            });
-            
-            const taxAmount = (taxableAmount * parseFloat(taxSetting.value)) / 100;
-            taxesTotal += taxAmount;
-          }
-        });
-      }
-    });
-    
-    return subtotal + feesTotal + taxesTotal;
-  };
+  // Calendar calculations
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
+  const calendarDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  
+  // Pad calendar to show full weeks
+  const startDay = getDay(monthStart);
+  const paddedDays = [
+    ...Array(startDay).fill(null).map((_, i) => {
+      const date = new Date(monthStart);
+      date.setDate(date.getDate() - (startDay - i));
+      return date;
+    }),
+    ...calendarDays
+  ];
 
-  const totalPrice = useMemo(() => {
-    return selectedDates.reduce((total, dateConfig) => {
-      return total + calculateDateTotal(dateConfig);
-    }, 0);
-  }, [selectedDates, packages, services, taxSettings]);
-
-  // Get the active date for current tab
-  const activeDate = selectedDates[activeTabIndex] || {
-    date: new Date(),
-    startTime: "09:00 AM", 
-    endTime: "05:00 PM",
-    guestCount: 1,
-    packageId: "",
-    selectedServices: [],
-    itemQuantities: {},
-    pricingOverrides: {},
-    serviceTaxOverrides: {}
-  };
-
-  const selectedVenueData = (venues as any[]).find((v: any) => v.id === selectedVenue);
-  const selectedPackageData = (packages as any[]).find((p: any) => p.id === activeDate?.packageId);
-
-  // Update date configuration helper
-  const updateDateConfig = (field: string, value: any) => {
-    setSelectedDates(prev => prev.map((date, index) => 
-      index === activeTabIndex ? { ...date, [field]: value } : date
+  // Per-date configuration helpers (same as create modal)
+  const updateDateTime = (index: number, field: keyof SelectedDate, value: any) => {
+    setSelectedDates(prev => prev.map((date, i) => 
+      i === index ? { ...date, [field]: value } : date
     ));
   };
 
-  // Copy configuration to other dates
-  const handleCopyConfig = (selectedIndices: number[]) => {
-    if (!activeDate || selectedIndices.length === 0) return;
+  const updateDateConfig = (field: keyof SelectedDate, value: any) => {
+    if (activeDate) {
+      updateDateTime(activeTabIndex, field, value);
+    }
+  };
+
+  // Get active date configuration
+  const activeDate = selectedDates[activeTabIndex];
+  const selectedVenueData = (venues as any[]).find((v: any) => v.id === selectedVenue);
+  const selectedPackageData = (packages as any[]).find((p: any) => p.id === activeDate?.packageId);
+
+  // Calculate total price including taxes and fees
+  const totalPrice = useMemo(() => {
+    let subtotal = selectedDates.reduce((total, dateConfig) => {
+      let dateTotal = 0;
+      
+      // Package price
+      if (dateConfig.packageId) {
+        const pkg = (packages as any[]).find((p: any) => p.id === dateConfig.packageId);
+        if (pkg) {
+          const packagePrice = dateConfig.pricingOverrides?.packagePrice ?? parseFloat(pkg.price || 0);
+          dateTotal += pkg.pricingModel === 'per_person' 
+            ? packagePrice * (dateConfig.guestCount || 1)
+            : packagePrice;
+        }
+      }
+      
+      // Services price
+      dateConfig.selectedServices?.forEach(serviceId => {
+        const service = (services as any[]).find((s: any) => s.id === serviceId);
+        if (service) {
+          const servicePrice = dateConfig.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
+          if (service.pricingModel === 'per_person') {
+            dateTotal += servicePrice * (dateConfig.guestCount || 1);
+          } else {
+            const quantity = dateConfig.itemQuantities?.[serviceId] || 1;
+            dateTotal += servicePrice * quantity;
+          }
+        }
+      });
+      
+      return total + dateTotal;
+    }, 0);
+
+    // Calculate fees
+    let feesTotal = 0;
+    (taxSettings as any[])?.forEach((fee: any) => {
+      if ((fee.type === 'fee' || fee.type === 'service_charge') && 
+          fee.isActive && 
+          taxFeeOverrides.enabledFeeIds.includes(fee.id)) {
+        
+        if (fee.calculation === 'percentage') {
+          feesTotal += subtotal * (parseFloat(fee.value) / 100);
+        } else {
+          feesTotal += parseFloat(fee.value);
+        }
+      }
+    });
+
+    // Calculate taxes on subtotal + taxable fees
+    const taxableFees = (taxSettings as any[])
+      ?.filter((fee: any) => 
+        (fee.type === 'fee' || fee.type === 'service_charge') && 
+        fee.isActive && 
+        fee.isTaxable &&
+        taxFeeOverrides.enabledFeeIds.includes(fee.id))
+      .reduce((sum, fee) => {
+        const feeAmount = fee.calculation === 'percentage' 
+          ? subtotal * (parseFloat(fee.value) / 100)
+          : parseFloat(fee.value);
+        return sum + feeAmount;
+      }, 0) || 0;
+
+    const taxableBase = subtotal + taxableFees;
     
-    const currentConfig = {
+    let taxesTotal = 0;
+    (taxSettings as any[])?.forEach((tax: any) => {
+      if (tax.type === 'tax' && 
+          tax.isActive && 
+          taxFeeOverrides.enabledTaxIds.includes(tax.id)) {
+        
+        taxesTotal += taxableBase * (parseFloat(tax.value) / 100);
+      }
+    });
+
+    return subtotal + feesTotal + taxesTotal;
+  }, [selectedDates, packages, services, taxSettings, taxFeeOverrides]);
+
+  // Create customer mutation
+  const createCustomer = useMutation({
+    mutationFn: async (customerData: any) => {
+      const response = await apiRequest("POST", "/api/customers", customerData);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      setSelectedCustomer(data.id);
+      setShowNewCustomerForm(false);
+      setNewCustomer({ name: "", email: "", phone: "", company: "" });
+      toast({ title: "Customer created successfully!" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to create customer", description: error.message, variant: "destructive" });
+    }
+  });
+
+  // Create service mutation
+  const createService = useMutation({
+    mutationFn: async (serviceData: any) => {
+      const response = await apiRequest("POST", "/api/services", serviceData);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+      // Auto-select the new service if on the services configuration step
+      if (activeDate) {
+        updateDateConfig('selectedServices', [...(activeDate.selectedServices || []), data.id]);
+      }
+      setShowNewServiceForm(false);
+      setNewService({ name: "", description: "", category: "addon", price: "", pricingModel: "fixed" });
+      toast({ title: "Service created successfully!" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to create service", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const updateBooking = useMutation({
+    mutationFn: async (bookingData: any) => {
+      const response = await apiRequest("PATCH", `/api/bookings/${booking.id}`, bookingData);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/calendar/events"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/metrics"] });
+      toast({ title: "Event updated successfully!" });
+      onOpenChange(false);
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to update event", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const deleteBooking = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("DELETE", `/api/bookings/${booking.id}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/calendar/events"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/metrics"] });
+      toast({ title: "Event deleted successfully!" });
+      onOpenChange(false);
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to delete event", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 3));
+  const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
+
+  // Handle new service creation
+  const handleCreateNewService = () => {
+    if (!newService.name.trim() || !newService.price.trim()) {
+      toast({ title: "Please fill in all required fields", variant: "destructive" });
+      return;
+    }
+
+    createService.mutate({
+      ...newService,
+      price: parseFloat(newService.price)
+    });
+  };
+
+  // Copy configuration to other dates
+  const copyConfigToOtherDates = () => {
+    if (!activeDate) return;
+    
+    const configToCopy = {
+      packageId: activeDate.packageId,
+      selectedServices: activeDate.selectedServices,
+      itemQuantities: activeDate.itemQuantities,
+      pricingOverrides: activeDate.pricingOverrides
+    };
+    
+    setSelectedDates(prev => prev.map(date => 
+      date === activeDate ? date : { ...date, ...configToCopy }
+    ));
+    
+    setShowCopyModal(false);
+    toast({ title: "Configuration copied successfully!" });
+  };
+
+  const handleDateClick = (day: Date) => {
+    if (!isSameMonth(day, currentDate)) return;
+    
+    const existingIndex = selectedDates.findIndex(d => isSameDay(d.date, day));
+    if (existingIndex >= 0) {
+      setSelectedDates(prev => prev.filter((_, i) => i !== existingIndex));
+      if (activeTabIndex >= selectedDates.length - 1) {
+        setActiveTabIndex(Math.max(0, selectedDates.length - 2));
+      }
+    } else {
+      setSelectedDates(prev => [...prev, {
+        date: day,
+        startTime: "09:00 AM",
+        endTime: "05:00 PM",
+        spaceId: selectedVenueData?.spaces?.[0]?.id || "",
+        guestCount: 1,
+        packageId: "",
+        selectedServices: [],
+        itemQuantities: {},
+        pricingOverrides: {}
+      }]);
+    }
+  };
+
+  const updateDateSlot = (index: number, field: keyof SelectedDate, value: any) => {
+    setSelectedDates(prev => prev.map((slot, i) => 
+      i === index ? { ...slot, [field]: value } : slot
+    ));
+  };
+
+  const handleSubmit = () => {
+    if (!eventName.trim() || !selectedCustomer || selectedDates.length === 0) {
+      toast({
+        title: "Required fields missing",
+        description: "Please fill in event name, customer, and select at least one date",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // For multi-date events, we'll submit the primary date
+    const primaryDate = selectedDates[0];
+    const bookingData = {
+      eventName,
+      eventType: selectedPackageData?.name || "Custom Event",
+      eventDate: primaryDate.date,
+      startTime: primaryDate.startTime,
+      endTime: primaryDate.endTime,
+      guestCount: primaryDate.guestCount || 1,
+      venueId: selectedVenue,
+      spaceId: primaryDate.spaceId,
+      packageId: primaryDate.packageId || null,
+      selectedServices: primaryDate.selectedServices || [],
+      customerId: selectedCustomer,
+      status: eventStatus,
+      totalAmount: totalPrice.toString(),
+      depositAmount: (totalPrice * 0.3).toString(),
+      depositPaid: false,
+      notes: "",
+      itemQuantities: primaryDate.itemQuantities || {},
+      pricingOverrides: primaryDate.pricingOverrides || {},
+      taxFeeOverrides: taxFeeOverrides.enabledTaxIds.length > 0 || taxFeeOverrides.enabledFeeIds.length > 0 
+        ? taxFeeOverrides 
+        : null
+    };
+
+    updateBooking.mutate(bookingData);
+  };
+
+  const handleDelete = () => {
+    if (confirm("Are you sure you want to delete this event? This action cannot be undone.")) {
+      deleteBooking.mutate();
+    }
+  };
+
+  const resetForm = () => {
+    setCurrentStep(1);
+    setSelectedDates([]);
+    setSelectedVenue("");
+    setEventName("");
+    setSelectedCustomer("");
+    setEventStatus("inquiry");
+    setShowNewCustomerForm(false);
+    setNewCustomer({ name: "", email: "", phone: "", company: "" });
+  };
+
+  const handleCreateCustomer = () => {
+    if (!newCustomer.name || !newCustomer.email) {
+      toast({
+        title: "Required fields missing",
+        description: "Please provide customer name and email",
+        variant: "destructive"
+      });
+      return;
+    }
+    createCustomer.mutate(newCustomer);
+  };
+
+  const handleCreateService = () => {
+    if (!newService.name || !newService.price) {
+      toast({
+        title: "Required fields missing",
+        description: "Please provide service name and price",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const serviceData = {
+      ...newService,
+      price: parseFloat(newService.price)
+    };
+    
+    createService.mutate(serviceData);
+  };
+
+  // Copy configuration functionality
+  const handleCopyConfig = (targetDateIndices: number[]) => {
+    if (!activeDate) return;
+    
+    const configToCopy = {
       // Copy all configuration fields except date, startTime, endTime which are unique per date
       spaceId: activeDate.spaceId,
       packageId: activeDate.packageId,
@@ -340,911 +523,2033 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
       pricingOverrides: activeDate.pricingOverrides ? {
         packagePrice: activeDate.pricingOverrides.packagePrice,
         servicePrices: activeDate.pricingOverrides.servicePrices ? { ...activeDate.pricingOverrides.servicePrices } : {}
-      } : {},
-      serviceTaxOverrides: activeDate.serviceTaxOverrides ? { ...activeDate.serviceTaxOverrides } : {}
+      } : {}
     };
-
-    setSelectedDates(prev => 
-      prev.map((date, index) => 
-        selectedIndices.includes(index) ? { ...date, ...currentConfig } : date
-      )
-    );
+    
+    setSelectedDates(prev => prev.map((date, index) => 
+      targetDateIndices.includes(index) 
+        ? { ...date, ...configToCopy }
+        : date
+    ));
     
     setShowCopyModal(false);
-    setSelectedCopyIndices([]);
-    
-    toast({
-      title: "Configuration Applied",
-      description: `Settings copied to ${selectedIndices.length} date(s)`,
-    });
-  };
-
-  // Mutations
-  const updateBookingMutation = useMutation({
-    mutationFn: async (data: any) => {
-      return apiRequest(`/api/bookings/${booking.id}`, {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
-      toast({
-        title: "Success",
-        description: "Event updated successfully",
-      });
-      onOpenChange(false);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update event",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const deleteBookingMutation = useMutation({
-    mutationFn: async () => {
-      return apiRequest(`/api/bookings/${booking.id}`, {
-        method: "DELETE",
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
-      toast({
-        title: "Success",
-        description: "Event deleted successfully",
-      });
-      onOpenChange(false);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete event",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleSave = () => {
-    if (selectedDates.length === 0) {
-      toast({
-        title: "Error",
-        description: "Please configure at least one date for the event",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!eventName.trim()) {
-      toast({
-        title: "Error", 
-        description: "Please enter an event name",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!selectedCustomer && !showNewCustomerForm) {
-      toast({
-        title: "Error",
-        description: "Please select a customer",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const dateConfigs = selectedDates.map(date => ({
-      date: date.date.toISOString(),
-      startTime: date.startTime,
-      endTime: date.endTime,
-      spaceId: date.spaceId,
-      packageId: date.packageId,
-      selectedServices: date.selectedServices || [],
-      guestCount: date.guestCount || 1,
-      setupStyle: date.setupStyle || "banquet",
-      itemQuantities: date.itemQuantities || {},
-      pricingOverrides: date.pricingOverrides || {},
-      serviceTaxOverrides: date.serviceTaxOverrides || {}
-    }));
-
-    updateBookingMutation.mutate({
-      eventName,
-      customerId: selectedCustomer,
-      venueId: selectedVenue,
-      eventType,
-      notes: eventNotes,
-      dateConfigs: JSON.stringify(dateConfigs),
-      status: "confirmed"
-    });
-  };
-
-  const handleDelete = () => {
-    if (confirm("Are you sure you want to delete this event? This action cannot be undone.")) {
-      deleteBookingMutation.mutate();
-    }
+    toast({ title: "Configuration copied successfully!" });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden">
-        <div className="flex flex-col h-full">
-          {/* Header with navigation */}
-          <div className="flex items-center justify-between p-4 sm:p-6 border-b">
-            <div>
-              <DialogTitle className="text-xl sm:text-2xl font-bold text-slate-900">
-                Edit Event
-              </DialogTitle>
-              <DialogDescription className="text-slate-600 mt-1">
-                {eventName || "Update event details and configuration"}
-              </DialogDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span className="text-sm font-medium text-blue-700">
-                  Total: ${totalPrice.toFixed(2)}
-                </span>
-              </div>
-            </div>
-          </div>
+      <DialogContent className="w-full max-w-[95vw] sm:max-w-6xl max-h-[90vh] p-0 flex flex-col mx-2 sm:mx-4 overflow-hidden">
+        <DialogTitle className="sr-only">Edit Event</DialogTitle>
+        <DialogDescription className="sr-only">
+          Edit event booking with date selection, venue configuration, and customer details.
+        </DialogDescription>
 
-          {/* Step Content */}
-          <div className="flex-1 overflow-hidden">
-            <div className="h-full p-3 sm:p-6 overflow-y-auto">
-              {/* Event Configuration */}
+        <div className="flex h-full overflow-hidden">
+          {/* Sidebar - Steps */}
+          {currentStep > 1 && (
+            <div className="hidden lg:block w-80 bg-slate-50 border-r border-slate-200 p-6 overflow-y-auto flex-shrink-0">
               <div className="space-y-6">
-                {/* Basic Event Details */}
-                <Card className="p-4">
-                  <h3 className="text-lg font-semibold mb-4">Event Details</h3>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-base font-medium flex items-center gap-2">
-                        Event Name
-                        <span className="text-red-500 text-sm">*</span>
-                      </Label>
-                      <Input
-                        value={eventName}
-                        onChange={(e) => setEventName(e.target.value)}
-                        placeholder="e.g., 'Annual Conference 2025'"
-                        className={cn("mt-2", !eventName.trim() && "border-red-200 bg-red-50/30")}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-base font-medium">Event Type</Label>
-                      <Select value={eventType} onValueChange={setEventType}>
-                        <SelectTrigger className="mt-2">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="corporate">Corporate</SelectItem>
-                          <SelectItem value="wedding">Wedding</SelectItem>
-                          <SelectItem value="social">Social</SelectItem>
-                          <SelectItem value="nonprofit">Nonprofit</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-base font-medium">Venue</Label>
-                      <Select value={selectedVenue} onValueChange={setSelectedVenue}>
-                        <SelectTrigger className="mt-2">
-                          <SelectValue placeholder="Choose a venue" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {venues.map((venue: any) => (
-                            <SelectItem key={venue.id} value={venue.id}>
-                              {venue.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-base font-medium">Customer</Label>
-                      <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-                        <SelectTrigger className="mt-2">
-                          <SelectValue placeholder="Choose a customer" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {customers.map((customer: any) => (
-                            <SelectItem key={customer.id} value={customer.id}>
-                              {customer.name} - {customer.email}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </Card>
-
-                {/* Date Configuration */}
-                {selectedDates.length > 0 && (
-                  <div className="space-y-6">
-                    {/* Date Tabs */}
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold">Date Configuration ({selectedDates.length})</h3>
-                    </div>
-                    
-                    <div className="flex space-x-1 bg-slate-100 p-1 rounded-lg">
-                      {selectedDates.map((date, index) => (
-                        <button
-                          key={index}
-                          onClick={() => setActiveTabIndex(index)}
-                          className={cn(
-                            "px-3 py-2 rounded text-sm font-medium transition-colors",
-                            activeTabIndex === index
-                              ? "bg-white shadow-sm text-slate-900"
-                              : "text-slate-600 hover:text-slate-900"
-                          )}
-                        >
-                          {format(date.date, "MMM d")}
-                        </button>
+                <div>
+                  <h3 className="font-medium text-slate-900 mb-3">Selected Date & Venue</h3>
+                  {selectedDates.length > 0 ? (
+                    <div className="space-y-2">
+                      {selectedDates.map((slot, index) => (
+                        <Card key={index} className="p-3 bg-white">
+                          <div className="text-sm font-medium">{format(slot.date, 'MMM d, yyyy')}</div>
+                          <div className="text-xs text-slate-600">
+                            {slot.startTime} - {slot.endTime}
+                          </div>
+                          <div className="text-xs text-slate-600">
+                            {selectedVenueData?.name}
+                          </div>
+                        </Card>
                       ))}
                     </div>
+                  ) : (
+                    <div className="text-sm text-slate-500">No dates selected</div>
+                  )}
+                </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {/* Left Column: Configuration */}
-                      <div className="space-y-6">
-                        {/* Date Configuration */}
-                        <Card className="p-4">
-                          <h4 className="font-medium mb-4 flex items-center gap-2">
-                            <CalendarIcon className="w-4 h-4" />
-                            {format(activeDate.date, "EEEE, MMMM d, yyyy")}
-                          </h4>
-                          
-                          <div className="space-y-4">
-                            {/* Time and Space */}
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <Label className="text-sm font-medium">Start Time</Label>
-                                <Input
-                                  value={activeDate.startTime}
-                                  onChange={(e) => updateDateConfig('startTime', e.target.value)}
-                                  className="mt-1"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-sm font-medium">End Time</Label>
-                                <Input
-                                  value={activeDate.endTime}
-                                  onChange={(e) => updateDateConfig('endTime', e.target.value)}
-                                  className="mt-1"
-                                />
-                              </div>
-                            </div>
+                {currentStep >= 2 && (
+                  <div>
+                    <h3 className="font-medium text-slate-900 mb-3">Configuration</h3>
+                    <div className="space-y-2 text-sm">
+                      {activeDate && (
+                        <>
+                          <div>Guest Count: <span className="font-medium">{activeDate.guestCount}</span></div>
+                          {selectedPackageData && (
+                            <div>Package: <span className="font-medium">{selectedPackageData.name}</span></div>
+                          )}
+                          {activeDate.selectedServices && activeDate.selectedServices.length > 0 && (
+                            <div>Services: <span className="font-medium">{activeDate.selectedServices.length} selected</span></div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
 
-                            <div>
-                              <Label className="text-sm font-medium">Guest Count</Label>
-                              <Input
-                                type="number"
-                                min="1"
-                                value={activeDate.guestCount || ""}
-                                onChange={(e) => updateDateConfig('guestCount', parseInt(e.target.value) || 1)}
-                                className="mt-1"
-                              />
-                            </div>
-
-                            {/* Space Selection */}
-                            {selectedVenueData?.spaces && (
-                              <div>
-                                <Label className="text-sm font-medium">Space</Label>
-                                <Select value={activeDate.spaceId || ""} onValueChange={(value) => updateDateConfig('spaceId', value)}>
-                                  <SelectTrigger className="mt-1">
-                                    <SelectValue placeholder="Choose a space" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {selectedVenueData.spaces.map((space: any) => (
-                                      <SelectItem key={space.id} value={space.id}>
-                                        {space.name} (Capacity: {space.capacity})
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            )}
-                          </div>
-                        </Card>
-
-                        {/* Package Selection */}
-                        <Card className="p-4">
-                          <h4 className="font-medium mb-4">Package Selection</h4>
-                          
-                          <div className="space-y-3">
-                            {packages.map((pkg: any) => {
-                              const isSelected = activeDate.packageId === pkg.id;
-                              const overridePrice = activeDate.pricingOverrides?.packagePrice;
-                              const displayPrice = overridePrice ?? parseFloat(pkg.price || 0);
-                              const totalPrice = pkg.pricingModel === 'per_person' 
-                                ? displayPrice * (activeDate.guestCount || 1)
-                                : displayPrice;
-
-                              return (
-                                <label
-                                  key={pkg.id}
-                                  className={cn(
-                                    "flex flex-col p-4 border rounded-lg cursor-pointer transition-all hover:border-blue-300",
-                                    isSelected ? "border-blue-500 bg-blue-50" : "border-slate-200"
-                                  )}
-                                >
-                                  <div className="flex items-start justify-between">
-                                    <div className="flex items-start gap-3 flex-1">
-                                      <Checkbox
-                                        checked={isSelected}
-                                        onCheckedChange={(checked) => {
-                                          updateDateConfig('packageId', checked ? pkg.id : "");
-                                        }}
-                                        className="mt-1"
-                                      />
-                                      <div className="flex-1">
-                                        <div className="font-medium">{pkg.name}</div>
-                                        <div className="text-xs text-slate-600 mt-1">{pkg.description}</div>
-                                        
-                                        {/* Included Services */}
-                                        {pkg.includedServiceIds && pkg.includedServiceIds.length > 0 && (
-                                          <div className="mt-2">
-                                            <div className="text-xs text-slate-500 mb-1">Includes:</div>
-                                            <div className="space-y-1">
-                                              {pkg.includedServiceIds.map((serviceId: string) => {
-                                                const service = (services as any[]).find((s: any) => s.id === serviceId);
-                                                if (!service) return null;
-                                                
-                                                return (
-                                                  <div key={serviceId} className="flex items-center justify-between">
-                                                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
-                                                      {service.name}
-                                                    </span>
-                                                    {isSelected && service.pricingModel !== 'per_person' && (
-                                                      <div className="flex items-center gap-1">
-                                                        <span className="text-xs">Qty:</span>
-                                                        <Input
-                                                          type="number"
-                                                          min="1"
-                                                          value={activeDate.itemQuantities?.[serviceId] || 1}
-                                                          onChange={(e) => {
-                                                            e.stopPropagation();
-                                                            const newQuantities = {
-                                                              ...activeDate.itemQuantities,
-                                                              [serviceId]: Math.max(1, parseInt(e.target.value, 10) || 1)
-                                                            };
-                                                            updateDateConfig('itemQuantities', newQuantities);
-                                                          }}
-                                                          onClick={(e) => e.stopPropagation()}
-                                                          className="w-12 h-5 text-xs"
-                                                        />
-                                                      </div>
-                                                    )}
-                                                  </div>
-                                                );
-                                              })}
-                                            </div>
-                                          </div>
-                                        )}
-                                        
-                                        <div className="flex items-center justify-between mt-2">
-                                          <div className="text-sm font-semibold text-green-600">
-                                            ${pkg.pricingModel === 'per_person' 
-                                              ? `${displayPrice.toFixed(2)} per person` 
-                                              : displayPrice.toFixed(2)}
-                                          </div>
-                                          
-                                          {isSelected && (
-                                            <div className="flex items-center gap-1">
-                                              <span className="text-xs">$</span>
-                                              <Input
-                                                type="number"
-                                                step="0.01"
-                                                value={overridePrice ?? ''}
-                                                onChange={(e) => {
-                                                  e.stopPropagation();
-                                                  const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
-                                                  updateDateConfig('pricingOverrides', {
-                                                    ...activeDate.pricingOverrides,
-                                                    packagePrice: value
-                                                  });
-                                                }}
-                                                onClick={(e) => e.stopPropagation()}
-                                                className="w-20 h-6 text-xs"
-                                                placeholder={pkg.price}
-                                              />
-                                            </div>
-                                          )}
-                                        </div>
-                                        
-                                        {pkg.pricingModel === 'per_person' && (
-                                          <div className="text-xs text-slate-500 mt-1">
-                                            Total: ${totalPrice.toFixed(2)} for {activeDate.guestCount || 1} guests
-                                          </div>
-                                        )}
-
-                                        {/* Package Taxes & Fees Configuration */}
-                                        {isSelected && (
-                                          <div className="mt-3 pt-3 border-t border-slate-200 space-y-2">
-                                            <div className="text-xs font-medium text-slate-700">Taxes & Fees for this Package</div>
-                                            
-                                            {/* Additional taxes/fees for package */}
-                                            {taxSettings.filter((item: any) => item.type === 'tax' && item.isActive).length > 0 && (
-                                              <div>
-                                                <div className="text-xs text-slate-600 mb-1">Additional Taxes:</div>
-                                                <div className="flex flex-wrap gap-1">
-                                                  {taxSettings
-                                                    .filter((item: any) => item.type === 'tax' && item.isActive)
-                                                    .map((tax: any) => {
-                                                      const isInherited = (pkg.enabledTaxIds || []).includes(tax.id);
-                                                      const isOverridden = (activeDate.serviceTaxOverrides?.[pkg.id]?.enabledTaxIds || []).includes(tax.id);
-                                                      const isDisabled = (activeDate.serviceTaxOverrides?.[pkg.id]?.disabledInheritedTaxIds || []).includes(tax.id);
-                                                      const isActive = (isInherited && !isDisabled) || isOverridden;
-                                                      
-                                                      return (
-                                                        <label key={tax.id} className="flex items-center gap-1 text-xs cursor-pointer">
-                                                          <Checkbox
-                                                            checked={isActive}
-                                                            onCheckedChange={(checked) => {
-                                                              const currentOverrides = activeDate.serviceTaxOverrides?.[pkg.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
-                                                              
-                                                              if (isInherited) {
-                                                                // Toggle inherited tax on/off
-                                                                const newDisabledTaxIds = checked
-                                                                  ? currentOverrides.disabledInheritedTaxIds?.filter(id => id !== tax.id) || []
-                                                                  : [...(currentOverrides.disabledInheritedTaxIds || []), tax.id];
-                                                                
-                                                                updateDateConfig('serviceTaxOverrides', {
-                                                                  ...activeDate.serviceTaxOverrides,
-                                                                  [pkg.id]: {
-                                                                    ...currentOverrides,
-                                                                    disabledInheritedTaxIds: newDisabledTaxIds
-                                                                  }
-                                                                });
-                                                              } else {
-                                                                // Toggle additional tax on/off
-                                                                const newTaxIds = checked
-                                                                  ? [...currentOverrides.enabledTaxIds, tax.id]
-                                                                  : currentOverrides.enabledTaxIds.filter(id => id !== tax.id);
-                                                                
-                                                                updateDateConfig('serviceTaxOverrides', {
-                                                                  ...activeDate.serviceTaxOverrides,
-                                                                  [pkg.id]: {
-                                                                    ...currentOverrides,
-                                                                    enabledTaxIds: newTaxIds
-                                                                  }
-                                                                });
-                                                              }
-                                                            }}
-                                                            className="w-3 h-3"
-                                                          />
-                                                          <span className={isInherited ? "text-blue-600" : "text-slate-700"}>
-                                                            {tax.name} ({tax.value}%)
-                                                            {isInherited && " ✓"}
-                                                          </span>
-                                                        </label>
-                                                      );
-                                                    })}
-                                                </div>
-                                              </div>
-                                            )}
-
-                                            {taxSettings.filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive).length > 0 && (
-                                              <div>
-                                                <div className="text-xs text-slate-600 mb-1">Additional Fees:</div>
-                                                <div className="flex flex-wrap gap-1">
-                                                  {taxSettings
-                                                    .filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive)
-                                                    .map((fee: any) => {
-                                                      const isInherited = (pkg.enabledFeeIds || []).includes(fee.id);
-                                                      const isOverridden = (activeDate.serviceTaxOverrides?.[pkg.id]?.enabledFeeIds || []).includes(fee.id);
-                                                      const isDisabled = (activeDate.serviceTaxOverrides?.[pkg.id]?.disabledInheritedFeeIds || []).includes(fee.id);
-                                                      const isActive = (isInherited && !isDisabled) || isOverridden;
-                                                      
-                                                      return (
-                                                        <label key={fee.id} className="flex items-center gap-1 text-xs cursor-pointer">
-                                                          <Checkbox
-                                                            checked={isActive}
-                                                            onCheckedChange={(checked) => {
-                                                              const currentOverrides = activeDate.serviceTaxOverrides?.[pkg.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
-                                                              
-                                                              if (isInherited) {
-                                                                // Toggle inherited fee on/off
-                                                                const newDisabledFeeIds = checked
-                                                                  ? currentOverrides.disabledInheritedFeeIds?.filter(id => id !== fee.id) || []
-                                                                  : [...(currentOverrides.disabledInheritedFeeIds || []), fee.id];
-                                                                
-                                                                updateDateConfig('serviceTaxOverrides', {
-                                                                  ...activeDate.serviceTaxOverrides,
-                                                                  [pkg.id]: {
-                                                                    ...currentOverrides,
-                                                                    disabledInheritedFeeIds: newDisabledFeeIds
-                                                                  }
-                                                                });
-                                                              } else {
-                                                                // Toggle additional fee on/off
-                                                                const newFeeIds = checked
-                                                                  ? [...currentOverrides.enabledFeeIds, fee.id]
-                                                                  : currentOverrides.enabledFeeIds.filter(id => id !== fee.id);
-                                                                
-                                                                updateDateConfig('serviceTaxOverrides', {
-                                                                  ...activeDate.serviceTaxOverrides,
-                                                                  [pkg.id]: {
-                                                                    ...currentOverrides,
-                                                                    enabledFeeIds: newFeeIds
-                                                                  }
-                                                                });
-                                                              }
-                                                            }}
-                                                            className="w-3 h-3"
-                                                          />
-                                                          <span className={isInherited ? "text-blue-600" : "text-slate-700"}>
-                                                            {fee.name} (${fee.value})
-                                                            {isInherited && " ✓"}
-                                                          </span>
-                                                        </label>
-                                                      );
-                                                    })}
-                                                </div>
-                                              </div>
-                                            )}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </Card>
-
-                        {/* Additional Services */}
-                        <Card className="p-4">
-                          <h4 className="font-medium mb-4">Additional Services</h4>
-                          
-                          <div className="space-y-3">
-                            {services.map((service: any) => {
-                              const isSelected = activeDate.selectedServices?.includes(service.id);
-                              const overridePrice = activeDate.pricingOverrides?.servicePrices?.[service.id];
-                              const displayPrice = overridePrice ?? parseFloat(service.price || 0);
-                              const totalPrice = service.pricingModel === 'per_person' 
-                                ? displayPrice * (activeDate.guestCount || 1)
-                                : displayPrice * (activeDate.itemQuantities?.[service.id] || 1);
-
-                              return (
-                                <label
-                                  key={service.id}
-                                  className={cn(
-                                    "flex flex-col p-4 border rounded-lg cursor-pointer transition-all hover:border-blue-300",
-                                    isSelected ? "border-blue-500 bg-blue-50" : "border-slate-200"
-                                  )}
-                                >
-                                  <div className="flex items-start justify-between">
-                                    <div className="flex items-start gap-3 flex-1">
-                                      <Checkbox
-                                        checked={isSelected}
-                                        onCheckedChange={(checked) => {
-                                          if (checked) {
-                                            updateDateConfig('selectedServices', [...(activeDate.selectedServices || []), service.id]);
-                                          } else {
-                                            updateDateConfig('selectedServices', (activeDate.selectedServices || []).filter(id => id !== service.id));
-                                          }
-                                        }}
-                                        className="mt-1"
-                                      />
-                                      <div className="flex-1">
-                                        <div className="font-medium">{service.name}</div>
-                                        <div className="text-xs text-slate-600 mt-1">{service.description}</div>
-                                        
-                                        <div className="flex items-center justify-between mt-2">
-                                          <div className="text-sm font-semibold text-green-600">
-                                            ${service.pricingModel === 'per_person' 
-                                              ? `${displayPrice.toFixed(2)} per person` 
-                                              : displayPrice.toFixed(2)}
-                                          </div>
-                                          
-                                          <div className="flex items-center gap-2">
-                                            {isSelected && service.pricingModel !== 'per_person' && (
-                                              <div className="flex items-center gap-1">
-                                                <span className="text-xs">Qty:</span>
-                                                <Input
-                                                  type="number"
-                                                  min="1"
-                                                  value={activeDate.itemQuantities?.[service.id] || 1}
-                                                  onChange={(e) => {
-                                                    e.stopPropagation();
-                                                    const newQuantities = {
-                                                      ...activeDate.itemQuantities,
-                                                      [service.id]: Math.max(1, parseInt(e.target.value, 10) || 1)
-                                                    };
-                                                    updateDateConfig('itemQuantities', newQuantities);
-                                                  }}
-                                                  onClick={(e) => e.stopPropagation()}
-                                                  className="w-12 h-5 text-xs"
-                                                />
-                                              </div>
-                                            )}
-                                            
-                                            {isSelected && (
-                                              <div className="flex items-center gap-1">
-                                                <span className="text-xs">$</span>
-                                                <Input
-                                                  type="number"
-                                                  step="0.01"
-                                                  value={overridePrice ?? ''}
-                                                  onChange={(e) => {
-                                                    e.stopPropagation();
-                                                    const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
-                                                    updateDateConfig('pricingOverrides', {
-                                                      ...activeDate.pricingOverrides,
-                                                      servicePrices: {
-                                                        ...activeDate.pricingOverrides?.servicePrices,
-                                                        [service.id]: value
-                                                      }
-                                                    });
-                                                  }}
-                                                  onClick={(e) => e.stopPropagation()}
-                                                  className="w-20 h-6 text-xs"
-                                                  placeholder={service.price}
-                                                />
-                                              </div>
-                                            )}
-                                          </div>
-                                        </div>
-                                        
-                                        {service.pricingModel === 'per_person' && (
-                                          <div className="text-xs text-slate-500 mt-1">
-                                            Total: ${totalPrice.toFixed(2)} for {activeDate.guestCount || 1} guests
-                                          </div>
-                                        )}
-
-                                        {/* Service Taxes & Fees Configuration */}
-                                        {isSelected && (
-                                          <div className="mt-3 pt-3 border-t border-slate-200 space-y-2">
-                                            <div className="text-xs font-medium text-slate-700">Taxes & Fees for this Service</div>
-                                            
-                                            {/* Additional taxes for service */}
-                                            {taxSettings.filter((item: any) => item.type === 'tax' && item.isActive).length > 0 && (
-                                              <div>
-                                                <div className="text-xs text-slate-600 mb-1">Additional Taxes:</div>
-                                                <div className="flex flex-wrap gap-1">
-                                                  {taxSettings
-                                                    .filter((item: any) => item.type === 'tax' && item.isActive)
-                                                    .map((tax: any) => {
-                                                      const isInherited = (service.enabledTaxIds || []).includes(tax.id);
-                                                      const isOverridden = (activeDate.serviceTaxOverrides?.[service.id]?.enabledTaxIds || []).includes(tax.id);
-                                                      const isDisabled = (activeDate.serviceTaxOverrides?.[service.id]?.disabledInheritedTaxIds || []).includes(tax.id);
-                                                      const isActive = (isInherited && !isDisabled) || isOverridden;
-                                                      
-                                                      return (
-                                                        <label key={tax.id} className="flex items-center gap-1 text-xs cursor-pointer">
-                                                          <Checkbox
-                                                            checked={isActive}
-                                                            onCheckedChange={(checked) => {
-                                                              const currentOverrides = activeDate.serviceTaxOverrides?.[service.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
-                                                              
-                                                              if (isInherited) {
-                                                                // Toggle inherited tax on/off
-                                                                const newDisabledTaxIds = checked
-                                                                  ? currentOverrides.disabledInheritedTaxIds?.filter(id => id !== tax.id) || []
-                                                                  : [...(currentOverrides.disabledInheritedTaxIds || []), tax.id];
-                                                                
-                                                                updateDateConfig('serviceTaxOverrides', {
-                                                                  ...activeDate.serviceTaxOverrides,
-                                                                  [service.id]: {
-                                                                    ...currentOverrides,
-                                                                    disabledInheritedTaxIds: newDisabledTaxIds
-                                                                  }
-                                                                });
-                                                              } else {
-                                                                // Toggle additional tax on/off
-                                                                const newTaxIds = checked
-                                                                  ? [...currentOverrides.enabledTaxIds, tax.id]
-                                                                  : currentOverrides.enabledTaxIds.filter(id => id !== tax.id);
-                                                                
-                                                                updateDateConfig('serviceTaxOverrides', {
-                                                                  ...activeDate.serviceTaxOverrides,
-                                                                  [service.id]: {
-                                                                    ...currentOverrides,
-                                                                    enabledTaxIds: newTaxIds
-                                                                  }
-                                                                });
-                                                              }
-                                                            }}
-                                                            className="w-3 h-3"
-                                                          />
-                                                          <span className={isInherited ? "text-blue-600" : "text-slate-700"}>
-                                                            {tax.name} ({tax.value}%)
-                                                            {isInherited && " ✓"}
-                                                          </span>
-                                                        </label>
-                                                      );
-                                                    })}
-                                                </div>
-                                              </div>
-                                            )}
-
-                                            {/* Additional fees for service */}
-                                            {taxSettings.filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive).length > 0 && (
-                                              <div>
-                                                <div className="text-xs text-slate-600 mb-1">Additional Fees:</div>
-                                                <div className="flex flex-wrap gap-1">
-                                                  {taxSettings
-                                                    .filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive)
-                                                    .map((fee: any) => {
-                                                      const isInherited = (service.enabledFeeIds || []).includes(fee.id);
-                                                      const isOverridden = (activeDate.serviceTaxOverrides?.[service.id]?.enabledFeeIds || []).includes(fee.id);
-                                                      const isDisabled = (activeDate.serviceTaxOverrides?.[service.id]?.disabledInheritedFeeIds || []).includes(fee.id);
-                                                      const isActive = (isInherited && !isDisabled) || isOverridden;
-                                                      
-                                                      return (
-                                                        <label key={fee.id} className="flex items-center gap-1 text-xs cursor-pointer">
-                                                          <Checkbox
-                                                            checked={isActive}
-                                                            onCheckedChange={(checked) => {
-                                                              const currentOverrides = activeDate.serviceTaxOverrides?.[service.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
-                                                              
-                                                              if (isInherited) {
-                                                                // Toggle inherited fee on/off
-                                                                const newDisabledFeeIds = checked
-                                                                  ? currentOverrides.disabledInheritedFeeIds?.filter(id => id !== fee.id) || []
-                                                                  : [...(currentOverrides.disabledInheritedFeeIds || []), fee.id];
-                                                                
-                                                                updateDateConfig('serviceTaxOverrides', {
-                                                                  ...activeDate.serviceTaxOverrides,
-                                                                  [service.id]: {
-                                                                    ...currentOverrides,
-                                                                    disabledInheritedFeeIds: newDisabledFeeIds
-                                                                  }
-                                                                });
-                                                              } else {
-                                                                // Toggle additional fee on/off
-                                                                const newFeeIds = checked
-                                                                  ? [...currentOverrides.enabledFeeIds, fee.id]
-                                                                  : currentOverrides.enabledFeeIds.filter(id => id !== fee.id);
-                                                                
-                                                                updateDateConfig('serviceTaxOverrides', {
-                                                                  ...activeDate.serviceTaxOverrides,
-                                                                  [service.id]: {
-                                                                    ...currentOverrides,
-                                                                    enabledFeeIds: newFeeIds
-                                                                  }
-                                                                });
-                                                              }
-                                                            }}
-                                                            className="w-3 h-3"
-                                                          />
-                                                          <span className={isInherited ? "text-blue-600" : "text-slate-700"}>
-                                                            {fee.name} (${fee.value})
-                                                            {isInherited && " ✓"}
-                                                          </span>
-                                                        </label>
-                                                      );
-                                                    })}
-                                                </div>
-                                              </div>
-                                            )}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </Card>
-                      </div>
-
-                      {/* Right Column: Actions & Summary */}
-                      <div className="space-y-6">
-                        {/* Copy Config for Multi-Date Events */}
-                        {selectedDates.length > 1 && (
-                          <Card className="p-4 border-blue-200 bg-blue-50">
-                            <h5 className="font-medium mb-2">Apply Settings</h5>
-                            <p className="text-sm text-slate-600 mb-3">
-                              Apply this date's settings to other dates
-                            </p>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setShowCopyModal(true)}
-                              className="w-full"
-                            >
-                              Apply to Other Dates
-                            </Button>
-                          </Card>
-                        )}
-
-                        {/* Price Summary */}
-                        <Card className="p-4">
-                          <h5 className="font-medium mb-3">Date Total</h5>
-                          <div className="text-2xl font-bold text-green-600">
-                            ${calculateDateTotal(activeDate).toFixed(2)}
-                          </div>
-                          <div className="text-sm text-slate-600 mt-1">
-                            For {format(activeDate.date, "MMM d")}
-                          </div>
-                        </Card>
-                      </div>
+                {currentStep >= 3 && (
+                  <div>
+                    <h3 className="font-medium text-slate-900 mb-3">Event Details</h3>
+                    <div className="space-y-2 text-sm">
+                      <div>Event: <span className="font-medium">{eventName}</span></div>
+                      <div>Status: <Badge className="text-xs">{eventStatus}</Badge></div>
                     </div>
                   </div>
                 )}
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Footer Actions */}
-          <div className="flex items-center justify-between p-4 sm:p-6 border-t bg-slate-50">
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleteBookingMutation.isPending}
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete Event
-            </Button>
+          {/* Main content area */}
+          <div className="flex-1 flex flex-col min-h-0">
+            {/* Header */}
+            <div className="border-b border-slate-200 p-3 sm:p-6 flex-shrink-0">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-4">
+                  {currentStep > 1 && (
+                    <Button variant="ghost" size="sm" onClick={prevStep}>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <Edit className="h-5 w-5 text-blue-600" />
+                    <h2 className="text-lg sm:text-xl font-semibold">
+                      {booking?.isContract ? "Edit Contract" : "Edit Event"}
+                    </h2>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button variant="ghost" size="sm" onClick={resetForm}>
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Reset
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Contract Summary */}
+              {booking?.isContract && booking?.contractInfo && (
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                          Contract
+                        </Badge>
+                        <h3 className="font-semibold text-purple-900">
+                          {booking.contractInfo.contractName || "Multi-Date Contract"}
+                        </h3>
+                      </div>
+                      <div className="text-sm text-purple-700 space-y-1">
+                        <div className="flex items-center gap-4">
+                          <span>{booking.eventCount} events scheduled</span>
+                          <span>Total {booking.contractEvents?.reduce((sum: number, event: any) => sum + (event.guestCount || 0), 0)} guests</span>
+                        </div>
+                        <div className="text-xs">
+                          Event dates: {booking.contractEvents?.map((event: any) => 
+                            format(new Date(event.eventDate), "MMM d, yyyy")
+                          ).join(" • ")}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-medium text-purple-900">
+                        Total Contract Value
+                      </div>
+                      <div className="text-lg font-bold text-purple-800">
+                        ${booking.contractEvents?.reduce((sum: number, event: any) => 
+                          sum + parseFloat(event.totalAmount || '0'), 0
+                        ).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
-            <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSave}
-                disabled={updateBookingMutation.isPending}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                {updateBookingMutation.isPending ? "Saving..." : "Save Changes"}
-              </Button>
+            {/* Step Content */}
+            <div className="flex-1 overflow-hidden">
+              <div className="h-full p-3 sm:p-6 overflow-y-auto">
+                {/* Step 1: Date & Venue Selection */}
+              {currentStep === 1 && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8 h-full">
+                  {/* Left: Calendar */}
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <Button
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setCurrentDate(subMonths(currentDate, 1))}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <h3 className="text-lg font-semibold">
+                        {format(currentDate, 'MMMM yyyy')}
+                      </h3>
+                      <Button
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setCurrentDate(addMonths(currentDate, 1))}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-1 mb-2">
+                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                        <div key={day} className="p-2 text-center text-sm font-medium text-slate-600">
+                          {day}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-1">
+                      {paddedDays.map((day, index) => {
+                        const isCurrentMonth = isSameMonth(day, currentDate);
+                        const isSelected = selectedDates.some(d => isSameDay(d.date, day));
+                        
+                        return (
+                          <button
+                            key={index}
+                            onClick={() => handleDateClick(day)}
+                            className={cn(
+                              "h-12 w-12 rounded-full flex items-center justify-center text-sm font-medium transition-colors",
+                              isCurrentMonth 
+                                ? "text-slate-900 hover:bg-slate-100" 
+                                : "text-slate-400",
+                              isSelected && "bg-blue-600 text-white hover:bg-blue-700"
+                            )}
+                          >
+                            {format(day, 'd')}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Right: Venue & Time Configuration */}
+                  <div className="space-y-6">
+                    <div>
+                      <Label className="text-base font-medium">Venue</Label>
+                      <Select value={selectedVenue} onValueChange={setSelectedVenue}>
+                        <SelectTrigger className="mt-2">
+                          <SelectValue placeholder="Select a venue (property)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(venues as any[]).map((venue: any) => (
+                            <SelectItem key={venue.id} value={venue.id}>
+                              {venue.name} - {venue.spaces?.length || 0} spaces available
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {selectedVenueData && (
+                        <div className="mt-2 p-3 bg-slate-50 rounded border">
+                          <p className="text-sm text-slate-600 mb-2">Available spaces in this venue:</p>
+                          <div className="space-y-1">
+                            {selectedVenueData.spaces?.map((space: any) => (
+                              <div key={space.id} className="text-sm">
+                                <span className="font-medium">{space.name}</span> - {space.capacity} guests
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Time Slots Configuration */}
+                    {selectedDates.length > 0 && (
+                      <div>
+                        <Label className="text-base font-medium">Configure Dates ({selectedDates.length})</Label>
+                        <div className="mt-3 space-y-3 max-h-64 overflow-y-auto">
+                          {selectedDates.map((slot, index) => (
+                            <Card key={index} className="group relative overflow-hidden border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
+                              {/* Modern gradient header */}
+                              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-100 p-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white font-semibold text-sm">
+                                      {format(slot.date, 'd')}
+                                    </div>
+                                    <div>
+                                      <h4 className="font-semibold text-slate-900 text-sm">
+                                        {format(slot.date, 'EEEE, MMMM d')}
+                                      </h4>
+                                      <p className="text-xs text-slate-600 mt-0.5">
+                                        {format(slot.date, 'yyyy')}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Availability indicator */}
+                                  <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                    Available
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Form content */}
+                              <div className="p-5 space-y-4">
+                                {/* Space Selection */}
+                                <div className="space-y-2">
+                                  <Label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                                    <MapPin className="w-4 h-4 text-slate-500" />
+                                    Select Space
+                                    <span className="text-red-500 text-xs">*</span>
+                                  </Label>
+                                  <Select
+                                    value={slot.spaceId || ""}
+                                    onValueChange={(value) => updateDateSlot(index, 'spaceId', value)}
+                                  >
+                                    <SelectTrigger className={cn(
+                                      "w-full h-10 transition-colors",
+                                      !slot.spaceId 
+                                        ? "border-red-200 bg-red-50/30 focus:border-red-400" 
+                                        : "border-slate-200 hover:border-slate-300 focus:border-blue-400"
+                                    )}>
+                                      <SelectValue placeholder="Choose a space" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {selectedVenueData?.spaces?.map((space: any) => (
+                                        <SelectItem key={space.id} value={space.id}>
+                                          <div className="flex items-center justify-between w-full">
+                                            <span>{space.name}</span>
+                                            <Badge variant="outline" className="ml-2 text-xs">
+                                              {space.capacity} guests
+                                            </Badge>
+                                          </div>
+                                        </SelectItem>
+                                      )) || <SelectItem value="no-spaces" disabled>No spaces available</SelectItem>}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                
+                                {/* Time and Details Grid */}
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                  {/* Event Time */}
+                                  <div className="space-y-2">
+                                    <Label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                                      <CalendarIcon className="w-4 h-4 text-slate-500" />
+                                      Event Time
+                                      <span className="text-red-500 text-xs">*</span>
+                                    </Label>
+                                    <div className="flex items-center gap-2">
+                                      <Input
+                                        type="time"
+                                        value={slot.startTime}
+                                        onChange={(e) => updateDateSlot(index, 'startTime', e.target.value)}
+                                        className={cn(
+                                          "flex-1 h-9 text-sm transition-colors",
+                                          !slot.startTime 
+                                            ? "border-red-200 bg-red-50/30" 
+                                            : "border-slate-200 hover:border-slate-300"
+                                        )}
+                                      />
+                                      
+                                      <span className="text-slate-400 font-medium px-1">→</span>
+                                      
+                                      <Input
+                                        type="time"
+                                        value={slot.endTime}
+                                        onChange={(e) => updateDateSlot(index, 'endTime', e.target.value)}
+                                        className={cn(
+                                          "flex-1 h-9 text-sm transition-colors",
+                                          !slot.endTime 
+                                            ? "border-red-200 bg-red-50/30" 
+                                            : "border-slate-200 hover:border-slate-300"
+                                        )}
+                                      />
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Guests and Setup */}
+                                  <div className="grid grid-cols-2 gap-3">
+                                    {/* Guest Count */}
+                                    <div className="space-y-2">
+                                      <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                                        <Users className="w-4 h-4 text-slate-500" />
+                                        Guests
+                                        <span className="text-red-500 text-xs">*</span>
+                                      </Label>
+                                      <div className="space-y-1">
+                                        <Input
+                                          type="number"
+                                          min="1"
+                                          max="999"
+                                          value={slot.guestCount || 1}
+                                          onChange={(e) => {
+                                            const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
+                                            updateDateSlot(index, 'guestCount', value);
+                                          }}
+                                          className="h-9 text-center text-sm font-medium"
+                                        />
+                                        {(() => {
+                                          const selectedSpace = selectedVenueData?.spaces?.find((space: any) => space.id === slot.spaceId);
+                                          const guestCount = slot.guestCount || 1;
+                                          const capacity = selectedSpace?.capacity || 0;
+                                          
+                                          if (selectedSpace && guestCount > capacity) {
+                                            return (
+                                              <div className="flex items-center gap-1 text-xs text-amber-600">
+                                                <div className="w-1 h-1 bg-amber-400 rounded-full"></div>
+                                                Exceeds capacity ({capacity})
+                                              </div>
+                                            );
+                                          }
+                                          return null;
+                                        })()}
+                                      </div>
+                                    </div>
+
+                                    {/* Setup Style */}
+                                    <div className="space-y-2">
+                                      <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                                        <Grid3X3 className="w-4 h-4 text-slate-500" />
+                                        Setup
+                                      </Label>
+                                      <Select
+                                        value={slot.setupStyle || ''}
+                                        onValueChange={(value) => updateDateSlot(index, 'setupStyle', value)}
+                                      >
+                                        <SelectTrigger className="h-9 text-sm border-slate-200 hover:border-slate-300">
+                                          <SelectValue placeholder="Style" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="round-tables">Round Tables</SelectItem>
+                                          <SelectItem value="u-shape">U-Shape</SelectItem>
+                                          <SelectItem value="classroom">Classroom</SelectItem>
+                                          <SelectItem value="theater">Theater</SelectItem>
+                                          <SelectItem value="cocktail">Cocktail</SelectItem>
+                                          <SelectItem value="banquet">Banquet</SelectItem>
+                                          <SelectItem value="conference">Conference</SelectItem>
+                                          <SelectItem value="custom">Custom</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2: Event Configuration */}
+              {currentStep === 2 && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Configure Each Event Date</h3>
+                    {selectedDates.length > 1 && (
+                      <span className="text-sm text-slate-600">
+                        {selectedDates.length} dates selected
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Date Configuration Tabs */}
+                  {selectedDates.length > 0 && (
+                    <div className="space-y-6">
+                      {/* Tab Navigation */}
+                      {selectedDates.length > 1 && (
+                        <div className="flex gap-2 p-1 bg-slate-100 rounded-lg overflow-x-auto">
+                          {selectedDates.map((date, index) => (
+                            <button
+                              key={index}
+                              onClick={() => setActiveTabIndex(index)}
+                              className={cn(
+                                "px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors",
+                                activeTabIndex === index 
+                                  ? "bg-white text-slate-900 shadow-sm" 
+                                  : "text-slate-600 hover:text-slate-900"
+                              )}
+                            >
+                              {format(date.date, 'MMM d')}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Active Date Configuration */}
+                      {activeDate && (
+                        <div className="space-y-6">
+                          {/* Package & Services Configuration - Full Width */}
+                          <div className="space-y-6">
+                            {/* Modern gradient header for current date */}
+                            <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
+                              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-100 p-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white font-semibold text-sm">
+                                      {format(activeDate.date, 'd')}
+                                    </div>
+                                    <div>
+                                      <h4 className="font-semibold text-slate-900 text-sm">
+                                        {format(activeDate.date, 'EEEE, MMMM d')}
+                                      </h4>
+                                      <p className="text-xs text-slate-600 mt-0.5">
+                                        {activeDate.startTime} - {activeDate.endTime}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
+                                    Configuring
+                                  </Badge>
+                                </div>
+                              </div>
+                              
+                              {/* Configuration content inside the card */}
+                              <div className="p-4">
+                                <div className="flex items-center gap-6">
+                              {/* Guests Field - Simplified */}
+                              <div className="flex items-center gap-2">
+                                <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                                  <Users className="w-4 h-4 text-slate-500" />
+                                  Guests
+                                  <span className="text-red-500 text-xs">*</span>
+                                </Label>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  max="999"
+                                  value={activeDate.guestCount || 1}
+                                  onChange={(e) => {
+                                    const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
+                                    updateDateConfig('guestCount', value);
+                                  }}
+                                  className="w-20 h-8 text-center text-sm"
+                                />
+                                {(() => {
+                                  const selectedSpace = selectedVenueData?.spaces?.find((space: any) => space.id === activeDate.spaceId);
+                                  const guestCount = activeDate.guestCount || 1;
+                                  const capacity = selectedSpace?.capacity || 0;
+                                  
+                                  if (selectedSpace && guestCount > capacity) {
+                                    return (
+                                      <span className="text-xs text-amber-600">
+                                        Exceeds capacity ({capacity})
+                                      </span>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+                              </div>
+
+                              {/* Setup Style Field with Floor Plan Integration */}
+                              <div className="flex items-center gap-2">
+                                <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                                  <Grid3X3 className="w-4 h-4 text-slate-500" />
+                                  Setup Style
+                                </Label>
+                                <div className="flex items-center gap-2">
+                                  <Select
+                                    value={activeDate.setupStyle || ''}
+                                    onValueChange={(value) => updateDateConfig('setupStyle', value)}
+                                  >
+                                    <SelectTrigger className="w-40 h-8 text-sm">
+                                      <SelectValue placeholder="Select style" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="round-tables">Round Tables</SelectItem>
+                                      <SelectItem value="u-shape">U-Shape</SelectItem>
+                                      <SelectItem value="classroom">Classroom</SelectItem>
+                                      <SelectItem value="theater">Theater</SelectItem>
+                                      <SelectItem value="cocktail">Cocktail</SelectItem>
+                                      <SelectItem value="banquet">Banquet</SelectItem>
+                                      <SelectItem value="conference">Conference</SelectItem>
+                                      <SelectItem value="custom">Custom</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  {activeDate.setupStyle && (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-8 px-3 text-xs"
+                                      onClick={() => {
+                                        // Open floor plan designer for this setup style
+                                        toast({
+                                          title: "Floor Plan Designer",
+                                          description: "Visit Floor Plans & Setup section to design custom layouts for this setup style"
+                                        });
+                                      }}
+                                    >
+                                      <Grid3X3 className="w-3 h-3 mr-1" />
+                                      Edit Layout
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                            </Card>
+
+                          <div className="space-y-6">
+                            {/* Package & Services - Full Width */}
+                            <div className="space-y-4">
+
+                              {/* Package Selection */}
+                              <div>
+                                <div className="flex items-center justify-between mb-3">
+                                  <Label className="text-base font-medium">Event Package</Label>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowPackageSelection(!showPackageSelection)}
+                                    className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                                  >
+                                    {showPackageSelection ? "Hide Packages" : "Show Packages"}
+                                  </Button>
+                                </div>
+                                
+                                {showPackageSelection && (
+                                  <div className="mt-3 max-h-80 overflow-y-auto">
+                                  <div className="grid grid-cols-1 gap-3">
+                                    <div
+                                      className={cn(
+                                        "p-3 border rounded-lg cursor-pointer transition-all relative",
+                                        !activeDate.packageId ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
+                                      )}
+                                      onClick={() => updateDateConfig('packageId', "")}
+                                    >
+                                      {!activeDate.packageId && (
+                                        <div className="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                          </svg>
+                                        </div>
+                                      )}
+                                      <div className="font-medium text-sm">No Package</div>
+                                      <div className="text-xs text-slate-600 mt-1">Build custom event with individual services</div>
+                                      <div className="text-sm font-semibold text-green-600 mt-2">$0.00</div>
+                                    </div>
+                                    
+                                    {(packages as any[]).map((pkg: any) => {
+                                      const isSelected = activeDate.packageId === pkg.id;
+                                      const basePrice = parseFloat(pkg.price);
+                                      const overridePrice = activeDate.pricingOverrides?.packagePrice;
+                                      const displayPrice = overridePrice ?? basePrice;
+                                      const totalPrice = pkg.pricingModel === 'per_person' 
+                                        ? displayPrice * (activeDate.guestCount || 1)
+                                        : displayPrice;
+                                      
+                                      return (
+                                        <div
+                                          key={pkg.id}
+                                          className={cn(
+                                            "p-3 border rounded-lg cursor-pointer transition-all relative",
+                                            isSelected ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
+                                          )}
+                                          onClick={() => updateDateConfig('packageId', pkg.id)}
+                                        >
+                                          {isSelected && (
+                                            <div className="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                              </svg>
+                                            </div>
+                                          )}
+                                          
+                                          <div className="pr-8">
+                                            <div className="font-medium text-sm">{pkg.name}</div>
+                                            <div className="text-xs text-slate-600 mt-1">{pkg.description}</div>
+                                            
+                                            {/* Included Services */}
+                                            {pkg.includedServiceIds && pkg.includedServiceIds.length > 0 && (
+                                              <div className="mt-2">
+                                                <div className="text-xs text-slate-500 mb-1">Includes:</div>
+                                                <div className="space-y-1">
+                                                  {pkg.includedServiceIds.map((serviceId: string) => {
+                                                    const service = (services as any[]).find((s: any) => s.id === serviceId);
+                                                    if (!service) return null;
+                                                    
+                                                    return (
+                                                      <div key={serviceId} className="flex items-center justify-between">
+                                                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                                                          {service.name}
+                                                        </span>
+                                                        {isSelected && service.pricingModel !== 'per_person' && (
+                                                          <div className="flex items-center gap-1">
+                                                            <span className="text-xs">Qty:</span>
+                                                            <Input
+                                                              type="number"
+                                                              min="1"
+                                                              value={activeDate.itemQuantities?.[serviceId] || 1}
+                                                              onChange={(e) => {
+                                                                const newQuantities = {
+                                                                  ...activeDate.itemQuantities,
+                                                                  [serviceId]: Math.max(1, parseInt(e.target.value, 10) || 1)
+                                                                };
+                                                                updateDateConfig('itemQuantities', newQuantities);
+                                                              }}
+                                                              className="w-12 h-6 text-xs text-center"
+                                                            />
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                    );
+                                                  })}
+                                                </div>
+                                              </div>
+                                            )}
+                                            
+                                            <div className="text-sm font-semibold text-green-600 mt-2">
+                                              ${pkg.pricingModel === 'per_person' 
+                                                ? `${displayPrice} per person` 
+                                                : displayPrice.toFixed(2)}
+                                            </div>
+                                            {pkg.pricingModel === 'per_person' && (
+                                              <div className="text-xs text-slate-500">
+                                                Total: ${totalPrice.toFixed(2)} for {activeDate.guestCount || 1} guests
+                                              </div>
+                                            )}
+                                            
+                                            {/* Package Price Override */}
+                                            {isSelected && (
+                                              <div className="mt-2 pt-2 border-t border-slate-200">
+                                                <div className="flex items-center gap-2">
+                                                  <span className="text-xs">Custom Price: $</span>
+                                                  <Input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={activeDate.pricingOverrides?.packagePrice ?? ''}
+                                                    onChange={(e) => {
+                                                      const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                                      updateDateConfig('pricingOverrides', {
+                                                        ...activeDate.pricingOverrides,
+                                                        packagePrice: value
+                                                      });
+                                                    }}
+                                                    className="w-20 h-6 text-xs"
+                                                    placeholder={pkg.price}
+                                                  />
+                                                </div>
+                                              </div>
+                                            )}
+
+                                            {/* Package Taxes & Fees */}
+                                            {isSelected && (
+                                              <div className="mt-2 pt-2 border-t border-slate-200 space-y-2">
+                                                {/* Additional taxes for package */}
+                                                {taxSettings.filter((item: any) => item.type === 'tax' && item.isActive).length > 0 && (
+                                                  <div>
+                                                    <div className="text-xs text-slate-600 mb-1">Additional Taxes:</div>
+                                                    <div className="flex flex-wrap gap-1">
+                                                      {taxSettings
+                                                        .filter((item: any) => item.type === 'tax' && item.isActive)
+                                                        .map((tax: any) => {
+                                                          const isInherited = (pkg.enabledTaxIds || []).includes(tax.id);
+                                                          const isOverridden = (activeDate.serviceTaxOverrides?.[pkg.id]?.enabledTaxIds || []).includes(tax.id);
+                                                          const isDisabled = (activeDate.serviceTaxOverrides?.[pkg.id]?.disabledInheritedTaxIds || []).includes(tax.id);
+                                                          const isActive = (isInherited && !isDisabled) || isOverridden;
+                                                          
+                                                          return (
+                                                            <label key={tax.id} className="flex items-center gap-1 text-xs cursor-pointer">
+                                                              <Checkbox
+                                                                checked={isActive}
+                                                                onCheckedChange={(checked) => {
+                                                                  const currentOverrides = activeDate.serviceTaxOverrides?.[pkg.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+                                                                  
+                                                                  if (isInherited) {
+                                                                    // Toggle inherited tax on/off
+                                                                    const newDisabledTaxIds = checked
+                                                                      ? currentOverrides.disabledInheritedTaxIds?.filter(id => id !== tax.id) || []
+                                                                      : [...(currentOverrides.disabledInheritedTaxIds || []), tax.id];
+                                                                    
+                                                                    updateDateConfig('serviceTaxOverrides', {
+                                                                      ...activeDate.serviceTaxOverrides,
+                                                                      [pkg.id]: {
+                                                                        ...currentOverrides,
+                                                                        disabledInheritedTaxIds: newDisabledTaxIds
+                                                                      }
+                                                                    });
+                                                                  } else {
+                                                                    // Toggle additional tax on/off
+                                                                    const newTaxIds = checked
+                                                                      ? [...(currentOverrides.enabledTaxIds || []), tax.id]
+                                                                      : currentOverrides.enabledTaxIds?.filter(id => id !== tax.id) || [];
+                                                                    
+                                                                    updateDateConfig('serviceTaxOverrides', {
+                                                                      ...activeDate.serviceTaxOverrides,
+                                                                      [pkg.id]: {
+                                                                        ...currentOverrides,
+                                                                        enabledTaxIds: newTaxIds
+                                                                      }
+                                                                    });
+                                                                  }
+                                                                }}
+                                                                className="w-3 h-3"
+                                                              />
+                                                              <span className={isInherited ? "text-blue-600" : "text-slate-700"}>
+                                                                {tax.name} ({tax.value}%)
+                                                              </span>
+                                                            </label>
+                                                          );
+                                                        })}
+                                                    </div>
+                                                  </div>
+                                                )}
+
+                                                {/* Additional fees for package */}
+                                                {taxSettings.filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive).length > 0 && (
+                                                  <div>
+                                                    <div className="text-xs text-slate-600 mb-1">Additional Fees:</div>
+                                                    <div className="flex flex-wrap gap-1">
+                                                      {taxSettings
+                                                        .filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive)
+                                                        .map((fee: any) => {
+                                                          const isInherited = (pkg.enabledFeeIds || []).includes(fee.id);
+                                                          const isOverridden = (activeDate.serviceTaxOverrides?.[pkg.id]?.enabledFeeIds || []).includes(fee.id);
+                                                          const isDisabled = (activeDate.serviceTaxOverrides?.[pkg.id]?.disabledInheritedFeeIds || []).includes(fee.id);
+                                                          const isActive = (isInherited && !isDisabled) || isOverridden;
+                                                          
+                                                          return (
+                                                            <label key={fee.id} className="flex items-center gap-1 text-xs cursor-pointer">
+                                                              <Checkbox
+                                                                checked={isActive}
+                                                                onCheckedChange={(checked) => {
+                                                                  const currentOverrides = activeDate.serviceTaxOverrides?.[pkg.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+                                                                  
+                                                                  if (isInherited) {
+                                                                    // Toggle inherited fee on/off
+                                                                    const newDisabledFeeIds = checked
+                                                                      ? currentOverrides.disabledInheritedFeeIds?.filter(id => id !== fee.id) || []
+                                                                      : [...(currentOverrides.disabledInheritedFeeIds || []), fee.id];
+                                                                    
+                                                                    updateDateConfig('serviceTaxOverrides', {
+                                                                      ...activeDate.serviceTaxOverrides,
+                                                                      [pkg.id]: {
+                                                                        ...currentOverrides,
+                                                                        disabledInheritedFeeIds: newDisabledFeeIds
+                                                                      }
+                                                                    });
+                                                                  } else {
+                                                                    // Toggle additional fee on/off
+                                                                    const newFeeIds = checked
+                                                                      ? [...(currentOverrides.enabledFeeIds || []), fee.id]
+                                                                      : currentOverrides.enabledFeeIds?.filter(id => id !== fee.id) || [];
+                                                                    
+                                                                    updateDateConfig('serviceTaxOverrides', {
+                                                                      ...activeDate.serviceTaxOverrides,
+                                                                      [pkg.id]: {
+                                                                        ...currentOverrides,
+                                                                        enabledFeeIds: newFeeIds
+                                                                      }
+                                                                    });
+                                                                  }
+                                                                }}
+                                                                className="w-3 h-3"
+                                                              />
+                                                              <span className={isInherited ? "text-blue-600" : "text-slate-700"}>
+                                                                {fee.name} ({fee.calculation === 'percentage' ? `${fee.value}%` : `$${fee.value}`})
+                                                              </span>
+                                                            </label>
+                                                          );
+                                                        })}
+                                                    </div>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Services Selection */}
+                              <div>
+                                <div className="flex items-center justify-between mb-3">
+                                  <Label className="text-base font-medium">Additional Services</Label>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setShowAdditionalServices(!showAdditionalServices)}
+                                      className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                                    >
+                                      {showAdditionalServices ? "Hide Services" : "Show Services"}
+                                    </Button>
+                                    {showAdditionalServices && (
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setShowNewServiceForm(!showNewServiceForm)}
+                                        className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                                      >
+                                        <Plus className="w-4 h-4 mr-1" />
+                                        {showNewServiceForm ? "Cancel" : "New Service"}
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {showAdditionalServices && (
+                                  <div>
+                                    {/* New Service Form */}
+                                    {showNewServiceForm && (
+                                      <Card className="p-4 mb-4 border-blue-200 bg-blue-50">
+                                        <h5 className="font-medium mb-3">Create New Service</h5>
+                                        <div className="grid grid-cols-2 gap-3">
+                                          <div>
+                                            <Label className="text-xs">Name *</Label>
+                                            <Input
+                                              value={newService.name}
+                                              onChange={(e) => setNewService(prev => ({ ...prev, name: e.target.value }))}
+                                              placeholder="Service name"
+                                              className="mt-1 h-8 text-xs"
+                                            />
+                                          </div>
+                                          <div>
+                                            <Label className="text-xs">Price *</Label>
+                                            <Input
+                                              type="number"
+                                              step="0.01"
+                                              value={newService.price}
+                                              onChange={(e) => setNewService(prev => ({ ...prev, price: e.target.value }))}
+                                              placeholder="0.00"
+                                              className="mt-1 h-8 text-xs"
+                                            />
+                                          </div>
+                                          <div className="col-span-2">
+                                            <Label className="text-xs">Description</Label>
+                                            <Input
+                                              value={newService.description}
+                                              onChange={(e) => setNewService(prev => ({ ...prev, description: e.target.value }))}
+                                              placeholder="Service description"
+                                              className="mt-1 h-8 text-xs"
+                                            />
+                                          </div>
+                                        </div>
+                                        <div className="flex gap-2 mt-3">
+                                          <Button
+                                            type="button"
+                                            size="sm"
+                                            onClick={handleCreateNewService}
+                                            disabled={createService.isPending}
+                                            className="bg-blue-600 hover:bg-blue-700"
+                                          >
+                                            {createService.isPending ? "Creating..." : "Create Service"}
+                                          </Button>
+                                          <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setShowNewServiceForm(false)}
+                                          >
+                                            Cancel
+                                          </Button>
+                                        </div>
+                                      </Card>
+                                    )}
+
+                                    <div className="mt-3 space-y-3 max-h-80 overflow-y-auto">
+                                      {(services as any[]).map((service: any) => {
+                                        const isSelected = activeDate.selectedServices?.includes(service.id) || false;
+                                        const basePrice = parseFloat(service.price || 0);
+                                        const overridePrice = activeDate.pricingOverrides?.servicePrices?.[service.id];
+                                        const displayPrice = overridePrice ?? basePrice;
+                                        
+                                        return (
+                                          <label key={service.id} className="block">
+                                            <div className={cn(
+                                              "p-3 border rounded-lg cursor-pointer transition-all",
+                                              isSelected ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
+                                            )}>
+                                              <div className="flex items-start gap-3">
+                                                <Checkbox 
+                                                  checked={isSelected}
+                                                  onCheckedChange={() => {
+                                                    const currentServices = activeDate.selectedServices || [];
+                                                const newServices = isSelected 
+                                                  ? currentServices.filter(id => id !== service.id)
+                                                  : [...currentServices, service.id];
+                                                updateDateConfig('selectedServices', newServices);
+                                              }}
+                                            />
+                                            <div className="flex-1">
+                                              <div className="font-medium text-sm">{service.name}</div>
+                                              <div className="text-xs text-slate-600 mt-1">{service.description}</div>
+                                            </div>
+                                          </div>
+                                          
+                                          {isSelected && (
+                                            <div className="mt-3 pt-3 border-t border-slate-200 space-y-3">
+                                              <div className="flex items-center gap-4">
+                                                {service.pricingModel !== 'per_person' && (
+                                                  <div className="flex items-center gap-2">
+                                                    <span className="text-sm">Qty:</span>
+                                                    <Input
+                                                      type="number"
+                                                      min="1"
+                                                      value={activeDate.itemQuantities?.[service.id] || 1}
+                                                      onChange={(e) => {
+                                                        const newQuantities = {
+                                                          ...activeDate.itemQuantities,
+                                                          [service.id]: Math.max(1, parseInt(e.target.value, 10) || 1)
+                                                        };
+                                                        updateDateConfig('itemQuantities', newQuantities);
+                                                      }}
+                                                      className="w-16 h-8 text-xs"
+                                                    />
+                                                  </div>
+                                                )}
+                                                <div className="flex items-center gap-1">
+                                                  <span className="text-sm">$</span>
+                                                  <Input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={activeDate.pricingOverrides?.servicePrices?.[service.id] ?? ''}
+                                                    onChange={(e) => {
+                                                      const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                                      updateDateConfig('pricingOverrides', {
+                                                        ...activeDate.pricingOverrides,
+                                                        servicePrices: {
+                                                          ...activeDate.pricingOverrides?.servicePrices,
+                                                          [service.id]: value
+                                                        }
+                                                      });
+                                                    }}
+                                                    className="w-20 h-8 text-xs"
+                                                    placeholder={service.price}
+                                                  />
+                                                </div>
+                                              </div>
+
+                                              {/* Service Taxes & Fees */}
+                                              <div className="space-y-2">
+                                                {/* Additional taxes for service */}
+                                                {taxSettings.filter((item: any) => item.type === 'tax' && item.isActive).length > 0 && (
+                                                  <div>
+                                                    <div className="text-xs text-slate-600 mb-1">Additional Taxes:</div>
+                                                    <div className="flex flex-wrap gap-1">
+                                                      {taxSettings
+                                                        .filter((item: any) => item.type === 'tax' && item.isActive)
+                                                        .map((tax: any) => {
+                                                          const isInherited = (service.enabledTaxIds || []).includes(tax.id);
+                                                          const isOverridden = (activeDate.serviceTaxOverrides?.[service.id]?.enabledTaxIds || []).includes(tax.id);
+                                                          const isDisabled = (activeDate.serviceTaxOverrides?.[service.id]?.disabledInheritedTaxIds || []).includes(tax.id);
+                                                          const isActive = (isInherited && !isDisabled) || isOverridden;
+                                                          
+                                                          return (
+                                                            <label key={tax.id} className="flex items-center gap-1 text-xs cursor-pointer">
+                                                              <Checkbox
+                                                                checked={isActive}
+                                                                onCheckedChange={(checked) => {
+                                                                  const currentOverrides = activeDate.serviceTaxOverrides?.[service.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+                                                                  
+                                                                  if (isInherited) {
+                                                                    // Toggle inherited tax on/off
+                                                                    const newDisabledTaxIds = checked
+                                                                      ? currentOverrides.disabledInheritedTaxIds?.filter(id => id !== tax.id) || []
+                                                                      : [...(currentOverrides.disabledInheritedTaxIds || []), tax.id];
+                                                                    
+                                                                    updateDateConfig('serviceTaxOverrides', {
+                                                                      ...activeDate.serviceTaxOverrides,
+                                                                      [service.id]: {
+                                                                        ...currentOverrides,
+                                                                        disabledInheritedTaxIds: newDisabledTaxIds
+                                                                      }
+                                                                    });
+                                                                  } else {
+                                                                    // Toggle additional tax on/off
+                                                                    const newTaxIds = checked
+                                                                      ? [...(currentOverrides.enabledTaxIds || []), tax.id]
+                                                                      : currentOverrides.enabledTaxIds?.filter(id => id !== tax.id) || [];
+                                                                    
+                                                                    updateDateConfig('serviceTaxOverrides', {
+                                                                      ...activeDate.serviceTaxOverrides,
+                                                                      [service.id]: {
+                                                                        ...currentOverrides,
+                                                                        enabledTaxIds: newTaxIds
+                                                                      }
+                                                                    });
+                                                                  }
+                                                                }}
+                                                                className="w-3 h-3"
+                                                              />
+                                                              <span className={isInherited ? "text-blue-600" : "text-slate-700"}>
+                                                                {tax.name} ({tax.value}%)
+                                                              </span>
+                                                            </label>
+                                                          );
+                                                        })}
+                                                    </div>
+                                                  </div>
+                                                )}
+
+                                                {/* Additional fees for service */}
+                                                {taxSettings.filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive).length > 0 && (
+                                                  <div>
+                                                    <div className="text-xs text-slate-600 mb-1">Additional Fees:</div>
+                                                    <div className="flex flex-wrap gap-1">
+                                                      {taxSettings
+                                                        .filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive)
+                                                        .map((fee: any) => {
+                                                          const isInherited = (service.enabledFeeIds || []).includes(fee.id);
+                                                          const isOverridden = (activeDate.serviceTaxOverrides?.[service.id]?.enabledFeeIds || []).includes(fee.id);
+                                                          const isDisabled = (activeDate.serviceTaxOverrides?.[service.id]?.disabledInheritedFeeIds || []).includes(fee.id);
+                                                          const isActive = (isInherited && !isDisabled) || isOverridden;
+                                                          
+                                                          return (
+                                                            <label key={fee.id} className="flex items-center gap-1 text-xs cursor-pointer">
+                                                              <Checkbox
+                                                                checked={isActive}
+                                                                onCheckedChange={(checked) => {
+                                                                  const currentOverrides = activeDate.serviceTaxOverrides?.[service.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+                                                                  
+                                                                  if (isInherited) {
+                                                                    // Toggle inherited fee on/off
+                                                                    const newDisabledFeeIds = checked
+                                                                      ? currentOverrides.disabledInheritedFeeIds?.filter(id => id !== fee.id) || []
+                                                                      : [...(currentOverrides.disabledInheritedFeeIds || []), fee.id];
+                                                                    
+                                                                    updateDateConfig('serviceTaxOverrides', {
+                                                                      ...activeDate.serviceTaxOverrides,
+                                                                      [service.id]: {
+                                                                        ...currentOverrides,
+                                                                        disabledInheritedFeeIds: newDisabledFeeIds
+                                                                      }
+                                                                    });
+                                                                  } else {
+                                                                    // Toggle additional fee on/off
+                                                                    const newFeeIds = checked
+                                                                      ? [...(currentOverrides.enabledFeeIds || []), fee.id]
+                                                                      : currentOverrides.enabledFeeIds?.filter(id => id !== fee.id) || [];
+                                                                    
+                                                                    updateDateConfig('serviceTaxOverrides', {
+                                                                      ...activeDate.serviceTaxOverrides,
+                                                                      [service.id]: {
+                                                                        ...currentOverrides,
+                                                                        enabledFeeIds: newFeeIds
+                                                                      }
+                                                                    });
+                                                                  }
+                                                                }}
+                                                                className="w-3 h-3"
+                                                              />
+                                                              <span className={isInherited ? "text-blue-600" : "text-slate-700"}>
+                                                                {fee.name} ({fee.calculation === 'percentage' ? `${fee.value}%` : `$${fee.value}`})
+                                                              </span>
+                                                            </label>
+                                                          );
+                                                        })}
+                                                    </div>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </label>
+                                    );
+                                  })}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Apply Settings for Multi-Date Events */}
+                            {selectedDates.length > 1 && (
+                              <Card className="p-4 border-blue-200 bg-blue-50">
+                                <h5 className="font-medium mb-2">Apply Settings</h5>
+                                <p className="text-sm text-slate-600 mb-3">
+                                  Apply this date's settings to other dates
+                                </p>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setShowCopyModal(true)}
+                                  className="w-full"
+                                >
+                                  Apply to Other Dates
+                                </Button>
+                              </Card>
+                            )}
+
+                            {/* Price Summary */}
+                            <Card className="p-4">
+                              <div className="space-y-4">
+
+                                {/* Comprehensive Price Breakdown */}
+                                <div>
+                                  <h5 className="font-medium mb-3">Price Breakdown</h5>
+                                  {(() => {
+                                    // Calculate comprehensive breakdown with taxes and fees using per-service logic
+                                    let subtotal = 0;
+                                    const feeBreakdown: Array<{name: string, amount: number, description: string}> = [];
+                                    const taxBreakdown: Array<{name: string, amount: number, description: string}> = [];
+                                    
+                                    // Package calculation
+                                    if (selectedPackageData && activeDate.packageId) {
+                                      const packagePrice = activeDate.pricingOverrides?.packagePrice ?? parseFloat(selectedPackageData.price || 0);
+                                      let packageSubtotal = 0;
+                                      
+                                      if (selectedPackageData.pricingModel === 'per_person') {
+                                        packageSubtotal = packagePrice * (activeDate.guestCount || 1);
+                                      } else {
+                                        packageSubtotal = packagePrice;
+                                      }
+                                      
+                                      subtotal += packageSubtotal;
+                                      
+                                      // Get effective fee and tax IDs for package (using serviceTaxOverrides logic)
+                                      const currentOverrides = activeDate.serviceTaxOverrides?.[selectedPackageData.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+                                      
+                                      // Calculate effective fee IDs (inherited + additional - disabled)
+                                      const inheritedFeeIds = selectedPackageData.enabledFeeIds || [];
+                                      const additionalFeeIds = currentOverrides.enabledFeeIds || [];
+                                      const disabledFeeIds = currentOverrides.disabledInheritedFeeIds || [];
+                                      const effectiveFeeIds = [...inheritedFeeIds.filter((id: string) => !disabledFeeIds.includes(id)), ...additionalFeeIds];
+                                      
+                                      // Calculate effective tax IDs (inherited + additional - disabled)
+                                      const inheritedTaxIds = selectedPackageData.enabledTaxIds || [];
+                                      const additionalTaxIds = currentOverrides.enabledTaxIds || [];
+                                      const disabledTaxIds = currentOverrides.disabledInheritedTaxIds || [];
+                                      const effectiveTaxIds = [...inheritedTaxIds.filter((id: string) => !disabledTaxIds.includes(id)), ...additionalTaxIds];
+                                      
+                                      // Apply package fees
+                                      effectiveFeeIds.forEach((feeId: string) => {
+                                        const fee = (taxSettings as any[])?.find(f => f.id === feeId);
+                                        if (fee && fee.isActive) {
+                                          let feeAmount = 0;
+                                          if (fee.calculation === 'percentage') {
+                                            feeAmount = packageSubtotal * (parseFloat(fee.value) / 100);
+                                          } else {
+                                            feeAmount = parseFloat(fee.value);
+                                          }
+                                          
+                                          feeBreakdown.push({
+                                            name: `${fee.name} (Package)`,
+                                            amount: feeAmount,
+                                            description: fee.calculation === 'percentage' 
+                                              ? `${fee.value}% of package ($${packageSubtotal.toFixed(2)})`
+                                              : 'Fixed amount'
+                                          });
+                                        }
+                                      });
+                                      
+                                      // Store package tax IDs for later calculation
+                                      effectiveTaxIds.forEach((taxId: string) => {
+                                        const tax = (taxSettings as any[])?.find(t => t.id === taxId);
+                                        if (tax && tax.isActive) {
+                                          // Will be calculated after all fees are computed
+                                        }
+                                      });
+                                    }
+                                    
+                                    // Services calculation
+                                    activeDate.selectedServices?.forEach(serviceId => {
+                                      const service = (services as any[]).find((s: any) => s.id === serviceId);
+                                      if (service) {
+                                        const servicePrice = activeDate.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
+                                        let serviceSubtotal = 0;
+                                        
+                                        if (service.pricingModel === 'per_person') {
+                                          serviceSubtotal = servicePrice * (activeDate.guestCount || 1);
+                                        } else {
+                                          const quantity = activeDate.itemQuantities?.[serviceId] || 1;
+                                          serviceSubtotal = servicePrice * quantity;
+                                        }
+                                        
+                                        subtotal += serviceSubtotal;
+                                        
+                                        // Get effective fee and tax IDs for service (using serviceTaxOverrides logic)
+                                        const currentOverrides = activeDate.serviceTaxOverrides?.[serviceId] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+                                        
+                                        // Calculate effective fee IDs (inherited + additional - disabled)
+                                        const inheritedFeeIds = service.enabledFeeIds || [];
+                                        const additionalFeeIds = currentOverrides.enabledFeeIds || [];
+                                        const disabledFeeIds = currentOverrides.disabledInheritedFeeIds || [];
+                                        const effectiveFeeIds = [...inheritedFeeIds.filter((id: string) => !disabledFeeIds.includes(id)), ...additionalFeeIds];
+                                        
+                                        // Apply service fees
+                                        effectiveFeeIds.forEach((feeId: string) => {
+                                          const fee = (taxSettings as any[])?.find(f => f.id === feeId);
+                                          if (fee && fee.isActive) {
+                                            let feeAmount = 0;
+                                            if (fee.calculation === 'percentage') {
+                                              feeAmount = serviceSubtotal * (parseFloat(fee.value) / 100);
+                                            } else {
+                                              feeAmount = parseFloat(fee.value);
+                                            }
+                                            
+                                            feeBreakdown.push({
+                                              name: `${fee.name} (${service.name})`,
+                                              amount: feeAmount,
+                                              description: fee.calculation === 'percentage' 
+                                                ? `${fee.value}% of service ($${serviceSubtotal.toFixed(2)})`
+                                                : 'Fixed amount'
+                                            });
+                                          }
+                                        });
+                                      }
+                                    });
+
+                                    // Calculate total fees
+                                    const feesTotal = feeBreakdown.reduce((sum, fee) => sum + fee.amount, 0);
+
+                                    // Calculate taxes on subtotal + taxable fees
+                                    const taxableFees = feeBreakdown
+                                      .filter(fee => {
+                                        // Extract fee name without service/package prefix
+                                        const baseName = fee.name.replace(/ \(.+\)$/, '');
+                                        const feeData = (taxSettings as any[])?.find(f => f.name === baseName);
+                                        return feeData?.isTaxable;
+                                      })
+                                      .reduce((sum, fee) => sum + fee.amount, 0);
+
+                                    const taxableBase = subtotal + taxableFees;
+                                    
+                                    // Apply taxes from package
+                                    if (selectedPackageData && activeDate.packageId) {
+                                      const currentOverrides = activeDate.serviceTaxOverrides?.[selectedPackageData.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+                                      const inheritedTaxIds = selectedPackageData.enabledTaxIds || [];
+                                      const additionalTaxIds = currentOverrides.enabledTaxIds || [];
+                                      const disabledTaxIds = currentOverrides.disabledInheritedTaxIds || [];
+                                      const effectiveTaxIds = [...inheritedTaxIds.filter((id: string) => !disabledTaxIds.includes(id)), ...additionalTaxIds];
+                                      
+                                      effectiveTaxIds.forEach((taxId: string) => {
+                                        const tax = (taxSettings as any[])?.find(t => t.id === taxId);
+                                        if (tax && tax.isActive) {
+                                          const taxAmount = taxableBase * (parseFloat(tax.value) / 100);
+                                          taxBreakdown.push({
+                                            name: `${tax.name} (Package)`,
+                                            amount: taxAmount,
+                                            description: `${tax.value}% of taxable amount ($${taxableBase.toFixed(2)})`
+                                          });
+                                        }
+                                      });
+                                    }
+                                    
+                                    // Apply taxes from services
+                                    activeDate.selectedServices?.forEach(serviceId => {
+                                      const service = (services as any[]).find((s: any) => s.id === serviceId);
+                                      if (service) {
+                                        const currentOverrides = activeDate.serviceTaxOverrides?.[serviceId] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+                                        const inheritedTaxIds = service.enabledTaxIds || [];
+                                        const additionalTaxIds = currentOverrides.enabledTaxIds || [];
+                                        const disabledTaxIds = currentOverrides.disabledInheritedTaxIds || [];
+                                        const effectiveTaxIds = [...inheritedTaxIds.filter((id: string) => !disabledTaxIds.includes(id)), ...additionalTaxIds];
+                                        
+                                        effectiveTaxIds.forEach((taxId: string) => {
+                                          const tax = (taxSettings as any[])?.find(t => t.id === taxId);
+                                          if (tax && tax.isActive) {
+                                            // Avoid duplicate taxes
+                                            const existingTax = taxBreakdown.find(t => t.name.startsWith(tax.name));
+                                            if (!existingTax) {
+                                              const taxAmount = taxableBase * (parseFloat(tax.value) / 100);
+                                              taxBreakdown.push({
+                                                name: `${tax.name} (${service.name})`,
+                                                amount: taxAmount,
+                                                description: `${tax.value}% of taxable amount ($${taxableBase.toFixed(2)})`
+                                              });
+                                            }
+                                          }
+                                        });
+                                      }
+                                    });
+
+                                    // Apply global taxes/fees when no package/services selected
+                                    if (!selectedPackageData && (!activeDate.selectedServices || activeDate.selectedServices.length === 0)) {
+                                      // Global fees
+                                      (taxSettings as any[])?.forEach((fee: any) => {
+                                        if ((fee.type === 'fee' || fee.type === 'service_charge') && 
+                                            fee.isActive && 
+                                            taxFeeOverrides.enabledFeeIds.includes(fee.id)) {
+                                          
+                                          let feeAmount = 0;
+                                          if (fee.calculation === 'percentage') {
+                                            feeAmount = subtotal * (parseFloat(fee.value) / 100);
+                                          } else {
+                                            feeAmount = parseFloat(fee.value);
+                                          }
+                                          
+                                          feeBreakdown.push({
+                                            name: fee.name,
+                                            amount: feeAmount,
+                                            description: fee.calculation === 'percentage' 
+                                              ? `${fee.value}% of subtotal ($${subtotal.toFixed(2)})`
+                                              : 'Fixed amount'
+                                          });
+                                        }
+                                      });
+                                      
+                                      // Recalculate taxable base with global fees
+                                      const globalFeesTotal = feeBreakdown.reduce((sum, fee) => sum + fee.amount, 0);
+                                      const globalTaxableFees = feeBreakdown
+                                        .filter(fee => {
+                                          const feeData = (taxSettings as any[])?.find(f => f.name === fee.name);
+                                          return feeData?.isTaxable;
+                                        })
+                                        .reduce((sum, fee) => sum + fee.amount, 0);
+                                      const globalTaxableBase = subtotal + globalTaxableFees;
+                                      
+                                      // Global taxes
+                                      (taxSettings as any[])?.forEach((tax: any) => {
+                                        if (tax.type === 'tax' && 
+                                            tax.isActive && 
+                                            taxFeeOverrides.enabledTaxIds.includes(tax.id)) {
+                                          
+                                          const taxAmount = globalTaxableBase * (parseFloat(tax.value) / 100);
+                                          taxBreakdown.push({
+                                            name: tax.name,
+                                            amount: taxAmount,
+                                            description: `${tax.value}% of taxable amount ($${globalTaxableBase.toFixed(2)})`
+                                          });
+                                        }
+                                      });
+                                    }
+
+                                    const taxesTotal = taxBreakdown.reduce((sum, tax) => sum + tax.amount, 0);
+                                    const grandTotal = subtotal + feesTotal + taxesTotal;
+
+                                    return (
+                                      <div className="space-y-3">
+                                        {/* Items breakdown */}
+                                        <div className="space-y-2 text-sm">
+                                          {selectedPackageData && activeDate.packageId && (
+                                            <div className="flex justify-between">
+                                              <span>{selectedPackageData.name}</span>
+                                              <span>
+                                                ${selectedPackageData.pricingModel === 'per_person' 
+                                                  ? ((activeDate.pricingOverrides?.packagePrice ?? parseFloat(selectedPackageData.price)) * (activeDate.guestCount || 1)).toFixed(2)
+                                                  : (activeDate.pricingOverrides?.packagePrice ?? parseFloat(selectedPackageData.price)).toFixed(2)}
+                                              </span>
+                                            </div>
+                                          )}
+                                          
+                                          {activeDate.selectedServices?.map(serviceId => {
+                                            const service = (services as any[]).find((s: any) => s.id === serviceId);
+                                            if (!service) return null;
+                                            
+                                            const basePrice = parseFloat(service.price || 0);
+                                            const overridePrice = activeDate.pricingOverrides?.servicePrices?.[serviceId];
+                                            const price = overridePrice ?? basePrice;
+                                            const quantity = activeDate.itemQuantities?.[serviceId] || 1;
+                                            const total = service.pricingModel === 'per_person' 
+                                              ? price * (activeDate.guestCount || 1)
+                                              : price * quantity;
+                                            
+                                            return (
+                                              <div key={serviceId} className="flex justify-between">
+                                                <span>{service.name}</span>
+                                                <span>${total.toFixed(2)}</span>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+
+                                        {/* Subtotal */}
+                                        <div className="border-t border-slate-200 pt-2">
+                                          <div className="flex justify-between text-sm font-medium">
+                                            <span>Subtotal:</span>
+                                            <span>${subtotal.toFixed(2)}</span>
+                                          </div>
+                                        </div>
+                                        
+                                        {/* Fees breakdown */}
+                                        {feeBreakdown.map((fee, idx) => (
+                                          <div key={`fee-${idx}`} className="space-y-1">
+                                            <div className="flex justify-between text-sm">
+                                              <span className="text-blue-600">{fee.name}:</span>
+                                              <span className="text-blue-600">${fee.amount.toFixed(2)}</span>
+                                            </div>
+                                            <div className="text-xs text-slate-500 ml-2">{fee.description}</div>
+                                          </div>
+                                        ))}
+                                        
+                                        {/* Tax breakdown */}
+                                        {taxBreakdown.map((tax, idx) => (
+                                          <div key={`tax-${idx}`} className="space-y-1">
+                                            <div className="flex justify-between text-sm">
+                                              <span className="text-purple-600">{tax.name}:</span>
+                                              <span className="text-purple-600">${tax.amount.toFixed(2)}</span>
+                                            </div>
+                                            <div className="text-xs text-slate-500 ml-2">{tax.description}</div>
+                                          </div>
+                                        ))}
+                                        
+                                        {/* Grand total */}
+                                        <div className="border-t-2 border-slate-300 pt-2">
+                                          <div className="flex justify-between font-semibold text-base">
+                                            <span>Date Total:</span>
+                                            <span className="text-green-600">${grandTotal.toFixed(2)}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              </div>
+                            </Card>
+                          </div>
+                        </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Step 3: Final Details */}
+              {currentStep === 3 && (
+                <div className="space-y-6">
+                  <h3 className="text-lg font-semibold">Final Event Details</h3>
+                  
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <Label className="text-base font-medium">Event Name *</Label>
+                      <Input
+                        value={eventName}
+                        onChange={(e) => setEventName(e.target.value)}
+                        placeholder="Enter event name"
+                        className="mt-2"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label className="text-base font-medium">Customer *</Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowNewCustomerForm(!showNewCustomerForm)}
+                          className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                        >
+                          <Plus className="w-4 h-4 mr-1" />
+                          {showNewCustomerForm ? "Cancel" : "New Customer"}
+                        </Button>
+                      </div>
+                      
+                      {!showNewCustomerForm ? (
+                        <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select customer" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(customers as any[]).map((customer: any) => (
+                              <SelectItem key={customer.id} value={customer.id}>
+                                {customer.name} - {customer.email}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Card className="p-4 border-blue-200 bg-blue-50">
+                          <div className="space-y-4">
+                            <h4 className="font-medium text-sm">Create New Customer</h4>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label className="text-sm">Name *</Label>
+                                <Input
+                                  value={newCustomer.name}
+                                  onChange={(e) => setNewCustomer(prev => ({...prev, name: e.target.value}))}
+                                  placeholder="Customer name"
+                                  className="mt-1"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-sm">Email *</Label>
+                                <Input
+                                  type="email"
+                                  value={newCustomer.email}
+                                  onChange={(e) => setNewCustomer(prev => ({...prev, email: e.target.value}))}
+                                  placeholder="customer@example.com"
+                                  className="mt-1"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-sm">Phone</Label>
+                                <Input
+                                  value={newCustomer.phone}
+                                  onChange={(e) => setNewCustomer(prev => ({...prev, phone: e.target.value}))}
+                                  placeholder="(555) 123-4567"
+                                  className="mt-1"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-sm">Company</Label>
+                                <Input
+                                  value={newCustomer.company}
+                                  onChange={(e) => setNewCustomer(prev => ({...prev, company: e.target.value}))}
+                                  placeholder="Company name"
+                                  className="mt-1"
+                                />
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              onClick={handleCreateCustomer}
+                              disabled={createCustomer.isPending || !newCustomer.name || !newCustomer.email}
+                              className="w-full bg-blue-600 hover:bg-blue-700"
+                            >
+                              {createCustomer.isPending ? "Creating..." : "Create Customer"}
+                            </Button>
+                          </div>
+                        </Card>
+                      )}
+                    </div>
+
+                    <div>
+                      <Label className="text-base font-medium">Event Status</Label>
+                      <Select value={eventStatus} onValueChange={setEventStatus}>
+                        <SelectTrigger className="mt-2">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="inquiry">Inquiry</SelectItem>
+                          <SelectItem value="proposal">Proposal Sent</SelectItem>
+                          <SelectItem value="confirmed">Confirmed</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Tax & Fee Configuration */}
+                    <div>
+                      <Label className="text-base font-medium">Taxes & Fees</Label>
+                      <div className="mt-3 space-y-4">
+                        {/* Available Taxes */}
+                        {(taxSettings as any[]).filter((item: any) => item.type === 'tax' && item.isActive).length > 0 && (
+                          <div>
+                            <Label className="text-sm font-medium text-slate-700 mb-2 block">Applied Taxes</Label>
+                            <div className="space-y-2 max-h-32 overflow-y-auto border rounded-md p-3 bg-white">
+                              {(taxSettings as any[])
+                                .filter((item: any) => item.type === 'tax' && item.isActive)
+                                .map((tax: any) => (
+                                  <div key={tax.id} className="flex items-center space-x-2">
+                                    <Checkbox
+                                      id={`tax-${tax.id}`}
+                                      checked={taxFeeOverrides.enabledTaxIds.includes(tax.id)}
+                                      onCheckedChange={(checked) => {
+                                        setTaxFeeOverrides(prev => ({
+                                          ...prev,
+                                          enabledTaxIds: checked
+                                            ? [...prev.enabledTaxIds, tax.id]
+                                            : prev.enabledTaxIds.filter(id => id !== tax.id)
+                                        }));
+                                      }}
+                                    />
+                                    <label htmlFor={`tax-${tax.id}`} className="text-sm flex-1 cursor-pointer">
+                                      {tax.name} ({tax.value}% {tax.applyTo})
+                                    </label>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Available Fees */}
+                        {(taxSettings as any[]).filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive).length > 0 && (
+                          <div>
+                            <Label className="text-sm font-medium text-slate-700 mb-2 block">Applied Fees</Label>
+                            <div className="space-y-2 max-h-32 overflow-y-auto border rounded-md p-3 bg-white">
+                              {(taxSettings as any[])
+                                .filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive)
+                                .map((fee: any) => (
+                                  <div key={fee.id} className="flex items-center space-x-2">
+                                    <Checkbox
+                                      id={`fee-${fee.id}`}
+                                      checked={taxFeeOverrides.enabledFeeIds.includes(fee.id)}
+                                      onCheckedChange={(checked) => {
+                                        setTaxFeeOverrides(prev => ({
+                                          ...prev,
+                                          enabledFeeIds: checked
+                                            ? [...prev.enabledFeeIds, fee.id]
+                                            : prev.enabledFeeIds.filter(id => id !== fee.id)
+                                        }));
+                                      }}
+                                    />
+                                    <label htmlFor={`fee-${fee.id}`} className="text-sm flex-1 cursor-pointer">
+                                      {fee.name} (${fee.value} {fee.calculation === 'percentage' ? '%' : 'fixed'} {fee.applyTo})
+                                      {fee.isTaxable && <span className="text-orange-600 ml-1">• Taxable</span>}
+                                    </label>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Help text */}
+                        <div className="text-xs text-slate-500 bg-blue-50 p-2 rounded">
+                          <strong>Note:</strong> Select which taxes and fees apply to this event. These settings override the default package/service configurations.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Event Summary */}
+                  <div className="border-t pt-6">
+                    <h4 className="font-medium mb-4">Event Summary</h4>
+                    <div className="bg-slate-50 p-4 rounded-lg space-y-3">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-slate-600">Event:</span>
+                          <div className="font-medium">{eventName || "Untitled Event"}</div>
+                        </div>
+                        <div>
+                          <span className="text-slate-600">Guest Count:</span>
+                          <div className="font-medium">{activeDate?.guestCount || 0}</div>
+                        </div>
+                        <div>
+                          <span className="text-slate-600">Venue:</span>
+                          <div className="font-medium">{selectedVenueData?.name || "No venue selected"}</div>
+                        </div>
+                        <div>
+                          <span className="text-slate-600">Status:</span>
+                          <Badge className="ml-2">{eventStatus}</Badge>
+                        </div>
+                      </div>
+                      
+                      {selectedDates.length > 0 && (
+                        <div>
+                          <span className="text-slate-600 text-sm">Dates & Times:</span>
+                          {selectedDates.map((slot, index) => (
+                            <div key={index} className="font-medium text-sm">
+                              {format(slot.date, 'MMM d, yyyy')} • {slot.startTime} - {slot.endTime}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Pricing Breakdown */}
+                      <div className="border-t pt-3">
+                        {(() => {
+                          // Calculate fees and taxes
+                          const appliedFees: any[] = [];
+                          const appliedTaxes: any[] = [];
+                          let subtotal = 0;
+
+                          // Calculate subtotal from all dates
+                          selectedDates.forEach(date => {
+                            // Package price
+                            if (date.packageId) {
+                              const pkg = (packages as any[])?.find((p: any) => p.id === date.packageId);
+                              if (pkg) {
+                                const packagePrice = date.pricingOverrides?.packagePrice ?? parseFloat(pkg.price || 0);
+                                if (pkg.pricingModel === 'per_person') {
+                                  subtotal += packagePrice * (date.guestCount || 1);
+                                } else {
+                                  subtotal += packagePrice;
+                                }
+                              }
+                            }
+                            
+                            // Services price
+                            date.selectedServices?.forEach(serviceId => {
+                              const service = (services as any[]).find((s: any) => s.id === serviceId);
+                              if (service) {
+                                const servicePrice = date.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
+                                if (service.pricingModel === 'per_person') {
+                                  subtotal += servicePrice * (date.guestCount || 1);
+                                } else {
+                                  const quantity = date.itemQuantities?.[serviceId] || 1;
+                                  subtotal += servicePrice * quantity;
+                                }
+                              }
+                            });
+                          });
+
+                          // Calculate fees
+                          (taxSettings as any[])?.forEach((fee: any) => {
+                            if ((fee.type === 'fee' || fee.type === 'service_charge') && 
+                                fee.isActive && 
+                                taxFeeOverrides.enabledFeeIds.includes(fee.id)) {
+                              
+                              let feeAmount = 0;
+                              if (fee.calculation === 'percentage') {
+                                feeAmount = subtotal * (parseFloat(fee.value) / 100);
+                              } else {
+                                feeAmount = parseFloat(fee.value);
+                              }
+                              
+                              appliedFees.push({
+                                name: fee.name,
+                                amount: feeAmount,
+                                isTaxable: fee.isTaxable
+                              });
+                            }
+                          });
+
+                          // Calculate taxes on subtotal + taxable fees
+                          const taxableBase = subtotal + appliedFees.filter(f => f.isTaxable).reduce((sum, f) => sum + f.amount, 0);
+                          
+                          (taxSettings as any[])?.forEach((tax: any) => {
+                            if (tax.type === 'tax' && 
+                                tax.isActive && 
+                                taxFeeOverrides.enabledTaxIds.includes(tax.id)) {
+                              
+                              const taxAmount = taxableBase * (parseFloat(tax.value) / 100);
+                              appliedTaxes.push({
+                                name: tax.name,
+                                amount: taxAmount
+                              });
+                            }
+                          });
+
+                          const hasFeesOrTaxes = appliedFees.length > 0 || appliedTaxes.length > 0;
+
+                          return (
+                            <>
+                              {hasFeesOrTaxes ? (
+                                <>
+                                  {/* Subtotal */}
+                                  <div className="flex justify-between text-sm">
+                                    <span>Subtotal:</span>
+                                    <span>${subtotal.toFixed(2)}</span>
+                                  </div>
+                                  
+                                  {/* Individual Fees */}
+                                  {appliedFees.map((fee, index) => (
+                                    <div key={`fee-${index}`} className="flex justify-between text-sm text-blue-600">
+                                      <span className="pl-2">+ {fee.name}:</span>
+                                      <span>+${fee.amount.toFixed(2)}</span>
+                                    </div>
+                                  ))}
+                                  
+                                  {/* Individual Taxes */}
+                                  {appliedTaxes.map((tax, index) => (
+                                    <div key={`tax-${index}`} className="flex justify-between text-sm text-purple-600">
+                                      <span className="pl-2">+ {tax.name}:</span>
+                                      <span>+${tax.amount.toFixed(2)}</span>
+                                    </div>
+                                  ))}
+                                  
+                                  <div className="border-t pt-2 mt-2">
+                                    <div className="flex justify-between font-semibold text-lg">
+                                      <span>Grand Total:</span>
+                                      <span className="text-blue-700">${totalPrice.toFixed(2)}</span>
+                                    </div>
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="flex justify-between font-semibold text-lg">
+                                  <span>Total Price:</span>
+                                  <span className="text-green-600">${totalPrice.toFixed(2)}</span>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                        
+                        <div className="text-sm text-slate-600 mt-1">
+                          Includes {selectedPackageData ? 'package' : 'services'} and {activeDate?.selectedServices?.length || 0} additional services
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                )}
+              </div>
+            </div>
+
+            {/* Fixed Footer */}
+            <div className="border-t border-slate-200 p-3 sm:p-6 flex flex-col sm:flex-row gap-3 sm:gap-0 justify-between items-center bg-white flex-shrink-0 mt-auto">
+              <div className="flex items-center gap-4">
+                {/* Enhanced pricing display with breakdown */}
+                {(() => {
+                  const appliedFees: any[] = [];
+                  const appliedTaxes: any[] = [];
+                  let subtotal = 0;
+
+                  // Calculate subtotal from all dates
+                  selectedDates.forEach(date => {
+                    // Package price
+                    if (date.packageId) {
+                      const pkg = (packages as any[])?.find((p: any) => p.id === date.packageId);
+                      if (pkg) {
+                        const packagePrice = date.pricingOverrides?.packagePrice ?? parseFloat(pkg.price || 0);
+                        if (pkg.pricingModel === 'per_person') {
+                          subtotal += packagePrice * (date.guestCount || 1);
+                        } else {
+                          subtotal += packagePrice;
+                        }
+                      }
+                    }
+                    
+                    // Services price
+                    date.selectedServices?.forEach(serviceId => {
+                      const service = (services as any[]).find((s: any) => s.id === serviceId);
+                      if (service) {
+                        const servicePrice = date.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
+                        if (service.pricingModel === 'per_person') {
+                          subtotal += servicePrice * (date.guestCount || 1);
+                        } else {
+                          const quantity = date.itemQuantities?.[serviceId] || 1;
+                          subtotal += servicePrice * quantity;
+                        }
+                      }
+                    });
+                  });
+
+                  // Calculate fees
+                  (taxSettings as any[])?.forEach((fee: any) => {
+                    if ((fee.type === 'fee' || fee.type === 'service_charge') && 
+                        fee.isActive && 
+                        taxFeeOverrides.enabledFeeIds.includes(fee.id)) {
+                      
+                      let feeAmount = 0;
+                      if (fee.calculation === 'percentage') {
+                        feeAmount = subtotal * (parseFloat(fee.value) / 100);
+                      } else {
+                        feeAmount = parseFloat(fee.value);
+                      }
+                      
+                      appliedFees.push({ name: fee.name, amount: feeAmount, isTaxable: fee.isTaxable });
+                    }
+                  });
+
+                  // Calculate taxes
+                  const taxableBase = subtotal + appliedFees.filter(f => f.isTaxable).reduce((sum, f) => sum + f.amount, 0);
+                  
+                  (taxSettings as any[])?.forEach((tax: any) => {
+                    if (tax.type === 'tax' && 
+                        tax.isActive && 
+                        taxFeeOverrides.enabledTaxIds.includes(tax.id)) {
+                      
+                      const taxAmount = taxableBase * (parseFloat(tax.value) / 100);
+                      appliedTaxes.push({ name: tax.name, amount: taxAmount });
+                    }
+                  });
+
+                  const hasFeesOrTaxes = appliedFees.length > 0 || appliedTaxes.length > 0;
+
+                  return (
+                    <div className="flex items-center gap-2">
+                      {hasFeesOrTaxes ? (
+                        <div className="text-right">
+                          <div className="text-xs text-slate-500">
+                            Subtotal: ${subtotal.toFixed(2)}
+                            {appliedFees.length > 0 && ` + Fees: $${appliedFees.reduce((sum, f) => sum + f.amount, 0).toFixed(2)}`}
+                            {appliedTaxes.length > 0 && ` + Taxes: $${appliedTaxes.reduce((sum, t) => sum + t.amount, 0).toFixed(2)}`}
+                          </div>
+                          <div>
+                            <span className="text-sm text-slate-600">Grand Total</span>
+                            <span className="text-lg font-semibold ml-2 text-blue-700">${totalPrice.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-slate-600">Total</span>
+                          <span className="text-lg font-semibold text-green-600">${totalPrice.toFixed(2)}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+                
+                <Button 
+                  variant="outline" 
+                  onClick={handleDelete}
+                  className="text-red-600 border-red-200 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Event
+                </Button>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+                {currentStep === 3 && (
+                  <Button variant="outline" onClick={prevStep}>
+                    Back
+                  </Button>
+                )}
+                {currentStep < 3 ? (
+                  <Button 
+                    onClick={nextStep}
+                    className="bg-blue-600 hover:bg-blue-700"
+                    disabled={currentStep === 1 && selectedDates.length === 0}
+                  >
+                    {currentStep === 1 ? `Configure ${selectedDates.length} Event Slot(s)` : 'Next'}
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={handleSubmit}
+                    className="bg-blue-600 hover:bg-blue-700"
+                    disabled={updateBooking.isPending}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {updateBooking.isPending ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
+      </DialogContent>
 
-        {/* Copy Config Modal */}
-        {showCopyModal && (
-          <Dialog open={showCopyModal} onOpenChange={setShowCopyModal}>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Apply Settings</DialogTitle>
-                <DialogDescription>
-                  Select which dates to apply the current configuration to
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="space-y-3">
-                {selectedDates.map((date, index) => (
-                  <div key={index} className="flex items-center space-x-2">
-                    <Checkbox
+      {/* Apply Settings Modal */}
+      <Dialog open={showCopyModal} onOpenChange={setShowCopyModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Apply Settings</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600">
+              Apply the current date's settings to selected dates below:
+            </p>
+            
+            <div className="space-y-2">
+              {selectedDates.map((date, index) => {
+                if (index === activeTabIndex) return null; // Don't show current date
+                
+                return (
+                  <label key={index} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
+                    <Checkbox 
                       checked={selectedCopyIndices.includes(index)}
                       onCheckedChange={(checked) => {
                         if (checked) {
-                          setSelectedCopyIndices([...selectedCopyIndices, index]);
+                          setSelectedCopyIndices(prev => [...prev, index]);
                         } else {
-                          setSelectedCopyIndices(selectedCopyIndices.filter(i => i !== index));
+                          setSelectedCopyIndices(prev => prev.filter(i => i !== index));
                         }
                       }}
-                      disabled={index === activeTabIndex}
                     />
-                    <span className={index === activeTabIndex ? "text-slate-400" : ""}>
-                      {format(date.date, "EEEE, MMMM d")}
-                      {index === activeTabIndex && " (current)"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              
-              <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setShowCopyModal(false)}>
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={() => handleCopyConfig(selectedCopyIndices)}
-                  disabled={selectedCopyIndices.length === 0}
-                >
-                  Apply Settings
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
-      </DialogContent>
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">{format(date.date, 'EEEE, MMMM d, yyyy')}</div>
+                      <div className="text-xs text-slate-600">{date.startTime} - {date.endTime}</div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+            
+            <div className="flex gap-2 pt-4">
+              <Button
+                onClick={() => {
+                  handleCopyConfig(selectedCopyIndices);
+                  setSelectedCopyIndices([]);
+                }}
+                disabled={selectedCopyIndices.length === 0}
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
+              >
+                Apply Settings ({selectedCopyIndices.length})
+              </Button>
+              <Button variant="outline" onClick={() => {
+                setShowCopyModal(false);
+                setSelectedCopyIndices([]);
+              }}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
