@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -393,10 +393,7 @@ function PackageManagement({ packages }: { packages: any }) {
   const { toast } = useToast();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingPackage, setEditingPackage] = useState<any>(null);
-
-  const queryClient = apiRequest.queryClient || (() => {
-    throw new Error("Query client not available");
-  })();
+  const queryClient = useQueryClient();
 
   const togglePackageMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -633,9 +630,7 @@ function PackageDialog({ isOpen, onClose, package: pkg, isEdit }: {
     features: {} as any
   });
 
-  const queryClient = apiRequest.queryClient || (() => {
-    throw new Error("Query client not available");
-  })();
+  const queryClient = useQueryClient();
 
   // Initialize form data when editing
   useState(() => {
