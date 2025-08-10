@@ -2882,6 +2882,169 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                       </div>
                     </div>
                   )}
+                  
+                  {/* Tax and Fee Breakdown */}
+                  {(() => {
+                    // Calculate breakdown for this specific date
+                    let subtotal = 0;
+                    const feeBreakdown: Array<{name: string, amount: number, description: string}> = [];
+                    const taxBreakdown: Array<{name: string, amount: number, description: string}> = [];
+                    
+                    const eventDuration = calculateEventDuration(date.startTime, date.endTime);
+                    
+                    // Package subtotal
+                    if (date.packageId) {
+                      const pkg = (packages as any[])?.find((p: any) => p.id === date.packageId);
+                      if (pkg) {
+                        const packagePrice = date.pricingOverrides?.packagePrice ?? parseFloat(pkg.price || 0);
+                        if (pkg.pricingModel === 'per_person') {
+                          subtotal += packagePrice * (date.guestCount || 1);
+                        } else if (pkg.pricingModel === 'per_hour') {
+                          subtotal += packagePrice * eventDuration;
+                        } else {
+                          subtotal += packagePrice;
+                        }
+                      }
+                    }
+                    
+                    // Service subtotals
+                    const includedServiceIds = (() => {
+                      if (!date.packageId) return [];
+                      const pkg = (packages as any[])?.find((p: any) => p.id === date.packageId);
+                      return pkg?.includedServices || [];
+                    })();
+                    
+                    (date.selectedServices || []).forEach(serviceId => {
+                      if (includedServiceIds.includes(serviceId)) return;
+                      
+                      const service = (services as any[])?.find((s: any) => s.id === serviceId);
+                      if (service) {
+                        const servicePrice = date.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
+                        let serviceSubtotal = 0;
+                        
+                        if (service.pricingModel === 'per_person') {
+                          serviceSubtotal = servicePrice * (date.guestCount || 1);
+                        } else if (service.pricingModel === 'per_hour') {
+                          serviceSubtotal = servicePrice * eventDuration;
+                        } else {
+                          const quantity = date.itemQuantities?.[serviceId] || 1;
+                          serviceSubtotal = servicePrice * quantity;
+                        }
+                        
+                        subtotal += serviceSubtotal;
+                        
+                        // Get effective tax/fee IDs for this service
+                        const currentOverrides = date.serviceTaxOverrides?.[serviceId] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+                        
+                        const inheritedFeeIds = service.enabledFeeIds || [];
+                        const additionalFeeIds = currentOverrides.enabledFeeIds || [];
+                        const disabledFeeIds = currentOverrides.disabledInheritedFeeIds || [];
+                        const effectiveFeeIds = [...inheritedFeeIds.filter(id => !disabledFeeIds.includes(id)), ...additionalFeeIds];
+                        
+                        const inheritedTaxIds = service.enabledTaxIds || [];
+                        const additionalTaxIds = currentOverrides.enabledTaxIds || [];
+                        const disabledTaxIds = currentOverrides.disabledInheritedTaxIds || [];
+                        const effectiveTaxIds = [...inheritedTaxIds.filter(id => !disabledTaxIds.includes(id)), ...additionalTaxIds];
+                        
+                        // Calculate fees for this service
+                        effectiveFeeIds.forEach((feeId: string) => {
+                          const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
+                          if (feeSetting && (feeSetting.type === 'fee' || feeSetting.type === 'service_charge')) {
+                            let feeAmount = 0;
+                            if (feeSetting.calculation === 'percentage') {
+                              feeAmount = (serviceSubtotal * parseFloat(feeSetting.value)) / 100;
+                            } else {
+                              feeAmount = parseFloat(feeSetting.value);
+                            }
+                            
+                            const existing = feeBreakdown.find(f => f.name === feeSetting.name);
+                            if (existing) {
+                              existing.amount += feeAmount;
+                              existing.description += `, ${service.name}`;
+                            } else {
+                              feeBreakdown.push({
+                                name: feeSetting.name,
+                                amount: feeAmount,
+                                description: `Applied to ${service.name}`
+                              });
+                            }
+                          }
+                        });
+                        
+                        // Calculate taxes for this service
+                        effectiveTaxIds.forEach((taxId: string) => {
+                          const taxSetting = (taxSettings as any[])?.find((s: any) => s.id === taxId && s.isActive);
+                          if (taxSetting) {
+                            let taxableAmount = serviceSubtotal;
+                            
+                            // Add fees to taxable amount if any applied fees are taxable
+                            effectiveFeeIds.forEach((feeId: string) => {
+                              const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
+                              if (feeSetting && feeSetting.isTaxable && (feeSetting.applicableTaxIds || []).includes(taxId)) {
+                                let feeAmount = 0;
+                                if (feeSetting.calculation === 'percentage') {
+                                  feeAmount = (serviceSubtotal * parseFloat(feeSetting.value)) / 100;
+                                } else {
+                                  feeAmount = parseFloat(feeSetting.value);
+                                }
+                                taxableAmount += feeAmount;
+                              }
+                            });
+                            
+                            const taxAmount = (taxableAmount * parseFloat(taxSetting.value)) / 100;
+                            
+                            const existing = taxBreakdown.find(t => t.name === taxSetting.name);
+                            if (existing) {
+                              existing.amount += taxAmount;
+                              existing.description += `, ${service.name}`;
+                            } else {
+                              taxBreakdown.push({
+                                name: taxSetting.name,
+                                amount: taxAmount,
+                                description: `Applied to ${service.name}${taxableAmount > serviceSubtotal ? ' (incl. fees)' : ''}`
+                              });
+                            }
+                          }
+                        });
+                      }
+                    });
+                    
+                    // Only show if there are fees or taxes
+                    if (feeBreakdown.length > 0 || taxBreakdown.length > 0) {
+                      return (
+                        <div className="mt-4 pt-4 border-t">
+                          <h6 className="font-medium mb-3">Tax & Fee Breakdown</h6>
+                          <div className="space-y-3">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-slate-600">Subtotal:</span>
+                              <span className="font-medium">${subtotal.toFixed(2)}</span>
+                            </div>
+                            
+                            {feeBreakdown.map((fee, idx) => (
+                              <div key={`fee-${idx}`} className="space-y-1">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-slate-600">{fee.name}:</span>
+                                  <span>${fee.amount.toFixed(2)}</span>
+                                </div>
+                                <div className="text-xs text-slate-500 ml-2">{fee.description}</div>
+                              </div>
+                            ))}
+                            
+                            {taxBreakdown.map((tax, idx) => (
+                              <div key={`tax-${idx}`} className="space-y-1">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-slate-600">{tax.name}:</span>
+                                  <span>${tax.amount.toFixed(2)}</span>
+                                </div>
+                                <div className="text-xs text-slate-500 ml-2">{tax.description}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
               );
             })}
