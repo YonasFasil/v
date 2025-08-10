@@ -2238,8 +2238,8 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                   const pkg = (packages as any[])?.find((p: any) => p.id === date.packageId);
                                   if (pkg) {
                                     // Add package's default taxes and fees
-                                    (pkg.appliedTaxes || []).forEach((taxId: string) => inheritedTaxIds.add(taxId));
-                                    (pkg.appliedFees || []).forEach((feeId: string) => inheritedFeeIds.add(feeId));
+                                    (pkg.enabledTaxIds || []).forEach((taxId: string) => inheritedTaxIds.add(taxId));
+                                    (pkg.enabledFeeIds || []).forEach((feeId: string) => inheritedFeeIds.add(feeId));
                                     
                                     // Add any additional overrides for this specific package
                                     const packageOverrides = date.serviceTaxOverrides?.[pkg.id];
@@ -2255,8 +2255,8 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                   const service = (services as any[])?.find((s: any) => s.id === serviceId);
                                   if (service) {
                                     // Add service's default taxes and fees
-                                    (service.appliedTaxes || []).forEach((taxId: string) => inheritedTaxIds.add(taxId));
-                                    (service.appliedFees || []).forEach((feeId: string) => inheritedFeeIds.add(feeId));
+                                    (service.enabledTaxIds || []).forEach((taxId: string) => inheritedTaxIds.add(taxId));
+                                    (service.enabledFeeIds || []).forEach((feeId: string) => inheritedFeeIds.add(feeId));
                                     
                                     // Add any additional overrides for this specific service
                                     const serviceOverrides = date.serviceTaxOverrides?.[serviceId];
@@ -2269,8 +2269,8 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                               });
                               
                               // Merge with user-selected overrides
-                              const finalTaxIds = new Set([...inheritedTaxIds, ...taxFeeOverrides.enabledTaxIds]);
-                              const finalFeeIds = new Set([...inheritedFeeIds, ...taxFeeOverrides.enabledFeeIds]);
+                              const finalTaxIds = new Set([...Array.from(inheritedTaxIds), ...taxFeeOverrides.enabledTaxIds]);
+                              const finalFeeIds = new Set([...Array.from(inheritedFeeIds), ...taxFeeOverrides.enabledFeeIds]);
                               
                               // Apply fees first (on base amount)
                               (taxSettings as any[])?.forEach((setting: any) => {
