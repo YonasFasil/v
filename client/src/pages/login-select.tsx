@@ -1,14 +1,21 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Crown, UserCheck, Building2 } from "lucide-react";
+import { Crown, UserCheck, Building2, LogOut } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 
 export default function LoginSelect() {
   const [, setLocation] = useLocation();
-  const { setUserRole } = useUserRole();
+  const { setUserRole, logout, userRole } = useUserRole();
+  
+  // Clear any existing role when component mounts
+  useEffect(() => {
+    if (userRole) {
+      logout();
+    }
+  }, []);
 
   const roles = [
     {
@@ -59,8 +66,14 @@ export default function LoginSelect() {
   ];
 
   const handleRoleSelect = (roleId: string) => {
+    console.log("Setting user role to:", roleId);
     setUserRole(roleId);
-    setLocation("/");
+    
+    // Add a small delay to ensure state is updated before navigation
+    setTimeout(() => {
+      console.log("Navigating to dashboard");
+      setLocation("/");
+    }, 100);
   };
 
   return (
@@ -133,6 +146,14 @@ export default function LoginSelect() {
             <strong>Demo Mode:</strong> This is a demonstration of the multi-tenant SaaS platform. 
             In a real deployment, authentication would be handled through secure login systems.
           </p>
+          {userRole && (
+            <div className="mt-3">
+              <Button variant="outline" size="sm" onClick={logout} className="text-slate-600">
+                <LogOut className="w-4 h-4 mr-2" />
+                Clear Current Session ({userRole})
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>

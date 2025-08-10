@@ -46,6 +46,7 @@ function Router() {
 
   return (
     <Switch>
+      <Route path="/login" component={LoginSelect} />
       <Route path="/super-admin" component={SuperAdmin} />
       <Route path="/" component={Dashboard} />
       <Route path="/events" component={Events} />

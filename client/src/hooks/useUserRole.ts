@@ -38,7 +38,18 @@ export function useUserRole() {
   const isStaff = userRole === "staff";
   const isAuthenticated = !!userRole;
 
+  // Debug logging
+  console.log("useUserRole state:", {
+    userRole,
+    isAuthenticated,
+    isSuperAdmin,
+    isAdmin,
+    isStaff,
+    isLoading
+  });
+
   const setUserRoleFunction = (roleId: string) => {
+    console.log("setUserRoleFunction called with:", roleId);
     const roleDataMap: Record<string, UserRoleData> = {
       "super-admin": {
         id: "super-admin",
@@ -68,10 +79,14 @@ export function useUserRole() {
 
     const roleData = roleDataMap[roleId];
     if (roleData) {
+      console.log("Setting role data:", roleData);
       setUserRole(roleId);
       setUserRoleData(roleData);
       localStorage.setItem("userRole", roleId);
       localStorage.setItem("userRoleData", JSON.stringify(roleData));
+      console.log("Role set successfully, isAuthenticated should be:", !!roleId);
+    } else {
+      console.error("Role data not found for:", roleId);
     }
   };
 
@@ -80,7 +95,6 @@ export function useUserRole() {
     localStorage.removeItem("userRoleData");
     setUserRole(null);
     setUserRoleData(null);
-    window.location.href = "/login";
   };
 
   const hasPermission = (feature: string): boolean => {
