@@ -21,6 +21,7 @@ import {
   CloudRain
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useFormattedCurrency } from "@/lib/currency";
 
 
 interface SeasonalRecommendation {
@@ -133,6 +134,7 @@ interface Props {
 export function AnalyticsDashboard({ onCreatePackage, onCreateService }: Props = {}) {
   const [selectedSeason, setSelectedSeason] = useState("current");
   const [timeRange, setTimeRange] = useState("3months");
+  const { formatAmount } = useFormattedCurrency();
 
   // Get current season
   const getCurrentSeason = () => {
@@ -316,7 +318,7 @@ export function AnalyticsDashboard({ onCreatePackage, onCreateService }: Props =
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${analyticsData?.totalRevenue?.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatAmount(analyticsData?.totalRevenue || 0)}</div>
             <div className="flex items-center text-xs text-muted-foreground">
               <TrendingUp className="w-4 h-4 text-green-600 mr-1" />
               +{analyticsData?.bookingsGrowth}% from last period
@@ -330,7 +332,7 @@ export function AnalyticsDashboard({ onCreatePackage, onCreateService }: Props =
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${analyticsData?.avgBookingValue?.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatAmount(analyticsData?.avgBookingValue || 0)}</div>
             <div className="text-xs text-muted-foreground">
               12% above industry average
             </div>

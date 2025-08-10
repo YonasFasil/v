@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useFormattedCurrency } from "@/lib/currency";
 import type { Customer } from "@shared/schema";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
@@ -52,6 +53,7 @@ export default function Customers() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerAnalytics | null>(null);
   const { toast } = useToast();
+  const { formatAmount } = useFormattedCurrency();
 
   // Fetch customer analytics
   const { data: customerAnalytics = [], isLoading } = useQuery<CustomerAnalytics[]>({
@@ -136,12 +138,7 @@ export default function Customers() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
+  // Remove this function as we'll use the hook instead
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "Never";
@@ -330,7 +327,7 @@ export default function Customers() {
                     <DollarSign className="h-4 w-4 text-green-600" />
                     <span className="text-sm font-medium text-gray-500">Total Revenue</span>
                   </div>
-                  <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
+                  <div className="text-2xl font-bold">{formatAmount(totalRevenue)}</div>
                 </CardContent>
               </Card>
               
@@ -360,7 +357,7 @@ export default function Customers() {
                     <Star className="h-4 w-4 text-purple-600" />
                     <span className="text-sm font-medium text-gray-500">Avg. Customer Value</span>
                   </div>
-                  <div className="text-2xl font-bold">{formatCurrency(averageValue)}</div>
+                  <div className="text-2xl font-bold">{formatAmount(averageValue)}</div>
                 </CardContent>
               </Card>
             </div>
@@ -474,7 +471,7 @@ export default function Customers() {
                           </TableCell>
                           
                           <TableCell className="text-right font-medium">
-                            {formatCurrency(customer.analytics.totalRevenue)}
+                            {formatAmount(customer.analytics.totalRevenue)}
                           </TableCell>
                           
                           <TableCell className="text-right">
@@ -487,7 +484,7 @@ export default function Customers() {
                           </TableCell>
                           
                           <TableCell className="text-right">
-                            {formatCurrency(customer.analytics.averageEventValue)}
+                            {formatAmount(customer.analytics.averageEventValue)}
                           </TableCell>
                           
                           <TableCell>
@@ -582,19 +579,19 @@ export default function Customers() {
                   <CardContent className="space-y-2">
                     <div className="flex justify-between">
                       <span>Total Revenue:</span>
-                      <span className="font-medium">{formatCurrency(selectedCustomer.analytics.totalRevenue)}</span>
+                      <span className="font-medium">{formatAmount(selectedCustomer.analytics.totalRevenue)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Total Paid:</span>
-                      <span className="font-medium text-green-600">{formatCurrency(selectedCustomer.analytics.totalPaid)}</span>
+                      <span className="font-medium text-green-600">{formatAmount(selectedCustomer.analytics.totalPaid)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Total Pending:</span>
-                      <span className="font-medium text-orange-600">{formatCurrency(selectedCustomer.analytics.totalPending)}</span>
+                      <span className="font-medium text-orange-600">{formatAmount(selectedCustomer.analytics.totalPending)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Avg. Event Value:</span>
-                      <span className="font-medium">{formatCurrency(selectedCustomer.analytics.averageEventValue)}</span>
+                      <span className="font-medium">{formatAmount(selectedCustomer.analytics.averageEventValue)}</span>
                     </div>
                   </CardContent>
                 </Card>

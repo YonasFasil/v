@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { useFormattedCurrency } from "@/lib/currency";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,7 @@ import { format } from "date-fns";
 
 export default function Payments() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const { formatAmount } = useFormattedCurrency();
   const { data: payments, isLoading } = useQuery({
     queryKey: ["/api/payments"],
   });
@@ -103,7 +105,7 @@ export default function Payments() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                    <p className="text-3xl font-bold text-gray-900">${totalRevenue.toLocaleString()}</p>
+                    <p className="text-3xl font-bold text-gray-900">{formatAmount(totalRevenue)}</p>
                     <p className="text-sm text-green-600 font-medium">+8% from last month</p>
                   </div>
                   <div className="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center">
@@ -183,7 +185,7 @@ export default function Payments() {
                           </td>
                           <td className="py-4">
                             <div className="font-semibold text-lg">
-                              ${parseFloat(payment.amount).toLocaleString()}
+                              {formatAmount(parseFloat(payment.amount))}
                             </div>
                           </td>
                           <td className="py-4">

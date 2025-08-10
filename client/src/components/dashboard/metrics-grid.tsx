@@ -4,9 +4,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Calendar, DollarSign, Users, BarChart3, TrendingUp, Clock, CheckCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useFormattedCurrency } from "@/lib/currency";
 
 export function MetricsGrid() {
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
+  const { formatAmount } = useFormattedCurrency();
   
   const { data: metrics, isLoading } = useQuery({
     queryKey: ["/api/dashboard/metrics"],
@@ -95,15 +97,15 @@ export function MetricsGrid() {
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-4 mb-6">
                 <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-700">${confirmedRevenue.toLocaleString()}</div>
+                  <div className="text-2xl font-bold text-green-700">{formatAmount(confirmedRevenue)}</div>
                   <div className="text-sm text-green-600">Confirmed</div>
                 </div>
                 <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                  <div className="text-2xl font-bold text-yellow-700">${pendingRevenue.toLocaleString()}</div>
+                  <div className="text-2xl font-bold text-yellow-700">{formatAmount(pendingRevenue)}</div>
                   <div className="text-sm text-yellow-600">Pending</div>
                 </div>
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-700">${totalRevenue.toLocaleString()}</div>
+                  <div className="text-2xl font-bold text-blue-700">{formatAmount(totalRevenue)}</div>
                   <div className="text-sm text-blue-600">Total</div>
                 </div>
               </div>
@@ -115,7 +117,7 @@ export function MetricsGrid() {
                       <div className="text-sm text-slate-600">{booking.eventDate} • {booking.eventType}</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-medium">${parseFloat(booking.totalAmount).toLocaleString()}</div>
+                      <div className="font-medium">{formatAmount(parseFloat(booking.totalAmount))}</div>
                       <Badge variant={booking.status === 'confirmed' ? 'default' : 'secondary'} className="text-xs">
                         {booking.status}
                       </Badge>

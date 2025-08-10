@@ -1,10 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
+import { useFormattedCurrency } from "@/lib/currency";
 import { BarChart3, TrendingUp, DollarSign } from "lucide-react";
 import { format, subDays, eachDayOfInterval } from "date-fns";
 
 export function RevenueChart() {
   const { data: bookings } = useQuery({ queryKey: ["/api/bookings"] });
+  const { formatAmount } = useFormattedCurrency();
 
   // Calculate revenue for the last 7 days
   const getRevenueData = () => {
@@ -67,7 +69,7 @@ export function RevenueChart() {
                   </div>
                 </div>
                 <span className="text-xs font-medium text-slate-700 w-16 text-right">
-                  ${day.revenue.toLocaleString()}
+                  {formatAmount(day.revenue)}
                 </span>
               </div>
             ))}
@@ -77,11 +79,11 @@ export function RevenueChart() {
           <div className="pt-4 border-t border-slate-200 space-y-2">
             <div className="flex justify-between items-center">
               <span className="text-sm text-slate-600">Total (7 days)</span>
-              <span className="font-semibold text-slate-900">${totalWeekRevenue.toLocaleString()}</span>
+              <span className="font-semibold text-slate-900">{formatAmount(totalWeekRevenue)}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-slate-600">Daily Average</span>
-              <span className="font-semibold text-slate-900">${Math.round(avgDailyRevenue).toLocaleString()}</span>
+              <span className="font-semibold text-slate-900">{formatAmount(Math.round(avgDailyRevenue))}</span>
             </div>
             <div className="flex items-center gap-2 text-sm text-green-600 mt-2">
               <TrendingUp className="w-4 h-4" />

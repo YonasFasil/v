@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Phone, Mail, Calendar, User, Building, Clock, Tag, Plus, Search, Filter, Eye } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useFormattedCurrency } from "@/lib/currency";
 import type { Lead, CampaignSource, Tag as TagType } from "@shared/schema";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
@@ -25,6 +26,7 @@ export default function Leads() {
   const [showAddModal, setShowAddModal] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { formatAmount } = useFormattedCurrency();
 
   // Fetch leads with filters
   const { data: leads = [], isLoading: leadsLoading } = useQuery({
@@ -427,7 +429,7 @@ export default function Leads() {
                     </div>
                     <div className="mt-2 text-sm text-blue-700">
                       <div><strong>Title:</strong> {getProposalForLead(lead.id)?.title}</div>
-                      <div><strong>Amount:</strong> {formatCurrency(parseFloat(getProposalForLead(lead.id)?.totalAmount || "0"))}</div>
+                      <div><strong>Amount:</strong> {formatAmount(parseFloat(getProposalForLead(lead.id)?.totalAmount || "0"))}</div>
                       <div><strong>Valid Until:</strong> {new Date(getProposalForLead(lead.id)?.validUntil || "").toLocaleDateString()}</div>
                     </div>
                     <div className="mt-2 flex space-x-2">
@@ -511,7 +513,7 @@ export default function Leads() {
                   </div>
                   <div className="flex justify-between items-center mt-1">
                     <span className="text-green-600 font-medium">
-                      {formatCurrency(parseFloat(proposal.totalAmount || "0"))}
+                      {formatAmount(parseFloat(proposal.totalAmount || "0"))}
                     </span>
                     <Badge variant="outline" className="text-xs">
                       {proposal.status}

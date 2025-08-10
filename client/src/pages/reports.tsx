@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useFormattedCurrency } from "@/lib/currency";
 import { apiRequest } from "@/lib/queryClient";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 import { format } from "date-fns";
@@ -60,6 +61,7 @@ export default function Reports() {
   const [reportType, setReportType] = useState("overview");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const { toast } = useToast();
+  const { formatAmount } = useFormattedCurrency();
   const queryClient = useQueryClient();
 
   // Fetch comprehensive analytics data
@@ -227,7 +229,7 @@ export default function Reports() {
                 {analyticsData?.totalBookings || 0} Total Bookings
               </span>
               <span className="text-blue-600 font-medium">
-                ${Math.round(analyticsData?.revenue || 0).toLocaleString()} Revenue
+                {formatAmount(Math.round(analyticsData?.revenue || 0))} Revenue
               </span>
             </div>
           </div>
@@ -253,7 +255,7 @@ export default function Reports() {
                   <div>
                     <p className="text-sm font-medium text-gray-600">Total Revenue</p>
                     <p className="text-3xl font-bold text-gray-900">
-                      ${Math.round(analyticsData?.revenue || 0).toLocaleString()}
+                      {formatAmount(Math.round(analyticsData?.revenue || 0))}
                     </p>
                     <div className="flex items-center mt-1">
                       {(analyticsData?.revenueGrowth || 0) >= 0 ? (

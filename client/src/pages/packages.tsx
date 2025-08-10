@@ -14,6 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Package, Plus, Edit, Trash2, DollarSign, Check, Copy, Upload, Grid, List } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { useFormattedCurrency } from "@/lib/currency";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { EditPackageModal } from "@/components/forms/edit-package-modal";
@@ -41,6 +42,7 @@ export default function Packages() {
   ]);
   const [newCategory, setNewCategory] = useState({ name: "", color: "bg-blue-100 text-blue-800" });
   const { toast } = useToast();
+  const { formatAmount } = useFormattedCurrency();
 
   const getCategoryColor = (category: string) => {
     const categoryConfig = categories.find(c => c.id === category);

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useFormattedCurrency } from "@/lib/currency";
 import { queryClient } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -18,6 +19,7 @@ interface ProposalFormProps {
 
 export function ProposalForm({ onSuccess }: ProposalFormProps) {
   const { toast } = useToast();
+  const { formatAmount } = useFormattedCurrency();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
