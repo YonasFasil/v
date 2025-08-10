@@ -26,6 +26,8 @@ export default function Login() {
   const [, setLocation] = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string>("");
+  const [showResendButton, setShowResendButton] = useState(false);
+  const [userEmail, setUserEmail] = useState<string>("");
 
   const form = useForm<LoginData>({
     resolver: zodResolver(loginSchema),
@@ -57,17 +59,50 @@ export default function Login() {
     onError: (error: Error) => {
       if (error.message.includes("401")) {
         setError("Invalid email or password");
+        setShowResendButton(false);
       } else if (error.message.includes("403")) {
         setError("Please verify your email address before signing in");
+        setShowResendButton(true);
+        setUserEmail(form.getValues("email"));
       } else {
         setError("An error occurred. Please try again.");
+        setShowResendButton(false);
       }
+    },
+  });
+
+  const resendVerificationMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const response = await apiRequest("POST", "/api/auth/resend-verification", { email });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Verification email sent!",
+        description: "Please check your email and click the verification link.",
+      });
+      setShowResendButton(false);
+      setError("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to send email",
+        description: "Please try again later.",
+        variant: "destructive",
+      });
     },
   });
 
   const onSubmit = (data: LoginData) => {
     setError("");
+    setShowResendButton(false);
     loginMutation.mutate(data);
+  };
+
+  const handleResendVerification = () => {
+    if (userEmail) {
+      resendVerificationMutation.mutate(userEmail);
+    }
   };
 
   return (
@@ -98,6 +133,20 @@ export default function Login() {
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
+                )}
+
+                {showResendButton && (
+                  <div className="text-center">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleResendVerification}
+                      disabled={resendVerificationMutation.isPending}
+                    >
+                      {resendVerificationMutation.isPending ? "Sending..." : "Resend Verification Email"}
+                    </Button>
+                  </div>
                 )}
 
                 <FormField
@@ -172,10 +221,8 @@ export default function Login() {
                     )}
                   />
 
-                  <Link href="/forgot-password">
-                    <a className="text-sm text-primary hover:underline">
-                      Forgot password?
-                    </a>
+                  <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+                    Forgot password?
                   </Link>
                 </div>
 
@@ -191,20 +238,16 @@ export default function Login() {
 
             <div className="mt-6 text-center text-sm">
               <span className="text-muted-foreground">Don't have an account? </span>
-              <Link href="/signup">
-                <a className="text-primary hover:underline font-medium">
-                  Sign up for free
-                </a>
+              <Link href="/signup" className="text-primary hover:underline font-medium">
+                Sign up for free
               </Link>
             </div>
           </CardContent>
         </Card>
 
         <div className="mt-8 text-center">
-          <Link href="/">
-            <a className="text-sm text-muted-foreground hover:text-foreground">
-              ← Back to homepage
-            </a>
+          <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
+            ← Back to homepage
           </Link>
         </div>
       </div>

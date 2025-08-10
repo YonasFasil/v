@@ -184,4 +184,60 @@ export function registerAuthRoutes(app: Express) {
       res.status(500).json({ message: 'Internal server error' });
     }
   });
+
+  // POST /api/auth/resend-verification - Resend verification email
+  app.post('/api/auth/resend-verification', async (req, res) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ message: 'Email is required' });
+      }
+
+      // Find user with this email
+      const user = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+
+      if (user.length === 0) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      const foundUser = user[0];
+
+      // Check if user is already verified
+      if (foundUser.emailVerified) {
+        return res.status(400).json({ message: 'Email is already verified' });
+      }
+
+      // Generate new verification token
+      const verificationToken = crypto.randomBytes(32).toString('hex');
+
+      // Update user with new token
+      await db
+        .update(users)
+        .set({
+          emailVerificationToken: verificationToken,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, foundUser.id));
+
+      // Send verification email
+      try {
+        console.log('Resending verification email to:', email);
+        await EmailService.sendVerificationEmail(email, verificationToken, foundUser.firstName || '');
+        console.log('Verification email resent successfully to:', email);
+      } catch (emailError) {
+        console.error('Failed to resend verification email:', emailError);
+        return res.status(500).json({ message: 'Failed to send verification email' });
+      }
+
+      res.json({ message: 'Verification email sent successfully' });
+    } catch (error) {
+      console.error('Resend verification error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
 }
