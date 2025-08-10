@@ -29,6 +29,7 @@ import Packages from "@/pages/packages";
 import Settings from "@/pages/settings";
 import AIAnalytics from "@/pages/ai-analytics";
 import SuperAdminDashboard from "@/pages/superadmin/SuperAdminDashboard";
+import SuperAdminLogin from "@/pages/superadmin/SuperAdminLogin";
 import Reports from "@/pages/reports";
 import VoiceBooking from "@/pages/voice-booking";
 import ProposalView from "@/pages/proposal-view";
@@ -65,8 +66,9 @@ function Router() {
       <Route path="/t/:slug/app/proposals" component={Proposals} />
       <Route path="/t/:slug/app/proposal/:proposalId" component={ProposalView} />
       
-      {/* Superadmin routes - secure hidden URL */}
+      {/* Superadmin routes - secure hidden URLs */}
       <Route path="/sys-admin-x7k9p2w4" component={SuperAdminDashboard} />
+      <Route path="/sys-admin-login-x7k9p2w4" component={SuperAdminLogin} />
       
       {/* Legacy fallback for existing tenant (temporary) */}
       <Route path="/events" component={Events} />

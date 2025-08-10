@@ -73,10 +73,10 @@ export default function SuperAdminDashboard() {
     retry: false,
   });
 
-  // Redirect to login if not authenticated
+  // Redirect to superadmin login if not authenticated
   useEffect(() => {
     if (!authLoading && (!authUser || authError)) {
-      navigate('/login');
+      navigate('/sys-admin-login-x7k9p2w4');
       return;
     }
   }, [authUser, authLoading, authError, navigate]);
