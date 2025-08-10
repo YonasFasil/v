@@ -18,11 +18,10 @@ interface StatusChangeModalProps {
 }
 
 const STATUS_OPTIONS = [
-  { value: "inquiry", label: "Inquiry", description: "Initial customer inquiry for availability" },
-  { value: "quoted", label: "Quoted", description: "Proposal sent, awaiting customer decision" },
-  { value: "confirmed", label: "Confirmed", description: "Customer agreed, contract/deposit in place" },
+  { value: "inquiry", label: "Lead", description: "Active lead - gathering requirements, sending proposals" },
+  { value: "confirmed", label: "Booked", description: "Customer confirmed, contract signed, deposit received" },
   { value: "completed", label: "Completed", description: "Event finished successfully" },
-  { value: "cancelled", label: "Cancelled", description: "Booking officially cancelled" }
+  { value: "cancelled", label: "Cancelled", description: "Booking cancelled by customer or venue" }
 ];
 
 export function StatusChangeModal({ open, onOpenChange, booking, onStatusChanged }: StatusChangeModalProps) {
@@ -83,16 +82,17 @@ export function StatusChangeModal({ open, onOpenChange, booking, onStatusChanged
 
   const getCurrentStatusBadge = (status: string) => {
     const statusConfig = {
-      inquiry: "bg-purple-100 text-purple-800",
-      quoted: "bg-blue-100 text-blue-800", 
-      confirmed: "bg-green-100 text-green-800",
-      completed: "bg-gray-100 text-gray-800",
-      cancelled: "bg-red-100 text-red-800"
+      inquiry: { class: "bg-purple-100 text-purple-800", label: "Lead" },
+      confirmed: { class: "bg-green-100 text-green-800", label: "Booked" },
+      completed: { class: "bg-gray-100 text-gray-800", label: "Completed" },
+      cancelled: { class: "bg-red-100 text-red-800", label: "Cancelled" }
     };
     
+    const config = statusConfig[status as keyof typeof statusConfig] || { class: "bg-gray-100 text-gray-800", label: status };
+    
     return (
-      <Badge className={statusConfig[status as keyof typeof statusConfig] || "bg-gray-100 text-gray-800"}>
-        {status}
+      <Badge className={config.class}>
+        {config.label}
       </Badge>
     );
   };

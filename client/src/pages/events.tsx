@@ -29,48 +29,34 @@ export default function Events() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const getDisplayStatus = (status: string, proposalStatus?: string) => {
-    // Handle proposal-based status display
-    if (status === "inquiry" && proposalStatus === "sent") {
-      return "Proposal Sent";
-    }
-    if (status === "inquiry" && proposalStatus === "viewed") {
-      return "Proposal Viewed";
-    }
-    if (status === "inquiry" && proposalStatus === "accepted") {
-      return "Proposal Accepted";
-    }
-    if (status === "inquiry" && proposalStatus === "declined") {
-      return "Proposal Declined";
-    }
+    // Show proposal status when active for leads
+    if (status === "inquiry" && proposalStatus === "sent") return "Proposal Sent";
+    if (status === "inquiry" && proposalStatus === "viewed") return "Proposal Viewed";
+    if (status === "inquiry" && proposalStatus === "accepted") return "Proposal Accepted";
+    if (status === "inquiry" && proposalStatus === "declined") return "Proposal Declined";
     
+    // Main business workflow
     switch (status) {
-      case "inquiry": return "Inquiry";
-      case "confirmed": return "Confirmed";
+      case "inquiry": return "Lead";
+      case "confirmed": return "Booked";
       case "completed": return "Completed";
       case "cancelled": return "Cancelled";
       // Legacy statuses for backwards compatibility
       case "pending": return "Pending";
       case "tentative": return "Tentative";
-      case "quoted": return "Quoted"; // Legacy support
+      case "quoted": return "Proposal Sent"; // Legacy: redirect to new workflow
       default: return status.charAt(0).toUpperCase() + status.slice(1);
     }
   };
 
   const getStatusColor = (status: string, proposalStatus?: string) => {
-    // Handle proposal-based status display
-    if (status === "inquiry" && proposalStatus === "sent") {
-      return "bg-blue-100 text-blue-800";
-    }
-    if (status === "inquiry" && proposalStatus === "viewed") {
-      return "bg-indigo-100 text-indigo-800";
-    }
-    if (status === "inquiry" && proposalStatus === "accepted") {
-      return "bg-emerald-100 text-emerald-800";
-    }
-    if (status === "inquiry" && proposalStatus === "declined") {
-      return "bg-orange-100 text-orange-800";
-    }
+    // Show proposal colors when active for leads
+    if (status === "inquiry" && proposalStatus === "sent") return "bg-blue-100 text-blue-800";
+    if (status === "inquiry" && proposalStatus === "viewed") return "bg-indigo-100 text-indigo-800";
+    if (status === "inquiry" && proposalStatus === "accepted") return "bg-emerald-100 text-emerald-800";
+    if (status === "inquiry" && proposalStatus === "declined") return "bg-orange-100 text-orange-800";
     
+    // Main business workflow colors
     switch (status) {
       case "inquiry": return "bg-purple-100 text-purple-800";
       case "confirmed": return "bg-green-100 text-green-800";
@@ -79,7 +65,7 @@ export default function Events() {
       // Legacy statuses for backwards compatibility
       case "pending": return "bg-yellow-100 text-yellow-800";
       case "tentative": return "bg-blue-100 text-blue-800";
-      case "quoted": return "bg-blue-100 text-blue-800"; // Legacy support
+      case "quoted": return "bg-blue-100 text-blue-800"; // Legacy: redirect to proposal sent
       default: return "bg-gray-100 text-gray-800";
     }
   };
