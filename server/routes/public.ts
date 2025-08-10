@@ -7,12 +7,12 @@ export function registerPublicRoutes(app: Express) {
   // GET /api/public/plans - Get active pricing plans
   app.get('/api/public/plans', async (req, res) => {
     try {
-      // Simple query without Drizzle query builder since schema may not match
+      // Use correct column names from the new schema
       const result = await db.execute(sql`
-        SELECT id, name, slug, description, price_monthly, max_users, features
+        SELECT id, name, slug, description, billing_modes, limits, features, price_monthly, price_yearly, trial_days
         FROM feature_packages 
-        WHERE is_active = true 
-        ORDER BY name
+        WHERE status = 'active' 
+        ORDER BY sort_order, price_monthly
       `);
       
       const activePlans = result.rows;
@@ -22,27 +22,22 @@ export function registerPublicRoutes(app: Express) {
         id: plan.id,
         name: plan.name,
         slug: plan.slug,
-        billingModes: {
-          monthly: {
-            amount: Math.round(Number(plan.price_monthly) * 100), // Convert to cents
-            currency: 'USD'
-          }
-        },
-        limits: {
-          venues: plan.slug === 'starter' ? 1 : plan.slug === 'professional' ? 3 : 999,
-          staff: Number(plan.max_users),
-          monthlyBookings: plan.slug === 'starter' ? 50 : plan.slug === 'professional' ? 200 : 999
-        },
-        flags: {
-          aiFeatures: plan.slug !== 'starter',
-          multiVenue: plan.slug !== 'starter',
-          advancedReporting: plan.slug === 'professional' || plan.slug === 'enterprise',
-          apiAccess: plan.slug === 'enterprise',
-          customBranding: plan.slug === 'enterprise',
-          prioritySupport: plan.slug === 'enterprise'
-        },
-        trialDays: 14,
-        features: plan.features || []
+        description: plan.description,
+        billingModes: typeof plan.billing_modes === 'string' 
+          ? JSON.parse(plan.billing_modes) 
+          : plan.billing_modes,
+        limits: typeof plan.limits === 'string'
+          ? JSON.parse(plan.limits)
+          : plan.limits,
+        flags: typeof plan.features === 'string'
+          ? JSON.parse(plan.features)
+          : plan.features,
+        trialDays: plan.trial_days || 14,
+        features: Object.keys(
+          typeof plan.features === 'string' 
+            ? JSON.parse(plan.features) 
+            : plan.features || {}
+        )
       }));
 
       res.json(transformedPlans);

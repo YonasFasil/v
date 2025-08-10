@@ -89,9 +89,9 @@ export const requireSuperAdmin = async (req: any, res: Response, next: NextFunct
 
     const userId = req.session.userId;
 
-    // Check if user has superadmin role directly from users table
+    // Check if user is super admin using super_admins table
     const result = await db.execute(sql`
-      SELECT role FROM users WHERE id = ${userId} AND role = 'superadmin'
+      SELECT user_id FROM super_admins WHERE user_id = ${userId}
     `);
 
     if (!result.rows.length) {

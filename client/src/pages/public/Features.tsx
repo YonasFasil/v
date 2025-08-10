@@ -1,308 +1,457 @@
-import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { 
   Calendar, 
   Users, 
-  FileText,
+  TrendingUp,
+  Brain,
+  MessageSquare,
   CreditCard,
-  Building,
-  Zap,
-  BarChart3,
-  Users2,
-  Mail,
   ArrowRight,
   CheckCircle,
+  Zap,
+  Shield,
+  Globe,
+  Mic,
+  FileText,
+  BarChart3,
+  Settings,
+  Smartphone,
+  Mail,
   Star
 } from "lucide-react";
 
-const iconMap = {
-  Calendar,
-  Users,
-  FileText,
-  CreditCard,
-  Building,
-  Zap,
-  BarChart3,
-  Users2,
-  Mail,
-};
-
 export default function Features() {
-  const { data: features = [], isLoading } = useQuery({
-    queryKey: ["/api/public/features"],
-    retry: false,
-  });
-
-  const categories = [
-    { id: 'booking', name: 'Booking Management', color: 'bg-blue-500' },
-    { id: 'crm', name: 'Customer Relations', color: 'bg-green-500' },
-    { id: 'proposals', name: 'Proposals & Contracts', color: 'bg-purple-500' },
-    { id: 'payments', name: 'Payments & Billing', color: 'bg-yellow-500' },
-    { id: 'venues', name: 'Venue Management', color: 'bg-red-500' },
-    { id: 'ai', name: 'AI & Automation', color: 'bg-indigo-500' },
-    { id: 'analytics', name: 'Analytics & Insights', color: 'bg-pink-500' },
-    { id: 'team', name: 'Team Collaboration', color: 'bg-teal-500' },
-    { id: 'communication', name: 'Communications', color: 'bg-orange-500' },
-  ];
-
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Calendar className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold">VENUIN</span>
+    <div className="min-h-screen bg-white">
+      {/* Navigation */}
+      <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-8">
+              <Link href="/" className="flex items-center space-x-2">
+                <Calendar className="h-8 w-8 text-blue-600" />
+                <span className="text-xl font-semibold text-gray-900">VENUIN</span>
+              </Link>
+              <div className="hidden md:flex space-x-8">
+                <Link href="/features" className="text-gray-900 font-medium">Features</Link>
+                <Link href="/pricing" className="text-gray-700 hover:text-gray-900 font-medium">Pricing</Link>
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Link href="/login" className="text-gray-700 hover:text-gray-900 font-medium">Sign in</Link>
+              <Link href="/signup">
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full font-medium">
+                  Start Free Trial
+                </Button>
+              </Link>
+            </div>
           </div>
-          <nav className="hidden md:flex items-center space-x-6">
-            <Link href="/">
-              <a className="text-muted-foreground hover:text-foreground transition-colors">Home</a>
-            </Link>
-            <Link href="/features">
-              <a className="text-foreground font-medium">Features</a>
-            </Link>
-            <Link href="/pricing">
-              <a className="text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
-            </Link>
-            <Link href="/contact">
-              <a className="text-muted-foreground hover:text-foreground transition-colors">Contact</a>
-            </Link>
-            <Link href="/login">
-              <a className="text-muted-foreground hover:text-foreground transition-colors">Sign In</a>
-            </Link>
-            <Link href="/signup">
-              <Button size="sm">Get Started</Button>
-            </Link>
-          </nav>
         </div>
-      </header>
+      </nav>
 
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-16 text-center">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6">
-            Everything You Need to Manage Your Venue
+      <section className="pt-32 pb-20 px-4 bg-gradient-to-b from-gray-50 to-white">
+        <div className="max-w-6xl mx-auto text-center">
+          <Badge variant="outline" className="mb-6 text-blue-600 border-blue-200 bg-blue-50">
+            <Zap className="w-4 h-4 mr-2" />
+            Powered by AI
+          </Badge>
+          
+          <h1 className="text-6xl md:text-7xl font-bold text-gray-900 mb-6 leading-tight">
+            Features that
+            <br />
+            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              work for you
+            </span>
           </h1>
-          <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-            From initial inquiry to final payment, VENUIN provides comprehensive tools to streamline 
-            every aspect of your venue management operation.
+          
+          <p className="text-xl text-gray-600 mb-10 max-w-3xl mx-auto leading-relaxed">
+            VENUIN combines powerful venue management tools with intelligent automation 
+            to help you run your business more efficiently and profitably.
           </p>
-          <div className="flex items-center justify-center gap-1 mb-8">
-            {[1,2,3,4,5].map(i => (
-              <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-            ))}
-            <span className="ml-2 text-sm text-muted-foreground">4.9/5 from 200+ venue owners</span>
-          </div>
+          
+          <Link href="/signup">
+            <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-full text-lg font-medium">
+              Try All Features Free <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+          </Link>
         </div>
       </section>
 
-      {/* Features by Category */}
-      <section className="container mx-auto px-4 pb-16">
-        {isLoading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
-            <p className="mt-4 text-muted-foreground">Loading features...</p>
-          </div>
-        ) : (
-          <div className="space-y-16">
-            {categories.map((category) => {
-              const categoryFeatures = features.filter((f: any) => f.category === category.id);
-              if (categoryFeatures.length === 0) return null;
-
-              return (
-                <div key={category.id} className="space-y-8">
-                  <div className="text-center">
-                    <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${category.color} bg-opacity-10 mb-4`}>
-                      <div className={`w-2 h-2 rounded-full ${category.color}`}></div>
-                      <span className="font-medium text-sm">{category.name}</span>
-                    </div>
-                    <h2 className="text-3xl font-bold">{category.name}</h2>
-                  </div>
-
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {categoryFeatures.map((feature: any) => {
-                      const IconComponent = iconMap[feature.icon as keyof typeof iconMap] || Calendar;
-                      
-                      return (
-                        <Card key={feature.id} className="h-full">
-                          <CardHeader>
-                            <div className="flex items-center gap-3 mb-2">
-                              <div className="p-2 bg-primary/10 rounded-lg">
-                                <IconComponent className="h-6 w-6 text-primary" />
-                              </div>
-                            </div>
-                            <CardTitle className="text-xl">{feature.title}</CardTitle>
-                            <CardDescription className="text-base">
-                              {feature.description}
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-2">
-                              {feature.benefits?.map((benefit: string, idx: number) => (
-                                <div key={idx} className="flex items-center gap-2 text-sm">
-                                  <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                                  <span>{benefit}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* Integration Features */}
-      <section className="bg-muted/50 py-16">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">Powerful Integrations</h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              VENUIN works seamlessly with the tools you already use
+      {/* AI Features Highlight */}
+      <section className="py-24 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-5xl font-bold mb-6">AI-Powered Intelligence</h2>
+            <p className="text-xl text-blue-100 max-w-3xl mx-auto">
+              Let artificial intelligence handle the routine tasks while you focus on growing your business.
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <div className="bg-blue-100 dark:bg-blue-900 p-3 rounded-lg w-12 h-12 mx-auto mb-4 flex items-center justify-center">
-                  <CreditCard className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                icon: Mic,
+                title: "Voice-to-Text Booking",
+                description: "Speak your booking details and watch them automatically convert to structured data"
+              },
+              {
+                icon: Brain,
+                title: "Smart Scheduling",
+                description: "AI suggests optimal booking times based on availability and revenue potential"
+              },
+              {
+                icon: Star,
+                title: "Lead Scoring",
+                description: "Automatically prioritize leads based on likelihood to convert and revenue potential"
+              }
+            ].map((feature, index) => (
+              <Card key={index} className="bg-white/10 backdrop-blur border-white/20 text-white">
+                <CardContent className="p-8 text-center">
+                  <div className="w-16 h-16 mx-auto mb-6 bg-white/20 rounded-2xl flex items-center justify-center">
+                    <feature.icon className="h-8 w-8" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-4">{feature.title}</h3>
+                  <p className="text-blue-100">{feature.description}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Core Features */}
+      <section className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-20">
+            <h2 className="text-5xl font-bold text-gray-900 mb-6">
+              Everything you need in one platform
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              From lead capture to final payment, manage every aspect of your venue business with our comprehensive feature set.
+            </p>
+          </div>
+          
+          <div className="grid lg:grid-cols-2 gap-16 items-center mb-24">
+            <div>
+              <Badge className="mb-4 bg-blue-100 text-blue-600 border-blue-200">
+                Booking Management
+              </Badge>
+              <h3 className="text-4xl font-bold text-gray-900 mb-6">
+                Smart calendar that thinks ahead
+              </h3>
+              <p className="text-gray-600 mb-8 text-lg leading-relaxed">
+                Our intelligent booking system helps you visualize availability, prevent double bookings, 
+                and optimize your venue utilization with automated scheduling suggestions.
+              </p>
+              <div className="space-y-4">
+                {[
+                  "Interactive calendar with drag-and-drop booking",
+                  "Multi-venue and multi-room management",
+                  "Automated conflict prevention",
+                  "Recurring event templates",
+                  "Buffer time management"
+                ].map((feature, index) => (
+                  <div key={index} className="flex items-center space-x-3">
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                    <span className="text-gray-700">{feature}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="relative">
+              <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl p-8">
+                <div className="bg-white rounded-2xl p-6">
+                  <div className="grid grid-cols-7 gap-2 mb-4">
+                    {Array.from({length: 21}, (_, i) => (
+                      <div key={i} className={`h-8 rounded ${
+                        i === 8 || i === 9 || i === 15 ? 'bg-blue-100' :
+                        i === 10 || i === 16 ? 'bg-green-100' :
+                        'bg-gray-50'
+                      }`} />
+                    ))}
+                  </div>
+                  <div className="space-y-2">
+                    <div className="bg-blue-600 text-white p-3 rounded-lg text-sm">
+                      Wedding Reception - Grand Ballroom
+                    </div>
+                    <div className="bg-green-600 text-white p-3 rounded-lg text-sm">
+                      Corporate Meeting - Conference Room A
+                    </div>
+                  </div>
                 </div>
-                <h3 className="font-semibold mb-2">Stripe Payments</h3>
-                <p className="text-sm text-muted-foreground">
-                  Secure payment processing with automated invoicing
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <div className="bg-red-100 dark:bg-red-900 p-3 rounded-lg w-12 h-12 mx-auto mb-4 flex items-center justify-center">
-                  <Mail className="h-6 w-6 text-red-600 dark:text-red-400" />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-16 items-center mb-24">
+            <div className="order-2 lg:order-1 relative">
+              <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-3xl p-8">
+                <div className="bg-white rounded-2xl p-6 space-y-4">
+                  <div className="flex items-center space-x-3 p-4 bg-gray-50 rounded-lg">
+                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                      <Users className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Sarah Chen</p>
+                      <p className="text-sm text-gray-600">Wedding Planning - High Priority</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3 p-4 bg-gray-50 rounded-lg">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Building className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Acme Corp</p>
+                      <p className="text-sm text-gray-600">Annual Conference - Medium Priority</p>
+                    </div>
+                  </div>
                 </div>
-                <h3 className="font-semibold mb-2">Gmail Integration</h3>
-                <p className="text-sm text-muted-foreground">
-                  Automated email workflows and communication tracking
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <div className="bg-green-100 dark:bg-green-900 p-3 rounded-lg w-12 h-12 mx-auto mb-4 flex items-center justify-center">
-                  <Zap className="h-6 w-6 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+            <div className="order-1 lg:order-2">
+              <Badge className="mb-4 bg-green-100 text-green-600 border-green-200">
+                Customer & Lead Management
+              </Badge>
+              <h3 className="text-4xl font-bold text-gray-900 mb-6">
+                Never lose a lead again
+              </h3>
+              <p className="text-gray-600 mb-8 text-lg leading-relaxed">
+                Track every interaction, score leads automatically, and nurture prospects 
+                with personalized communication workflows that convert better.
+              </p>
+              <div className="space-y-4">
+                {[
+                  "AI-powered lead scoring and prioritization",
+                  "Complete customer interaction history",
+                  "Automated follow-up workflows",
+                  "UTM tracking and attribution",
+                  "Custom fields and tags"
+                ].map((feature, index) => (
+                  <div key={index} className="flex items-center space-x-3">
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                    <span className="text-gray-700">{feature}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div>
+              <Badge className="mb-4 bg-purple-100 text-purple-600 border-purple-200">
+                Proposals & Payments
+              </Badge>
+              <h3 className="text-4xl font-bold text-gray-900 mb-6">
+                Close deals faster
+              </h3>
+              <p className="text-gray-600 mb-8 text-lg leading-relaxed">
+                Create stunning proposals in minutes, track engagement, collect digital signatures, 
+                and process payments seamlessly with integrated Stripe Connect.
+              </p>
+              <div className="space-y-4">
+                {[
+                  "Professional proposal templates",
+                  "Digital signature collection",
+                  "Proposal tracking and analytics",
+                  "Integrated payment processing",
+                  "Automated invoice generation"
+                ].map((feature, index) => (
+                  <div key={index} className="flex items-center space-x-3">
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                    <span className="text-gray-700">{feature}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="relative">
+              <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl p-8">
+                <div className="bg-white rounded-2xl p-6">
+                  <div className="text-center mb-6">
+                    <h4 className="font-bold text-lg mb-2">Wedding Venue Proposal</h4>
+                    <p className="text-gray-600">Grand Ballroom Package</p>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between py-2 border-b">
+                      <span>Venue Rental</span>
+                      <span className="font-semibold">$3,500</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b">
+                      <span>Catering Package</span>
+                      <span className="font-semibold">$4,200</span>
+                    </div>
+                    <div className="flex justify-between py-2 font-bold text-lg">
+                      <span>Total</span>
+                      <span>$7,700</span>
+                    </div>
+                    <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white">
+                      Accept & Sign
+                    </Button>
+                  </div>
                 </div>
-                <h3 className="font-semibold mb-2">Google AI</h3>
-                <p className="text-sm text-muted-foreground">
-                  Smart automation and intelligent insights
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <div className="bg-purple-100 dark:bg-purple-900 p-3 rounded-lg w-12 h-12 mx-auto mb-4 flex items-center justify-center">
-                  <Calendar className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                </div>
-                <h3 className="font-semibold mb-2">Calendar Sync</h3>
-                <p className="text-sm text-muted-foreground">
-                  Two-way calendar synchronization with Google Calendar
-                </p>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Feature Grid */}
+      <section className="py-24 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-20">
+            <h2 className="text-5xl font-bold text-gray-900 mb-6">
+              Built for venue professionals
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Every feature designed with your workflow in mind, from first inquiry to final payment.
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[
+              {
+                icon: BarChart3,
+                title: "Advanced Analytics",
+                description: "Track revenue, booking patterns, and performance metrics with detailed reports and insights.",
+                color: "bg-blue-100 text-blue-600"
+              },
+              {
+                icon: Mail,
+                title: "Gmail Integration", 
+                description: "Connect your Gmail account for seamless email workflows and communication tracking.",
+                color: "bg-red-100 text-red-600"
+              },
+              {
+                icon: Smartphone,
+                title: "Mobile Access",
+                description: "Manage your venue business on the go with our responsive mobile interface.",
+                color: "bg-green-100 text-green-600"
+              },
+              {
+                icon: Settings,
+                title: "Custom Workflows",
+                description: "Build automated workflows that match your unique business processes and requirements.",
+                color: "bg-purple-100 text-purple-600"
+              },
+              {
+                icon: Shield,
+                title: "Enterprise Security",
+                description: "Bank-level security with encryption, regular backups, and compliance standards.",
+                color: "bg-orange-100 text-orange-600"
+              },
+              {
+                icon: Globe,
+                title: "API Access",
+                description: "Integrate with your existing tools and build custom solutions with our robust API.",
+                color: "bg-indigo-100 text-indigo-600"
+              }
+            ].map((feature, index) => (
+              <Card key={index} className="border-0 shadow-sm hover:shadow-lg transition-all duration-300 bg-white">
+                <CardContent className="p-8">
+                  <div className={`w-12 h-12 rounded-xl ${feature.color} flex items-center justify-center mb-6`}>
+                    <feature.icon className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-4">{feature.title}</h3>
+                  <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Integration Section */}
+      <section className="py-24 bg-white">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <h2 className="text-5xl font-bold text-gray-900 mb-6">
+            Seamless integrations
+          </h2>
+          <p className="text-xl text-gray-600 mb-16">
+            VENUIN works with the tools you already use, making it easy to get started without disrupting your workflow.
+          </p>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 items-center opacity-60">
+            {[
+              { name: "Stripe", logo: "💳" },
+              { name: "Gmail", logo: "📧" },
+              { name: "Google Cal", logo: "📅" },
+              { name: "Zoom", logo: "📹" }
+            ].map((integration, index) => (
+              <div key={index} className="text-center">
+                <div className="text-4xl mb-2">{integration.logo}</div>
+                <p className="text-gray-700 font-medium">{integration.name}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="container mx-auto px-4 py-16 text-center">
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl font-bold mb-4">
-            Ready to Transform Your Venue Management?
+      <section className="py-24 bg-gradient-to-r from-blue-600 to-purple-600">
+        <div className="max-w-4xl mx-auto text-center px-4">
+          <h2 className="text-5xl font-bold text-white mb-6">
+            Ready to experience all features?
           </h2>
-          <p className="text-xl text-muted-foreground mb-8">
-            Join hundreds of venue owners who have streamlined their operations with VENUIN's comprehensive feature set.
+          <p className="text-xl text-blue-100 mb-10">
+            Start your free 14-day trial and discover how VENUIN can transform your venue management.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link href="/signup">
-              <Button size="lg" className="text-lg px-8">
-                Start Your Free Trial
-                <ArrowRight className="ml-2 h-5 w-5" />
+              <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-50 px-8 py-4 rounded-full text-lg font-medium">
+                Try All Features Free <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
             <Link href="/pricing">
-              <Button variant="outline" size="lg" className="text-lg px-8">
-                View Pricing Plans
+              <Button variant="outline" size="lg" className="px-8 py-4 rounded-full text-lg font-medium border-white text-white hover:bg-white hover:text-blue-600">
+                View Pricing
               </Button>
             </Link>
           </div>
-          <div className="mt-6 flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
-            <div className="flex items-center">
-              <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
-              14-day free trial
-            </div>
-            <div className="flex items-center">
-              <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
-              No setup fees
-            </div>
-            <div className="flex items-center">
-              <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
-              Cancel anytime
-            </div>
-          </div>
+          <p className="text-blue-100 mt-6">
+            No credit card required • Full access to all features
+          </p>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-background border-t py-12">
-        <div className="container mx-auto px-4">
+      <footer className="bg-gray-900 text-white py-16">
+        <div className="max-w-7xl mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <Calendar className="h-6 w-6 text-primary" />
-                <span className="text-xl font-bold">VENUIN</span>
-              </div>
-              <p className="text-muted-foreground text-sm">
-                The complete venue management solution for modern businesses.
+              <Link href="/" className="flex items-center space-x-2 mb-4">
+                <Calendar className="h-6 w-6 text-blue-400" />
+                <span className="text-xl font-semibold">VENUIN</span>
+              </Link>
+              <p className="text-gray-400">
+                The modern venue management platform for the digital age.
               </p>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Product</h4>
-              <div className="space-y-2 text-sm">
-                <Link href="/features"><a className="text-muted-foreground hover:text-foreground">Features</a></Link>
-                <Link href="/pricing"><a className="text-muted-foreground hover:text-foreground">Pricing</a></Link>
-                <a href="#" className="text-muted-foreground hover:text-foreground">Security</a>
-                <a href="#" className="text-muted-foreground hover:text-foreground">Integrations</a>
+              <h3 className="font-semibold mb-4">Product</h3>
+              <div className="space-y-2 text-gray-400">
+                <Link href="/features" className="block hover:text-white">Features</Link>
+                <Link href="/pricing" className="block hover:text-white">Pricing</Link>
               </div>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Company</h4>
-              <div className="space-y-2 text-sm">
-                <a href="#" className="text-muted-foreground hover:text-foreground">About</a>
-                <a href="#" className="text-muted-foreground hover:text-foreground">Blog</a>
-                <Link href="/contact"><a className="text-muted-foreground hover:text-foreground">Contact</a></Link>
-                <a href="#" className="text-muted-foreground hover:text-foreground">Careers</a>
+              <h3 className="font-semibold mb-4">Company</h3>
+              <div className="space-y-2 text-gray-400">
+                <a href="#" className="block hover:text-white">About</a>
+                <a href="#" className="block hover:text-white">Contact</a>
               </div>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Legal</h4>
-              <div className="space-y-2 text-sm">
-                <Link href="/privacy"><a className="text-muted-foreground hover:text-foreground">Privacy Policy</a></Link>
-                <Link href="/terms"><a className="text-muted-foreground hover:text-foreground">Terms of Service</a></Link>
-                <a href="#" className="text-muted-foreground hover:text-foreground">Cookie Policy</a>
-                <a href="#" className="text-muted-foreground hover:text-foreground">GDPR</a>
+              <h3 className="font-semibold mb-4">Legal</h3>
+              <div className="space-y-2 text-gray-400">
+                <Link href="/privacy" className="block hover:text-white">Privacy</Link>
+                <Link href="/terms" className="block hover:text-white">Terms</Link>
               </div>
             </div>
           </div>
-          <div className="border-t mt-8 pt-8 text-center text-sm text-muted-foreground">
+          <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-400">
             <p>&copy; 2025 VENUIN. All rights reserved.</p>
           </div>
         </div>
