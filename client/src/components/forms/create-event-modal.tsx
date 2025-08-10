@@ -325,7 +325,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
       // Apply package fees
       (selectedPackage.enabledFeeIds || []).forEach(feeId => {
         const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
-        if (feeSetting) {
+        if (feeSetting && (feeSetting.type === 'fee' || feeSetting.type === 'service_charge')) {
           if (feeSetting.calculation === 'percentage') {
             feesTotal += (packageSubtotal * parseFloat(feeSetting.value)) / 100;
           } else {
@@ -367,7 +367,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         // Apply service fees
         (service.enabledFeeIds || []).forEach(feeId => {
           const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
-          if (feeSetting) {
+          if (feeSetting && (feeSetting.type === 'fee' || feeSetting.type === 'service_charge')) {
             if (feeSetting.calculation === 'percentage') {
               feesTotal += (serviceSubtotal * parseFloat(feeSetting.value)) / 100;
             } else {
@@ -2263,7 +2263,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                     // Apply package fees
                                     (pkg.enabledFeeIds || []).forEach(feeId => {
                                       const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
-                                      if (feeSetting) {
+                                      if (feeSetting && (feeSetting.type === 'fee' || feeSetting.type === 'service_charge')) {
                                         let feeAmount = 0;
                                         if (feeSetting.calculation === 'percentage') {
                                           feeAmount = (packageSubtotal * parseFloat(feeSetting.value)) / 100;
@@ -2320,7 +2320,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                     // Apply service fees
                                     (service.enabledFeeIds || []).forEach(feeId => {
                                       const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
-                                      if (feeSetting) {
+                                      if (feeSetting && (feeSetting.type === 'fee' || feeSetting.type === 'service_charge')) {
                                         let feeAmount = 0;
                                         if (feeSetting.calculation === 'percentage') {
                                           feeAmount = (serviceSubtotal * parseFloat(feeSetting.value)) / 100;
