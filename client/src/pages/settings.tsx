@@ -136,20 +136,9 @@ export default function Settings() {
   // Save settings mutation
   const saveSettingsMutation = useMutation({
     mutationFn: async (data: any) => {
-      // Convert the nested data into key-value pairs for the settings API
-      const settingsUpdates = Object.entries(data).map(([key, value]) => ({
-        key,
-        value
-      }));
-      
-      // Update each setting individually
-      const responses = await Promise.all(
-        settingsUpdates.map(setting => 
-          apiRequest("POST", "/api/settings", setting)
-        )
-      );
-      
-      return responses;
+      // Use the batch update endpoint
+      const response = await apiRequest("PUT", "/api/settings", data);
+      return response;
     },
     onSuccess: () => {
       toast({

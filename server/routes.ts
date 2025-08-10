@@ -2810,7 +2810,30 @@ This is a test email from your Venuine venue management system.
         res.json(setting);
       } else {
         const settings = await storage.getSettings();
-        res.json(settings);
+        
+        // Convert settings array to nested object structure for frontend
+        const reconstructObject = (flatSettings: any[]) => {
+          const result: any = {};
+          
+          for (const setting of flatSettings) {
+            const keys = setting.key.split('.');
+            let current = result;
+            
+            for (let i = 0; i < keys.length - 1; i++) {
+              if (!current[keys[i]]) {
+                current[keys[i]] = {};
+              }
+              current = current[keys[i]];
+            }
+            
+            current[keys[keys.length - 1]] = setting.value;
+          }
+          
+          return result;
+        };
+        
+        const structuredSettings = reconstructObject(settings);
+        res.json(structuredSettings);
       }
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch settings" });
@@ -2833,6 +2856,43 @@ This is a test email from your Venuine venue management system.
       res.json(setting);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Batch update endpoint for settings
+  app.put("/api/settings", async (req, res) => {
+    try {
+      const updates = req.body;
+      const results = [];
+      
+      // Flatten the nested object into key-value pairs
+      const flattenObject = (obj: any, prefix = ''): Array<{key: string, value: any}> => {
+        const result: Array<{key: string, value: any}> = [];
+        
+        for (const [key, value] of Object.entries(obj)) {
+          const fullKey = prefix ? `${prefix}.${key}` : key;
+          
+          if (value && typeof value === 'object' && !Array.isArray(value)) {
+            result.push(...flattenObject(value, fullKey));
+          } else {
+            result.push({ key: fullKey, value });
+          }
+        }
+        
+        return result;
+      };
+      
+      const settingsUpdates = flattenObject(updates);
+      
+      // Update each setting
+      for (const update of settingsUpdates) {
+        const setting = await storage.updateSetting(update.key, update.value);
+        results.push(setting);
+      }
+      
+      res.json({ message: "Settings updated successfully", count: results.length });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
     }
   });
 
