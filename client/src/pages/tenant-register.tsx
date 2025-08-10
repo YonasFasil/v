@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Building2, User, Mail, Lock, AlertCircle, CheckCircle } from "lucide-react";
+import { Building2, User, Mail, Lock, AlertCircle, CheckCircle, RefreshCw } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { apiRequest } from "@/lib/queryClient";
 
 const registerSchema = z.object({
@@ -18,9 +19,23 @@ const registerSchema = z.object({
   contactPhone: z.string().min(10, "Please enter a valid phone number"),
   adminName: z.string().min(2, "Admin name must be at least 2 characters"),
   adminEmail: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string().min(6, "Please confirm your password")
-}).refine(data => data.password === data.confirmPassword, {
+  passwordOption: z.enum(["custom", "generated"]),
+  password: z.string().optional(),
+  confirmPassword: z.string().optional()
+}).refine(data => {
+  if (data.passwordOption === "custom") {
+    return data.password && data.password.length >= 6;
+  }
+  return true;
+}, {
+  message: "Password must be at least 6 characters",
+  path: ["password"]
+}).refine(data => {
+  if (data.passwordOption === "custom") {
+    return data.password === data.confirmPassword;
+  }
+  return true;
+}, {
   message: "Passwords don't match",
   path: ["confirmPassword"]
 });
@@ -32,6 +47,24 @@ export default function TenantRegister() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [generatedPassword, setGeneratedPassword] = useState("");
+  const [showGeneratedPassword, setShowGeneratedPassword] = useState(false);
+
+  // Generate a secure random password
+  const generatePassword = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*";
+    let password = "";
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
+
+  const handleGeneratePassword = () => {
+    const newPassword = generatePassword();
+    setGeneratedPassword(newPassword);
+    setShowGeneratedPassword(true);
+  };
 
   const form = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
@@ -42,6 +75,7 @@ export default function TenantRegister() {
       contactPhone: "",
       adminName: "",
       adminEmail: "",
+      passwordOption: "custom",
       password: "",
       confirmPassword: ""
     }
@@ -62,7 +96,8 @@ export default function TenantRegister() {
         admin: {
           name: data.adminName,
           email: data.adminEmail,
-          password: data.password
+          password: data.passwordOption === "generated" ? generatedPassword : data.password,
+          isTemporary: data.passwordOption === "generated"
         }
       });
 
@@ -70,7 +105,7 @@ export default function TenantRegister() {
         setSuccess(true);
         setTimeout(() => {
           setLocation("/tenant/login");
-        }, 2000);
+        }, data.passwordOption === "generated" ? 10000 : 2000); // Give more time to copy password
       } else {
         const errorData = await response.json();
         setError(errorData.message || "Registration failed");
@@ -92,9 +127,32 @@ export default function TenantRegister() {
             </div>
             <CardTitle className="text-2xl font-bold text-green-700">Account Created!</CardTitle>
             <CardDescription>
-              Your tenant account has been successfully created. Redirecting to login...
+              Your tenant account has been successfully created.
             </CardDescription>
           </CardHeader>
+          {showGeneratedPassword && generatedPassword && (
+            <CardContent>
+              <Alert className="mb-4">
+                <Lock className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="space-y-2">
+                    <p><strong>Important:</strong> Your temporary password has been generated. Please save it now!</p>
+                    <div className="bg-gray-100 p-3 rounded font-mono text-sm break-all">
+                      {generatedPassword}
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      You'll need to change this password when you first log in.
+                    </p>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          )}
+          <CardContent className="text-center">
+            <p className="text-sm text-gray-600">
+              Redirecting to login page...
+            </p>
+          </CardContent>
         </Card>
       </div>
     );
@@ -206,31 +264,93 @@ export default function TenantRegister() {
                     <p className="text-sm text-red-600">{form.formState.errors.adminEmail.message}</p>
                   )}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Create a secure password"
-                    {...form.register("password")}
-                  />
-                  {form.formState.errors.password && (
-                    <p className="text-sm text-red-600">{form.formState.errors.password.message}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    placeholder="Confirm your password"
-                    {...form.register("confirmPassword")}
-                  />
-                  {form.formState.errors.confirmPassword && (
-                    <p className="text-sm text-red-600">{form.formState.errors.confirmPassword.message}</p>
-                  )}
-                </div>
               </div>
+              
+              {/* Password Option */}
+              <div className="space-y-4">
+                <Label>Password Setup</Label>
+                <RadioGroup
+                  value={form.watch("passwordOption")}
+                  onValueChange={(value: "custom" | "generated") => {
+                    form.setValue("passwordOption", value);
+                    if (value === "generated") {
+                      handleGeneratePassword();
+                    } else {
+                      setShowGeneratedPassword(false);
+                      setGeneratedPassword("");
+                    }
+                  }}
+                  className="flex flex-col space-y-3"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="custom" id="custom" />
+                    <Label htmlFor="custom" className="cursor-pointer">I'll set my own password</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="generated" id="generated" />
+                    <Label htmlFor="generated" className="cursor-pointer">Generate a secure password for me</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* Custom Password Fields */}
+              {form.watch("passwordOption") === "custom" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="Create a secure password"
+                      {...form.register("password")}
+                    />
+                    {form.formState.errors.password && (
+                      <p className="text-sm text-red-600">{form.formState.errors.password.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      placeholder="Confirm your password"
+                      {...form.register("confirmPassword")}
+                    />
+                    {form.formState.errors.confirmPassword && (
+                      <p className="text-sm text-red-600">{form.formState.errors.confirmPassword.message}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Generated Password Display */}
+              {form.watch("passwordOption") === "generated" && showGeneratedPassword && (
+                <Alert>
+                  <Lock className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">Generated Password:</span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleGeneratePassword}
+                        >
+                          <RefreshCw className="h-3 w-3 mr-1" />
+                          New Password
+                        </Button>
+                      </div>
+                      <div className="bg-gray-100 p-3 rounded font-mono text-sm break-all border">
+                        {generatedPassword}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Save this password! You'll need to change it when you first log in.
+                      </p>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
 
             <div className="space-y-4">

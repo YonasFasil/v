@@ -101,6 +101,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role: "admin",
         permissions: {},
         isActive: true,
+        isTemporaryPassword: admin.isTemporary || false,
+        mustChangePassword: admin.isTemporary || false,
         invitedBy: null,
         invitedAt: new Date(),
         acceptedAt: new Date()

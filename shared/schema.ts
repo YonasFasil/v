@@ -524,6 +524,8 @@ export const tenantUsers = pgTable("tenant_users", {
   role: text("role").notNull().default("staff"), // admin, staff, viewer
   permissions: jsonb("permissions").default({}), // Custom permission overrides
   isActive: boolean("is_active").default(true),
+  isTemporaryPassword: boolean("is_temporary_password").default(false),
+  mustChangePassword: boolean("must_change_password").default(false),
   lastLoginAt: timestamp("last_login_at"),
   invitedBy: varchar("invited_by").references(() => tenantUsers.id),
   invitedAt: timestamp("invited_at"),
