@@ -162,11 +162,22 @@ This proposal is valid for 30 days from the date of this email.`);
         guestCount: eventData.eventDates[0]?.guestCount || 1
       };
       
-      const proposal = await fetch("/api/proposals", {
+      const proposalResponse = await fetch("/api/proposals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(proposalData)
-      }).then(res => res.json());
+      });
+      
+      if (!proposalResponse.ok) {
+        const errorData = await proposalResponse.json();
+        console.error('Proposal creation failed:', errorData);
+        throw new Error(errorData.errors ? 
+          errorData.errors.map((e: any) => `${e.path}: ${e.message}`).join(', ') : 
+          errorData.message || 'Failed to create proposal'
+        );
+      }
+      
+      const proposal = await proposalResponse.json();
       
       // Then send the email via Gmail
       await fetch("/api/gmail/send-proposal", {

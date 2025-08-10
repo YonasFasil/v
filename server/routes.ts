@@ -921,11 +921,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/proposals", async (req, res) => {
     try {
+      console.log('Creating proposal with data:', req.body);
       const validatedData = insertProposalSchema.parse(req.body);
       const proposal = await storage.createProposal(validatedData);
       res.json(proposal);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid proposal data" });
+    } catch (error: any) {
+      console.error('Proposal validation error:', error);
+      if (error.errors) {
+        // Zod validation errors
+        res.status(400).json({ 
+          message: "Invalid proposal data",
+          errors: error.errors.map((e: any) => ({
+            path: e.path.join('.'),
+            message: e.message
+          }))
+        });
+      } else {
+        res.status(400).json({ message: error.message || "Invalid proposal data" });
+      }
     }
   });
 
