@@ -25,8 +25,7 @@ export function registerSuperAdminRoutes(app: Express) {
         conditions.push(
           or(
             ilike(tenants.name, `%${search}%`),
-            ilike(tenants.slug, `%${search}%`),
-            ilike(tenants.email, `%${search}%`)
+            ilike(tenants.slug, `%${search}%`)
           )
         );
       }

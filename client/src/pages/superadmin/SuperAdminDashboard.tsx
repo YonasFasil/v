@@ -112,7 +112,7 @@ export default function SuperAdminDashboard() {
     data: Tenant[];
     pagination: any;
   }>({
-    queryKey: ['/api/superadmin/tenants', { search: searchTerm, status: statusFilter }],
+    queryKey: ['/api/superadmin/tenants', searchTerm, statusFilter],
     enabled: !!authUser,
   });
 
@@ -520,7 +520,7 @@ export default function SuperAdminDashboard() {
                       <div className="space-y-1">
                         <div className="text-sm font-medium">Features:</div>
                         <ul className="text-sm text-muted-foreground space-y-1">
-                          {pkg.features.map((feature, index) => (
+                          {(pkg.features || []).map((feature, index) => (
                             <li key={index} className="flex items-center">
                               <span className="w-1 h-1 bg-current rounded-full mr-2"></span>
                               {feature}
