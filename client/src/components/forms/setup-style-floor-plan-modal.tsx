@@ -111,6 +111,14 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
   const [history, setHistory] = useState<FloorPlanElement[][]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
 
+  // History management - defined first to avoid initialization issues
+  const saveToHistory = useCallback((newElements: FloorPlanElement[]) => {
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push([...newElements]);
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  }, [history, historyIndex]);
+
   // Copy/paste functionality
   const copyElements = useCallback(() => {
     const elementsToCopy = elements.filter(el => selectedElements.includes(el.id));
@@ -209,14 +217,6 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
     document.addEventListener('keydown', handleKeyPress);
     return () => document.removeEventListener('keydown', handleKeyPress);
   }, [open, copyElements, pasteElements, duplicateSelectedElements, undo, redo, deleteSelectedElements, elements]);
-
-  // History management
-  const saveToHistory = useCallback((newElements: FloorPlanElement[]) => {
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push([...newElements]);
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-  }, [history, historyIndex]);
 
   const undo = useCallback(() => {
     if (historyIndex > 0) {
