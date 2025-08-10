@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { db } from '../db';
 import { tenantUsers, tenants, superAdmins } from '@shared/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 
 // Extended Request interface to include tenant context
 export interface TenantRequest extends Request {
@@ -64,25 +64,16 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
 // Super admin middleware - checks if user is a super admin
 export const requireSuperAdmin = async (req: any, res: Response, next: NextFunction) => {
   try {
-    // For development, allow access with mock user
-    if (process.env.NODE_ENV === 'development') {
-      const devUserId = req.headers['x-dev-user-id'] || 'dev-user-123';
-      req.user = { id: devUserId };
-      return next();
-    }
-
     if (!req.user?.id) {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    // Check if user is a super admin
-    const [superAdmin] = await db
-      .select()
-      .from(superAdmins)
-      .where(eq(superAdmins.userId, req.user.id))
-      .limit(1);
+    // Check if user has superadmin role directly from users table
+    const result = await db.execute(sql`
+      SELECT role FROM users WHERE id = ${req.user.id} AND role = 'superadmin'
+    `);
 
-    if (!superAdmin) {
+    if (!result.rows.length) {
       return res.status(403).json({ 
         message: 'Super admin access required' 
       });
