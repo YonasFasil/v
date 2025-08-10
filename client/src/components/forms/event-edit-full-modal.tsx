@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, getDay } from "date-fns";
-import { ChevronLeft, ChevronRight, X, Plus, RotateCcw, Trash2, Save, Edit, Minus, FileText, Send, MessageSquare, Mail, Phone, Users, Grid3X3, MapPin } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Plus, RotateCcw, Trash2, Save, Edit, Minus, FileText, Send, MessageSquare, Mail, Phone, Users, Grid3X3, MapPin, Calendar as CalendarIcon } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -28,6 +28,7 @@ interface SelectedDate {
   packageId?: string;
   selectedServices?: string[];
   guestCount?: number;
+  setupStyle?: string;
   itemQuantities?: Record<string, number>;
   pricingOverrides?: {
     packagePrice?: number;
@@ -235,8 +236,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   // Create customer mutation
   const createCustomer = useMutation({
     mutationFn: async (customerData: any) => {
-      const response = await apiRequest("/api/customers", "POST", customerData);
-      return response;
+      const response = await apiRequest("POST", "/api/customers", customerData);
+      return response.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
@@ -253,8 +254,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   // Create service mutation
   const createService = useMutation({
     mutationFn: async (serviceData: any) => {
-      const response = await apiRequest("/api/services", "POST", serviceData);
-      return response;
+      const response = await apiRequest("POST", "/api/services", serviceData);
+      return response.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });
@@ -273,8 +274,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
 
   const updateBooking = useMutation({
     mutationFn: async (bookingData: any) => {
-      const response = await apiRequest(`/api/bookings/${booking.id}`, "PATCH", bookingData);
-      return response;
+      const response = await apiRequest("PATCH", `/api/bookings/${booking.id}`, bookingData);
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
@@ -290,8 +291,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
 
   const deleteBooking = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest(`/api/bookings/${booking.id}`, "DELETE");
-      return response;
+      const response = await apiRequest("DELETE", `/api/bookings/${booking.id}`);
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
@@ -709,7 +710,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                     {/* Time Slots Configuration */}
                     {selectedDates.length > 0 && (
                       <div>
-                        <Label className="text-base font-medium">Time Slots & Spaces</Label>
+                        <Label className="text-base font-medium">Configure Dates ({selectedDates.length})</Label>
                         <div className="mt-3 space-y-3 max-h-64 overflow-y-auto">
                           {selectedDates.map((slot, index) => (
                             <Card key={index} className="group relative overflow-hidden border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
@@ -729,50 +730,153 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                                       </p>
                                     </div>
                                   </div>
-                                  <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
+                                  
+                                  {/* Availability indicator */}
+                                  <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                                     Available
-                                  </Badge>
+                                  </div>
                                 </div>
                               </div>
-                              
-                              {/* Configuration content */}
-                              <div className="p-4">
-                                <div className="grid grid-cols-3 gap-3">
-                                  <div>
-                                    <Label className="text-xs font-medium text-slate-700">Start Time</Label>
-                                    <Input
-                                      type="time"
-                                      value={slot.startTime}
-                                      onChange={(e) => updateDateSlot(index, 'startTime', e.target.value)}
-                                      className="mt-1 h-8"
-                                    />
+
+                              {/* Form content */}
+                              <div className="p-5 space-y-4">
+                                {/* Space Selection */}
+                                <div className="space-y-2">
+                                  <Label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                                    <MapPin className="w-4 h-4 text-slate-500" />
+                                    Select Space
+                                    <span className="text-red-500 text-xs">*</span>
+                                  </Label>
+                                  <Select
+                                    value={slot.spaceId || ""}
+                                    onValueChange={(value) => updateDateSlot(index, 'spaceId', value)}
+                                  >
+                                    <SelectTrigger className={cn(
+                                      "w-full h-10 transition-colors",
+                                      !slot.spaceId 
+                                        ? "border-red-200 bg-red-50/30 focus:border-red-400" 
+                                        : "border-slate-200 hover:border-slate-300 focus:border-blue-400"
+                                    )}>
+                                      <SelectValue placeholder="Choose a space" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {selectedVenueData?.spaces?.map((space: any) => (
+                                        <SelectItem key={space.id} value={space.id}>
+                                          <div className="flex items-center justify-between w-full">
+                                            <span>{space.name}</span>
+                                            <Badge variant="outline" className="ml-2 text-xs">
+                                              {space.capacity} guests
+                                            </Badge>
+                                          </div>
+                                        </SelectItem>
+                                      )) || <SelectItem value="no-spaces" disabled>No spaces available</SelectItem>}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                
+                                {/* Time and Details Grid */}
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                  {/* Event Time */}
+                                  <div className="space-y-2">
+                                    <Label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                                      <CalendarIcon className="w-4 h-4 text-slate-500" />
+                                      Event Time
+                                      <span className="text-red-500 text-xs">*</span>
+                                    </Label>
+                                    <div className="flex items-center gap-2">
+                                      <Input
+                                        type="time"
+                                        value={slot.startTime}
+                                        onChange={(e) => updateDateSlot(index, 'startTime', e.target.value)}
+                                        className={cn(
+                                          "flex-1 h-9 text-sm transition-colors",
+                                          !slot.startTime 
+                                            ? "border-red-200 bg-red-50/30" 
+                                            : "border-slate-200 hover:border-slate-300"
+                                        )}
+                                      />
+                                      
+                                      <span className="text-slate-400 font-medium px-1">→</span>
+                                      
+                                      <Input
+                                        type="time"
+                                        value={slot.endTime}
+                                        onChange={(e) => updateDateSlot(index, 'endTime', e.target.value)}
+                                        className={cn(
+                                          "flex-1 h-9 text-sm transition-colors",
+                                          !slot.endTime 
+                                            ? "border-red-200 bg-red-50/30" 
+                                            : "border-slate-200 hover:border-slate-300"
+                                        )}
+                                      />
+                                    </div>
                                   </div>
-                                  <div>
-                                    <Label className="text-xs font-medium text-slate-700">End Time</Label>
-                                    <Input
-                                      type="time"
-                                      value={slot.endTime}
-                                      onChange={(e) => updateDateSlot(index, 'endTime', e.target.value)}
-                                      className="mt-1 h-8"
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label className="text-xs font-medium text-slate-700">Space</Label>
-                                    <Select 
-                                      value={slot.spaceId || ""} 
-                                      onValueChange={(value) => updateDateSlot(index, 'spaceId', value)}
-                                    >
-                                      <SelectTrigger className="mt-1 h-8">
-                                        <SelectValue placeholder="Select space" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {selectedVenueData?.spaces?.map((space: any) => (
-                                          <SelectItem key={space.id} value={space.id}>
-                                            {space.name} ({space.capacity} max)
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
+                                  
+                                  {/* Guests and Setup */}
+                                  <div className="grid grid-cols-2 gap-3">
+                                    {/* Guest Count */}
+                                    <div className="space-y-2">
+                                      <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                                        <Users className="w-4 h-4 text-slate-500" />
+                                        Guests
+                                        <span className="text-red-500 text-xs">*</span>
+                                      </Label>
+                                      <div className="space-y-1">
+                                        <Input
+                                          type="number"
+                                          min="1"
+                                          max="999"
+                                          value={slot.guestCount || 1}
+                                          onChange={(e) => {
+                                            const value = Math.max(1, Math.min(999, parseInt(e.target.value) || 1));
+                                            updateDateSlot(index, 'guestCount', value);
+                                          }}
+                                          className="h-9 text-center text-sm font-medium"
+                                        />
+                                        {(() => {
+                                          const selectedSpace = selectedVenueData?.spaces?.find((space: any) => space.id === slot.spaceId);
+                                          const guestCount = slot.guestCount || 1;
+                                          const capacity = selectedSpace?.capacity || 0;
+                                          
+                                          if (selectedSpace && guestCount > capacity) {
+                                            return (
+                                              <div className="flex items-center gap-1 text-xs text-amber-600">
+                                                <div className="w-1 h-1 bg-amber-400 rounded-full"></div>
+                                                Exceeds capacity ({capacity})
+                                              </div>
+                                            );
+                                          }
+                                          return null;
+                                        })()}
+                                      </div>
+                                    </div>
+
+                                    {/* Setup Style */}
+                                    <div className="space-y-2">
+                                      <Label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                                        <Grid3X3 className="w-4 h-4 text-slate-500" />
+                                        Setup
+                                      </Label>
+                                      <Select
+                                        value={slot.setupStyle || ''}
+                                        onValueChange={(value) => updateDateSlot(index, 'setupStyle', value)}
+                                      >
+                                        <SelectTrigger className="h-9 text-sm border-slate-200 hover:border-slate-300">
+                                          <SelectValue placeholder="Style" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="round-tables">Round Tables</SelectItem>
+                                          <SelectItem value="u-shape">U-Shape</SelectItem>
+                                          <SelectItem value="classroom">Classroom</SelectItem>
+                                          <SelectItem value="theater">Theater</SelectItem>
+                                          <SelectItem value="cocktail">Cocktail</SelectItem>
+                                          <SelectItem value="banquet">Banquet</SelectItem>
+                                          <SelectItem value="conference">Conference</SelectItem>
+                                          <SelectItem value="custom">Custom</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
