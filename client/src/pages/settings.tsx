@@ -41,7 +41,8 @@ import {
   EyeOff,
   ExternalLink,
   Check,
-  XCircle
+  XCircle,
+  RefreshCw
 } from "lucide-react";
 
 export default function Settings() {
@@ -1410,6 +1411,15 @@ function StripePaymentSection() {
           <Badge variant={isReady ? "default" : "secondary"}>
             {statusLoading ? "Checking..." : isReady ? "Ready" : "Setup Required"}
           </Badge>
+          <Button
+            onClick={() => {
+              queryClient.invalidateQueries({ queryKey: ["/api/stripe/status"] });
+            }}
+            variant="ghost"
+            size="sm"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </Button>
         </div>
       </div>
 
@@ -1464,17 +1474,37 @@ function StripePaymentSection() {
               </p>
               <div className="mt-3">
                 <Button 
-                  asChild
+                  onClick={async () => {
+                    // Initialize the connection process
+                    try {
+                      await apiRequest("POST", "/api/stripe/connect/initialize");
+                      // Open the Stripe Connect onboarding
+                      window.open(
+                        "https://connect.stripe.com/d/setup/s/_SqBRbOzYAs1NHOUIfHZJLBpBD4/YWNjdF8xUnVWNHlSQ1ROTFBEaDJ2/9f48a3151cb6a548c",
+                        "_blank"
+                      );
+                      
+                      // Refresh status after a delay
+                      setTimeout(() => {
+                        queryClient.invalidateQueries({ queryKey: ["/api/stripe/status"] });
+                      }, 2000);
+                      
+                      toast({
+                        title: "Opening Stripe Connect",
+                        description: "Complete the setup in the new window, then return here.",
+                      });
+                    } catch (error) {
+                      toast({
+                        title: "Error",
+                        description: "Failed to initialize Stripe Connect",
+                        variant: "destructive"
+                      });
+                    }
+                  }}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
-                  <a 
-                    href="https://connect.stripe.com/d/setup/s/_SqBRbOzYAs1NHOUIfHZJLBpBD4/YWNjdF8xUnVWNHlSQ1ROTFBEaDJ2/9f48a3151cb6a548c"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Connect Stripe Account
-                  </a>
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Connect Stripe Account
                 </Button>
               </div>
             </div>

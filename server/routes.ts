@@ -2154,13 +2154,19 @@ This is a test email from your Venuine venue management system.
   // Stripe payment endpoints
   app.get("/api/stripe/status", async (req, res) => {
     try {
-      // Check if Stripe is configured
-      const hasStripeKey = !!process.env.STRIPE_SECRET_KEY;
-      const hasPublicKey = !!process.env.VITE_STRIPE_PUBLIC_KEY;
+      const userId = "default-user-id";
+      const user = await storage.getUser(userId);
+      
+      const hasStripeConnect = user && user.stripeAccountId;
+      const isReady = hasStripeConnect && user.stripeChargesEnabled && user.stripePayoutsEnabled;
       
       res.json({
-        configured: hasStripeKey && hasPublicKey,
-        ready: hasStripeKey && hasPublicKey
+        configured: !!hasStripeConnect,
+        ready: !!isReady,
+        accountId: user?.stripeAccountId || null,
+        chargesEnabled: user?.stripeChargesEnabled || false,
+        payoutsEnabled: user?.stripePayoutsEnabled || false,
+        onboardingCompleted: user?.stripeOnboardingCompleted || false
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -2240,6 +2246,54 @@ This is a test email from your Venuine venue management system.
       });
 
       res.json({ success: true, message: "Stripe account disconnected successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Stripe Connect webhook to handle account updates
+  app.post("/api/stripe/webhook", async (req, res) => {
+    try {
+      const event = req.body;
+      
+      if (event.type === 'account.updated') {
+        const account = event.data.object;
+        const userId = "default-user-id"; // In a real app, you'd map account.id to user
+        
+        await storage.updateUser(userId, {
+          stripeAccountId: account.id,
+          stripeAccountStatus: account.requirements?.currently_due?.length > 0 ? 'restricted' : 'active',
+          stripeChargesEnabled: account.charges_enabled,
+          stripePayoutsEnabled: account.payouts_enabled,
+          stripeOnboardingCompleted: account.details_submitted && account.charges_enabled,
+          stripeConnectedAt: account.created ? new Date(account.created * 1000) : new Date()
+        });
+      }
+      
+      res.json({ received: true });
+    } catch (error: any) {
+      console.error('Stripe webhook error:', error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // Initialize Stripe Connect account
+  app.post("/api/stripe/connect/initialize", async (req, res) => {
+    try {
+      const userId = "default-user-id";
+      
+      // For now, we'll simulate account creation since the Connect flow 
+      // happens externally through the provided link
+      await storage.updateUser(userId, {
+        stripeAccountId: "acct_" + Math.random().toString(36).substr(2, 16),
+        stripeAccountStatus: 'pending',
+        stripeChargesEnabled: false,
+        stripePayoutsEnabled: false,
+        stripeOnboardingCompleted: false,
+        stripeConnectedAt: new Date()
+      });
+
+      res.json({ success: true, message: "Stripe Connect account initialized" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
