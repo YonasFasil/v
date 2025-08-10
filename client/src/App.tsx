@@ -65,6 +65,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={LoginSelect} />
+      <Route path="/super-admin" component={SuperAdmin} />
       <Route path="/tenant/login" component={TenantLogin} />
       <Route path="/tenant/register" component={TenantRegister} />
       <Route path="/tenant/dashboard" component={TenantDashboard} />
