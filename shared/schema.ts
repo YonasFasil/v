@@ -20,6 +20,7 @@ export const users = pgTable("users", {
 
 export const venues = pgTable("venues", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull(),
   name: text("name").notNull(),
   description: text("description"),
   capacity: integer("capacity").notNull(),
@@ -44,6 +45,7 @@ export const setupStyles = pgTable("setup_styles", {
 
 export const spaces = pgTable("spaces", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull(),
   venueId: varchar("venue_id").references(() => venues.id).notNull(),
   name: text("name").notNull(),
   description: text("description"),
@@ -59,6 +61,7 @@ export const spaces = pgTable("spaces", {
 
 export const customers = pgTable("customers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull(),
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone"),
@@ -74,6 +77,7 @@ export const customers = pgTable("customers", {
 // Contract table to group multiple events together
 export const contracts = pgTable("contracts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull(),
   customerId: varchar("customer_id").references(() => customers.id).notNull(),
   contractName: text("contract_name").notNull(),
   status: text("status").notNull().default("draft"), // draft, active, completed, cancelled
@@ -84,6 +88,7 @@ export const contracts = pgTable("contracts", {
 
 export const bookings = pgTable("bookings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull(),
   contractId: varchar("contract_id").references(() => contracts.id), // Link to contract
   eventName: text("event_name").notNull(),
   eventType: text("event_type").notNull(),

@@ -313,9 +313,10 @@ export class MemStorage implements IStorage {
     this.initializeSampleSetupStyles();
     this.initializeLeadManagementData();
     this.initializeTenantData();
-    // Initialize with some default venues
+    // Initialize with some default venues for the main tenant
     const defaultVenues: InsertVenue[] = [
       {
+        tenantId: "main-account",
         name: "Grand Ballroom",
         description: "Perfect for weddings and large corporate events",
         capacity: 200,
@@ -325,6 +326,7 @@ export class MemStorage implements IStorage {
         isActive: true
       },
       {
+        tenantId: "main-account",
         name: "Conference Center",
         description: "Ideal for business meetings and presentations",
         capacity: 50,
@@ -334,6 +336,7 @@ export class MemStorage implements IStorage {
         isActive: true
       },
       {
+        tenantId: "main-account",
         name: "Private Dining",
         description: "Intimate setting for special celebrations",
         capacity: 25,
@@ -358,6 +361,7 @@ export class MemStorage implements IStorage {
     if (venueIds[0]) {
       const grandBallroomSpaces: InsertSpace[] = [
         {
+          tenantId: "main-account",
           venueId: venueIds[0],
           name: "Main Ballroom",
           description: "Large elegant space for grand events",
@@ -368,6 +372,7 @@ export class MemStorage implements IStorage {
           isActive: true
         },
         {
+          tenantId: "main-account",
           venueId: venueIds[0],
           name: "VIP Lounge",
           description: "Exclusive private area within the ballroom",
@@ -385,6 +390,7 @@ export class MemStorage implements IStorage {
     if (venueIds[1]) {
       const conferenceSpaces: InsertSpace[] = [
         {
+          tenantId: "main-account",
           venueId: venueIds[1],
           name: "Boardroom A",
           description: "Executive boardroom for meetings",
@@ -395,6 +401,7 @@ export class MemStorage implements IStorage {
           isActive: true
         },
         {
+          tenantId: "main-account",
           venueId: venueIds[1],
           name: "Training Room",
           description: "Flexible training and presentation space",
@@ -412,6 +419,7 @@ export class MemStorage implements IStorage {
     if (venueIds[2]) {
       const diningSpaces: InsertSpace[] = [
         {
+          tenantId: "main-account",
           venueId: venueIds[2],
           name: "Garden Room",
           description: "Intimate dining with garden views",
@@ -444,6 +452,7 @@ export class MemStorage implements IStorage {
     if (customers.length === 0) {
       const sampleCustomers = [
         {
+          tenantId: "main-account",
           name: "Sarah Johnson",
           email: "sarah.johnson@email.com",
           phone: "555-0123",
@@ -452,6 +461,7 @@ export class MemStorage implements IStorage {
           leadScore: 85
         },
         {
+          tenantId: "main-account",
           name: "Michael Chen", 
           email: "michael.chen@techcorp.com",
           phone: "555-0456",
@@ -460,6 +470,7 @@ export class MemStorage implements IStorage {
           leadScore: 72
         },
         {
+          tenantId: "main-account",
           name: "Emily Rodriguez",
           email: "emily@creativestudio.com", 
           phone: "555-0789",
@@ -479,6 +490,7 @@ export class MemStorage implements IStorage {
     if (venues.length > 0 && spaces.length > 0 && updatedCustomers.length > 0) {
       const sampleBookings = [
         {
+          tenantId: "main-account",
           eventName: "Corporate Annual Gala",
           eventType: "corporate",
           eventDate: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000), // Next week
@@ -495,6 +507,7 @@ export class MemStorage implements IStorage {
           notes: "Premium catering and entertainment package"
         },
         {
+          tenantId: "main-account",
           eventName: "Wedding Reception",
           eventType: "wedding", 
           eventDate: new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000), // Two weeks
@@ -511,6 +524,7 @@ export class MemStorage implements IStorage {
           notes: "Garden ceremony with indoor reception"
         },
         {
+          tenantId: "main-account",
           eventName: "Product Launch Event",
           eventType: "corporate",
           eventDate: new Date(today.getTime() + 21 * 24 * 60 * 60 * 1000), // Three weeks
@@ -1951,14 +1965,15 @@ export class MemStorage implements IStorage {
 
   async getTenants(): Promise<any[]> {
     const packages = await this.getPackages();
-    const venues = Array.from(this.venues.values());
-    const spaces = Array.from(this.spaces.values());
-    const customers = Array.from(this.customers.values());
-    const bookings = Array.from(this.bookings.values());
-    
     const tenantList = [];
     
     for (const [id, tenant] of this.tenants) {
+      // Filter data by tenant to ensure isolation
+      const tenantVenues = Array.from(this.venues.values()).filter(venue => venue.tenantId === tenant.id);
+      const tenantSpaces = Array.from(this.spaces.values()).filter(space => space.tenantId === tenant.id);
+      const tenantCustomers = Array.from(this.customers.values()).filter(customer => customer.tenantId === tenant.id);
+      const tenantBookings = Array.from(this.bookings.values()).filter(booking => booking.tenantId === tenant.id);
+      
       // Get package information
       const packageInfo = packages.find(pkg => pkg.id === tenant.packageId);
       const packageName = packageInfo ? packageInfo.displayName : "Unknown";
@@ -1966,10 +1981,10 @@ export class MemStorage implements IStorage {
       // Calculate recent activity for status
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const recentBookings = bookings.filter(booking => booking.eventDate >= thirtyDaysAgo);
+      const recentBookings = tenantBookings.filter(booking => booking.eventDate >= thirtyDaysAgo);
       
-      // Calculate total revenue
-      const totalRevenue = bookings.reduce((sum, booking) => {
+      // Calculate total revenue for this tenant only
+      const totalRevenue = tenantBookings.reduce((sum, booking) => {
         const amount = parseFloat(booking.totalAmount || '0');
         return sum + amount;
       }, 0);
@@ -1982,17 +1997,17 @@ export class MemStorage implements IStorage {
         packageId: tenant.packageId,
         packageName,
         status: tenant.status,
-        userCount: customers.length,
-        venueCount: venues.length,
-        spaceCount: spaces.length,
+        userCount: tenantCustomers.length,
+        venueCount: tenantVenues.length,
+        spaceCount: tenantSpaces.length,
         monthlyRevenue: Math.round(totalRevenue),
         createdAt: tenant.createdAt,
         updatedAt: tenant.updatedAt,
-        venues: venues.map(venue => ({
+        venues: tenantVenues.map(venue => ({
           id: venue.id,
           name: venue.name,
           description: venue.description,
-          spaces: spaces.filter(space => space.venueId === venue.id).length
+          spaces: tenantSpaces.filter(space => space.venueId === venue.id).length
         }))
       });
     }
@@ -2013,6 +2028,10 @@ export class MemStorage implements IStorage {
     };
     
     this.tenants.set(newTenant.id, newTenant);
+    
+    // Note: New tenants start with completely empty data (no venues, customers, bookings)
+    // This ensures proper multi-tenant data isolation
+    
     return newTenant;
   }
 
