@@ -529,7 +529,7 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
                       <div key={comm.id} className="p-3 bg-white rounded border text-sm">
                         <div className="flex justify-between items-start mb-1">
                           <span className="font-medium text-blue-800 capitalize">
-                            {comm.type} {comm.direction === 'outbound' ? '→' : '←'}
+                            {comm.type === 'proposal' ? 'Proposal Email' : comm.type} {comm.direction === 'outbound' ? '→' : '←'}
                           </span>
                           <span className="text-xs text-gray-500">
                             {comm.sentAt ? format(new Date(comm.sentAt), 'MMM d, h:mm a') : 'No date'}
@@ -538,6 +538,33 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
                         {comm.subject && (
                           <div className="text-xs text-gray-600 mb-1">Subject: {comm.subject}</div>
                         )}
+                        
+                        {/* Proposal Status Indicators */}
+                        {comm.type === 'proposal' && (
+                          <div className="flex gap-2 mb-2">
+                            <Badge variant={comm.proposalViewed ? "default" : "secondary"} className="text-xs">
+                              {comm.proposalViewed ? "✓ Viewed" : "Not Viewed"}
+                            </Badge>
+                            {comm.proposalStatus && (
+                              <Badge 
+                                variant={
+                                  comm.proposalStatus === 'accepted' ? "default" : 
+                                  comm.proposalStatus === 'declined' ? "destructive" : 
+                                  "secondary"
+                                } 
+                                className="text-xs"
+                              >
+                                {comm.proposalStatus.charAt(0).toUpperCase() + comm.proposalStatus.slice(1)}
+                              </Badge>
+                            )}
+                            {comm.depositPaid && (
+                              <Badge variant="default" className="text-xs bg-green-600">
+                                ✓ Deposit Paid
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+                        
                         <div className="text-gray-700">{comm.message}</div>
                         {comm.sentBy && (
                           <div className="text-xs text-gray-500 mt-1">by {comm.sentBy}</div>

@@ -127,6 +127,9 @@ export const proposals = pgTable("proposals", {
   viewedAt: timestamp("viewed_at"),
   emailOpened: boolean("email_opened").default(false),
   emailOpenedAt: timestamp("email_opened_at"),
+  signature: text("signature"), // Digital signature for acceptance
+  acceptedAt: timestamp("accepted_at"),
+  declinedAt: timestamp("declined_at"),
   depositPaid: boolean("deposit_paid").default(false),
   depositPaidAt: timestamp("deposit_paid_at"),
   paymentIntentId: text("payment_intent_id"),

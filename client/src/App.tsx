@@ -17,6 +17,7 @@ import Settings from "@/pages/settings";
 import AIAnalytics from "@/pages/ai-analytics";
 import Reports from "@/pages/reports";
 import VoiceBooking from "@/pages/voice-booking";
+import ProposalView from "@/pages/proposal-view";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -35,6 +36,7 @@ function Router() {
       <Route path="/reports" component={Reports} />
       <Route path="/voice-booking" component={VoiceBooking} />
       <Route path="/settings" component={Settings} />
+      <Route path="/proposal/:proposalId" component={ProposalView} />
       <Route component={NotFound} />
     </Switch>
   );

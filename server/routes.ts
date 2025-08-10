@@ -2273,6 +2273,60 @@ This is a test email from your Venuine venue management system.
     }
   });
 
+  // Get proposal for public viewing (client-facing)
+  app.get("/api/proposals/view/:proposalId", async (req, res) => {
+    try {
+      const proposal = await storage.getProposal(req.params.proposalId);
+      if (!proposal) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+
+      // Return proposal data formatted for client viewing
+      res.json({
+        id: proposal.id,
+        eventName: proposal.eventName,
+        eventDate: proposal.eventDate,
+        eventTime: proposal.eventTime,
+        venue: proposal.venue,
+        space: proposal.space,
+        guestCount: proposal.guestCount,
+        totalAmount: proposal.totalAmount,
+        status: proposal.status,
+        expiryDate: proposal.expiryDate,
+        acceptedAt: proposal.acceptedAt,
+        declinedAt: proposal.declinedAt,
+        signature: proposal.signature,
+        // Sample event dates and company info for display
+        eventDates: [
+          {
+            date: proposal.eventDate || new Date().toISOString().split('T')[0],
+            startTime: proposal.eventTime?.split(' - ')[0] || "6:00 PM",
+            endTime: proposal.eventTime?.split(' - ')[1] || "11:00 PM",
+            venue: proposal.venue || "Grand Ballroom",
+            space: proposal.space || "Main Hall",
+            guestCount: proposal.guestCount || 150,
+            packageName: "Premium Wedding Package",
+            services: [
+              { name: "Full Bar Service", price: 1500 },
+              { name: "DJ & Sound System", price: 800 },
+              { name: "Wedding Cake", price: 500 },
+              { name: "Floral Arrangements", price: 750 }
+            ]
+          }
+        ],
+        companyInfo: {
+          name: "Venuine Events",
+          address: "123 Celebration Drive, Event City, EC 12345",
+          phone: "(555) 123-4567",
+          email: "hello@venuine-events.com"
+        }
+      });
+    } catch (error: any) {
+      console.error('Error fetching proposal for viewing:', error);
+      res.status(500).json({ message: "Failed to fetch proposal" });
+    }
+  });
+
   app.post("/api/proposals", async (req, res) => {
     try {
       const validatedData = insertProposalSchema.parse(req.body);
@@ -2360,13 +2414,13 @@ This is a test email from your Venuine venue management system.
           text: `Event Proposal\n\nPlease view your complete proposal at: ${emailData.proposalViewLink}\n\nBest regards,\nVenuine Events Team`
         });
 
-        // Log communication in database
+        // Log communication in database with proposal tracking
         const communicationData = {
           customerId: customerId,
-          type: "email",
+          type: "proposal",
           direction: "outbound",
           subject: emailData.subject,
-          message: emailData.message || `Proposal email sent to ${emailData.to}`,
+          message: emailData.message || `Proposal email sent to ${emailData.to}. View link: ${emailData.proposalViewLink}`,
           sentBy: "system",
           status: "sent"
         };
@@ -2484,6 +2538,197 @@ This is a test email from your Venuine venue management system.
     }
   });
 
+  // Client-facing proposal view endpoint
+  app.get("/api/proposals/view/:customerId", async (req, res) => {
+    try {
+      const customerId = req.params.customerId;
+      
+      // Get customer information
+      const customer = await storage.getCustomer(customerId);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      // Get the latest proposal for this customer
+      const proposals = await storage.getProposals();
+      const customerProposal = proposals.find(p => p.customerId === customerId && p.status !== 'declined');
+      
+      if (!customerProposal) {
+        return res.status(404).json({ message: "No active proposal found for this customer" });
+      }
+
+      // Get related booking data if available
+      let eventData = {};
+      try {
+        eventData = JSON.parse(customerProposal.content || '{}');
+      } catch {
+        eventData = {};
+      }
+
+      // Get venue and space information
+      const venues = await storage.getVenues();
+      const spaces = await storage.getSpaces();
+      
+      // Format response for the client proposal view
+      const proposalData = {
+        id: customerProposal.id,
+        eventName: customerProposal.title || 'Event Booking',
+        customerName: customer.name,
+        customerEmail: customer.email,
+        totalAmount: Number(customerProposal.totalAmount) || 0,
+        status: customerProposal.status,
+        proposalSentAt: customerProposal.sentAt?.toISOString() || customerProposal.createdAt.toISOString(),
+        validUntil: customerProposal.validUntil?.toISOString() || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        eventDates: (eventData as any).eventDates || [{
+          date: new Date().toISOString(),
+          startTime: '18:00',
+          endTime: '23:00',
+          venue: 'Grand Ballroom',
+          space: 'Main Hall',
+          guestCount: 50
+        }],
+        companyInfo: {
+          name: 'Venuine Events',
+          address: '123 Event Street, City, State 12345',
+          phone: '(555) 123-4567',
+          email: 'hello@venuineevents.com'
+        }
+      };
+
+      res.json(proposalData);
+    } catch (error) {
+      console.error('Error fetching proposal view:', error);
+      res.status(500).json({ message: "Failed to fetch proposal" });
+    }
+  });
+
+  // Accept proposal endpoint
+  app.post("/api/proposals/:id/accept", async (req, res) => {
+    try {
+      const { signature } = req.body;
+      
+      if (!signature || !signature.trim()) {
+        return res.status(400).json({ message: "Digital signature is required" });
+      }
+
+      const proposal = await storage.updateProposal(req.params.id, {
+        status: "accepted",
+        acceptedAt: new Date(),
+        signature: signature.trim()
+      });
+
+      if (!proposal) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+
+      res.json({ 
+        success: true, 
+        message: "Proposal accepted successfully",
+        proposal 
+      });
+    } catch (error: any) {
+      console.error('Error accepting proposal:', error);
+      res.status(500).json({ message: "Failed to accept proposal" });
+    }
+  });
+
+  // Decline proposal endpoint
+  app.post("/api/proposals/:id/decline", async (req, res) => {
+    try {
+      const proposal = await storage.updateProposal(req.params.id, {
+        status: "declined",
+        declinedAt: new Date()
+      });
+
+      if (!proposal) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+
+      res.json({ 
+        success: true, 
+        message: "Proposal declined",
+        proposal 
+      });
+    } catch (error: any) {
+      console.error('Error declining proposal:', error);
+      res.status(500).json({ message: "Failed to decline proposal" });
+    }
+  });
+
+  // Payment notification endpoint for proposals
+  app.post("/api/proposals/:id/payment-completed", async (req, res) => {
+    try {
+      const { paymentAmount, paymentType, paymentMethod, transactionId } = req.body;
+      
+      const proposal = await storage.getProposal(req.params.id);
+      if (!proposal) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+
+      // Update proposal with payment information
+      const updatedProposal = await storage.updateProposal(req.params.id, {
+        depositPaid: true,
+        depositPaidAt: new Date(),
+        status: "converted"
+      });
+
+      // Create payment record
+      const payment = await storage.createPayment({
+        amount: paymentAmount.toString(),
+        paymentType: paymentType || "deposit",
+        paymentMethod: paymentMethod || "card",
+        status: "completed",
+        processedAt: new Date(),
+        transactionId: transactionId
+      });
+
+      // Create communication record for payment notification
+      if (proposal.customerId) {
+        await storage.createCommunication({
+          customerId: proposal.customerId,
+          type: "system",
+          direction: "inbound",
+          subject: "Payment Received",
+          message: `Payment of $${paymentAmount} received for proposal "${proposal.title}". Payment method: ${paymentMethod}. Transaction ID: ${transactionId}`,
+          sentBy: "system",
+          status: "completed"
+        });
+      }
+
+      res.json({ 
+        success: true, 
+        message: "Payment processed successfully",
+        proposal: updatedProposal,
+        payment 
+      });
+    } catch (error: any) {
+      console.error('Error processing payment:', error);
+      res.status(500).json({ message: "Failed to process payment" });
+    }
+  });
+
+  // Create payment intent for proposals (placeholder - requires Stripe secret key)
+  app.post("/api/proposals/:id/create-payment-intent", async (req, res) => {
+    try {
+      const proposal = await storage.getProposal(req.params.id);
+      if (!proposal) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+
+      // This would integrate with Stripe when keys are provided
+      // For now, return a mock client secret for development
+      const clientSecret = `pi_mock_${Date.now()}_secret_mock`;
+      
+      res.json({ 
+        clientSecret,
+        amount: Number(proposal.totalAmount) || 0
+      });
+    } catch (error: any) {
+      console.error('Error creating payment intent:', error);
+      res.status(500).json({ message: "Failed to create payment intent" });
+    }
+  });
+
   app.put("/api/proposals/:id", async (req, res) => {
     try {
       const proposal = await storage.updateProposal(req.params.id, req.body);
@@ -2507,7 +2752,39 @@ This is a test email from your Venuine venue management system.
     try {
       const bookingId = req.params.bookingId;
       const communications = await storage.getCommunications(bookingId);
-      res.json(communications);
+      
+      // Get booking to find customer
+      const booking = await storage.getBooking(bookingId);
+      if (!booking) {
+        return res.json(communications);
+      }
+
+      // Enhance proposal communications with status information
+      const enhancedCommunications = await Promise.all(
+        communications.map(async (comm: any) => {
+          if (comm.type === 'proposal' && booking.customerId) {
+            // Find related proposal for this customer
+            const proposals = await storage.getProposals();
+            const customerProposal = proposals.find(p => 
+              p.customerId === booking.customerId && 
+              p.status !== 'declined'
+            );
+            
+            if (customerProposal) {
+              return {
+                ...comm,
+                proposalViewed: customerProposal.emailOpened || customerProposal.status === 'viewed',
+                proposalStatus: customerProposal.status,
+                depositPaid: customerProposal.depositPaid,
+                signature: customerProposal.signature ? '✓ Signed' : null
+              };
+            }
+          }
+          return comm;
+        })
+      );
+
+      res.json(enhancedCommunications);
     } catch (error) {
       console.error('Communications fetch error:', error);
       res.status(500).json({ message: "Failed to fetch communications" });
