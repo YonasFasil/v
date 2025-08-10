@@ -16,6 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { TaxesAndFeesSettings } from "@/components/taxes-and-fees-settings";
 import { 
   Building2, 
   Mail, 
@@ -1076,95 +1077,9 @@ export default function Settings() {
                 </Card>
               </TabsContent>
 
-              {/* Taxes Settings */}
+              {/* Taxes and Fees Settings */}
               <TabsContent value="taxes" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <CreditCard className="w-5 h-5 text-emerald-600" />
-                      Tax Configuration
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="taxRate">Default Tax Rate (%)</Label>
-                        <Input
-                          id="taxRate"
-                          type="number"
-                          step="0.1"
-                          value={formData.taxes.defaultTaxRate}
-                          onChange={(e) => updateFormData("taxes", "defaultTaxRate", parseFloat(e.target.value))}
-                          placeholder="8.5"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="taxName">Tax Name</Label>
-                        <Input
-                          id="taxName"
-                          value={formData.taxes.taxName}
-                          onChange={(e) => updateFormData("taxes", "taxName", e.target.value)}
-                          placeholder="Sales Tax"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="taxNumber">Tax ID/Number</Label>
-                        <Input
-                          id="taxNumber"
-                          value={formData.taxes.taxNumber}
-                          onChange={(e) => updateFormData("taxes", "taxNumber", e.target.value)}
-                          placeholder="12-3456789"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <Label className="text-base font-medium">Apply to Services</Label>
-                          <p className="text-sm text-slate-600">Include tax on all service charges</p>
-                        </div>
-                        <Switch
-                          checked={formData.taxes.applyToServices}
-                          onCheckedChange={(checked) => updateFormData("taxes", "applyToServices", checked)}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <Label className="text-base font-medium">Apply to Packages</Label>
-                          <p className="text-sm text-slate-600">Include tax on package pricing</p>
-                        </div>
-                        <Switch
-                          checked={formData.taxes.applyToPackages}
-                          onCheckedChange={(checked) => updateFormData("taxes", "applyToPackages", checked)}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <Label className="text-base font-medium">Include Tax in Price</Label>
-                          <p className="text-sm text-slate-600">Show prices with tax included</p>
-                        </div>
-                        <Switch
-                          checked={formData.taxes.includeTaxInPrice}
-                          onCheckedChange={(checked) => updateFormData("taxes", "includeTaxInPrice", checked)}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="pt-4 border-t">
-                      <Button 
-                        onClick={() => handleSaveSection("taxes")}
-                        disabled={saveSettingsMutation.isPending}
-                        className="bg-emerald-600 hover:bg-emerald-700"
-                      >
-                        <Save className="w-4 h-4 mr-2" />
-                        Save Tax Settings
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                <TaxesAndFeesSettings />
               </TabsContent>
 
               {/* Security Settings */}

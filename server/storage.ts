@@ -445,7 +445,10 @@ export class MemStorage implements IStorage {
         price: "45.00",
         category: "catering",
         pricingModel: "per_person" as const,
-        isActive: true
+        enabledTaxIds: [],
+        enabledFeeIds: [],
+        isActive: true,
+        createdAt: new Date()
       },
       {
         id: randomUUID(),
@@ -454,7 +457,10 @@ export class MemStorage implements IStorage {
         price: "500.00",
         category: "equipment",
         pricingModel: "fixed" as const,
-        isActive: true
+        enabledTaxIds: [],
+        enabledFeeIds: [],
+        isActive: true,
+        createdAt: new Date()
       },
       {
         id: randomUUID(),
@@ -463,7 +469,10 @@ export class MemStorage implements IStorage {
         price: "150.00", 
         category: "decoration",
         pricingModel: "fixed" as const,
-        isActive: true
+        enabledTaxIds: [],
+        enabledFeeIds: [],
+        isActive: true,
+        createdAt: new Date()
       },
       {
         id: randomUUID(),
@@ -472,7 +481,10 @@ export class MemStorage implements IStorage {
         price: "800.00",
         category: "entertainment",
         pricingModel: "fixed" as const,
-        isActive: true
+        enabledTaxIds: [],
+        enabledFeeIds: [],
+        isActive: true,
+        createdAt: new Date()
       },
       {
         id: randomUUID(),
@@ -481,7 +493,10 @@ export class MemStorage implements IStorage {
         price: "600.00",
         category: "entertainment", 
         pricingModel: "fixed" as const,
-        isActive: true
+        enabledTaxIds: [],
+        enabledFeeIds: [],
+        isActive: true,
+        createdAt: new Date()
       },
       {
         id: randomUUID(),
@@ -490,7 +505,10 @@ export class MemStorage implements IStorage {
         price: "25.00",
         category: "catering",
         pricingModel: "per_person" as const,
-        isActive: true
+        enabledTaxIds: [],
+        enabledFeeIds: [],
+        isActive: true,
+        createdAt: new Date()
       }
     ];
 
@@ -501,31 +519,43 @@ export class MemStorage implements IStorage {
         id: randomUUID(),
         name: "Corporate Essential",
         description: "Perfect for business meetings and corporate events",
+        category: "corporate",
         price: "2500.00",
         pricingModel: "fixed" as const,
         includedServiceIds: [serviceIds[1]], // Audio/Visual Setup
         applicableSpaceIds: [],
-        isActive: true
+        enabledTaxIds: [],
+        enabledFeeIds: [],
+        isActive: true,
+        createdAt: new Date()
       },
       {
         id: randomUUID(), 
         name: "Wedding Premium",
         description: "Complete wedding package with catering, entertainment, and decor",
+        category: "wedding",
         price: "85.00",
         pricingModel: "per_person" as const,
         includedServiceIds: [serviceIds[0], serviceIds[2], serviceIds[3], serviceIds[4]], // Catering, Florals, Photography, DJ
         applicableSpaceIds: [],
-        isActive: true
+        enabledTaxIds: [],
+        enabledFeeIds: [],
+        isActive: true,
+        createdAt: new Date()
       },
       {
         id: randomUUID(),
         name: "Cocktail Party",
         description: "Elegant cocktail reception with bar and light catering",
+        category: "social",
         price: "55.00",
         pricingModel: "per_person" as const, 
         includedServiceIds: [serviceIds[5], serviceIds[2]], // Bar Service, Florals
         applicableSpaceIds: [],
-        isActive: true
+        enabledTaxIds: [],
+        enabledFeeIds: [],
+        isActive: true,
+        createdAt: new Date()
       }
     ];
 

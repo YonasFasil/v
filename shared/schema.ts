@@ -98,6 +98,7 @@ export const bookings = pgTable("bookings", {
   pricingModel: text("pricing_model").default("fixed"),
   itemQuantities: jsonb("item_quantities"),
   pricingOverrides: jsonb("pricing_overrides"),
+  taxFeeOverrides: jsonb("tax_fee_overrides"), // Override taxes and fees for specific services/packages in this event
   status: text("status").notNull().default("pending"), // pending, confirmed, cancelled
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
   depositAmount: decimal("deposit_amount", { precision: 10, scale: 2 }),
@@ -206,6 +207,8 @@ export const packages = pgTable("packages", {
   pricingModel: text("pricing_model").notNull().default("fixed"), // "fixed" or "per_person"
   applicableSpaceIds: text("applicable_space_ids").array(), // Which venues this applies to
   includedServiceIds: text("included_service_ids").array(), // Which services are included
+  enabledTaxIds: text("enabled_tax_ids").array(), // Which taxes apply to this package
+  enabledFeeIds: text("enabled_fee_ids").array(), // Which fees apply to this package
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -217,6 +220,8 @@ export const services = pgTable("services", {
   category: text("category").notNull(), // catering, entertainment, decor, etc.
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   pricingModel: text("pricing_model").notNull().default("fixed"), // "fixed" or "per_person"
+  enabledTaxIds: text("enabled_tax_ids").array(), // Which taxes apply to this service
+  enabledFeeIds: text("enabled_fee_ids").array(), // Which fees apply to this service
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
