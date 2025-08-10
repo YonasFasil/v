@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useQuery } from "@tanstack/react-query";
 import { Package, Plus, Edit, Trash2, DollarSign, Check, Copy, Upload, Grid, List } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
@@ -54,6 +55,10 @@ export default function Packages() {
     queryKey: ["/api/services"],
   });
 
+  const { data: taxSettings } = useQuery({
+    queryKey: ["/api/tax-settings"],
+  });
+
   const [newPackage, setNewPackage] = useState({
     name: "",
     description: "",
@@ -68,6 +73,17 @@ export default function Packages() {
     price: "",
     category: "additional",
     pricingModel: "fixed"
+  });
+
+  // Tax/Fee selection state
+  const [serviceTaxFeeSelection, setServiceTaxFeeSelection] = useState({
+    enabledTaxIds: [] as string[],
+    enabledFeeIds: [] as string[]
+  });
+
+  const [packageTaxFeeSelection, setPackageTaxFeeSelection] = useState({
+    enabledTaxIds: [] as string[],
+    enabledFeeIds: [] as string[]
   });
 
   const createPackage = async () => {
@@ -87,7 +103,9 @@ export default function Packages() {
         category: newPackage.category,
         price: parseFloat(newPackage.basePrice),
         pricingModel: "fixed",
-        includedServiceIds: newPackage.includedServices
+        includedServiceIds: newPackage.includedServices,
+        enabledTaxIds: packageTaxFeeSelection.enabledTaxIds,
+        enabledFeeIds: packageTaxFeeSelection.enabledFeeIds
       });
       await queryClient.invalidateQueries({ queryKey: ["/api/packages"] });
       
@@ -98,6 +116,10 @@ export default function Packages() {
         basePrice: "",
         category: "wedding",
         includedServices: [] as string[]
+      });
+      setPackageTaxFeeSelection({
+        enabledTaxIds: [],
+        enabledFeeIds: []
       });
       
       toast({
@@ -126,7 +148,9 @@ export default function Packages() {
     try {
       await apiRequest("POST", "/api/services", {
         ...newService,
-        price: parseFloat(newService.price)
+        price: parseFloat(newService.price),
+        enabledTaxIds: serviceTaxFeeSelection.enabledTaxIds,
+        enabledFeeIds: serviceTaxFeeSelection.enabledFeeIds
       });
       await queryClient.invalidateQueries({ queryKey: ["/api/services"] });
       
@@ -137,6 +161,10 @@ export default function Packages() {
         price: "",
         category: "additional",
         pricingModel: "fixed"
+      });
+      setServiceTaxFeeSelection({
+        enabledTaxIds: [],
+        enabledFeeIds: []
       });
       
       toast({
@@ -334,6 +362,80 @@ export default function Packages() {
                         ))}
                       </select>
                     </div>
+
+                    {/* Tax & Fee Configuration */}
+                    {taxSettings && Array.isArray(taxSettings) && taxSettings.length > 0 && (
+                      <div className="space-y-3 border-t pt-4">
+                        <div>
+                          <Label className="text-sm font-medium">Tax & Fee Configuration</Label>
+                          <p className="text-xs text-slate-500 mb-3">Select which taxes and fees apply to this service by default</p>
+                        </div>
+
+                        {/* Available Taxes */}
+                        {taxSettings.filter((item: any) => item.type === 'tax' && item.isActive).length > 0 && (
+                          <div>
+                            <Label className="text-xs font-medium text-slate-600 mb-2 block">Taxes</Label>
+                            <div className="space-y-1 max-h-20 overflow-y-auto border rounded-md p-2 bg-slate-50">
+                              {taxSettings
+                                .filter((item: any) => item.type === 'tax' && item.isActive)
+                                .map((tax: any) => (
+                                  <div key={tax.id} className="flex items-center space-x-2">
+                                    <Checkbox
+                                      id={`service-tax-${tax.id}`}
+                                      checked={serviceTaxFeeSelection.enabledTaxIds.includes(tax.id)}
+                                      onCheckedChange={(checked) => {
+                                        setServiceTaxFeeSelection(prev => ({
+                                          ...prev,
+                                          enabledTaxIds: checked
+                                            ? [...prev.enabledTaxIds, tax.id]
+                                            : prev.enabledTaxIds.filter(id => id !== tax.id)
+                                        }));
+                                      }}
+                                    />
+                                    <label htmlFor={`service-tax-${tax.id}`} className="text-xs flex-1 cursor-pointer">
+                                      {tax.name} ({tax.value}% {tax.applyTo})
+                                    </label>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Available Fees */}
+                        {taxSettings.filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive).length > 0 && (
+                          <div>
+                            <Label className="text-xs font-medium text-slate-600 mb-2 block">Fees</Label>
+                            <div className="space-y-1 max-h-20 overflow-y-auto border rounded-md p-2 bg-slate-50">
+                              {taxSettings
+                                .filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive)
+                                .map((fee: any) => (
+                                  <div key={fee.id} className="flex items-center space-x-2">
+                                    <Checkbox
+                                      id={`service-fee-${fee.id}`}
+                                      checked={serviceTaxFeeSelection.enabledFeeIds.includes(fee.id)}
+                                      onCheckedChange={(checked) => {
+                                        setServiceTaxFeeSelection(prev => ({
+                                          ...prev,
+                                          enabledFeeIds: checked
+                                            ? [...prev.enabledFeeIds, fee.id]
+                                            : prev.enabledFeeIds.filter(id => id !== fee.id)
+                                        }));
+                                      }}
+                                    />
+                                    <label htmlFor={`service-fee-${fee.id}`} className="text-xs flex-1 cursor-pointer">
+                                      {fee.name} (${fee.value} {fee.calculation === 'percentage' ? '%' : 'fixed'} {fee.applyTo})
+                                    </label>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="text-xs text-slate-500 bg-blue-50 p-2 rounded">
+                          <strong>Note:</strong> These settings can be overridden at the event level during booking.
+                        </div>
+                      </div>
+                    )}
                     
                     <Button
                       onClick={createService}
@@ -494,6 +596,80 @@ export default function Packages() {
                           <div className="text-xs text-slate-600 mt-2">
                             Services are included in the base price. Additional services can be added during event creation.
                           </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tax & Fee Configuration */}
+                    {taxSettings && Array.isArray(taxSettings) && taxSettings.length > 0 && (
+                      <div className="space-y-4 border-t pt-4">
+                        <div>
+                          <Label className="text-sm font-medium">Tax & Fee Configuration</Label>
+                          <p className="text-xs text-slate-500 mb-3">Select which taxes and fees apply to this package by default</p>
+                        </div>
+
+                        {/* Available Taxes */}
+                        {taxSettings.filter((item: any) => item.type === 'tax' && item.isActive).length > 0 && (
+                          <div>
+                            <Label className="text-xs font-medium text-slate-600 mb-2 block">Taxes</Label>
+                            <div className="space-y-1 max-h-24 overflow-y-auto border rounded-md p-2 bg-slate-50">
+                              {taxSettings
+                                .filter((item: any) => item.type === 'tax' && item.isActive)
+                                .map((tax: any) => (
+                                  <div key={tax.id} className="flex items-center space-x-2">
+                                    <Checkbox
+                                      id={`package-tax-${tax.id}`}
+                                      checked={packageTaxFeeSelection.enabledTaxIds.includes(tax.id)}
+                                      onCheckedChange={(checked) => {
+                                        setPackageTaxFeeSelection(prev => ({
+                                          ...prev,
+                                          enabledTaxIds: checked
+                                            ? [...prev.enabledTaxIds, tax.id]
+                                            : prev.enabledTaxIds.filter(id => id !== tax.id)
+                                        }));
+                                      }}
+                                    />
+                                    <label htmlFor={`package-tax-${tax.id}`} className="text-xs flex-1 cursor-pointer">
+                                      {tax.name} ({tax.value}% {tax.applyTo})
+                                    </label>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Available Fees */}
+                        {taxSettings.filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive).length > 0 && (
+                          <div>
+                            <Label className="text-xs font-medium text-slate-600 mb-2 block">Fees</Label>
+                            <div className="space-y-1 max-h-24 overflow-y-auto border rounded-md p-2 bg-slate-50">
+                              {taxSettings
+                                .filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive)
+                                .map((fee: any) => (
+                                  <div key={fee.id} className="flex items-center space-x-2">
+                                    <Checkbox
+                                      id={`package-fee-${fee.id}`}
+                                      checked={packageTaxFeeSelection.enabledFeeIds.includes(fee.id)}
+                                      onCheckedChange={(checked) => {
+                                        setPackageTaxFeeSelection(prev => ({
+                                          ...prev,
+                                          enabledFeeIds: checked
+                                            ? [...prev.enabledFeeIds, fee.id]
+                                            : prev.enabledFeeIds.filter(id => id !== fee.id)
+                                        }));
+                                      }}
+                                    />
+                                    <label htmlFor={`package-fee-${fee.id}`} className="text-xs flex-1 cursor-pointer">
+                                      {fee.name} (${fee.value} {fee.calculation === 'percentage' ? '%' : 'fixed'} {fee.applyTo})
+                                    </label>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="text-xs text-slate-500 bg-blue-50 p-2 rounded">
+                          <strong>Note:</strong> These settings can be overridden at the event level during booking.
                         </div>
                       </div>
                     )}
