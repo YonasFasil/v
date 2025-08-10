@@ -1873,45 +1873,80 @@ export class MemStorage implements IStorage {
 
   // Super Admin implementation
   async getSuperAdminStats(): Promise<any> {
+    // Calculate real statistics from actual venue data
+    const bookings = Array.from(this.bookings.values());
+    const customers = Array.from(this.customers.values());
+    const venues = Array.from(this.venues.values());
+    const payments = Array.from(this.payments.values());
+    
+    // Calculate revenue from bookings and payments
+    const totalRevenue = bookings.reduce((sum, booking) => {
+      const amount = parseFloat(booking.totalAmount || '0');
+      return sum + amount;
+    }, 0);
+    
+    const paymentRevenue = payments.reduce((sum, payment) => {
+      const amount = parseFloat(payment.amount || '0');
+      return sum + amount;
+    }, 0);
+    
+    const combinedRevenue = totalRevenue + paymentRevenue;
+    
+    // Calculate new customers this month
+    const thisMonth = new Date();
+    thisMonth.setDate(1);
+    const newCustomersThisMonth = customers.filter(customer => 
+      customer.createdAt && customer.createdAt >= thisMonth
+    ).length;
+    
     return {
-      totalTenants: 5,
-      newTenantsThisMonth: 2,
-      activeUsers: 47,
-      monthlyRevenue: 12450,
-      platformHealth: 99.9
+      totalTenants: venues.length || 1, // Use venue count as "tenants"
+      newTenantsThisMonth: newCustomersThisMonth,
+      activeUsers: customers.length,
+      monthlyRevenue: Math.round(combinedRevenue),
+      platformHealth: 99.9 // Keep static for now
     };
   }
 
   async getTenants(): Promise<any[]> {
-    return [
-      {
-        id: "1",
-        name: "Premier Events LLC",
-        contactEmail: "admin@premierevents.com",
-        packageName: "Professional",
-        status: "active",
-        userCount: 12,
-        createdAt: new Date("2024-01-15")
-      },
-      {
-        id: "2", 
-        name: "Luxury Venues Inc",
-        contactEmail: "contact@luxuryvenues.com",
-        packageName: "Enterprise",
-        status: "active",
-        userCount: 25,
-        createdAt: new Date("2024-02-10")
-      },
-      {
-        id: "3",
-        name: "City Event Center",
-        contactEmail: "info@cityeventcenter.com", 
-        packageName: "Basic",
-        status: "trial",
-        userCount: 3,
-        createdAt: new Date("2024-07-20")
+    // Use actual venues as "tenants" in the Super Admin view
+    const venues = Array.from(this.venues.values());
+    const customers = Array.from(this.customers.values());
+    const bookings = Array.from(this.bookings.values());
+    
+    return venues.map(venue => {
+      // Count customers associated with this venue through bookings
+      const venueBookings = bookings.filter(booking => booking.venueId === venue.id);
+      const venueCustomerIds = new Set(venueBookings.map(booking => booking.customerId).filter(Boolean));
+      const userCount = venueCustomerIds.size;
+      
+      // Calculate status based on recent activity
+      const recentBookings = venueBookings.filter(booking => {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        return booking.eventDate >= thirtyDaysAgo;
+      });
+      
+      const status = recentBookings.length > 0 ? "active" : "trial";
+      
+      // Determine package based on venue features/size
+      let packageName = "Basic";
+      if (userCount > 15) {
+        packageName = "Enterprise";
+      } else if (userCount > 5) {
+        packageName = "Professional";
       }
-    ];
+      
+      return {
+        id: venue.id,
+        name: venue.name,
+        contactEmail: venue.contactEmail || "contact@venue.com",
+        packageName,
+        status,
+        userCount,
+        createdAt: venue.createdAt
+      };
+    });
   }
 
   async createTenant(tenant: any): Promise<any> {
@@ -2027,29 +2062,76 @@ export class MemStorage implements IStorage {
   }
 
   async getTenantActivities(): Promise<any[]> {
-    return [
-      {
+    // Generate real activity data from actual venue management data
+    const venues = Array.from(this.venues.values());
+    const bookings = Array.from(this.bookings.values());
+    const customers = Array.from(this.customers.values());
+    const payments = Array.from(this.payments.values());
+    const proposals = Array.from(this.proposals.values());
+    
+    const activities: any[] = [];
+    
+    // Recent bookings as activities
+    bookings
+      .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0))
+      .slice(0, 3)
+      .forEach((booking, index) => {
+        const venue = venues.find(v => v.id === booking.venueId);
+        const customer = customers.find(c => c.id === booking.customerId);
+        
+        activities.push({
+          id: `booking-${index + 1}`,
+          tenantName: venue?.name || "Unknown Venue",
+          action: "Booking created",
+          details: `New ${booking.eventType} booking "${booking.eventName}" for ${customer?.name || 'customer'}`,
+          createdAt: booking.createdAt || new Date(Date.now() - (index * 3600000))
+        });
+      });
+    
+    // Recent payments as activities
+    payments
+      .sort((a, b) => (b.processedAt?.getTime() || 0) - (a.processedAt?.getTime() || 0))
+      .slice(0, 2)
+      .forEach((payment, index) => {
+        activities.push({
+          id: `payment-${index + 1}`,
+          tenantName: "Platform Payment",
+          action: "Payment processed",
+          details: `$${payment.amount} ${payment.paymentType} payment received via ${payment.paymentMethod}`,
+          createdAt: payment.processedAt || new Date(Date.now() - ((index + 3) * 3600000))
+        });
+      });
+    
+    // Recent proposals as activities
+    proposals
+      .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0))
+      .slice(0, 2)
+      .forEach((proposal, index) => {
+        const customer = customers.find(c => c.id === proposal.customerId);
+        
+        activities.push({
+          id: `proposal-${index + 1}`,
+          tenantName: "Proposal System",
+          action: "Proposal sent",
+          details: `Proposal "${proposal.title}" sent to ${customer?.name || 'customer'} for $${proposal.totalAmount}`,
+          createdAt: proposal.sentAt || proposal.createdAt || new Date(Date.now() - ((index + 5) * 3600000))
+        });
+      });
+    
+    // If no real activities, create a default one
+    if (activities.length === 0) {
+      activities.push({
         id: "1",
-        tenantName: "Premier Events LLC",
-        action: "User logged in",
-        details: "John Doe logged into the system",
+        tenantName: "Platform",
+        action: "System initialized",
+        details: "Venue management system is ready for use",
         createdAt: new Date()
-      },
-      {
-        id: "2",
-        tenantName: "Luxury Venues Inc",
-        action: "Booking created",
-        details: "New booking for corporate event on Dec 15th",
-        createdAt: new Date(Date.now() - 3600000)
-      },
-      {
-        id: "3",
-        tenantName: "City Event Center",
-        action: "Payment processed",
-        details: "$2,500 payment received for wedding booking",
-        createdAt: new Date(Date.now() - 7200000)
-      }
-    ];
+      });
+    }
+    
+    return activities
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, 10); // Return most recent 10 activities
   }
 
 }
