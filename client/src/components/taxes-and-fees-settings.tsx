@@ -21,6 +21,7 @@ interface TaxFeeFormData {
   applyTo: "packages" | "services" | "both" | "total";
   description: string;
   isActive: boolean;
+  isTaxable: boolean;
 }
 
 const defaultTaxFeeForm: TaxFeeFormData = {
@@ -30,7 +31,8 @@ const defaultTaxFeeForm: TaxFeeFormData = {
   value: "",
   applyTo: "both",
   description: "",
-  isActive: true
+  isActive: true,
+  isTaxable: false
 };
 
 export function TaxesAndFeesSettings() {
@@ -131,6 +133,7 @@ export function TaxesAndFeesSettings() {
       applyTo: formData.applyTo,
       description: formData.description || null,
       isActive: formData.isActive,
+      isTaxable: formData.isTaxable,
     };
 
     if (editingItem) {
@@ -150,6 +153,7 @@ export function TaxesAndFeesSettings() {
       applyTo: item.applyTo as "packages" | "services" | "both" | "total",
       description: item.description || "",
       isActive: item.isActive || true,
+      isTaxable: item.isTaxable || false,
     });
     setIsAddDialogOpen(true);
   };
@@ -292,6 +296,19 @@ export function TaxesAndFeesSettings() {
                   />
                 </div>
 
+                {(formData.type === "fee" || formData.type === "service_charge") && (
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <Label className="text-base font-medium">Subject to Tax</Label>
+                      <p className="text-xs text-slate-500">Whether this {formData.type.replace("_", " ")} is taxable</p>
+                    </div>
+                    <Switch
+                      checked={formData.isTaxable}
+                      onCheckedChange={(checked) => setFormData({ ...formData, isTaxable: checked })}
+                    />
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between">
                   <Label className="text-base font-medium">Active</Label>
                   <Switch
@@ -356,6 +373,9 @@ export function TaxesAndFeesSettings() {
                           ? `${item.value}% of ${item.applyTo}`
                           : `$${item.value} ${item.calculation} fee on ${item.applyTo}`
                         }
+                        {item.isTaxable && (item.type === "fee" || item.type === "service_charge") && (
+                          <span className="text-orange-600 ml-2">• Taxable</span>
+                        )}
                       </p>
                       {item.description && (
                         <p className="text-xs text-slate-500 mt-1">{item.description}</p>
@@ -390,6 +410,8 @@ export function TaxesAndFeesSettings() {
           <ul className="text-sm text-blue-800 space-y-1">
             <li>• <strong>Taxes:</strong> Applied based on local tax requirements (sales tax, VAT, etc.)</li>
             <li>• <strong>Fees:</strong> Additional charges like processing fees, service charges</li>
+            <li>• <strong>Taxable Fees:</strong> Fees can be marked as "Subject to Tax" if they need tax applied to them</li>
+            <li>• <strong>Calculation Order:</strong> Base price + fees → apply taxes to taxable items</li>
             <li>• <strong>Packages/Services:</strong> Control which taxes and fees apply to each package or service</li>
             <li>• <strong>Event Level:</strong> Override tax/fee settings for individual events during creation</li>
           </ul>

@@ -235,6 +235,7 @@ export const taxSettings = pgTable("tax_settings", {
   value: decimal("value", { precision: 10, scale: 2 }).notNull(),
   applyTo: text("apply_to").notNull(), // 'packages', 'services', 'both', 'total'
   isActive: boolean("is_active").default(true),
+  isTaxable: boolean("is_taxable").default(false), // Whether this fee/charge is subject to tax
   description: text("description"),
   createdAt: timestamp("created_at").defaultNow(),
 });
