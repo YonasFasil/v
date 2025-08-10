@@ -841,6 +841,181 @@ export default function Settings() {
                       </div>
                     </div>
 
+                    {/* Sample Template Preview */}
+                    {formData.beo.defaultTemplate && (
+                      <div className="space-y-4">
+                        <div className="border-t pt-6">
+                          <Label className="text-base font-medium">Template Preview</Label>
+                          <p className="text-sm text-slate-600 mb-4">
+                            Preview of the {formData.beo.defaultTemplate} template design
+                          </p>
+                          
+                          <div className="bg-white border rounded-lg p-6 max-w-2xl">
+                            {formData.beo.defaultTemplate === "executive" ? (
+                              // Executive template sample
+                              <div className="space-y-4 text-sm">
+                                <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white p-4 rounded">
+                                  <div className="flex justify-between items-start">
+                                    <div>
+                                      <h3 className="text-lg font-bold">BANQUET EVENT ORDER</h3>
+                                      <p className="text-slate-200 text-xs">Venuine Events</p>
+                                    </div>
+                                    <div className="text-right text-xs">
+                                      <p className="text-slate-200">BEO No.</p>
+                                      <p className="font-semibold">#001234</p>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-4 text-xs">
+                                  <div>
+                                    <h4 className="font-semibold border-b border-slate-300 pb-1 mb-2">EVENT DETAILS</h4>
+                                    <div className="space-y-1">
+                                      <div className="flex justify-between">
+                                        <span>Event:</span>
+                                        <span>Corporate Gala</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span>Date:</span>
+                                        <span>March 15, 2025</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span>Guests:</span>
+                                        <span>150</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <h4 className="font-semibold border-b border-slate-300 pb-1 mb-2">CLIENT INFO</h4>
+                                    <div className="space-y-1">
+                                      <div className="flex justify-between">
+                                        <span>Name:</span>
+                                        <span>Tech Corp</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span>Contact:</span>
+                                        <span>john@techcorp.com</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div>
+                                  <h4 className="font-semibold border-b border-slate-300 pb-1 mb-2 text-xs">SERVICES</h4>
+                                  <div className="space-y-2">
+                                    <div className="border border-slate-200 p-2 rounded text-xs">
+                                      <div className="font-medium">Audio/Visual Setup</div>
+                                      <div className="text-slate-600">Professional sound system and presentation equipment</div>
+                                    </div>
+                                    <div className="border border-slate-200 p-2 rounded text-xs">
+                                      <div className="font-medium">Catering Service</div>
+                                      <div className="text-slate-600">Three-course dinner with wine service</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : formData.beo.defaultTemplate === "luxury" ? (
+                              // Luxury template sample
+                              <div className="space-y-4">
+                                <div className="bg-gradient-to-r from-amber-100 to-amber-50 p-4 rounded border border-amber-300">
+                                  <h3 className="text-lg font-bold text-amber-900">Banquet Event Order</h3>
+                                  <p className="text-amber-700 text-sm">Premium Event Services</p>
+                                </div>
+                                <div className="text-sm space-y-3">
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <h4 className="font-semibold text-amber-900">Event Details</h4>
+                                      <p className="text-slate-600">Wedding Reception • March 15, 2025 • 120 guests</p>
+                                    </div>
+                                    <div>
+                                      <h4 className="font-semibold text-amber-900">Client</h4>
+                                      <p className="text-slate-600">Mr. & Mrs. Smith</p>
+                                    </div>
+                                  </div>
+                                  <div className="bg-amber-50 p-3 rounded border border-amber-200">
+                                    <h4 className="font-medium text-amber-900">Premium Services</h4>
+                                    <p className="text-slate-700 text-sm">• Elegant floral arrangements • Fine dining service • Premium bar package</p>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : formData.beo.defaultTemplate === "corporate" ? (
+                              // Corporate template sample
+                              <div className="space-y-4">
+                                <div className="bg-blue-600 text-white p-4 rounded">
+                                  <h3 className="text-lg font-bold">BANQUET EVENT ORDER</h3>
+                                  <p className="text-blue-100 text-sm">Professional Event Management</p>
+                                </div>
+                                <div className="text-sm space-y-3">
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <h4 className="font-semibold text-blue-900">Event Information</h4>
+                                      <p className="text-slate-600">Corporate Meeting • March 15, 2025 • 80 attendees</p>
+                                    </div>
+                                    <div>
+                                      <h4 className="font-semibold text-blue-900">Organization</h4>
+                                      <p className="text-slate-600">Business Solutions Inc.</p>
+                                    </div>
+                                  </div>
+                                  <div className="border border-blue-200 p-3 rounded">
+                                    <h4 className="font-medium text-blue-900">Business Services</h4>
+                                    <p className="text-slate-700 text-sm">• Conference room setup • A/V equipment • Catered lunch</p>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : formData.beo.defaultTemplate === "wedding" ? (
+                              // Wedding template sample
+                              <div className="space-y-4">
+                                <div className="bg-gradient-to-r from-rose-100 to-pink-100 p-4 rounded border border-rose-300">
+                                  <h3 className="text-lg font-bold text-rose-900">Banquet Event Order</h3>
+                                  <p className="text-rose-700 text-sm">Romantic Wedding Celebration</p>
+                                </div>
+                                <div className="text-sm space-y-3">
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <h4 className="font-semibold text-rose-900">Wedding Details</h4>
+                                      <p className="text-slate-600">Reception • March 15, 2025 • 100 guests</p>
+                                    </div>
+                                    <div>
+                                      <h4 className="font-semibold text-rose-900">Couple</h4>
+                                      <p className="text-slate-600">Sarah & Michael</p>
+                                    </div>
+                                  </div>
+                                  <div className="bg-rose-50 p-3 rounded border border-rose-200">
+                                    <h4 className="font-medium text-rose-900">Wedding Services</h4>
+                                    <p className="text-slate-700 text-sm">• Romantic lighting • Floral centerpieces • Wedding cake service</p>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              // Standard and Minimal template sample
+                              <div className="space-y-4">
+                                <div className="bg-slate-100 p-4 rounded border border-slate-300">
+                                  <h3 className="text-lg font-bold text-slate-900">Banquet Event Order</h3>
+                                  <p className="text-slate-600 text-sm">Professional Event Services</p>
+                                </div>
+                                <div className="text-sm space-y-3">
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <h4 className="font-semibold">Event Details</h4>
+                                      <p className="text-slate-600">Company Event • March 15, 2025 • 75 guests</p>
+                                    </div>
+                                    <div>
+                                      <h4 className="font-semibold">Client</h4>
+                                      <p className="text-slate-600">ABC Company</p>
+                                    </div>
+                                  </div>
+                                  <div className="border border-slate-200 p-3 rounded">
+                                    <h4 className="font-medium">Event Services</h4>
+                                    <p className="text-slate-700 text-sm">• Room setup • Catering • Basic A/V equipment</p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="space-y-4">
                       <Label className="text-base font-medium">BEO Sections</Label>
                       <div className="grid grid-cols-2 gap-3">
