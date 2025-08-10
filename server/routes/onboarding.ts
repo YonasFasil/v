@@ -34,13 +34,22 @@ export function registerOnboardingRoutes(app: Express) {
       }
 
       const { tenantName, tenantSlug, industry } = validationResult.data;
-      const userId = req.session.userId;
+      const userId = req.session?.userId;
 
-      // Check if user already has a tenant
+      if (!userId) {
+        return res.status(401).json({ message: 'User session not found' });
+      }
+
+      // Check if user already has a tenant by checking if they have any tenant with their email
+      const userEmail = req.session.user?.email;
+      if (!userEmail) {
+        return res.status(401).json({ message: 'User email not found in session' });
+      }
+
       const existingTenant = await db
         .select()
         .from(tenants)
-        .where(eq(tenants.ownerId, userId))
+        .where(eq(tenants.contactEmail, userEmail))
         .limit(1);
 
       if (existingTenant.length > 0) {
@@ -82,10 +91,11 @@ export function registerOnboardingRoutes(app: Express) {
         .values({
           name: tenantName,
           slug: tenantSlug,
-          ownerId: userId,
-          planId: starterPlan[0].id,
-          industry: industry,
+          planSlug: starterPlan[0].slug,
+          featurePackageId: starterPlan[0].id,
           status: 'active',
+          contactName: req.session.user?.firstName + ' ' + (req.session.user?.lastName || ''),
+          contactEmail: req.session.user?.email || '',
           stripeCustomerId: null, // Will be set when they upgrade
           stripeSubscriptionId: null,
         })
@@ -97,14 +107,14 @@ export function registerOnboardingRoutes(app: Express) {
           id: newTenant[0].id,
           name: newTenant[0].name,
           slug: newTenant[0].slug,
-          industry: newTenant[0].industry,
         },
         tenantSlug: newTenant[0].slug,
       });
 
     } catch (error) {
       console.error('Create tenant error:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      res.status(500).json({ message: 'Internal server error', error: error.message });
     }
   });
 }
