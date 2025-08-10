@@ -2101,8 +2101,19 @@ export class MemStorage implements IStorage {
       name: tenantData.name,
       contactEmail: tenantData.contactEmail,
       contactName: tenantData.contactName,
+      contactPhone: tenantData.contactPhone,
       packageId: tenantData.packageId,
       status: tenantData.status || "active",
+      subscriptionStatus: tenantData.subscriptionStatus || "trial",
+      trialEndsAt: tenantData.trialEndsAt || null,
+      billingEmail: tenantData.billingEmail,
+      stripeCustomerId: tenantData.stripeCustomerId || null,
+      stripeSubscriptionId: tenantData.stripeSubscriptionId || null,
+      subdomain: tenantData.subdomain || null,
+      customDomain: tenantData.customDomain || null,
+      settings: tenantData.settings || {},
+      usage: tenantData.usage || {},
+      isActive: tenantData.isActive !== false, // Default to true unless explicitly set to false
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -2495,6 +2506,17 @@ export class MemStorage implements IStorage {
 
   async getTenant(id: string): Promise<Tenant | undefined> {
     return this.tenants.get(id);
+  }
+
+  async createTenantUser(userData: Omit<TenantUser, 'id' | 'createdAt' | 'updatedAt'>): Promise<TenantUser> {
+    const newUser: TenantUser = {
+      ...userData,
+      id: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.tenantUsers.set(newUser.id, newUser);
+    return newUser;
   }
 
   async getCurrentTenantPackageFeatures(tenantId: string): Promise<any> {

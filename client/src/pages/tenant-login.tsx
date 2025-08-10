@@ -139,11 +139,21 @@ export default function TenantLogin() {
               </form>
             </Form>
 
-            <div className="mt-6 text-center">
-              <Link href="/" className="inline-flex items-center text-sm text-blue-600 hover:text-blue-700">
-                <ArrowLeft size={16} className="mr-1" />
-                Back to Home
-              </Link>
+            <div className="mt-6 text-center space-y-3">
+              <Button
+                type="button"
+                variant="link"
+                onClick={() => setLocation("/tenant/register")}
+                className="text-sm text-blue-600 hover:text-blue-700"
+              >
+                Don't have an account? Create one
+              </Button>
+              <div>
+                <Link href="/" className="inline-flex items-center text-sm text-blue-600 hover:text-blue-700">
+                  <ArrowLeft size={16} className="mr-1" />
+                  Back to Home
+                </Link>
+              </div>
             </div>
 
             <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">

@@ -45,7 +45,7 @@ Preferred communication style: Simple, everyday language.
 - **Security**: Secure session handling with tenant data isolation.
 
 ### Core Technical Implementations & Feature Specifications
-- **Multi-Tenant Authentication System**: Complete tenant authentication with isolated data access, session management, and role-based access control supporting Super Admin, Admin, and Staff roles with demo credentials (john@venuineevents.com / demo123, jane@venuineevents.com / demo123).
+- **Multi-Tenant Authentication System**: Complete tenant authentication with isolated data access, session management, and role-based access control supporting Super Admin, Admin, and Staff roles with demo credentials (john@venuineevents.com / demo123, jane@venuineevents.com / demo123). Users can register new tenant accounts through /tenant/register with company information and admin credentials.
 - **Dedicated Floor Plans & Setup Section**: Centralized management and design of venue floor plans, independent of venue editing, with interactive 2D designer (drag-and-drop, resizable objects, multiple setup styles, capacity tracking).
 - **Modern Settings**: Comprehensive configuration for General, Notifications, Appearance, Integrations, BEO, Taxes, Security.
 - **BEO (Banquet Event Orders) System**: Template-based professional BEO generation from event summaries with customizable sections and print/download capabilities.

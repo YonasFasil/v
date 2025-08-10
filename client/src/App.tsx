@@ -24,6 +24,7 @@ import ProposalView from "@/pages/proposal-view";
 import Proposals from "@/pages/proposals";
 import SuperAdmin from "@/pages/super-admin";
 import TenantLogin from "@/pages/tenant-login";
+import TenantRegister from "@/pages/tenant-register";
 import TenantDashboard from "@/pages/tenant-dashboard";
 import NotFound from "@/pages/not-found";
 
@@ -43,6 +44,7 @@ function Router() {
       <Switch>
         <Route path="/login" component={LoginSelect} />
         <Route path="/tenant/login" component={TenantLogin} />
+        <Route path="/tenant/register" component={TenantRegister} />
         <Route path="/tenant/dashboard" component={TenantDashboard} />
         <Route component={LoginSelect} />
       </Switch>
@@ -64,6 +66,7 @@ function Router() {
     <Switch>
       <Route path="/login" component={LoginSelect} />
       <Route path="/tenant/login" component={TenantLogin} />
+      <Route path="/tenant/register" component={TenantRegister} />
       <Route path="/tenant/dashboard" component={TenantDashboard} />
       <Route path="/">
         {() => (

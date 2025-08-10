@@ -41,6 +41,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AUTHENTICATION ROUTES
   // ===============================
   
+  // Tenant Registration
+  app.post("/api/auth/tenant/register", async (req, res) => {
+    try {
+      const { tenant, admin } = req.body;
+      
+      if (!tenant || !admin) {
+        return res.status(400).json({ message: "Tenant and admin information are required" });
+      }
+      
+      // Validate required fields
+      const requiredTenantFields = ['name', 'contactName', 'contactEmail', 'contactPhone'];
+      const requiredAdminFields = ['name', 'email', 'password'];
+      
+      for (const field of requiredTenantFields) {
+        if (!tenant[field]) {
+          return res.status(400).json({ message: `Tenant ${field} is required` });
+        }
+      }
+      
+      for (const field of requiredAdminFields) {
+        if (!admin[field]) {
+          return res.status(400).json({ message: `Admin ${field} is required` });
+        }
+      }
+      
+      // Check if admin email already exists
+      const existingUser = await storage.getTenantUserByEmailGlobal(admin.email);
+      if (existingUser) {
+        return res.status(409).json({ message: "Email address is already in use" });
+      }
+      
+      // Create new tenant account
+      const newTenant = await storage.createTenant({
+        name: tenant.name,
+        contactEmail: tenant.contactEmail,
+        contactName: tenant.contactName,
+        contactPhone: tenant.contactPhone,
+        packageId: "professional", // Default package
+        status: "active",
+        subscriptionStatus: "trial",
+        trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days trial
+        billingEmail: tenant.contactEmail,
+        stripeCustomerId: null,
+        stripeSubscriptionId: null,
+        subdomain: null,
+        customDomain: null,
+        settings: {},
+        usage: {},
+        isActive: true
+      });
+      
+      // Create admin user for the tenant
+      const newAdmin = await storage.createTenantUser({
+        tenantId: newTenant.id,
+        email: admin.email,
+        password: admin.password, // In production, hash the password
+        name: admin.name,
+        role: "admin",
+        permissions: {},
+        isActive: true,
+        invitedBy: null,
+        invitedAt: new Date(),
+        acceptedAt: new Date()
+      });
+      
+      res.status(201).json({ 
+        success: true,
+        message: "Account created successfully",
+        tenant: {
+          id: newTenant.id,
+          name: newTenant.name
+        },
+        user: {
+          id: newAdmin.id,
+          email: newAdmin.email,
+          name: newAdmin.name
+        }
+      });
+    } catch (error) {
+      console.error("Tenant registration error:", error);
+      res.status(500).json({ message: "Registration failed. Please try again." });
+    }
+  });
+
   // Tenant Authentication
   app.post("/api/auth/tenant/login", async (req, res) => {
     try {
