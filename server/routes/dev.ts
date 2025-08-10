@@ -1,87 +1,51 @@
-import type { Express } from 'express';
-import { db } from '../db';
-import { users, superAdmins } from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import type { Express } from "express";
+import { db } from "../db";
+import { users } from "@shared/schema";
+import { sql } from "drizzle-orm";
+import bcrypt from "bcrypt";
 
-// Development helper routes - only available in development
 export function registerDevRoutes(app: Express) {
-  if (process.env.NODE_ENV !== 'development') {
-    return;
-  }
-
-  // Make current user a superadmin (development only)
-  app.post('/api/dev/make-superadmin', async (req: any, res) => {
+  // GET /api/dev/make-superadmin - Create superadmin user for development
+  app.get('/api/dev/make-superadmin', async (req, res) => {
     try {
-      // For development, use dev user ID from header or default
-      const userId = req.headers['x-dev-user-id'] || req.user?.id || 'dev-user-123';
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(403).json({ message: 'Not available in production' });
+      }
 
-      // Check if already a superadmin
-      const [existingSuperAdmin] = await db
-        .select()
-        .from(superAdmins)
-        .where(eq(superAdmins.userId, userId))
-        .limit(1);
+      // Check if superadmin already exists
+      const result = await db.execute(sql`
+        SELECT * FROM users WHERE role = ${'superadmin'} LIMIT 1
+      `);
+      const existingSuperadmin = result.rows[0];
 
-      if (existingSuperAdmin) {
+      if (existingSuperadmin) {
         return res.json({ 
-          message: 'Already a superadmin',
-          superAdmin: existingSuperAdmin 
+          message: 'Superadmin already exists',
+          email: existingSuperadmin.email,
+          accessUrl: '/superadmin'
         });
       }
 
-      // Create superadmin record
-      const [newSuperAdmin] = await db
-        .insert(superAdmins)
-        .values({
-          userId: userId,
-        })
-        .returning();
-
-      res.json({ 
-        message: 'Successfully made user a superadmin',
-        superAdmin: newSuperAdmin
-      });
-    } catch (error) {
-      console.error('Error making user superadmin:', error);
-      res.status(500).json({ message: 'Error creating superadmin' });
-    }
-  });
-
-  // Create a test tenant (development only)
-  app.post('/api/dev/create-test-tenant', async (req: any, res) => {
-    try {
-      const { tenants, tenantUsers } = await import('@shared/schema');
+      // Create superadmin user using direct SQL
+      const hashedPassword = await bcrypt.hash('admin123', 12);
       
-      const [newTenant] = await db
-        .insert(tenants)
-        .values({
-          name: 'Test Organization',
-          slug: 'test-org',
-          contactName: 'Test User',
-          contactEmail: 'test@example.com',
-          status: 'active',
-        })
-        .returning();
+      const result2 = await db.execute(sql`
+        INSERT INTO users (email, password, first_name, last_name, role, email_verified)
+        VALUES (${'admin@venuin.com'}, ${hashedPassword}, ${'Super'}, ${'Admin'}, ${'superadmin'}, ${true})
+        RETURNING *
+      `);
+      const superadmin = result2.rows[0];
 
-      if (req.user?.id) {
-        // Link current user to the test tenant
-        await db
-          .insert(tenantUsers)
-          .values({
-            tenantId: newTenant.id,
-            userId: req.user.id,
-            role: 'manager',
-            status: 'active',
-          });
-      }
-
-      res.json({ 
-        message: 'Test tenant created successfully',
-        tenant: newTenant
+      res.json({
+        message: 'Superadmin created successfully',
+        email: 'admin@venuin.com',
+        password: 'admin123',
+        accessUrl: '/superadmin',
+        instructions: 'Login with the credentials above, then navigate to /superadmin'
       });
     } catch (error) {
-      console.error('Error creating test tenant:', error);
-      res.status(500).json({ message: 'Error creating test tenant' });
+      console.error('Error creating superadmin:', error);
+      res.status(500).json({ message: 'Error creating superadmin' });
     }
   });
 }

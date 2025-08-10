@@ -51,6 +51,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register auth routes
   registerAuthRoutes(app);
 
+  // Register dev routes (development only)
+  if (process.env.NODE_ENV === 'development') {
+    const { registerDevRoutes } = await import('./routes/dev');
+    registerDevRoutes(app);
+  }
+
   // Register superadmin routes
   registerSuperAdminRoutes(app);
 

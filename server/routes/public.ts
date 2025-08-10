@@ -1,25 +1,21 @@
 import type { Express } from "express";
 import { db } from "../db";
 import { featurePackages } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 
 export function registerPublicRoutes(app: Express) {
   // GET /api/public/plans - Get active pricing plans
   app.get('/api/public/plans', async (req, res) => {
     try {
-      const activePlans = await db
-        .select({
-          id: featurePackages.id,
-          name: featurePackages.name,
-          slug: featurePackages.slug,
-          description: featurePackages.description,
-          priceMonthly: featurePackages.price_monthly,
-          maxUsers: featurePackages.max_users,
-          features: featurePackages.features,
-        })
-        .from(featurePackages)
-        .where(eq(featurePackages.is_active, true))
-        .orderBy(featurePackages.name);
+      // Simple query without Drizzle query builder since schema may not match
+      const result = await db.execute(sql`
+        SELECT id, name, slug, description, price_monthly, max_users, features
+        FROM feature_packages 
+        WHERE is_active = true 
+        ORDER BY name
+      `);
+      
+      const activePlans = result.rows;
 
       // Transform to expected format for frontend
       const transformedPlans = activePlans.map(plan => ({
@@ -28,13 +24,13 @@ export function registerPublicRoutes(app: Express) {
         slug: plan.slug,
         billingModes: {
           monthly: {
-            amount: Math.round(plan.priceMonthly * 100), // Convert to cents
+            amount: Math.round(Number(plan.price_monthly) * 100), // Convert to cents
             currency: 'USD'
           }
         },
         limits: {
           venues: plan.slug === 'starter' ? 1 : plan.slug === 'professional' ? 3 : 999,
-          staff: plan.maxUsers,
+          staff: Number(plan.max_users),
           monthlyBookings: plan.slug === 'starter' ? 50 : plan.slug === 'professional' ? 200 : 999
         },
         flags: {
