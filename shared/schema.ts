@@ -98,7 +98,8 @@ export const bookings = pgTable("bookings", {
   pricingModel: text("pricing_model").default("fixed"),
   itemQuantities: jsonb("item_quantities"),
   pricingOverrides: jsonb("pricing_overrides"),
-  taxFeeOverrides: jsonb("tax_fee_overrides"), // Override taxes and fees for specific services/packages in this event
+  taxFeeOverrides: jsonb("tax_fee_overrides"), // Legacy: Override taxes and fees for specific services/packages in this event
+  serviceTaxOverrides: jsonb("service_tax_overrides"), // New: Per-service tax and fee overrides with inheritance control
   status: text("status").notNull().default("pending"), // pending, confirmed, cancelled
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
   depositAmount: decimal("deposit_amount", { precision: 10, scale: 2 }),

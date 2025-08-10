@@ -770,6 +770,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         pricingModel: selectedPackageData?.pricingModel || "fixed",
         itemQuantities: firstDate.itemQuantities || {},
         pricingOverrides: firstDate.pricingOverrides || null,
+        serviceTaxOverrides: firstDate.serviceTaxOverrides || null,
         totalAmount: totalPrice.toString(),
         notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${firstDate.selectedServices?.length || 0} selected`,
         proposalStatus: submitType === 'proposal' ? 'sent' : 'none',
@@ -826,9 +827,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
           pricingModel: selectedPackageData?.pricingModel || "fixed",
           itemQuantities: date.itemQuantities || {},
           pricingOverrides: date.pricingOverrides || null,
-          taxFeeOverrides: taxFeeOverrides.enabledTaxIds.length > 0 || taxFeeOverrides.enabledFeeIds.length > 0 
-            ? taxFeeOverrides 
-            : null,
+          serviceTaxOverrides: date.serviceTaxOverrides || null,
           totalAmount: datePrice.toString(),
           notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${date.selectedServices?.length || 0} selected`,
           proposalStatus: submitType === 'proposal' ? 'sent' : 'none',
