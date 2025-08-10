@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1066,7 +1066,7 @@ function PackageDialog({ isOpen, onClose, package: pkg, isEdit }: {
   };
 
   // Initialize form data when editing
-  useState(() => {
+  useEffect(() => {
     if (isEdit && pkg) {
       setFormData({
         name: pkg.name || "",
@@ -1089,7 +1089,7 @@ function PackageDialog({ isOpen, onClose, package: pkg, isEdit }: {
       }, {} as any);
       setFormData(prev => ({ ...prev, features: initialFeatures }));
     }
-  });
+  }, [isEdit, pkg]);
 
   const toggleFeature = (featureKey: string) => {
     setFormData(prev => ({

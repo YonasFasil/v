@@ -4151,25 +4151,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     }
   });
 
-  app.put("/api/super-admin/packages/:id", async (req, res) => {
-    try {
-      const updatedPackage = await storage.updateFeaturePackage(req.params.id, req.body);
-      res.json(updatedPackage);
-    } catch (error) {
-      console.error("Error updating package:", error);
-      res.status(500).json({ message: "Failed to update package" });
-    }
-  });
 
-  app.delete("/api/super-admin/packages/:id", async (req, res) => {
-    try {
-      await storage.deleteFeaturePackage(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      console.error("Error deleting package:", error);
-      res.status(500).json({ message: "Failed to delete package" });
-    }
-  });
 
   // Activity Logs
   app.get("/api/super-admin/activities", async (req, res) => {

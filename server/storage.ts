@@ -229,6 +229,7 @@ export interface IStorage {
   createFeaturePackage(pkg: any): Promise<any>;
   updateFeaturePackage(id: string, updates: any): Promise<any>;
   deleteFeaturePackage(id: string): Promise<void>;
+  togglePackageStatus(id: string): Promise<any>;
   getTenantActivities(): Promise<any[]>;
 
   // Tenant User Management
@@ -309,108 +310,7 @@ export class MemStorage implements IStorage {
 
   private initializeFeaturePackages() {
     const packages: FeaturePackage[] = [
-      {
-        id: "basic",
-        name: "basic",
-        displayName: "Basic",
-        description: "Perfect for small venues just getting started",
-        price: "29.00",
-        billingInterval: "monthly",
-        features: {
-          calendar: true,
-          bookings: true,
-          customers: true,
-          basicReporting: true,
-          emailSupport: true,
-          venues: true,
-          proposals: false,
-          ai: false,
-          stripe: false,
-          advancedReporting: false,
-          voiceBooking: false,
-          beo: false,
-          leadManagement: false
-        },
-        maxUsers: 2,
-        maxVenues: 1,
-        maxBookingsPerMonth: 50,
-        storageLimit: 5,
-        isActive: true,
-        isCustom: false,
-        sortOrder: 1,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: "professional",
-        name: "professional", 
-        displayName: "Professional",
-        description: "Complete venue management for growing businesses",
-        price: "79.00",
-        billingInterval: "monthly",
-        features: {
-          calendar: true,
-          bookings: true,
-          customers: true,
-          venues: true,
-          proposals: true,
-          payments: true,
-          stripe: true,
-          basicReporting: true,
-          advancedReporting: true,
-          emailSupport: true,
-          ai: false,
-          voiceBooking: false,
-          beo: true,
-          leadManagement: true,
-          multiVenue: true
-        },
-        maxUsers: 5,
-        maxVenues: 3,
-        maxBookingsPerMonth: 200,
-        storageLimit: 25,
-        isActive: true,
-        isCustom: false,
-        sortOrder: 2,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: "enterprise",
-        name: "enterprise",
-        displayName: "Enterprise",
-        description: "Advanced features and unlimited access for large venues",
-        price: "199.00",
-        billingInterval: "monthly",
-        features: {
-          calendar: true,
-          bookings: true,
-          customers: true,
-          venues: true,
-          proposals: true,
-          payments: true,
-          stripe: true,
-          basicReporting: true,
-          advancedReporting: true,
-          ai: true,
-          voiceBooking: true,
-          beo: true,
-          leadManagement: true,
-          multiVenue: true,
-          customBranding: true,
-          prioritySupport: true,
-          apiAccess: true
-        },
-        maxUsers: 25,
-        maxVenues: null, // Unlimited
-        maxBookingsPerMonth: null, // Unlimited
-        storageLimit: 100,
-        isActive: true,
-        isCustom: false,
-        sortOrder: 3,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
+      // Empty array - no default packages, allowing users to create their own
     ];
 
     packages.forEach(pkg => this.featurePackages.set(pkg.id, pkg));
@@ -2600,6 +2500,84 @@ export class MemStorage implements IStorage {
     
     const featurePackage = this.featurePackages.get(tenant.packageId);
     return featurePackage?.features || {};
+  }
+
+  // Feature Package Management
+  async getFeaturePackages(): Promise<any[]> {
+    return Array.from(this.featurePackages.values()).sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
+  async createFeaturePackage(packageData: any): Promise<any> {
+    const id = randomUUID();
+    const newPackage = {
+      id,
+      name: packageData.name,
+      displayName: packageData.displayName,
+      description: packageData.description,
+      price: packageData.price.toString(),
+      billingInterval: packageData.billingInterval,
+      features: packageData.features,
+      maxUsers: packageData.maxUsers,
+      maxVenues: packageData.maxVenues,
+      maxSpaces: packageData.maxSpaces,
+      maxBookingsPerMonth: packageData.maxBookingsPerMonth,
+      storageLimit: packageData.storageLimit,
+      isActive: true,
+      isCustom: true,
+      sortOrder: this.featurePackages.size + 1,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    this.featurePackages.set(id, newPackage);
+    return newPackage;
+  }
+
+  async updateFeaturePackage(id: string, updates: any): Promise<any> {
+    const existingPackage = this.featurePackages.get(id);
+    if (!existingPackage) {
+      throw new Error("Package not found");
+    }
+
+    const updatedPackage = {
+      ...existingPackage,
+      ...updates,
+      id, // Ensure ID doesn't change
+      updatedAt: new Date()
+    };
+
+    this.featurePackages.set(id, updatedPackage);
+    return updatedPackage;
+  }
+
+  async deleteFeaturePackage(id: string): Promise<void> {
+    const existingPackage = this.featurePackages.get(id);
+    if (!existingPackage) {
+      throw new Error("Package not found");
+    }
+
+    // Only allow deleting custom packages
+    if (!existingPackage.isCustom) {
+      throw new Error("Cannot delete system packages");
+    }
+
+    this.featurePackages.delete(id);
+  }
+
+  async togglePackageStatus(id: string): Promise<any> {
+    const existingPackage = this.featurePackages.get(id);
+    if (!existingPackage) {
+      throw new Error("Package not found");
+    }
+
+    const updatedPackage = {
+      ...existingPackage,
+      isActive: !existingPackage.isActive,
+      updatedAt: new Date()
+    };
+
+    this.featurePackages.set(id, updatedPackage);
+    return updatedPackage;
   }
 
 }
