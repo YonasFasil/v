@@ -149,20 +149,21 @@ This proposal is valid for 30 days from the date of this email.`);
 
   const sendProposal = useMutation({
     mutationFn: async () => {
-      // First create the booking with proposal status
-      const bookingData = {
-        eventName: eventData.eventName,
+      // Create proposal in the proposals table
+      const proposalData = {
         customerId: eventData.customerId,
-        eventDates: eventData.eventDates,
-        proposalStatus: 'sent',
-        proposalSentAt: new Date(),
-        totalAmount: eventData.totalAmount
+        title: `Proposal for ${eventData.eventName}`,
+        content: generateHtmlContent(),
+        totalAmount: eventData.totalAmount.toString(),
+        validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+        status: 'sent',
+        sentAt: new Date()
       };
       
-      const booking = await fetch("/api/bookings", {
+      const proposal = await fetch("/api/proposals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(bookingData)
+        body: JSON.stringify(proposalData)
       }).then(res => res.json());
       
       // Then send the email via Gmail
@@ -179,7 +180,7 @@ This proposal is valid for 30 days from the date of this email.`);
         })
       }).then(res => res.json());
       
-      return booking;
+      return proposal;
     },
     onSuccess: () => {
       toast({

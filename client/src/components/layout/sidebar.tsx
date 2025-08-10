@@ -25,10 +25,10 @@ const navigationItems = [
   { name: "Events & Bookings", href: "/events", icon: Calendar },
   { name: "Customers", href: "/customers", icon: Users },
   { name: "Leads", href: "/leads", icon: UserPlus },
+  { name: "Proposals", href: "/proposals", icon: FileText },
   { name: "Payments", href: "/payments", icon: CreditCard },
   { name: "Tasks & Team", href: "/tasks", icon: CheckSquare },
   { name: "Venues", href: "/venues", icon: MapPin },
-
   { name: "Setup Styles", href: "/setup-styles", icon: Grid3X3 },
   { name: "Packages & Services", href: "/packages", icon: Package },
 ];
