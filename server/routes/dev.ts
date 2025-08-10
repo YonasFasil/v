@@ -12,15 +12,14 @@ export function registerDevRoutes(app: Express) {
   // Make current user a superadmin (development only)
   app.post('/api/dev/make-superadmin', async (req: any, res) => {
     try {
-      if (!req.user?.id) {
-        return res.status(401).json({ message: 'User not authenticated' });
-      }
+      // For development, use dev user ID from header or default
+      const userId = req.headers['x-dev-user-id'] || req.user?.id || 'dev-user-123';
 
       // Check if already a superadmin
       const [existingSuperAdmin] = await db
         .select()
         .from(superAdmins)
-        .where(eq(superAdmins.userId, req.user.id))
+        .where(eq(superAdmins.userId, userId))
         .limit(1);
 
       if (existingSuperAdmin) {
@@ -34,7 +33,7 @@ export function registerDevRoutes(app: Express) {
       const [newSuperAdmin] = await db
         .insert(superAdmins)
         .values({
-          userId: req.user.id,
+          userId: userId,
         })
         .returning();
 

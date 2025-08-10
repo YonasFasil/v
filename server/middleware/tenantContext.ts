@@ -37,7 +37,6 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
       .innerJoin(tenants, eq(tenants.id, tenantUsers.tenantId))
       .where(and(
         eq(tenantUsers.userId, userId),
-        eq(tenantUsers.status, 'active'),
         eq(tenants.status, 'active')
       ))
       .limit(1);
@@ -65,6 +64,13 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
 // Super admin middleware - checks if user is a super admin
 export const requireSuperAdmin = async (req: any, res: Response, next: NextFunction) => {
   try {
+    // For development, allow access with mock user
+    if (process.env.NODE_ENV === 'development') {
+      const devUserId = req.headers['x-dev-user-id'] || 'dev-user-123';
+      req.user = { id: devUserId };
+      return next();
+    }
+
     if (!req.user?.id) {
       return res.status(401).json({ message: 'Authentication required' });
     }

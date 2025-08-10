@@ -115,12 +115,13 @@ export default function SuperAdminDashboard() {
   const handleCreateTenant = (event: React.FormEvent) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget as HTMLFormElement);
+    const featurePackageId = formData.get('featurePackageId');
     createTenantMutation.mutate({
       name: formData.get('name'),
       slug: formData.get('slug'),
       contactName: formData.get('contactName'),
       contactEmail: formData.get('contactEmail'),
-      featurePackageId: formData.get('featurePackageId') || null,
+      featurePackageId: featurePackageId === 'none' ? null : featurePackageId,
       status: 'active',
     });
   };
@@ -283,7 +284,7 @@ export default function SuperAdminDashboard() {
                         <SelectValue placeholder="Select package (optional)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">No package</SelectItem>
+                        <SelectItem value="none">No package</SelectItem>
                         {featurePackages?.map(pkg => (
                           <SelectItem key={pkg.id} value={pkg.id}>
                             {pkg.name} - ${pkg.priceMonthly}/month

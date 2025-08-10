@@ -159,7 +159,7 @@ export function registerSuperAdminRoutes(app: Express) {
   // Get all feature packages
   app.get('/api/superadmin/feature-packages', requireSuperAdmin, async (req, res) => {
     try {
-      const packages = await db.select().from(featurePackages).orderBy(desc(featurePackages.createdAt));
+      const packages = await db.select().from(featurePackages).orderBy(featurePackages.createdAt);
       res.json(packages);
     } catch (error) {
       console.error('Error fetching feature packages:', error);
