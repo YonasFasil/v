@@ -594,24 +594,66 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8 h-full">
                   {/* Left: Calendar */}
                   <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <Button
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => setCurrentDate(subMonths(currentDate, 1))}
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      <h3 className="text-lg font-semibold">
-                        {format(currentDate, 'MMMM yyyy')}
-                      </h3>
-                      <Button
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => setCurrentDate(addMonths(currentDate, 1))}
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
+                    {/* Calendar Header with Add Event Button */}
+                    <div className="space-y-3 mb-4">
+                      <div className="flex items-center justify-between">
+                        <Button
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setCurrentDate(subMonths(currentDate, 1))}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <h3 className="text-lg font-semibold">
+                          {format(currentDate, 'MMMM yyyy')}
+                        </h3>
+                        <Button
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setCurrentDate(addMonths(currentDate, 1))}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      
+                      {/* Add Additional Event Button */}
+                      <div className="flex flex-col items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-blue-600 border-blue-200 hover:bg-blue-50 gap-2"
+                          onClick={() => {
+                            // Add a new date to make this a multi-date event/contract
+                            const today = new Date();
+                            const newDate: SelectedDate = {
+                              date: today,
+                              startTime: selectedDates[0]?.startTime || '09:00',
+                              endTime: selectedDates[0]?.endTime || '17:00',
+                              spaceId: selectedDates[0]?.spaceId || '',
+                              guestCount: selectedDates[0]?.guestCount || 1,
+                              packageId: '',
+                              selectedServices: [],
+                              itemQuantities: {},
+                              pricingOverrides: {}
+                            };
+                            setSelectedDates([...selectedDates, newDate]);
+                            
+                            toast({
+                              title: "Additional Event Added",
+                              description: "This will create a multi-date contract. Configure each date separately.",
+                            });
+                          }}
+                        >
+                          <Plus className="h-4 w-4" />
+                          Add Additional Event
+                        </Button>
+                        
+                        {selectedDates.length > 1 && (
+                          <div className="text-xs text-center text-slate-600 bg-blue-50 px-2 py-1 rounded">
+                            <span className="font-medium text-blue-700">{selectedDates.length} events</span> - Multi-date contract
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-7 gap-1 mb-2">
@@ -699,9 +741,28 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                                       </p>
                                     </div>
                                   </div>
-                                  <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
-                                    Available
-                                  </Badge>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
+                                      {index === 0 ? "Original" : "Additional"}
+                                    </Badge>
+                                    {selectedDates.length > 1 && index > 0 && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          const newDates = selectedDates.filter((_, i) => i !== index);
+                                          setSelectedDates(newDates);
+                                          toast({
+                                            title: "Event Removed",
+                                            description: "Additional event date removed from contract.",
+                                          });
+                                        }}
+                                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </Button>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                               
