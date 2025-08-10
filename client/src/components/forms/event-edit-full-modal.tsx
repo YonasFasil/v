@@ -1863,56 +1863,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                                       }
                                     });
 
-                                    // Apply global taxes/fees when no package/services selected
-                                    if (!selectedPackageData && (!activeDate.selectedServices || activeDate.selectedServices.length === 0)) {
-                                      // Global fees
-                                      (taxSettings as any[])?.forEach((fee: any) => {
-                                        if ((fee.type === 'fee' || fee.type === 'service_charge') && 
-                                            fee.isActive && 
-                                            taxFeeOverrides.enabledFeeIds.includes(fee.id)) {
-                                          
-                                          let feeAmount = 0;
-                                          if (fee.calculation === 'percentage') {
-                                            feeAmount = subtotal * (parseFloat(fee.value) / 100);
-                                          } else {
-                                            feeAmount = parseFloat(fee.value);
-                                          }
-                                          
-                                          feeBreakdown.push({
-                                            name: fee.name,
-                                            amount: feeAmount,
-                                            description: fee.calculation === 'percentage' 
-                                              ? `${fee.value}% of subtotal ($${subtotal.toFixed(2)})`
-                                              : 'Fixed amount'
-                                          });
-                                        }
-                                      });
-                                      
-                                      // Recalculate taxable base with global fees
-                                      const globalFeesTotal = feeBreakdown.reduce((sum, fee) => sum + fee.amount, 0);
-                                      const globalTaxableFees = feeBreakdown
-                                        .filter(fee => {
-                                          const feeData = (taxSettings as any[])?.find(f => f.name === fee.name);
-                                          return feeData?.isTaxable;
-                                        })
-                                        .reduce((sum, fee) => sum + fee.amount, 0);
-                                      const globalTaxableBase = subtotal + globalTaxableFees;
-                                      
-                                      // Global taxes
-                                      (taxSettings as any[])?.forEach((tax: any) => {
-                                        if (tax.type === 'tax' && 
-                                            tax.isActive && 
-                                            taxFeeOverrides.enabledTaxIds.includes(tax.id)) {
-                                          
-                                          const taxAmount = globalTaxableBase * (parseFloat(tax.value) / 100);
-                                          taxBreakdown.push({
-                                            name: tax.name,
-                                            amount: taxAmount,
-                                            description: `${tax.value}% of taxable amount ($${globalTaxableBase.toFixed(2)})`
-                                          });
-                                        }
-                                      });
-                                    }
+                                    // Note: Global taxes/fees are no longer supported in the edit modal
+                                    // since taxes and fees are now applied per-service/package inline
 
                                     const taxesTotal = taxBreakdown.reduce((sum, tax) => sum + tax.amount, 0);
                                     const grandTotal = subtotal + feesTotal + taxesTotal;
