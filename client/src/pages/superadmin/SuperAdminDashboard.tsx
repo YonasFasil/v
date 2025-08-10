@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
+import { FeaturePackageForm } from './FeaturePackageForm';
 
 interface Tenant {
   id: string;
@@ -447,43 +448,18 @@ export default function SuperAdminDashboard() {
                   Create Package
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Create Feature Package</DialogTitle>
                   <DialogDescription>
-                    Define a new feature package for tenant subscriptions.
+                    Define a new feature package with specific VENUIN features, usage limits, and pricing.
                   </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleCreatePackage} className="space-y-4">
-                  <div>
-                    <Label htmlFor="name">Package Name</Label>
-                    <Input name="name" required />
-                  </div>
-                  <div>
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea name="description" required />
-                  </div>
-                  <div>
-                    <Label htmlFor="features">Features (one per line)</Label>
-                    <Textarea name="features" placeholder="Advanced analytics&#10;Priority support&#10;Custom branding" required />
-                  </div>
-                  <div>
-                    <Label htmlFor="maxUsers">Max Users</Label>
-                    <Input name="maxUsers" type="number" required />
-                  </div>
-                  <div>
-                    <Label htmlFor="priceMonthly">Monthly Price ($)</Label>
-                    <Input name="priceMonthly" type="number" step="0.01" required />
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button type="button" variant="outline" onClick={() => setIsCreatePackageOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={createPackageMutation.isPending}>
-                      {createPackageMutation.isPending ? "Creating..." : "Create Package"}
-                    </Button>
-                  </div>
-                </form>
+                <FeaturePackageForm 
+                  onSubmit={(data: any) => createPackageMutation.mutate(data)}
+                  isPending={createPackageMutation.isPending}
+                  onCancel={() => setIsCreatePackageOpen(false)}
+                />
               </DialogContent>
             </Dialog>
           </div>

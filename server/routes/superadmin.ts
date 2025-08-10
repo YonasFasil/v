@@ -177,7 +177,20 @@ export function registerSuperAdminRoutes(app: Express) {
   // Create feature package
   app.post('/api/superadmin/feature-packages', requireSuperAdmin, async (req: any, res) => {
     try {
-      const packageData: InsertFeaturePackage = req.body;
+      const packageData = {
+        name: req.body.name,
+        slug: req.body.slug,
+        description: req.body.description,
+        status: req.body.status || 'active',
+        limits: req.body.limits,
+        features: req.body.features,
+        priceMonthly: req.body.priceMonthly,
+        priceYearly: req.body.priceYearly,
+        billingModes: {
+          monthly: { amount: req.body.priceMonthly, currency: 'USD' },
+          yearly: { amount: req.body.priceYearly, currency: 'USD' }
+        }
+      };
       
       const [newPackage] = await db.insert(featurePackages).values(packageData).returning();
 

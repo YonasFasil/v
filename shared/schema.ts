@@ -38,8 +38,11 @@ export const featurePackages = pgTable("feature_packages", {
   billingModes: jsonb("billing_modes").notNull(), // { monthly: { amount, currency }, yearly?: { amount, currency } }
   stripeProductId: text("stripe_product_id"),
   stripePriceIds: jsonb("stripe_price_ids"), // { monthly?: string, yearly?: string }
-  limits: jsonb("limits").notNull(), // { venues, spacesPerVenue, staff, monthlyBookings }
-  flags: jsonb("flags").notNull().default('{}'), // feature toggles
+  description: text("description"),
+  limits: jsonb("limits").notNull(), // { maxUsers, maxVenues, maxSpacesPerVenue }
+  features: jsonb("features").notNull().default('{}'), // feature flags for VENUIN features
+  priceMonthly: decimal("price_monthly", { precision: 10, scale: 2 }),
+  priceYearly: decimal("price_yearly", { precision: 10, scale: 2 }),
   trialDays: integer("trial_days"),
   sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").defaultNow(),
