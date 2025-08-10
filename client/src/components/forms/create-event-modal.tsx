@@ -1815,14 +1815,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                   </div>
                 )}
                 
-                {currentStep > 1 && selectedVenueData && (
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
-                    <MapPin className="w-4 h-4" />
-                    <span className="font-medium">{selectedVenueData.name}</span>
-                    <span className="text-slate-400">•</span>
-                    <span>{selectedVenueData.spaces?.length || 0} spaces available</span>
-                  </div>
-                )}
+
                 
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-slate-600">Grand Total</span>

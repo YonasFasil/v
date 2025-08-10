@@ -111,6 +111,56 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
   const [history, setHistory] = useState<FloorPlanElement[][]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
 
+  // Copy/paste functionality
+  const copyElements = useCallback(() => {
+    const elementsToCopy = elements.filter(el => selectedElements.includes(el.id));
+    setCopiedElements(elementsToCopy);
+  }, [elements, selectedElements]);
+
+  const pasteElements = useCallback(() => {
+    if (copiedElements.length === 0) return;
+    
+    const newElements = copiedElements.map(el => ({
+      ...el,
+      id: `element-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      x: el.x + 20,
+      y: el.y + 20,
+      label: `${el.label} (Copy)`,
+    }));
+
+    const updatedElements = [...elements, ...newElements];
+    setElements(updatedElements);
+    saveToHistory(updatedElements);
+    setSelectedElements(newElements.map(el => el.id));
+  }, [copiedElements, elements, saveToHistory]);
+
+  const deleteSelectedElements = useCallback(() => {
+    if (selectedElements.length === 0) return;
+    
+    const newElements = elements.filter(el => !selectedElements.includes(el.id));
+    setElements(newElements);
+    saveToHistory(newElements);
+    setSelectedElements([]);
+  }, [selectedElements, elements, saveToHistory]);
+
+  const duplicateSelectedElements = useCallback(() => {
+    if (selectedElements.length === 0) return;
+    
+    const elementsToDuplicate = elements.filter(el => selectedElements.includes(el.id));
+    const newElements = elementsToDuplicate.map(el => ({
+      ...el,
+      id: `element-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      x: el.x + 30,
+      y: el.y + 30,
+      label: `${el.label} (Copy)`,
+    }));
+
+    const updatedElements = [...elements, ...newElements];
+    setElements(updatedElements);
+    saveToHistory(updatedElements);
+    setSelectedElements(newElements.map(el => el.id));
+  }, [selectedElements, elements, saveToHistory]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -173,14 +223,62 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
       setHistoryIndex(historyIndex - 1);
       setElements([...history[historyIndex - 1]]);
     }
-  }, [history, historyIndex]);
+  }, [historyIndex, history]);
 
   const redo = useCallback(() => {
     if (historyIndex < history.length - 1) {
       setHistoryIndex(historyIndex + 1);
       setElements([...history[historyIndex + 1]]);
     }
-  }, [history, historyIndex]);
+  }, [historyIndex, history]);
+
+  // Alignment functions
+  const alignElements = useCallback((alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => {
+    if (selectedElements.length < 2) return;
+    
+    const selectedElementData = elements.filter(el => selectedElements.includes(el.id));
+    let referenceValue: number;
+    
+    switch (alignment) {
+      case 'left':
+        referenceValue = Math.min(...selectedElementData.map(el => el.x));
+        setElements(prev => prev.map(el => 
+          selectedElements.includes(el.id) ? { ...el, x: referenceValue } : el
+        ));
+        break;
+      case 'right':
+        referenceValue = Math.max(...selectedElementData.map(el => el.x + el.width));
+        setElements(prev => prev.map(el => 
+          selectedElements.includes(el.id) ? { ...el, x: referenceValue - el.width } : el
+        ));
+        break;
+      case 'center':
+        const avgX = selectedElementData.reduce((sum, el) => sum + el.x + el.width / 2, 0) / selectedElementData.length;
+        setElements(prev => prev.map(el => 
+          selectedElements.includes(el.id) ? { ...el, x: avgX - el.width / 2 } : el
+        ));
+        break;
+      case 'top':
+        referenceValue = Math.min(...selectedElementData.map(el => el.y));
+        setElements(prev => prev.map(el => 
+          selectedElements.includes(el.id) ? { ...el, y: referenceValue } : el
+        ));
+        break;
+      case 'bottom':
+        referenceValue = Math.max(...selectedElementData.map(el => el.y + el.height));
+        setElements(prev => prev.map(el => 
+          selectedElements.includes(el.id) ? { ...el, y: referenceValue - el.height } : el
+        ));
+        break;
+      case 'middle':
+        const avgY = selectedElementData.reduce((sum, el) => sum + el.y + el.height / 2, 0) / selectedElementData.length;
+        setElements(prev => prev.map(el => 
+          selectedElements.includes(el.id) ? { ...el, y: avgY - el.height / 2 } : el
+        ));
+        break;
+    }
+    saveToHistory(elements);
+  }, [selectedElements, elements, saveToHistory]);
 
   // Grid snapping
   const snapToGridPosition = useCallback((x: number, y: number) => {
@@ -352,56 +450,6 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
     setDragOffset({ x: 0, y: 0 });
   }, []);
 
-  // Copy/paste functionality
-  const copyElements = useCallback(() => {
-    const elementsToCopy = elements.filter(el => selectedElements.includes(el.id));
-    setCopiedElements(elementsToCopy);
-  }, [elements, selectedElements]);
-
-  const pasteElements = useCallback(() => {
-    if (copiedElements.length === 0) return;
-    
-    const newElements = copiedElements.map(el => ({
-      ...el,
-      id: `element-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      x: el.x + 20,
-      y: el.y + 20,
-      label: `${el.label} (Copy)`,
-    }));
-
-    const updatedElements = [...elements, ...newElements];
-    setElements(updatedElements);
-    saveToHistory(updatedElements);
-    setSelectedElements(newElements.map(el => el.id));
-  }, [copiedElements, elements, saveToHistory]);
-
-  const deleteSelectedElements = useCallback(() => {
-    if (selectedElements.length === 0) return;
-    
-    const newElements = elements.filter(el => !selectedElements.includes(el.id));
-    setElements(newElements);
-    saveToHistory(newElements);
-    setSelectedElements([]);
-  }, [selectedElements, elements, saveToHistory]);
-
-  const duplicateSelectedElements = useCallback(() => {
-    if (selectedElements.length === 0) return;
-    
-    const elementsToDuplicate = elements.filter(el => selectedElements.includes(el.id));
-    const newElements = elementsToDuplicate.map(el => ({
-      ...el,
-      id: `element-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      x: el.x + 30,
-      y: el.y + 30,
-      label: `${el.label} (Copy)`,
-    }));
-
-    const updatedElements = [...elements, ...newElements];
-    setElements(updatedElements);
-    saveToHistory(updatedElements);
-    setSelectedElements(newElements.map(el => el.id));
-  }, [selectedElements, elements, saveToHistory]);
-
   const rotateSelectedElements = useCallback(() => {
     if (selectedElements.length === 0) return;
     
@@ -460,52 +508,7 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
     setSelectedElements([]);
   }, [saveToHistory]);
 
-  // Alignment functions
-  const alignElements = useCallback((alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => {
-    if (selectedElements.length < 2) return;
-    
-    const selectedElementsData = elements.filter(el => selectedElements.includes(el.id));
-    const bounds = {
-      left: Math.min(...selectedElementsData.map(el => el.x)),
-      right: Math.max(...selectedElementsData.map(el => el.x + el.width)),
-      top: Math.min(...selectedElementsData.map(el => el.y)),
-      bottom: Math.max(...selectedElementsData.map(el => el.y + el.height)),
-    };
-    
-    const newElements = elements.map(el => {
-      if (selectedElements.includes(el.id)) {
-        let newX = el.x;
-        let newY = el.y;
-        
-        switch (alignment) {
-          case 'left':
-            newX = bounds.left;
-            break;
-          case 'center':
-            newX = bounds.left + (bounds.right - bounds.left) / 2 - el.width / 2;
-            break;
-          case 'right':
-            newX = bounds.right - el.width;
-            break;
-          case 'top':
-            newY = bounds.top;
-            break;
-          case 'middle':
-            newY = bounds.top + (bounds.bottom - bounds.top) / 2 - el.height / 2;
-            break;
-          case 'bottom':
-            newY = bounds.bottom - el.height;
-            break;
-        }
-        
-        return { ...el, x: newX, y: newY };
-      }
-      return el;
-    });
-    
-    setElements(newElements);
-    saveToHistory(newElements);
-  }, [selectedElements, elements, saveToHistory]);
+
 
   const handleSave = () => {
     const floorPlan = {
