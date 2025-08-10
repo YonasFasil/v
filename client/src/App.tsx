@@ -15,6 +15,7 @@ import Pricing from "@/pages/public/Pricing";
 import Login from "@/pages/auth/Login";
 import Signup from "@/pages/auth/Signup";
 import VerifyEmailSent from "@/pages/auth/VerifyEmailSent";
+import EmailVerification from "@/pages/auth/EmailVerification";
 
 // App pages
 import Dashboard from "@/pages/dashboard";
@@ -48,6 +49,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       <Route path="/verify-email-sent" component={VerifyEmailSent} />
+      <Route path="/verify-email" component={EmailVerification} />
       
       {/* Tenant app routes */}
       <Route path="/t/:slug/app" component={Dashboard} />
