@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Phone, Mail, Calendar, User, Building, Clock, Tag, Plus, Search, Filter } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import type { Lead, CampaignSource, Tag as TagType } from "@shared/schema";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
@@ -23,6 +24,7 @@ export default function Leads() {
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   // Fetch leads with filters
   const { data: leads = [], isLoading: leadsLoading } = useQuery({
@@ -83,9 +85,7 @@ export default function Leads() {
   // Send proposal mutation
   const sendProposalMutation = useMutation({
     mutationFn: async (leadId: string) => {
-      return await apiRequest(`/api/leads/${leadId}/send-proposal`, {
-        method: "POST"
-      });
+      return await apiRequest("POST", `/api/leads/${leadId}/send-proposal`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
