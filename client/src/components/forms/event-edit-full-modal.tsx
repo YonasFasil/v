@@ -2090,188 +2090,342 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
 
               {/* Step 3: Final Details */}
               {currentStep === 3 && (
-                <div className="space-y-6">
-                  <h3 className="text-lg font-semibold">Final Event Details</h3>
-                  
-                  <div className="grid grid-cols-2 gap-6">
-                    <div>
-                      <Label className="text-base font-medium">Event Name *</Label>
-                      <Input
-                        value={eventName}
-                        onChange={(e) => setEventName(e.target.value)}
-                        placeholder="Enter event name"
-                        className="mt-2"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <Label className="text-base font-medium">Customer *</Label>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowNewCustomerForm(!showNewCustomerForm)}
-                          className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                        >
-                          <Plus className="w-4 h-4 mr-1" />
-                          {showNewCustomerForm ? "Cancel" : "New Customer"}
-                        </Button>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
+                  {/* Left Side - Form Fields */}
+                  <div className="space-y-6">
+                    <h3 className="text-xl font-semibold text-slate-900">Confirm Details</h3>
+                    
+                    <div className="space-y-6">
+                      <div>
+                        <Label className="text-base font-medium text-slate-900">Event Name <span className="text-red-500">*</span></Label>
+                        <Input
+                          value={eventName}
+                          onChange={(e) => setEventName(e.target.value)}
+                          placeholder="e.g., 'Annual Conference 2025'"
+                          className="mt-2 h-12"
+                        />
                       </div>
-                      
-                      {!showNewCustomerForm ? (
-                        <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select customer" />
+
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <Label className="text-base font-medium text-slate-900">Customer <span className="text-red-500">*</span></Label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowNewCustomerForm(!showNewCustomerForm)}
+                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                          >
+                            <Plus className="w-4 h-4 mr-1" />
+                            {showNewCustomerForm ? "Cancel" : "New Customer"}
+                          </Button>
+                        </div>
+                        
+                        {!showNewCustomerForm ? (
+                          <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
+                            <SelectTrigger className="h-12">
+                              <SelectValue placeholder="-- Select a Customer --" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(customers as any[]).map((customer: any) => (
+                                <SelectItem key={customer.id} value={customer.id}>
+                                  {customer.name} - {customer.email}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Card className="p-4 border-blue-200 bg-blue-50">
+                            <div className="space-y-4">
+                              <h4 className="font-medium text-sm">Create New Customer</h4>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <Label className="text-sm">Name *</Label>
+                                  <Input
+                                    value={newCustomer.name}
+                                    onChange={(e) => setNewCustomer(prev => ({...prev, name: e.target.value}))}
+                                    placeholder="Customer name"
+                                    className="mt-1"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-sm">Email *</Label>
+                                  <Input
+                                    type="email"
+                                    value={newCustomer.email}
+                                    onChange={(e) => setNewCustomer(prev => ({...prev, email: e.target.value}))}
+                                    placeholder="customer@example.com"
+                                    className="mt-1"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-sm">Phone</Label>
+                                  <Input
+                                    value={newCustomer.phone}
+                                    onChange={(e) => setNewCustomer(prev => ({...prev, phone: e.target.value}))}
+                                    placeholder="(555) 123-4567"
+                                    className="mt-1"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-sm">Company</Label>
+                                  <Input
+                                    value={newCustomer.company}
+                                    onChange={(e) => setNewCustomer(prev => ({...prev, company: e.target.value}))}
+                                    placeholder="Company name"
+                                    className="mt-1"
+                                  />
+                                </div>
+                              </div>
+                              <Button
+                                type="button"
+                                onClick={handleCreateCustomer}
+                                disabled={createCustomer.isPending || !newCustomer.name || !newCustomer.email}
+                                className="w-full bg-blue-600 hover:bg-blue-700"
+                              >
+                                {createCustomer.isPending ? "Creating..." : "Create Customer"}
+                              </Button>
+                            </div>
+                          </Card>
+                        )}
+                      </div>
+
+                      <div>
+                        <Label className="text-base font-medium text-slate-900">Event Status</Label>
+                        <Select value={eventStatus} onValueChange={setEventStatus}>
+                          <SelectTrigger className="mt-2 h-12">
+                            <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {(customers as any[]).map((customer: any) => (
-                              <SelectItem key={customer.id} value={customer.id}>
-                                {customer.name} - {customer.email}
-                              </SelectItem>
-                            ))}
+                            <SelectItem value="inquiry">Inquiry</SelectItem>
+                            <SelectItem value="proposal">Proposal Sent</SelectItem>
+                            <SelectItem value="confirmed">Confirmed</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
                           </SelectContent>
                         </Select>
-                      ) : (
-                        <Card className="p-4 border-blue-200 bg-blue-50">
-                          <div className="space-y-4">
-                            <h4 className="font-medium text-sm">Create New Customer</h4>
-                            <div className="grid grid-cols-2 gap-3">
-                              <div>
-                                <Label className="text-sm">Name *</Label>
-                                <Input
-                                  value={newCustomer.name}
-                                  onChange={(e) => setNewCustomer(prev => ({...prev, name: e.target.value}))}
-                                  placeholder="Customer name"
-                                  className="mt-1"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-sm">Email *</Label>
-                                <Input
-                                  type="email"
-                                  value={newCustomer.email}
-                                  onChange={(e) => setNewCustomer(prev => ({...prev, email: e.target.value}))}
-                                  placeholder="customer@example.com"
-                                  className="mt-1"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-sm">Phone</Label>
-                                <Input
-                                  value={newCustomer.phone}
-                                  onChange={(e) => setNewCustomer(prev => ({...prev, phone: e.target.value}))}
-                                  placeholder="(555) 123-4567"
-                                  className="mt-1"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-sm">Company</Label>
-                                <Input
-                                  value={newCustomer.company}
-                                  onChange={(e) => setNewCustomer(prev => ({...prev, company: e.target.value}))}
-                                  placeholder="Company name"
-                                  className="mt-1"
-                                />
-                              </div>
-                            </div>
-                            <Button
-                              type="button"
-                              onClick={handleCreateCustomer}
-                              disabled={createCustomer.isPending || !newCustomer.name || !newCustomer.email}
-                              className="w-full bg-blue-600 hover:bg-blue-700"
-                            >
-                              {createCustomer.isPending ? "Creating..." : "Create Customer"}
-                            </Button>
-                          </div>
-                        </Card>
-                      )}
-                    </div>
+                      </div>
 
-                    <div>
-                      <Label className="text-base font-medium">Event Status</Label>
-                      <Select value={eventStatus} onValueChange={setEventStatus}>
-                        <SelectTrigger className="mt-2">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="inquiry">Inquiry</SelectItem>
-                          <SelectItem value="proposal">Proposal Sent</SelectItem>
-                          <SelectItem value="confirmed">Confirmed</SelectItem>
-                          <SelectItem value="cancelled">Cancelled</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-
-                  </div>
-
-                  {/* Event Summary */}
-                  <div className="border-t pt-6">
-                    <h4 className="font-medium mb-4">Event Summary</h4>
-                    <div className="bg-slate-50 p-4 rounded-lg space-y-3">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-slate-600">Event:</span>
-                          <div className="font-medium">{eventName || "Untitled Event"}</div>
-                        </div>
-                        <div>
-                          <span className="text-slate-600">Guest Count:</span>
-                          <div className="font-medium">{activeDate?.guestCount || 0}</div>
-                        </div>
-                        <div>
-                          <span className="text-slate-600">Venue:</span>
-                          <div className="font-medium">{selectedVenueData?.name || "No venue selected"}</div>
-                        </div>
-                        <div>
-                          <span className="text-slate-600">Status:</span>
-                          <Badge className="ml-2">{eventStatus}</Badge>
+                      <div>
+                        <Label className="text-base font-medium text-slate-900">Applicable Policies</Label>
+                        <div className="mt-2 p-4 bg-slate-50 rounded-lg text-sm text-slate-600">
+                          Standard venue policies apply. Cancellation and refund terms will be included in the final contract.
                         </div>
                       </div>
-                      
-                      {selectedDates.length > 0 && (
-                        <div>
-                          <span className="text-slate-600 text-sm">Dates & Times:</span>
-                          {selectedDates.map((slot, index) => (
-                            <div key={index} className="font-medium text-sm">
-                              {format(slot.date, 'MMM d, yyyy')} • {slot.startTime} - {slot.endTime}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                    </div>
+                  </div>
 
-                      {/* Pricing Breakdown */}
-                      <div className="border-t pt-3">
-                        {(() => {
-                          let subtotal = 0;
-                          let totalFees = 0;
-                          let totalTaxes = 0;
-                          const appliedFees: any[] = [];
-                          const appliedTaxes: any[] = [];
+                  {/* Right Side - Summary Panel */}
+                  <div className="bg-slate-50 rounded-lg p-6 space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-lg font-semibold text-slate-900">Final Summary</h4>
+                      <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
+                        View Details
+                      </Button>
+                    </div>
 
-                          // Calculate total across all dates using the new per-service tax override logic
-                          selectedDates.forEach(date => {
-                            // Package price
-                            if (date.packageId) {
-                              const pkg = (packages as any[])?.find((p: any) => p.id === date.packageId);
-                              if (pkg) {
-                                const packagePrice = date.pricingOverrides?.packagePrice ?? parseFloat(pkg.price || 0);
-                                let packageSubtotal = 0;
-                                if (pkg.pricingModel === 'per_person') {
-                                  packageSubtotal = packagePrice * (date.guestCount || 1);
-                                } else {
-                                  packageSubtotal = packagePrice;
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm text-slate-600 mb-1">Dates</p>
+                        <p className="font-medium">
+                          {selectedDates.length > 0 
+                            ? selectedDates.map(slot => format(slot.date, 'MMM d, yyyy')).join(', ')
+                            : 'No dates selected'
+                          }
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-sm text-slate-600 mb-1">Venue</p>
+                        <p className="font-medium">{selectedVenueData?.name || "No venue selected"}</p>
+                      </div>
+
+                      <div>
+                        <p className="text-sm text-slate-600 mb-1">Total Guests</p>
+                        <p className="font-medium">{selectedDates.reduce((sum, date) => sum + (date.guestCount || 0), 0)}</p>
+                      </div>
+
+                      <div>
+                        <p className="text-sm text-slate-600 mb-1">Event Configuration</p>
+                        <p className="font-medium">
+                          {selectedDates.length === 1 ? 'Single date event' : `${selectedDates.length} date event`}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Pricing Summary */}
+                    <div className="border-t mt-6 pt-4">
+                      {(() => {
+                        let subtotal = 0;
+                        let totalFees = 0;
+                        let totalTaxes = 0;
+
+                        // Calculate total across all dates using the new per-service tax override logic
+                        selectedDates.forEach(date => {
+                          // Package price
+                          if (date.packageId) {
+                            const pkg = (packages as any[])?.find((p: any) => p.id === date.packageId);
+                            if (pkg) {
+                              const packagePrice = date.pricingOverrides?.packagePrice ?? parseFloat(pkg.price || 0);
+                              let packageSubtotal = 0;
+                              if (pkg.pricingModel === 'per_person') {
+                                packageSubtotal = packagePrice * (date.guestCount || 1);
+                              } else {
+                                packageSubtotal = packagePrice;
+                              }
+                              subtotal += packageSubtotal;
+
+                              // Calculate package fees and taxes using serviceTaxOverrides
+                              const currentOverrides = date.serviceTaxOverrides?.[pkg.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+                              
+                              // Calculate effective fee IDs (inherited + additional - disabled)
+                              const inheritedFeeIds = pkg.enabledFeeIds || [];
+                              const additionalFeeIds = currentOverrides.enabledFeeIds || [];
+                              const disabledFeeIds = currentOverrides.disabledInheritedFeeIds || [];
+                              const effectiveFeeIds = [...inheritedFeeIds.filter((id: string) => !disabledFeeIds.includes(id)), ...additionalFeeIds];
+                              
+                              // Apply package fees
+                              effectiveFeeIds.forEach((feeId: string) => {
+                                const fee = (taxSettings as any[])?.find(f => f.id === feeId);
+                                if (fee && fee.isActive) {
+                                  let feeAmount = 0;
+                                  if (fee.calculation === 'percentage') {
+                                    feeAmount = packageSubtotal * (parseFloat(fee.value) / 100);
+                                  } else {
+                                    feeAmount = parseFloat(fee.value);
+                                  }
+                                  totalFees += feeAmount;
+                                  
+                                  // Apply taxes to fees if the fee is taxable
+                                  if (fee.isTaxable && fee.applicableTaxIds && fee.applicableTaxIds.length > 0) {
+                                    fee.applicableTaxIds.forEach((taxId: string) => {
+                                      const tax = (taxSettings as any[])?.find(t => t.id === taxId);
+                                      if (tax && tax.isActive) {
+                                        const taxOnFeeAmount = feeAmount * (parseFloat(tax.value) / 100);
+                                        totalTaxes += taxOnFeeAmount;
+                                      }
+                                    });
+                                  }
                                 }
-                                subtotal += packageSubtotal;
+                              });
 
-                                // Calculate package fees and taxes using serviceTaxOverrides
-                                const currentOverrides = date.serviceTaxOverrides?.[pkg.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
-                                
-                                // Calculate effective fee IDs (inherited + additional - disabled)
-                                const inheritedFeeIds = pkg.enabledFeeIds || [];
-                                const additionalFeeIds = currentOverrides.enabledFeeIds || [];
-                                const disabledFeeIds = currentOverrides.disabledInheritedFeeIds || [];
-                                const effectiveFeeIds = [...inheritedFeeIds.filter((id: string) => !disabledFeeIds.includes(id)), ...additionalFeeIds];
+                              // Calculate effective tax IDs (inherited + additional - disabled)
+                              const inheritedTaxIds = pkg.enabledTaxIds || [];
+                              const additionalTaxIds = currentOverrides.enabledTaxIds || [];
+                              const disabledTaxIds = currentOverrides.disabledInheritedTaxIds || [];
+                              const effectiveTaxIds = [...inheritedTaxIds.filter((id: string) => !disabledTaxIds.includes(id)), ...additionalTaxIds];
+                              
+                              // Apply package taxes
+                              effectiveTaxIds.forEach((taxId: string) => {
+                                const tax = (taxSettings as any[])?.find(t => t.id === taxId);
+                                if (tax && tax.isActive) {
+                                  const taxAmount = packageSubtotal * (parseFloat(tax.value) / 100);
+                                  totalTaxes += taxAmount;
+                                }
+                              });
+                            }
+                          }
+                          
+                          // Services price
+                          date.selectedServices?.forEach(serviceId => {
+                            const service = (services as any[]).find((s: any) => s.id === serviceId);
+                            if (service) {
+                              const servicePrice = date.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
+                              let serviceSubtotal = 0;
+                              if (service.pricingModel === 'per_person') {
+                                serviceSubtotal = servicePrice * (date.guestCount || 1);
+                              } else {
+                                const quantity = date.itemQuantities?.[serviceId] || 1;
+                                serviceSubtotal = servicePrice * quantity;
+                              }
+                              subtotal += serviceSubtotal;
+
+                              // Calculate service fees and taxes using serviceTaxOverrides
+                              const currentOverrides = date.serviceTaxOverrides?.[serviceId] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+                              
+                              // Calculate effective fee IDs (inherited + additional - disabled)
+                              const inheritedFeeIds = service.enabledFeeIds || [];
+                              const additionalFeeIds = currentOverrides.enabledFeeIds || [];
+                              const disabledFeeIds = currentOverrides.disabledInheritedFeeIds || [];
+                              const effectiveFeeIds = [...inheritedFeeIds.filter((id: string) => !disabledFeeIds.includes(id)), ...additionalFeeIds];
+                              
+                              // Apply service fees
+                              effectiveFeeIds.forEach((feeId: string) => {
+                                const fee = (taxSettings as any[])?.find(f => f.id === feeId);
+                                if (fee && fee.isActive) {
+                                  let feeAmount = 0;
+                                  if (fee.calculation === 'percentage') {
+                                    feeAmount = serviceSubtotal * (parseFloat(fee.value) / 100);
+                                  } else {
+                                    feeAmount = parseFloat(fee.value);
+                                  }
+                                  totalFees += feeAmount;
+                                  
+                                  // Apply taxes to fees if the fee is taxable
+                                  if (fee.isTaxable && fee.applicableTaxIds && fee.applicableTaxIds.length > 0) {
+                                    fee.applicableTaxIds.forEach((taxId: string) => {
+                                      const tax = (taxSettings as any[])?.find(t => t.id === taxId);
+                                      if (tax && tax.isActive) {
+                                        const taxOnFeeAmount = feeAmount * (parseFloat(tax.value) / 100);
+                                        totalTaxes += taxOnFeeAmount;
+                                      }
+                                    });
+                                  }
+                                }
+                              });
+
+                              // Calculate effective tax IDs (inherited + additional - disabled)
+                              const inheritedTaxIds = service.enabledTaxIds || [];
+                              const additionalTaxIds = currentOverrides.enabledTaxIds || [];
+                              const disabledTaxIds = currentOverrides.disabledInheritedTaxIds || [];
+                              const effectiveTaxIds = [...inheritedTaxIds.filter((id: string) => !disabledTaxIds.includes(id)), ...additionalTaxIds];
+                              
+                              // Apply service taxes
+                              effectiveTaxIds.forEach((taxId: string) => {
+                                const tax = (taxSettings as any[])?.find(t => t.id === taxId);
+                                if (tax && tax.isActive) {
+                                  const taxAmount = serviceSubtotal * (parseFloat(tax.value) / 100);
+                                  totalTaxes += taxAmount;
+                                }
+                              });
+                            }
+                          });
+                        });
+
+                        const grandTotal = subtotal + totalFees + totalTaxes;
+                        const hasFeesOrTaxes = totalFees > 0 || totalTaxes > 0;
+
+                        return (
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-base">
+                              <span>Subtotal (Packages + Services):</span>
+                              <span className="font-medium text-green-600">${subtotal.toFixed(2)}</span>
+                            </div>
+                            {hasFeesOrTaxes && (
+                              <>
+                                {totalFees > 0 && (
+                                  <div className="flex justify-between text-sm text-purple-600">
+                                    <span>+ salee:</span>
+                                    <span>+${totalFees.toFixed(2)}</span>
+                                  </div>
+                                )}
+                                {totalTaxes > 0 && (
+                                  <div className="flex justify-between text-sm text-purple-600">
+                                    <span>+ salee:</span>
+                                    <span>+${totalTaxes.toFixed(2)}</span>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                            <div className="border-t pt-2 flex justify-between text-lg font-semibold">
+                              <span>Grand Total:</span>
+                              <span className="text-blue-600">${grandTotal.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
                                 
                                 // Apply package fees
                                 effectiveFeeIds.forEach((feeId: string) => {
