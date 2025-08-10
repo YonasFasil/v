@@ -43,10 +43,6 @@ export function UserManagementSection() {
   // Fetch package features for permission display
   const { data: packageFeatures = {} } = useQuery<FeatureAccess>({
     queryKey: [`/api/tenant/${tenantId}/package-features`],
-    queryFn: async () => {
-      const response = await apiRequest("GET", `/api/tenant/${tenantId}/package-features`);
-      return response || {};
-    }
   });
 
   // Create user mutation
@@ -137,22 +133,25 @@ export function UserManagementSection() {
   };
 
   const getRolePermissions = (role: string): { [key: string]: boolean } => {
-    const basePermissions = {
+    const features = packageFeatures as any;
+    
+    const allPermissions = {
       "View bookings": true,
       "View venues": true,
       "View reports": role !== "viewer",
       "Manage bookings": role !== "viewer",
-      "Create proposals": role !== "viewer" && Boolean(packageFeatures.proposals),
-      "Process payments": role !== "viewer" && Boolean(packageFeatures.stripe),
-      "Use AI features": role !== "viewer" && Boolean(packageFeatures.ai),
+      "Create proposals": role !== "viewer" && Boolean(features?.proposals),
+      "Process payments": role !== "viewer" && Boolean(features?.payments),
+      "Use AI features": role !== "viewer" && Boolean(features?.ai_features),
       "Manage venues": role === "admin",
       "Manage users": role === "admin",
-      "Access BEO": role !== "viewer" && Boolean(packageFeatures.beo),
-      "Lead management": role !== "viewer" && Boolean(packageFeatures.leadManagement)
+      "Access BEO": role !== "viewer" && Boolean(features?.beo),
+      "Lead management": role !== "viewer" && Boolean(features?.lead_management)
     };
 
+    // Only return permissions that are both role-appropriate AND feature-available
     return Object.fromEntries(
-      Object.entries(basePermissions).filter(([, hasAccess]) => hasAccess !== undefined)
+      Object.entries(allPermissions).filter(([, hasAccess]) => hasAccess === true)
     );
   };
 
