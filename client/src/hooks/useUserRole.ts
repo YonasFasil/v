@@ -33,10 +33,47 @@ export function useUserRole() {
     setIsLoading(false);
   }, []);
 
-  const isSuperAdmin = userRole === "super_admin";
+  const isSuperAdmin = userRole === "super-admin";
   const isAdmin = userRole === "admin";
   const isStaff = userRole === "staff";
   const isAuthenticated = !!userRole;
+
+  const setUserRoleFunction = (roleId: string) => {
+    const roleDataMap: Record<string, UserRoleData> = {
+      "super-admin": {
+        id: "super-admin",
+        name: "Super Admin",
+        title: "Platform Administrator",
+        description: "Manage all tenant accounts and platform settings",
+        permissions: ["all"],
+        color: "from-purple-600 to-pink-600"
+      },
+      "admin": {
+        id: "admin",
+        name: "Admin",
+        title: "Venue Administrator",
+        description: "Full access to venue management and settings",
+        permissions: ["all"],
+        color: "from-blue-600 to-purple-600"
+      },
+      "staff": {
+        id: "staff",
+        name: "Staff",
+        title: "Venue Staff",
+        description: "Day-to-day operations and customer management",
+        permissions: ["limited"],
+        color: "from-green-600 to-blue-600"
+      }
+    };
+
+    const roleData = roleDataMap[roleId];
+    if (roleData) {
+      setUserRole(roleId);
+      setUserRoleData(roleData);
+      localStorage.setItem("userRole", roleId);
+      localStorage.setItem("userRoleData", JSON.stringify(roleData));
+    }
+  };
 
   const logout = () => {
     localStorage.removeItem("userRole");
@@ -96,6 +133,7 @@ export function useUserRole() {
     isAdmin,
     isStaff,
     hasPermission,
+    setUserRole: setUserRoleFunction,
     logout
   };
 }
