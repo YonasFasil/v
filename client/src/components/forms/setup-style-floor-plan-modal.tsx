@@ -119,6 +119,20 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
     setHistoryIndex(newHistory.length - 1);
   }, [history, historyIndex]);
 
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      setHistoryIndex(historyIndex - 1);
+      setElements([...history[historyIndex - 1]]);
+    }
+  }, [historyIndex, history]);
+
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      setHistoryIndex(historyIndex + 1);
+      setElements([...history[historyIndex + 1]]);
+    }
+  }, [historyIndex, history]);
+
   // Copy/paste functionality
   const copyElements = useCallback(() => {
     const elementsToCopy = elements.filter(el => selectedElements.includes(el.id));
@@ -217,20 +231,6 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
     document.addEventListener('keydown', handleKeyPress);
     return () => document.removeEventListener('keydown', handleKeyPress);
   }, [open, copyElements, pasteElements, duplicateSelectedElements, undo, redo, deleteSelectedElements, elements]);
-
-  const undo = useCallback(() => {
-    if (historyIndex > 0) {
-      setHistoryIndex(historyIndex - 1);
-      setElements([...history[historyIndex - 1]]);
-    }
-  }, [historyIndex, history]);
-
-  const redo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      setHistoryIndex(historyIndex + 1);
-      setElements([...history[historyIndex + 1]]);
-    }
-  }, [historyIndex, history]);
 
   // Alignment functions
   const alignElements = useCallback((alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => {
