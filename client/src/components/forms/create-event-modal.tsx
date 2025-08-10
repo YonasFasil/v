@@ -305,73 +305,84 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
       }
     });
     
-    // Apply taxes and fees inheritance
+    // Apply taxes and fees per service/package (not accumulated)
     let feesTotal = 0;
     let taxesTotal = 0;
     
-    // Collect applicable tax/fee IDs from services and packages for this date
-    const inheritedTaxIds = new Set<string>();
-    const inheritedFeeIds = new Set<string>();
-    
-    // Inherit from package
+    // Calculate package taxes and fees if package is selected
     if (selectedPackage) {
-      // Start with package defaults
-      (selectedPackage.enabledTaxIds || []).forEach((taxId: string) => inheritedTaxIds.add(taxId));
-      (selectedPackage.enabledFeeIds || []).forEach((feeId: string) => inheritedFeeIds.add(feeId));
+      const packagePrice = dateConfig.pricingOverrides?.packagePrice ?? parseFloat(selectedPackage.price || 0);
+      let packageSubtotal = 0;
       
-      // Add any additional overrides for this specific package
-      const packageOverrides = dateConfig.serviceTaxOverrides?.[selectedPackage.id];
-      if (packageOverrides) {
-        packageOverrides.enabledTaxIds.forEach(taxId => inheritedTaxIds.add(taxId));
-        packageOverrides.enabledFeeIds.forEach(feeId => inheritedFeeIds.add(feeId));
-        
-        // Remove disabled inherited taxes/fees
-        (packageOverrides.disabledInheritedTaxIds || []).forEach(taxId => inheritedTaxIds.delete(taxId));
-        (packageOverrides.disabledInheritedFeeIds || []).forEach(feeId => inheritedFeeIds.delete(feeId));
+      if (selectedPackage.pricingModel === 'per_person') {
+        packageSubtotal = packagePrice * (dateConfig.guestCount || 1);
+      } else if (selectedPackage.pricingModel === 'per_hour') {
+        packageSubtotal = packagePrice * eventDuration;
+      } else {
+        packageSubtotal = packagePrice;
       }
+      
+      // Apply package fees
+      (selectedPackage.enabledFeeIds || []).forEach(feeId => {
+        const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
+        if (feeSetting) {
+          if (feeSetting.calculation === 'percentage') {
+            feesTotal += (packageSubtotal * parseFloat(feeSetting.value)) / 100;
+          } else {
+            feesTotal += parseFloat(feeSetting.value);
+          }
+        }
+      });
+      
+      // Apply package taxes
+      (selectedPackage.enabledTaxIds || []).forEach(taxId => {
+        const taxSetting = (taxSettings as any[])?.find((s: any) => s.id === taxId && s.isActive);
+        if (taxSetting) {
+          taxesTotal += (packageSubtotal * parseFloat(taxSetting.value)) / 100;
+        }
+      });
     }
     
-    // Inherit from services
+    // Calculate service taxes and fees for each service individually
     dateConfig.selectedServices?.forEach(serviceId => {
+      // Skip if this service is included in the selected package
+      if (includedServiceIds.includes(serviceId)) {
+        return;
+      }
+      
       const service = (services as any[]).find((s: any) => s.id === serviceId);
       if (service) {
-        // Start with service defaults
-        (service.enabledTaxIds || []).forEach((taxId: string) => inheritedTaxIds.add(taxId));
-        (service.enabledFeeIds || []).forEach((feeId: string) => inheritedFeeIds.add(feeId));
+        let serviceSubtotal = 0;
+        const servicePrice = dateConfig.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
         
-        // Add any additional overrides for this specific service
-        const serviceOverrides = dateConfig.serviceTaxOverrides?.[serviceId];
-        if (serviceOverrides) {
-          serviceOverrides.enabledTaxIds.forEach(taxId => inheritedTaxIds.add(taxId));
-          serviceOverrides.enabledFeeIds.forEach(feeId => inheritedFeeIds.add(feeId));
-          
-          // Remove disabled inherited taxes/fees
-          (serviceOverrides.disabledInheritedTaxIds || []).forEach(taxId => inheritedTaxIds.delete(taxId));
-          (serviceOverrides.disabledInheritedFeeIds || []).forEach(feeId => inheritedFeeIds.delete(feeId));
-        }
-      }
-    });
-    
-    // Merge with user-selected overrides
-    const finalTaxIds = new Set([...Array.from(inheritedTaxIds), ...taxFeeOverrides.enabledTaxIds]);
-    const finalFeeIds = new Set([...Array.from(inheritedFeeIds), ...taxFeeOverrides.enabledFeeIds]);
-    
-    // Apply fees first
-    (taxSettings as any[])?.forEach((setting: any) => {
-      if (setting.type === 'fee' && finalFeeIds.has(setting.id) && setting.isActive) {
-        if (setting.calculation === 'percentage') {
-          feesTotal += (subtotal * parseFloat(setting.value)) / 100;
+        if (service.pricingModel === 'per_person') {
+          serviceSubtotal = servicePrice * (dateConfig.guestCount || 1);
+        } else if (service.pricingModel === 'per_hour') {
+          serviceSubtotal = servicePrice * eventDuration;
         } else {
-          feesTotal += parseFloat(setting.value);
+          const quantity = dateConfig.itemQuantities?.[serviceId] || 1;
+          serviceSubtotal = servicePrice * quantity;
         }
-      }
-    });
-    
-    // Apply taxes (on subtotal + fees)
-    const tempTotal = subtotal + feesTotal;
-    (taxSettings as any[])?.forEach((setting: any) => {
-      if (setting.type === 'tax' && finalTaxIds.has(setting.id) && setting.isActive) {
-        taxesTotal += (tempTotal * parseFloat(setting.value)) / 100;
+        
+        // Apply service fees
+        (service.enabledFeeIds || []).forEach(feeId => {
+          const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
+          if (feeSetting) {
+            if (feeSetting.calculation === 'percentage') {
+              feesTotal += (serviceSubtotal * parseFloat(feeSetting.value)) / 100;
+            } else {
+              feesTotal += parseFloat(feeSetting.value);
+            }
+          }
+        });
+        
+        // Apply service taxes
+        (service.enabledTaxIds || []).forEach(taxId => {
+          const taxSetting = (taxSettings as any[])?.find((s: any) => s.id === taxId && s.isActive);
+          if (taxSetting) {
+            taxesTotal += (serviceSubtotal * parseFloat(taxSetting.value)) / 100;
+          }
+        });
       }
     });
     
@@ -2223,80 +2234,124 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                 });
                               });
                               
-                              // Calculate taxes and fees by inheriting from services and packages
-                              let tempTotal = subtotal;
+                              // Calculate taxes and fees per service/package (not accumulated)
                               const appliedFees: Array<{name: string, amount: number}> = [];
                               const appliedTaxes: Array<{name: string, amount: number}> = [];
                               
-                              // Collect all applicable tax/fee IDs from services and packages
-                              const inheritedTaxIds = new Set<string>();
-                              const inheritedFeeIds = new Set<string>();
+                              // Track individual taxes/fees to show in breakdown
+                              const feeMap = new Map<string, {name: string, amount: number}>();
+                              const taxMap = new Map<string, {name: string, amount: number}>();
                               
                               selectedDates.forEach(date => {
-                                // Inherit from package
+                                const eventDuration = calculateEventDuration(date.startTime, date.endTime);
+                                
+                                // Calculate package taxes and fees if package is selected
                                 if (date.packageId) {
                                   const pkg = (packages as any[])?.find((p: any) => p.id === date.packageId);
                                   if (pkg) {
-                                    // Add package's default taxes and fees
-                                    (pkg.enabledTaxIds || []).forEach((taxId: string) => inheritedTaxIds.add(taxId));
-                                    (pkg.enabledFeeIds || []).forEach((feeId: string) => inheritedFeeIds.add(feeId));
+                                    let packageSubtotal = 0;
+                                    const packagePrice = date.pricingOverrides?.packagePrice ?? parseFloat(pkg.price || 0);
                                     
-                                    // Add any additional overrides for this specific package
-                                    const packageOverrides = date.serviceTaxOverrides?.[pkg.id];
-                                    if (packageOverrides) {
-                                      packageOverrides.enabledTaxIds.forEach(taxId => inheritedTaxIds.add(taxId));
-                                      packageOverrides.enabledFeeIds.forEach(feeId => inheritedFeeIds.add(feeId));
+                                    if (pkg.pricingModel === 'per_person') {
+                                      packageSubtotal = packagePrice * (date.guestCount || 1);
+                                    } else if (pkg.pricingModel === 'per_hour') {
+                                      packageSubtotal = packagePrice * eventDuration;
+                                    } else {
+                                      packageSubtotal = packagePrice;
                                     }
+                                    
+                                    // Apply package fees
+                                    (pkg.enabledFeeIds || []).forEach(feeId => {
+                                      const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
+                                      if (feeSetting) {
+                                        let feeAmount = 0;
+                                        if (feeSetting.calculation === 'percentage') {
+                                          feeAmount = (packageSubtotal * parseFloat(feeSetting.value)) / 100;
+                                        } else {
+                                          feeAmount = parseFloat(feeSetting.value);
+                                        }
+                                        
+                                        const existing = feeMap.get(feeId) || {name: feeSetting.name, amount: 0};
+                                        feeMap.set(feeId, {name: feeSetting.name, amount: existing.amount + feeAmount});
+                                        feesTotal += feeAmount;
+                                      }
+                                    });
+                                    
+                                    // Apply package taxes
+                                    (pkg.enabledTaxIds || []).forEach(taxId => {
+                                      const taxSetting = (taxSettings as any[])?.find((s: any) => s.id === taxId && s.isActive);
+                                      if (taxSetting) {
+                                        const taxAmount = (packageSubtotal * parseFloat(taxSetting.value)) / 100;
+                                        
+                                        const existing = taxMap.get(taxId) || {name: taxSetting.name, amount: 0};
+                                        taxMap.set(taxId, {name: taxSetting.name, amount: existing.amount + taxAmount});
+                                        taxesTotal += taxAmount;
+                                      }
+                                    });
                                   }
                                 }
                                 
-                                // Inherit from services
+                                // Calculate service taxes and fees for each service individually
+                                const includedServiceIds = (() => {
+                                  if (!date.packageId) return [];
+                                  const pkg = (packages as any[])?.find((p: any) => p.id === date.packageId);
+                                  return pkg?.includedServices || [];
+                                })();
+                                
                                 (date.selectedServices || []).forEach(serviceId => {
+                                  if (includedServiceIds.includes(serviceId)) {
+                                    return; // Skip included services
+                                  }
+                                  
                                   const service = (services as any[])?.find((s: any) => s.id === serviceId);
                                   if (service) {
-                                    // Add service's default taxes and fees
-                                    (service.enabledTaxIds || []).forEach((taxId: string) => inheritedTaxIds.add(taxId));
-                                    (service.enabledFeeIds || []).forEach((feeId: string) => inheritedFeeIds.add(feeId));
+                                    let serviceSubtotal = 0;
+                                    const servicePrice = date.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
                                     
-                                    // Add any additional overrides for this specific service
-                                    const serviceOverrides = date.serviceTaxOverrides?.[serviceId];
-                                    if (serviceOverrides) {
-                                      serviceOverrides.enabledTaxIds.forEach(taxId => inheritedTaxIds.add(taxId));
-                                      serviceOverrides.enabledFeeIds.forEach(feeId => inheritedFeeIds.add(feeId));
+                                    if (service.pricingModel === 'per_person') {
+                                      serviceSubtotal = servicePrice * (date.guestCount || 1);
+                                    } else if (service.pricingModel === 'per_hour') {
+                                      serviceSubtotal = servicePrice * eventDuration;
+                                    } else {
+                                      const quantity = date.itemQuantities?.[serviceId] || 1;
+                                      serviceSubtotal = servicePrice * quantity;
                                     }
+                                    
+                                    // Apply service fees
+                                    (service.enabledFeeIds || []).forEach(feeId => {
+                                      const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
+                                      if (feeSetting) {
+                                        let feeAmount = 0;
+                                        if (feeSetting.calculation === 'percentage') {
+                                          feeAmount = (serviceSubtotal * parseFloat(feeSetting.value)) / 100;
+                                        } else {
+                                          feeAmount = parseFloat(feeSetting.value);
+                                        }
+                                        
+                                        const existing = feeMap.get(feeId) || {name: feeSetting.name, amount: 0};
+                                        feeMap.set(feeId, {name: feeSetting.name, amount: existing.amount + feeAmount});
+                                        feesTotal += feeAmount;
+                                      }
+                                    });
+                                    
+                                    // Apply service taxes
+                                    (service.enabledTaxIds || []).forEach(taxId => {
+                                      const taxSetting = (taxSettings as any[])?.find((s: any) => s.id === taxId && s.isActive);
+                                      if (taxSetting) {
+                                        const taxAmount = (serviceSubtotal * parseFloat(taxSetting.value)) / 100;
+                                        
+                                        const existing = taxMap.get(taxId) || {name: taxSetting.name, amount: 0};
+                                        taxMap.set(taxId, {name: taxSetting.name, amount: existing.amount + taxAmount});
+                                        taxesTotal += taxAmount;
+                                      }
+                                    });
                                   }
                                 });
                               });
                               
-                              // Merge with user-selected overrides
-                              const finalTaxIds = new Set([...Array.from(inheritedTaxIds), ...taxFeeOverrides.enabledTaxIds]);
-                              const finalFeeIds = new Set([...Array.from(inheritedFeeIds), ...taxFeeOverrides.enabledFeeIds]);
-                              
-                              // Apply fees first (on base amount)
-                              (taxSettings as any[])?.forEach((setting: any) => {
-                                if (setting.type === 'fee' && finalFeeIds.has(setting.id) && setting.isActive) {
-                                  let feeAmount = 0;
-                                  if (setting.calculation === 'percentage') {
-                                    feeAmount = (subtotal * parseFloat(setting.value)) / 100;
-                                  } else {
-                                    feeAmount = parseFloat(setting.value);
-                                  }
-                                  feesTotal += feeAmount;
-                                  appliedFees.push({ name: setting.name, amount: feeAmount });
-                                }
-                              });
-                              
-                              // Update temp total to include fees for tax calculation
-                              tempTotal = subtotal + feesTotal;
-                              
-                              // Apply taxes (on total including fees)
-                              (taxSettings as any[])?.forEach((setting: any) => {
-                                if (setting.type === 'tax' && finalTaxIds.has(setting.id) && setting.isActive) {
-                                  const taxAmount = (tempTotal * parseFloat(setting.value)) / 100;
-                                  taxesTotal += taxAmount;
-                                  appliedTaxes.push({ name: setting.name, amount: taxAmount });
-                                }
-                              });
+                              // Convert maps to arrays for display
+                              appliedFees.push(...Array.from(feeMap.values()));
+                              appliedTaxes.push(...Array.from(taxMap.values()));
                               
                               const displayBreakdown = subtotal > 0;
                               
