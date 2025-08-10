@@ -38,7 +38,6 @@ const aiFeatures = [
   { name: "Voice Booking", href: "/voice-booking", icon: Mic },
   { name: "Smart Scheduling", href: "/ai/scheduling", icon: Zap },
   { name: "Auto Email Replies", href: "/ai/emails", icon: Mail },
-  { name: "Lead Scoring", href: "/ai/leads", icon: Star },
 ];
 
 const analyticsItems = [
