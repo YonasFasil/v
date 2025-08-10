@@ -21,7 +21,8 @@ import {
   insertLeadSchema,
   insertLeadActivitySchema,
   insertLeadTaskSchema,
-  insertTourSchema
+  insertTourSchema,
+  insertTenantUserSchema
 } from "@shared/schema";
 import { 
   generateAIInsights,
@@ -3972,6 +3973,75 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
   // ================================
   // SUPER ADMIN ROUTES
   // ================================
+
+  // Tenant User Management
+  app.get("/api/tenant/:tenantId/users", async (req, res) => {
+    try {
+      const users = await storage.getTenantUsers(req.params.tenantId);
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tenant users" });
+    }
+  });
+
+  app.get("/api/tenant/users/:id", async (req, res) => {
+    try {
+      const user = await storage.getTenantUser(req.params.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json(user);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  app.post("/api/tenant/users", async (req, res) => {
+    try {
+      const validatedData = insertTenantUserSchema.parse(req.body);
+      const user = await storage.createTenantUser(validatedData);
+      res.status(201).json(user);
+    } catch (error) {
+      console.error("Error creating tenant user:", error);
+      res.status(500).json({ message: "Failed to create user" });
+    }
+  });
+
+  app.put("/api/tenant/users/:id", async (req, res) => {
+    try {
+      const user = await storage.updateTenantUser(req.params.id, req.body);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json(user);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  app.delete("/api/tenant/users/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteTenantUser(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
+  app.get("/api/tenant/:tenantId/package-features", async (req, res) => {
+    try {
+      const features = await storage.getCurrentTenantPackageFeatures(req.params.tenantId);
+      if (!features) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+      res.json(features);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch package features" });
+    }
+  });
 
   // Super Admin Statistics
   app.get("/api/super-admin/stats", async (req, res) => {

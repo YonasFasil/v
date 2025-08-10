@@ -20,6 +20,8 @@ import {
   type LeadActivity, type InsertLeadActivity,
   type LeadTask, type InsertLeadTask,
   type Tour, type InsertTour,
+  type TenantUser, type InsertTenantUser,
+  type FeaturePackage,
 
 } from "@shared/schema";
 
@@ -228,6 +230,15 @@ export interface IStorage {
   updateFeaturePackage(id: string, updates: any): Promise<any>;
   deleteFeaturePackage(id: string): Promise<void>;
   getTenantActivities(): Promise<any[]>;
+
+  // Tenant User Management
+  getTenantUsers(tenantId: string): Promise<TenantUser[]>;
+  getTenantUser(id: string): Promise<TenantUser | undefined>;
+  createTenantUser(user: InsertTenantUser): Promise<TenantUser>;
+  updateTenantUser(id: string, user: Partial<InsertTenantUser>): Promise<TenantUser | undefined>;
+  deleteTenantUser(id: string): Promise<boolean>;
+  getTenant(id: string): Promise<Tenant | undefined>;
+  getCurrentTenantPackageFeatures(tenantId: string): Promise<any>;
 }
 
 export class MemStorage implements IStorage {
@@ -257,6 +268,8 @@ export class MemStorage implements IStorage {
   private tours: Map<string, Tour>;
   private leadTags: Set<string>; // Store leadId:tagId combinations
   private tenants: Map<string, Tenant>; // Store tenant data
+  private tenantUsers: Map<string, TenantUser>; // Store tenant user data
+  private featurePackages: Map<string, FeaturePackage>; // Store feature packages
 
 
   constructor() {
@@ -286,10 +299,121 @@ export class MemStorage implements IStorage {
     this.tours = new Map();
     this.leadTags = new Set();
     this.tenants = new Map();
+    this.tenantUsers = new Map();
+    this.featurePackages = new Map();
 
 
     this.initializeData();
     this.initializeLeadManagementData();
+  }
+
+  private initializeFeaturePackages() {
+    const packages: FeaturePackage[] = [
+      {
+        id: "basic",
+        name: "basic",
+        displayName: "Basic",
+        description: "Perfect for small venues just getting started",
+        price: "29.00",
+        billingInterval: "monthly",
+        features: {
+          calendar: true,
+          bookings: true,
+          customers: true,
+          basicReporting: true,
+          emailSupport: true,
+          venues: true,
+          proposals: false,
+          ai: false,
+          stripe: false,
+          advancedReporting: false,
+          voiceBooking: false,
+          beo: false,
+          leadManagement: false
+        },
+        maxUsers: 2,
+        maxVenues: 1,
+        maxBookingsPerMonth: 50,
+        storageLimit: 5,
+        isActive: true,
+        isCustom: false,
+        sortOrder: 1,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: "professional",
+        name: "professional", 
+        displayName: "Professional",
+        description: "Complete venue management for growing businesses",
+        price: "79.00",
+        billingInterval: "monthly",
+        features: {
+          calendar: true,
+          bookings: true,
+          customers: true,
+          venues: true,
+          proposals: true,
+          payments: true,
+          stripe: true,
+          basicReporting: true,
+          advancedReporting: true,
+          emailSupport: true,
+          ai: false,
+          voiceBooking: false,
+          beo: true,
+          leadManagement: true,
+          multiVenue: true
+        },
+        maxUsers: 5,
+        maxVenues: 3,
+        maxBookingsPerMonth: 200,
+        storageLimit: 25,
+        isActive: true,
+        isCustom: false,
+        sortOrder: 2,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: "enterprise",
+        name: "enterprise",
+        displayName: "Enterprise",
+        description: "Advanced features and unlimited access for large venues",
+        price: "199.00",
+        billingInterval: "monthly",
+        features: {
+          calendar: true,
+          bookings: true,
+          customers: true,
+          venues: true,
+          proposals: true,
+          payments: true,
+          stripe: true,
+          basicReporting: true,
+          advancedReporting: true,
+          ai: true,
+          voiceBooking: true,
+          beo: true,
+          leadManagement: true,
+          multiVenue: true,
+          customBranding: true,
+          prioritySupport: true,
+          apiAccess: true
+        },
+        maxUsers: 25,
+        maxVenues: null, // Unlimited
+        maxBookingsPerMonth: null, // Unlimited
+        storageLimit: 100,
+        isActive: true,
+        isCustom: false,
+        sortOrder: 3,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ];
+
+    packages.forEach(pkg => this.featurePackages.set(pkg.id, pkg));
   }
 
   private initializeTenantData() {
@@ -299,8 +423,19 @@ export class MemStorage implements IStorage {
       name: "Venuine Events",
       contactEmail: "admin@venuine.com",
       contactName: "Admin User",
+      contactPhone: "+1 (555) 123-4567",
       packageId: "professional", // Default to professional package
       status: "active",
+      subscriptionStatus: "active",
+      trialEndsAt: null,
+      billingEmail: "admin@venuine.com",
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+      subdomain: null,
+      customDomain: null,
+      settings: {},
+      usage: {},
+      isActive: true,
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -308,11 +443,53 @@ export class MemStorage implements IStorage {
     this.tenants.set(mainTenant.id, mainTenant);
   }
 
+  private initializeTenantUsers() {
+    // Initialize sample users for the main tenant
+    const users: TenantUser[] = [
+      {
+        id: "user1",
+        tenantId: "main-account",
+        email: "john@venuineevents.com",
+        password: "hashed_password",
+        name: "John Doe",
+        role: "admin",
+        permissions: {},
+        isActive: true,
+        lastLoginAt: new Date(),
+        invitedBy: null,
+        invitedAt: new Date(),
+        acceptedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: "user2",
+        tenantId: "main-account", 
+        email: "jane@venuineevents.com",
+        password: "hashed_password",
+        name: "Jane Smith",
+        role: "staff",
+        permissions: {},
+        isActive: true,
+        lastLoginAt: new Date(),
+        invitedBy: "user1",
+        invitedAt: new Date(),
+        acceptedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ];
+
+    users.forEach(user => this.tenantUsers.set(user.id, user));
+  }
+
   private initializeData() {
     this.initializeSamplePackagesAndServices();
     this.initializeSampleSetupStyles();
     this.initializeLeadManagementData();
+    this.initializeFeaturePackages();
     this.initializeTenantData();
+    this.initializeTenantUsers();
     // Initialize with some default venues for the main tenant
     const defaultVenues: InsertVenue[] = [
       {
@@ -2373,6 +2550,56 @@ export class MemStorage implements IStorage {
     return activities
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, 10); // Return most recent 10 activities
+  }
+
+  // Tenant User Management Methods
+  async getTenantUsers(tenantId: string): Promise<TenantUser[]> {
+    return Array.from(this.tenantUsers.values()).filter(user => user.tenantId === tenantId);
+  }
+
+  async getTenantUser(id: string): Promise<TenantUser | undefined> {
+    return this.tenantUsers.get(id);
+  }
+
+  async createTenantUser(user: InsertTenantUser): Promise<TenantUser> {
+    const id = randomUUID();
+    const newUser: TenantUser = {
+      ...user,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.tenantUsers.set(id, newUser);
+    return newUser;
+  }
+
+  async updateTenantUser(id: string, user: Partial<InsertTenantUser>): Promise<TenantUser | undefined> {
+    const existingUser = this.tenantUsers.get(id);
+    if (!existingUser) return undefined;
+
+    const updatedUser: TenantUser = {
+      ...existingUser,
+      ...user,
+      updatedAt: new Date(),
+    };
+    this.tenantUsers.set(id, updatedUser);
+    return updatedUser;
+  }
+
+  async deleteTenantUser(id: string): Promise<boolean> {
+    return this.tenantUsers.delete(id);
+  }
+
+  async getTenant(id: string): Promise<Tenant | undefined> {
+    return this.tenants.get(id);
+  }
+
+  async getCurrentTenantPackageFeatures(tenantId: string): Promise<any> {
+    const tenant = await this.getTenant(tenantId);
+    if (!tenant) return null;
+    
+    const featurePackage = this.featurePackages.get(tenant.packageId);
+    return featurePackage?.features || {};
   }
 
 }
