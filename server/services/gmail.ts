@@ -41,6 +41,29 @@ export class GmailService {
     }
   }
 
+  async sendEmail(options: {
+    to: string;
+    subject: string;
+    html: string;
+  }): Promise<boolean> {
+    if (!this.transporter || !this.config) {
+      throw new Error('Gmail not configured. Please set up Gmail credentials first.');
+    }
+
+    try {
+      await this.transporter.sendMail({
+        from: this.config.email,
+        to: options.to,
+        subject: options.subject,
+        html: options.html
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to send email:', error);
+      throw error;
+    }
+  }
+
   async sendProposal(options: {
     to: string;
     customerName: string;

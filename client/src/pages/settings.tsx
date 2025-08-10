@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { TaxesAndFeesSettings } from "@/components/taxes-and-fees-settings";
+import { NotificationTestPanel } from "@/components/NotificationTestPanel";
 import { 
   Building2, 
   Mail, 
@@ -474,6 +475,9 @@ export default function Settings() {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Notification Testing Panel */}
+                <NotificationTestPanel />
               </TabsContent>
 
               {/* Appearance Settings */}

@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { EmailService } from "./services/email";
 import { gmailService } from "./services/gmail";
+import { NotificationService } from "./services/notification";
 import { 
   insertBookingSchema, 
   insertCustomerSchema, 
@@ -498,6 +499,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const booking = await storage.createBooking(validatedData);
+      
+      // Send booking confirmation notification if enabled
+      try {
+        const settings = await storage.getSettings();
+        const notificationPrefs = {
+          emailNotifications: settings.notifications?.emailNotifications ?? true,
+          pushNotifications: settings.notifications?.pushNotifications ?? false,
+          bookingConfirmations: settings.notifications?.bookingConfirmations ?? true,
+          paymentReminders: settings.notifications?.paymentReminders ?? true,
+          maintenanceAlerts: settings.notifications?.maintenanceAlerts ?? true
+        };
+
+        if (notificationPrefs.emailNotifications && notificationPrefs.bookingConfirmations && booking.customerId) {
+          const customer = await storage.getCustomer(booking.customerId);
+          if (customer && customer.email) {
+            const notificationService = new NotificationService(gmailService, notificationPrefs);
+            await notificationService.sendBookingConfirmation(booking, customer);
+            console.log(`Booking confirmation sent to ${customer.email}`);
+          }
+        }
+      } catch (notificationError) {
+        console.error('Failed to send booking confirmation:', notificationError);
+        // Don't fail the booking creation if notification fails
+      }
+      
       res.json(booking);
     } catch (error: any) {
       console.error('Booking creation error:', error);
@@ -3390,6 +3416,238 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     } catch (error) {
       console.error("Error converting lead to customer:", error);
       res.status(500).json({ message: "Failed to convert lead to customer" });
+    }
+  });
+
+  // Notification System Endpoints
+  // Test notification settings
+  app.post("/api/notifications/test", async (req, res) => {
+    try {
+      const { type, customerId } = req.body;
+      
+      if (!customerId) {
+        return res.status(400).json({ message: "Customer ID required" });
+      }
+
+      const customer = await storage.getCustomer(customerId);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      if (!customer.email) {
+        return res.status(400).json({ message: "Customer email not found" });
+      }
+
+      // Get notification preferences from settings
+      const settings = await storage.getSettings();
+      const notificationPrefs = {
+        emailNotifications: settings.notifications?.emailNotifications ?? true,
+        pushNotifications: settings.notifications?.pushNotifications ?? false,
+        bookingConfirmations: settings.notifications?.bookingConfirmations ?? true,
+        paymentReminders: settings.notifications?.paymentReminders ?? true,
+        maintenanceAlerts: settings.notifications?.maintenanceAlerts ?? true
+      };
+
+      if (!notificationPrefs.emailNotifications) {
+        return res.status(400).json({ 
+          message: "Email notifications are disabled in settings",
+          settings: notificationPrefs
+        });
+      }
+
+      const notificationService = new NotificationService(gmailService, notificationPrefs);
+
+      switch (type) {
+        case 'booking':
+          if (!notificationPrefs.bookingConfirmations) {
+            return res.status(400).json({ message: "Booking confirmations are disabled" });
+          }
+          
+          // Create a test booking for notification
+          const testBooking = {
+            id: 'test-booking',
+            eventName: 'Test Event Booking',
+            eventType: 'corporate',
+            eventDate: new Date(),
+            startTime: '18:00',
+            endTime: '23:00',
+            guestCount: 50,
+            venueId: 'test-venue',
+            customerId: customer.id,
+            status: 'confirmed',
+            totalAmount: '2500.00',
+            createdAt: new Date()
+          } as any;
+
+          const bookingResult = await notificationService.sendBookingConfirmation(testBooking, customer);
+          res.json({ 
+            success: bookingResult, 
+            message: bookingResult ? 'Test booking confirmation sent' : 'Failed to send booking confirmation',
+            type: 'booking',
+            customer: { name: customer.name, email: customer.email }
+          });
+          break;
+
+        case 'payment':
+          if (!notificationPrefs.paymentReminders) {
+            return res.status(400).json({ message: "Payment reminders are disabled" });
+          }
+
+          const testBookingForPayment = {
+            id: 'test-payment-booking',
+            eventName: 'Test Payment Event',
+            eventType: 'wedding',
+            eventDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 1 week from now
+            startTime: '16:00',
+            endTime: '22:00',
+            guestCount: 100,
+            venueId: 'test-venue',
+            customerId: customer.id,
+            status: 'confirmed',
+            totalAmount: '5000.00',
+            createdAt: new Date()
+          } as any;
+
+          const paymentResult = await notificationService.sendPaymentReminder(testBookingForPayment, customer, 1500);
+          res.json({ 
+            success: paymentResult, 
+            message: paymentResult ? 'Test payment reminder sent' : 'Failed to send payment reminder',
+            type: 'payment',
+            customer: { name: customer.name, email: customer.email }
+          });
+          break;
+
+        case 'maintenance':
+          if (!notificationPrefs.maintenanceAlerts) {
+            return res.status(400).json({ message: "Maintenance alerts are disabled" });
+          }
+
+          const maintenanceResult = await notificationService.sendMaintenanceAlert(
+            'System maintenance scheduled for this weekend. Please backup your data and expect brief downtime between 2-4 AM on Sunday.',
+            [customer.email]
+          );
+          res.json({ 
+            success: maintenanceResult, 
+            message: maintenanceResult ? 'Test maintenance alert sent' : 'Failed to send maintenance alert',
+            type: 'maintenance',
+            customer: { name: customer.name, email: customer.email }
+          });
+          break;
+
+        default:
+          return res.status(400).json({ 
+            message: "Invalid notification type. Use: booking, payment, or maintenance" 
+          });
+      }
+    } catch (error: any) {
+      console.error('Notification test error:', error);
+      res.status(500).json({ 
+        message: "Failed to send test notification",
+        error: error.message,
+        details: error.stack
+      });
+    }
+  });
+
+  // Send payment reminders for overdue bookings
+  app.post("/api/notifications/payment-reminders", async (req, res) => {
+    try {
+      const settings = await storage.getSettings();
+      const notificationPrefs = {
+        emailNotifications: settings.notifications?.emailNotifications ?? true,
+        pushNotifications: settings.notifications?.pushNotifications ?? false,
+        bookingConfirmations: settings.notifications?.bookingConfirmations ?? true,
+        paymentReminders: settings.notifications?.paymentReminders ?? true,
+        maintenanceAlerts: settings.notifications?.maintenanceAlerts ?? true
+      };
+
+      if (!notificationPrefs.emailNotifications || !notificationPrefs.paymentReminders) {
+        return res.status(400).json({ 
+          message: "Payment reminders are disabled in settings",
+          settings: notificationPrefs
+        });
+      }
+
+      const notificationService = new NotificationService(gmailService, notificationPrefs);
+      const bookings = await storage.getBookings();
+      const customers = await storage.getCustomers();
+      
+      // Find bookings with outstanding payments (where deposit is not paid)
+      const overdueBookings = bookings.filter(booking => 
+        booking.status === 'confirmed' && 
+        !booking.depositPaid &&
+        booking.customerId &&
+        booking.totalAmount
+      );
+
+      const results = [];
+      for (const booking of overdueBookings) {
+        const customer = customers.find(c => c.id === booking.customerId);
+        if (customer && customer.email) {
+          const amountDue = booking.depositAmount ? parseFloat(booking.depositAmount) : parseFloat(booking.totalAmount!) * 0.3;
+          
+          try {
+            const success = await notificationService.sendPaymentReminder(booking, customer, amountDue);
+            results.push({
+              bookingId: booking.id,
+              customerEmail: customer.email,
+              success,
+              amountDue
+            });
+          } catch (error: any) {
+            results.push({
+              bookingId: booking.id,
+              customerEmail: customer.email,
+              success: false,
+              error: error.message
+            });
+          }
+        }
+      }
+
+      res.json({
+        message: `Processed ${results.length} payment reminders`,
+        results,
+        settings: notificationPrefs
+      });
+    } catch (error: any) {
+      console.error('Payment reminders error:', error);
+      res.status(500).json({ message: "Failed to send payment reminders" });
+    }
+  });
+
+  // Get notification stats
+  app.get("/api/notifications/stats", async (req, res) => {
+    try {
+      const settings = await storage.getSettings();
+      const notificationPrefs = {
+        emailNotifications: settings.notifications?.emailNotifications ?? true,
+        pushNotifications: settings.notifications?.pushNotifications ?? false,
+        bookingConfirmations: settings.notifications?.bookingConfirmations ?? true,
+        paymentReminders: settings.notifications?.paymentReminders ?? true,
+        maintenanceAlerts: settings.notifications?.maintenanceAlerts ?? true
+      };
+
+      const bookings = await storage.getBookings();
+      const confirmedBookings = bookings.filter(b => b.status === 'confirmed');
+      const overduePayments = bookings.filter(b => 
+        b.status === 'confirmed' && 
+        !b.depositPaid &&
+        b.totalAmount
+      );
+
+      res.json({
+        notificationSettings: notificationPrefs,
+        stats: {
+          totalBookings: bookings.length,
+          confirmedBookings: confirmedBookings.length,
+          overduePayments: overduePayments.length,
+          gmailConfigured: gmailService ? true : false
+        }
+      });
+    } catch (error: any) {
+      console.error('Notification stats error:', error);
+      res.status(500).json({ message: "Failed to get notification stats" });
     }
   });
 
