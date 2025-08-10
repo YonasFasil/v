@@ -64,6 +64,15 @@ export default function SuperAdminDashboard() {
   const [statusFilter, setStatusFilter] = useState("");
   const [isCreateTenantOpen, setIsCreateTenantOpen] = useState(false);
   const [isCreatePackageOpen, setIsCreatePackageOpen] = useState(false);
+  
+  const generateSlug = (name: string) => {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single
+      .trim();
+  };
   const [, navigate] = useLocation();
   
   const queryClient = useQueryClient();
@@ -327,11 +336,27 @@ export default function SuperAdminDashboard() {
                 <form onSubmit={handleCreateTenant} className="space-y-4">
                   <div>
                     <Label htmlFor="name">Organization Name</Label>
-                    <Input name="name" required />
+                    <Input 
+                      name="name" 
+                      required 
+                      onChange={(e) => {
+                        const slugField = e.target.form?.querySelector('input[name="slug"]') as HTMLInputElement;
+                        if (slugField && !slugField.value) {
+                          slugField.value = generateSlug(e.target.value);
+                        }
+                      }}
+                    />
                   </div>
                   <div>
-                    <Label htmlFor="slug">Slug (URL identifier)</Label>
-                    <Input name="slug" required />
+                    <Label htmlFor="slug">URL Identifier</Label>
+                    <Input 
+                      name="slug" 
+                      placeholder="e.g., acme-corp (creates /t/acme-corp/app)" 
+                      required 
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      This creates the tenant's unique web address. Use lowercase letters, numbers, and hyphens only.
+                    </p>
                   </div>
                   <div>
                     <Label htmlFor="contactName">Contact Name</Label>
