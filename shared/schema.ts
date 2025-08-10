@@ -80,12 +80,17 @@ export const auditLogs = pgTable("audit_logs", {
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  name: text("name").notNull(),
-  email: text("email").notNull(),
-  role: text("role").notNull().default("manager"),
+  email: varchar("email").unique().notNull(),
+  password: varchar("password").notNull(), // bcrypt hash
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
+  emailVerified: boolean("email_verified").default(false),
+  emailVerificationToken: varchar("email_verification_token"),
+  passwordResetToken: varchar("password_reset_token"),
+  passwordResetExpires: timestamp("password_reset_expires"),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const venues = pgTable("venues", {

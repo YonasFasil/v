@@ -1,0 +1,179 @@
+Goal: Convert VENUIN into a complete web app with:
+
+Public marketing site (features + pricing/plans)
+
+Auth suite (login, signup, email verification, forgot/reset password)
+
+Self-serve signup → Stripe Billing → tenant provisioning
+
+Tenant dashboard (existing features)
+
+Superadmin console (plans, tenants)
+
+Keep Stripe Connect for tenants’ client payments (unchanged)
+
+0) Use existing stack
+Frontend: React 18 + TS, Vite, Wouter, TanStack Query v5, shadcn/ui (Radix), RHF + Zod, Tailwind
+Backend: Node + Express (TS), Drizzle + Postgres (Neon), connect-pg-simple sessions
+Integrations: Stripe (Billing + existing Connect), Gmail (transactional), Gemini
+
+1) Public website (no auth)
+Pages (SEO-ready, responsive, accessible):
+
+/ Home: hero, short “How it works,” social proof, CTA → “See plans” + “Sign up”
+
+/features: render actual app features via GET /api/public/features (don’t hardcode; use a server formatter that exposes the existing capabilities as cards with titles/descriptions)
+
+/pricing: show active plans from GET /api/public/plans (monthly/yearly toggle, trial info if any), CTA → Sign up
+
+/contact, /privacy, /terms
+
+Header/footer shared layout, sitemap.xml + robots.txt, Open Graph tags
+
+APIs:
+
+GET /api/public/features → curated list from current app capabilities (server builds this from a config or existing modules)
+
+GET /api/public/plans → only status=active plans with safe fields (name, slug, monthly/yearly prices, trialDays, brief highlights)
+
+2) Auth suite (email/password)
+Pages & flows:
+
+/login: email, password, “remember me”
+
+/signup: company name, admin full name, email, password, choose plan (from /api/public/plans), interval (monthly/yearly)
+
+/verify-email: token link via Gmail (app password); must verify before tenant onboarding
+
+/forgot-password → send link; /reset-password?token=...
+
+Session cookies: httpOnly, secure, sameSite=strict; rotate on privilege change
+
+Backend:
+
+POST /api/auth/signup → create provisional user, send verify email (signed token)
+
+POST /api/auth/login, POST /api/auth/logout, GET /api/auth/me
+
+POST /api/auth/verify, POST /api/auth/forgot, POST /api/auth/reset
+
+Store minimal PII; hash passwords (bcrypt)
+
+3) Plans & Superadmin-defined pricing (Stripe Billing)
+Data (Drizzle):
+
+featurePackages (id, name, slug unique, status: draft|active|archived, billingModes {monthly/yearly}, stripeProductId, stripePriceIds {monthly?,yearly?}, limits JSON, flags JSON, trialDays, sortOrder, timestamps)
+
+tenants add Billing fields: planSlug, status (active|past_due|canceled|suspended), stripeCustomerId, stripeSubscriptionId, trialEnd
+
+Flows:
+
+Superadmin creates/edits plans in /super-admin/plans and Syncs to Stripe (Product + Price IDs saved)
+
+/pricing consumes only active plans
+
+/signup uses chosen plan + interval to create Stripe Checkout Session (platform key)
+
+Webhook /api/webhooks/stripe-billing:
+
+checkout.session.completed → create tenant + admin, set planSlug, stripe IDs, status=active, trialEnd if present; require email verified
+
+invoice.payment_succeeded → keep active
+
+invoice.payment_failed → past_due
+
+customer.subscription.updated|deleted → adjust plan via priceId mapping; set past_due/canceled
+
+Tenant Billing page opens Stripe Customer Portal (upgrade/downgrade, switch interval, update card)
+
+4) Tenant app & onboarding (after signup)
+Routing:
+
+Tenant area at /t/:tenantSlug/app/* (all existing features remain)
+
+On first login after successful Checkout → /t/:slug/app/onboarding:
+
+Confirm venue
+
+Add spaces
+
+Invite team (permission presets)
+
+Status gates & limits:
+
+statusGate():
+
+active → full
+
+past_due → read-only except Billing
+
+canceled/suspended → Billing only
+
+planEnforcer() (server-side): enforce featurePackages.limits (e.g., venues, spacesPerVenue, staff, monthlyBookings); return structured 402 with upgrade hint
+
+5) Superadmin console
+/super-admin (role-guarded): Tenants list/detail (status, plan, usage, Stripe links), impersonate, suspend/reactivate
+
+/super-admin/plans: CRUD plans, monthly/yearly prices, flags/limits/trial; Sync to Stripe; archive instead of delete when in use
+
+Activity feed from auditLogs
+
+6) Keep Stripe Connect (tenants charge their clients)
+Leave current Connect flows intact (event deposits/balances go to tenant’s bank)
+
+Ensure Connect onboarding lives under Tenant Settings → Payments
+
+Block client charges until connected account requirements are satisfied
+
+7) Middleware & security (add/ensure)
+authGuard, tenantGuard, roleGuard, statusGate, planEnforcer
+
+Global tenantId scoping for all business data
+
+Rate limit auth/signup/payments
+
+/healthz (app, DB, session)
+
+CSRF where needed; CSP/HSTS headers; input validation with Zod
+
+Email templates for verify, forgot, billing events (neutral, brandable)
+
+8) Env, docs, seeds, tests
+.env.example (commented): Neon DB URL, SESSION_SECRET, PUBLIC_BASE_URL, COOKIE_DOMAIN, STRIPE_PLATFORM_SECRET_KEY, STRIPE_BILLING_WEBHOOK_SECRET, STRIPE_CONNECT_CLIENT_ID, STRIPE_CONNECT_WEBHOOK_SECRET, GMAIL creds, GEMINI
+
+Seeds: one superadmin only (print credentials in console). Optional SEED_SAMPLE_PLANS=true to add sample plans in dev
+
+OpenAPI 3.1: public features/plans, auth, signup, tenants, superadmin, billing webhook, connect endpoints → openapi.yaml
+
+Playwright e2e:
+
+/ → /pricing pulls plans from API
+
+No active plans → /signup shows “Plans coming soon”
+
+Create plan (superadmin) → set active → appears on pricing/signup
+
+Signup → email verify → Stripe Checkout test → webhook provisions tenant → onboarding
+
+Past_due simulated → UI read-only except Billing; recovery after payment
+
+Plan limit exceed → server 402 + upgrade modal
+
+9) Deliverables (list files + paste key snippets)
+Public pages (/, /features, /pricing, /contact, /privacy, /terms)
+
+Auth pages + API (signup/login/verify/forgot/reset)
+
+Public APIs (/api/public/features, /api/public/plans)
+
+Stripe Billing: Checkout handler, Customer Portal, billing webhook
+
+Tenant onboarding route + guards (tenantGuard, statusGate, planEnforcer)
+
+Superadmin console + Plan Builder + Stripe sync
+
+.env.example, openapi.yaml, seeds, Playwright tests
+
+Do not change existing feature behavior (venues/spaces/bookings/etc.). Keep Stripe Connect logic intact for tenants’ client payments; add Stripe Billing for subscriptions.
+
+If something’s ambiguous, choose sensible defaults and document in /docs/webapp.md (pages, routes, auth flows, billing vs connect, webhooks, and runbooks).

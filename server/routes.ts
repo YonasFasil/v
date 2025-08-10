@@ -2,6 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { tenantContext, type TenantRequest } from "./middleware/tenantContext";
+import { registerAuthRoutes } from "./routes/auth";
+import { registerPublicRoutes } from "./routes/public";
 import { registerSuperAdminRoutes } from "./routes/superadmin";
 import { registerDevRoutes } from "./routes/dev";
 import { EmailService } from "./services/email";
@@ -38,6 +40,12 @@ import {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Apply tenant context middleware to all routes
   app.use(tenantContext);
+
+  // Register public routes (no auth required)
+  registerPublicRoutes(app);
+
+  // Register auth routes
+  registerAuthRoutes(app);
 
   // Register superadmin routes
   registerSuperAdminRoutes(app);

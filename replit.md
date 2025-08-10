@@ -1,8 +1,8 @@
-# VENUIN - Complete Venue Management Platform Documentation
+# VENUIN - Complete SaaS Venue Management Platform
 
 ## Overview
 
-VENUIN is an advanced multi-tenant SaaS platform designed for comprehensive venue management. Its primary purpose is to provide venue owners and event managers with a complete suite of tools for managing bookings, customers, proposals, payments, and tasks. The platform incorporates AI-powered features to optimize operations, enhance administrative capabilities with role-based access controls, and ensure scalability. The business vision is to streamline venue operations, improve efficiency, and leverage AI for intelligent insights, positioning VENUIN as a leading solution in the event management market.
+VENUIN is a comprehensive SaaS platform that combines a public marketing website, self-serve signup with Stripe billing, and advanced multi-tenant venue management capabilities. The platform features a public marketing site with pricing plans, complete authentication suite, automated tenant provisioning, and a superadmin console for platform management. Each tenant receives a full venue management system with booking management, customer relations, AI-powered features, and Stripe Connect for client payments, while the platform uses Stripe Billing for subscription management.
 
 ## User Preferences
 
@@ -27,12 +27,19 @@ VENUIN is built with a modern, scalable architecture designed for high performan
 - **Database**: PostgreSQL with Drizzle ORM for type-safe operations.
 - **Session Management**: Express sessions with PostgreSQL session store.
 
-**Major Features & Capabilities:**
+**Platform Architecture:**
+- **Public Marketing Site**: Landing pages (/), feature showcase (/features), pricing plans (/pricing), contact/legal pages with SEO optimization and responsive design.
+- **Authentication Suite**: Email/password signup/login, email verification, password recovery, secure session management with httpOnly cookies.
+- **Subscription Billing**: Stripe Billing integration for plan management, automated provisioning, webhook handling, and customer portal access.
+- **Multi-tenant System**: Isolated tenant environments at /t/:tenantSlug/app/* with plan-based feature gating and usage enforcement.
+- **Superadmin Console**: Platform management at /super-admin for tenant oversight, plan management, activity monitoring, and Stripe sync.
+
+**Tenant Features & Capabilities:**
 - **Dashboard & Analytics**: Real-time metrics, booking pipeline visualization, AI-powered insights, and comprehensive reports.
 - **Event & Booking Management**: Complete booking lifecycle, multi-date event support, interactive calendar, proposal integration, and 2D floor plan designer.
 - **Customer & Lead Management**: Lead capture with UTM tracking, lead scoring, customer lifecycle tracking, and communication history.
 - **Proposal System**: Professional proposal generation, email delivery with tracking, digital signature acceptance, and auto-conversion to bookings.
-- **Payment Processing**: Secure payment handling via Stripe Connect, including onboarding, payment intent creation, and webhook integration.
+- **Payment Processing**: Stripe Connect for client payments, secure deposit handling, and automated payment workflows.
 - **Venue & Space Management**: Multi-venue support, capacity management, amenity tracking, and flexible pricing configuration.
 - **Service & Package Management**: Flexible service catalog, package bundling, dynamic pricing models, and tax/fee application.
 - **Communication & Notifications**: Gmail integration for automated workflows, internal notes, and customizable email templates.
@@ -52,6 +59,18 @@ VENUIN is built with a modern, scalable architecture designed for high performan
 ## External Dependencies
 
 - **AI Provider**: Google Gemini 2.5 Flash (for AI-powered insights, voice-to-text, scheduling, lead scoring, and content generation).
-- **Payments**: Stripe Connect (for secure payment processing, account onboarding, and payment intent creation).
-- **Email Services**: Gmail SMTP integration (for notifications, proposals, and automated email workflows).
+- **Payment Processing**: 
+  - Stripe Billing (for platform subscription management, plan enforcement, and automated provisioning)
+  - Stripe Connect (for tenant client payments, deposit handling, and payout management)
+- **Email Services**: Gmail SMTP integration (for transactional emails, notifications, email verification, and automated workflows).
 - **Icons**: Lucide React (for UI icons).
+
+## Recent Changes (January 2025)
+
+### Complete SaaS Platform Transformation
+- **Multi-tenant Architecture**: Implemented comprehensive tenant isolation with database-level separation
+- **Public Marketing Site**: Created SEO-optimized pages for features, pricing, and company information  
+- **Authentication System**: Built complete email/password auth with verification, password recovery, and secure sessions
+- **Stripe Billing Integration**: Added subscription management, automated provisioning, and plan enforcement
+- **Superadmin Console**: Developed platform management tools for tenant oversight and plan administration
+- **Tenant Onboarding**: Created guided setup flow for new tenant configuration and team setup
