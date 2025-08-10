@@ -632,63 +632,68 @@ function PackageDialog({ isOpen, onClose, package: pkg, isEdit }: {
 
   const queryClient = useQueryClient();
 
-  // Complete list of all available features
+  // Complete list of all available features (functional features only)
   const allFeatures = {
-    // Core Features
+    // Core Booking & Customer Management
     bookingManagement: "Booking Management",
     customerManagement: "Customer Management", 
-    paymentProcessing: "Payment Processing",
     proposalSystem: "Proposal System",
     contractManagement: "Contract Management",
     taskManagement: "Task Management",
     
     // Calendar & Scheduling
-    basicCalendar: "Basic Calendar",
-    advancedCalendar: "Advanced Calendar",
+    calendarView: "Calendar View",
+    realTimeAvailability: "Real-Time Availability",
+    conflictDetection: "Booking Conflict Detection",
+    
+    // Venue & Space Management
+    venueManagement: "Venue Management",
+    spaceManagement: "Space Management",
+    floorPlanDesigner: "Floor Plan Designer",
+    setupManagement: "Setup Management",
+    
+    // Services & Packages
+    serviceManagement: "Service Management",
+    packageManagement: "Package Management",
+    pricingConfiguration: "Pricing Configuration",
+    
+    // Financial Management
+    paymentProcessing: "Payment Processing",
+    invoicing: "Invoicing",
+    taxConfiguration: "Tax Configuration",
+    
+    // BEO & Documentation
+    beoGeneration: "BEO Generation",
+    beoTemplates: "BEO Templates",
+    contractGeneration: "Contract Generation",
     
     // Reporting & Analytics
     basicReporting: "Basic Reporting",
-    advancedReporting: "Advanced Reporting", 
-    enterpriseReporting: "Enterprise Reporting",
-    advancedAnalytics: "Advanced Analytics",
-    customReports: "Custom Reports",
+    advancedReporting: "Advanced Reporting",
+    realTimeAnalytics: "Real-Time Analytics",
+    dashboardInsights: "Dashboard Insights",
     
-    // AI & Automation
+    // AI Features
     aiInsights: "AI Insights",
-    emailAutomation: "Email Automation",
+    voiceBooking: "Voice-to-Text Booking",
+    smartScheduling: "Smart Scheduling",
+    automatedEmailReplies: "Automated Email Replies",
     leadScoring: "Lead Scoring",
     
-    // Design & Customization
-    floorPlanDesigner: "Floor Plan Designer",
-    beoGeneration: "BEO Generation",
-    customBranding: "Custom Branding",
-    whiteLabel: "White Label",
-    customFields: "Custom Fields",
+    // Communication
+    emailIntegration: "Email Integration",
+    smsNotifications: "SMS Notifications",
+    internalNotes: "Internal Notes",
+    customerCommunication: "Customer Communication Panel",
     
-    // Multi-tenant & Enterprise
-    multiVenueManagement: "Multi-Venue Management",
-    multiTenantManagement: "Multi-Tenant Management",
-    advancedPermissions: "Advanced Permissions",
+    // Multi-tenant Features
+    multiVenueSupport: "Multi-Venue Support",
+    userRoleManagement: "User Role Management",
     
-    // Technical Features
-    apiAccess: "API Access",
-    webhooks: "Webhooks",
-    sso: "Single Sign-On (SSO)",
-    customIntegrations: "Custom Integrations",
-    
-    // Support & Services
-    emailSupport: "Email Support",
-    prioritySupport: "Priority Support",
-    dedicatedSupport: "Dedicated Support",
-    priorityOnboarding: "Priority Onboarding",
-    accountManager: "Dedicated Account Manager",
-    
-    // Mobile & Apps
-    mobileApp: "Mobile App Access",
-    
-    // Operations
-    bulkOperations: "Bulk Operations",
-    dataExport: "Data Export"
+    // Data & Export
+    dataExport: "Data Export",
+    dataImport: "Data Import",
+    bulkOperations: "Bulk Operations"
   };
 
   // Initialize form data when editing
@@ -737,59 +742,64 @@ function PackageDialog({ isOpen, onClose, package: pkg, isEdit }: {
 
   const getFeaturesByCategory = () => {
     return {
-      "Core Features": {
+      "Core Management": {
         bookingManagement: "Booking Management",
-        customerManagement: "Customer Management", 
-        paymentProcessing: "Payment Processing",
+        customerManagement: "Customer Management",
         proposalSystem: "Proposal System",
         contractManagement: "Contract Management",
         taskManagement: "Task Management"
       },
       "Calendar & Scheduling": {
-        basicCalendar: "Basic Calendar",
-        advancedCalendar: "Advanced Calendar"
+        calendarView: "Calendar View",
+        realTimeAvailability: "Real-Time Availability",
+        conflictDetection: "Booking Conflict Detection"
       },
-      "Reporting & Analytics": {
+      "Venue & Space": {
+        venueManagement: "Venue Management",
+        spaceManagement: "Space Management",
+        floorPlanDesigner: "Floor Plan Designer",
+        setupManagement: "Setup Management"
+      },
+      "Services & Pricing": {
+        serviceManagement: "Service Management",
+        packageManagement: "Package Management",
+        pricingConfiguration: "Pricing Configuration"
+      },
+      "Financial": {
+        paymentProcessing: "Payment Processing",
+        invoicing: "Invoicing",
+        taxConfiguration: "Tax Configuration"
+      },
+      "Documentation": {
+        beoGeneration: "BEO Generation",
+        beoTemplates: "BEO Templates",
+        contractGeneration: "Contract Generation"
+      },
+      "Analytics & Reporting": {
         basicReporting: "Basic Reporting",
-        advancedReporting: "Advanced Reporting", 
-        enterpriseReporting: "Enterprise Reporting",
-        advancedAnalytics: "Advanced Analytics",
-        customReports: "Custom Reports"
+        advancedReporting: "Advanced Reporting",
+        realTimeAnalytics: "Real-Time Analytics",
+        dashboardInsights: "Dashboard Insights"
       },
-      "AI & Automation": {
+      "AI Features": {
         aiInsights: "AI Insights",
-        emailAutomation: "Email Automation",
+        voiceBooking: "Voice-to-Text Booking",
+        smartScheduling: "Smart Scheduling",
+        automatedEmailReplies: "Automated Email Replies",
         leadScoring: "Lead Scoring"
       },
-      "Design & Customization": {
-        floorPlanDesigner: "Floor Plan Designer",
-        beoGeneration: "BEO Generation",
-        customBranding: "Custom Branding",
-        whiteLabel: "White Label",
-        customFields: "Custom Fields"
+      "Communication": {
+        emailIntegration: "Email Integration",
+        smsNotifications: "SMS Notifications",
+        internalNotes: "Internal Notes",
+        customerCommunication: "Customer Communication Panel"
       },
-      "Multi-tenant & Enterprise": {
-        multiVenueManagement: "Multi-Venue Management",
-        multiTenantManagement: "Multi-Tenant Management",
-        advancedPermissions: "Advanced Permissions"
-      },
-      "Technical Features": {
-        apiAccess: "API Access",
-        webhooks: "Webhooks",
-        sso: "Single Sign-On (SSO)",
-        customIntegrations: "Custom Integrations"
-      },
-      "Support & Services": {
-        emailSupport: "Email Support",
-        prioritySupport: "Priority Support",
-        dedicatedSupport: "Dedicated Support",
-        priorityOnboarding: "Priority Onboarding",
-        accountManager: "Dedicated Account Manager"
-      },
-      "Mobile & Operations": {
-        mobileApp: "Mobile App Access",
-        bulkOperations: "Bulk Operations",
-        dataExport: "Data Export"
+      "Multi-tenant & Data": {
+        multiVenueSupport: "Multi-Venue Support",
+        userRoleManagement: "User Role Management",
+        dataExport: "Data Export",
+        dataImport: "Data Import",
+        bulkOperations: "Bulk Operations"
       }
     };
   };
