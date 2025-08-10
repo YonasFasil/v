@@ -503,8 +503,9 @@ function EditTenantDialog({ isOpen, onClose, tenant }: {
   });
 
   // Initialize form data when dialog opens
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOpen && tenant) {
+      console.log("Initializing form with tenant data:", tenant);
       setFormData({
         name: tenant.name || "",
         contactEmail: tenant.contactEmail || "",

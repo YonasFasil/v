@@ -2498,7 +2498,10 @@ export class MemStorage implements IStorage {
     const tenant = await this.getTenant(tenantId);
     if (!tenant) return null;
     
-    const featurePackage = this.featurePackages.get(tenant.packageId);
+    // Get all packages (includes both default and custom packages)
+    const allPackages = await this.getFeaturePackages();
+    const featurePackage = allPackages.find(pkg => pkg.id === tenant.packageId);
+    
     return featurePackage?.features || {};
   }
 
