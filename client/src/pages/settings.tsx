@@ -351,13 +351,50 @@ export default function Settings() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
-                            <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
-                            <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
-                            <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
-                            <SelectItem value="Europe/London">London (GMT)</SelectItem>
-                            <SelectItem value="Europe/Paris">Paris (CET)</SelectItem>
-                            <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
+                            {/* North America */}
+                            <SelectItem value="America/New_York">🇺🇸 Eastern Time (ET)</SelectItem>
+                            <SelectItem value="America/Chicago">🇺🇸 Central Time (CT)</SelectItem>
+                            <SelectItem value="America/Denver">🇺🇸 Mountain Time (MT)</SelectItem>
+                            <SelectItem value="America/Los_Angeles">🇺🇸 Pacific Time (PT)</SelectItem>
+                            <SelectItem value="America/Anchorage">🇺🇸 Alaska Time (AKT)</SelectItem>
+                            <SelectItem value="Pacific/Honolulu">🇺🇸 Hawaii Time (HST)</SelectItem>
+                            <SelectItem value="America/Toronto">🇨🇦 Eastern Canada</SelectItem>
+                            <SelectItem value="America/Vancouver">🇨🇦 Pacific Canada</SelectItem>
+                            <SelectItem value="America/Mexico_City">🇲🇽 Mexico City</SelectItem>
+                            
+                            {/* Europe */}
+                            <SelectItem value="Europe/London">🇬🇧 London (GMT/BST)</SelectItem>
+                            <SelectItem value="Europe/Paris">🇫🇷 Paris (CET/CEST)</SelectItem>
+                            <SelectItem value="Europe/Berlin">🇩🇪 Berlin (CET/CEST)</SelectItem>
+                            <SelectItem value="Europe/Rome">🇮🇹 Rome (CET/CEST)</SelectItem>
+                            <SelectItem value="Europe/Madrid">🇪🇸 Madrid (CET/CEST)</SelectItem>
+                            <SelectItem value="Europe/Amsterdam">🇳🇱 Amsterdam (CET/CEST)</SelectItem>
+                            <SelectItem value="Europe/Stockholm">🇸🇪 Stockholm (CET/CEST)</SelectItem>
+                            <SelectItem value="Europe/Moscow">🇷🇺 Moscow (MSK)</SelectItem>
+                            
+                            {/* Asia Pacific */}
+                            <SelectItem value="Asia/Tokyo">🇯🇵 Tokyo (JST)</SelectItem>
+                            <SelectItem value="Asia/Shanghai">🇨🇳 Shanghai (CST)</SelectItem>
+                            <SelectItem value="Asia/Hong_Kong">🇭🇰 Hong Kong (HKT)</SelectItem>
+                            <SelectItem value="Asia/Singapore">🇸🇬 Singapore (SGT)</SelectItem>
+                            <SelectItem value="Asia/Seoul">🇰🇷 Seoul (KST)</SelectItem>
+                            <SelectItem value="Asia/Mumbai">🇮🇳 Mumbai (IST)</SelectItem>
+                            <SelectItem value="Asia/Dubai">🇦🇪 Dubai (GST)</SelectItem>
+                            <SelectItem value="Australia/Sydney">🇦🇺 Sydney (AEST/AEDT)</SelectItem>
+                            <SelectItem value="Australia/Melbourne">🇦🇺 Melbourne (AEST/AEDT)</SelectItem>
+                            <SelectItem value="Australia/Perth">🇦🇺 Perth (AWST)</SelectItem>
+                            <SelectItem value="Pacific/Auckland">🇳🇿 Auckland (NZST/NZDT)</SelectItem>
+                            
+                            {/* South America */}
+                            <SelectItem value="America/Sao_Paulo">🇧🇷 São Paulo (BRT)</SelectItem>
+                            <SelectItem value="America/Argentina/Buenos_Aires">🇦🇷 Buenos Aires (ART)</SelectItem>
+                            <SelectItem value="America/Santiago">🇨🇱 Santiago (CLT)</SelectItem>
+                            <SelectItem value="America/Lima">🇵🇪 Lima (PET)</SelectItem>
+                            
+                            {/* Africa */}
+                            <SelectItem value="Africa/Cairo">🇪🇬 Cairo (EET)</SelectItem>
+                            <SelectItem value="Africa/Johannesburg">🇿🇦 Johannesburg (SAST)</SelectItem>
+                            <SelectItem value="Africa/Lagos">🇳🇬 Lagos (WAT)</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
