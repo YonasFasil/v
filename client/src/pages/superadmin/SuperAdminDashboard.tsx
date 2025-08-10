@@ -69,8 +69,9 @@ export default function SuperAdminDashboard() {
     return name
       .toLowerCase()
       .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
-      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/\s+/g, '-') // Replace spaces with hyphens  
       .replace(/-+/g, '-') // Replace multiple hyphens with single
+      .replace(/^-|-$/g, '') // Remove leading/trailing hyphens
       .trim();
   };
   const [, navigate] = useLocation();
@@ -341,7 +342,7 @@ export default function SuperAdminDashboard() {
                       required 
                       onChange={(e) => {
                         const slugField = e.target.form?.querySelector('input[name="slug"]') as HTMLInputElement;
-                        if (slugField && !slugField.value) {
+                        if (slugField) {
                           slugField.value = generateSlug(e.target.value);
                         }
                       }}
@@ -351,11 +352,13 @@ export default function SuperAdminDashboard() {
                     <Label htmlFor="slug">URL Identifier</Label>
                     <Input 
                       name="slug" 
-                      placeholder="e.g., acme-corp (creates /t/acme-corp/app)" 
+                      placeholder="Auto-generated from organization name" 
                       required 
+                      readOnly
+                      className="bg-muted"
                     />
                     <p className="text-xs text-muted-foreground mt-1">
-                      This creates the tenant's unique web address. Use lowercase letters, numbers, and hyphens only.
+                      Automatically created from the organization name. Creates: /t/[slug]/app
                     </p>
                   </div>
                   <div>

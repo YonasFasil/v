@@ -14,6 +14,11 @@ export const tenants = pgTable("tenants", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
+  // Contact fields
+  contactName: text("contact_name"),
+  contactEmail: text("contact_email"),
+  // Feature package assignment
+  featurePackageId: uuid("feature_package_id").references(() => featurePackages.id),
   // Billing fields
   planSlug: text("plan_slug"),
   status: text("status").notNull().default("active"), // active, past_due, canceled, suspended
@@ -28,6 +33,7 @@ export const tenants = pgTable("tenants", {
 }, (table) => ({
   slugIdx: index("tenants_slug_idx").on(table.slug),
   customerIdx: index("tenants_stripe_customer_idx").on(table.stripeCustomerId),
+  packageIdx: index("tenants_feature_package_idx").on(table.featurePackageId),
 }));
 
 export const featurePackages = pgTable("feature_packages", {
