@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BeoModal } from "./beo-modal";
+import { EnhancedBeoModal } from "./enhanced-beo-modal";
 import { CreateEventModal } from "./create-event-modal";
 import { 
   X, 
@@ -597,8 +597,8 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
         </div>
       </DialogContent>
       
-      {/* BEO Modal */}
-      <BeoModal 
+      {/* Enhanced BEO Modal */}
+      <EnhancedBeoModal 
         isOpen={showBeoModal} 
         onClose={() => setShowBeoModal(false)} 
         booking={booking} 
