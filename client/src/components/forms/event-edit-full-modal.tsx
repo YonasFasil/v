@@ -790,9 +790,9 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
 
                       {/* Active Date Configuration */}
                       {activeDate && (
-                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                          {/* Left Column: Package & Services Configuration */}
-                          <div className="xl:col-span-2 space-y-6">
+                        <div className="space-y-6">
+                          {/* Package & Services Configuration - Full Width */}
+                          <div className="space-y-6">
                             {/* Modern gradient header for current date */}
                             <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
                               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-100 p-4">
@@ -900,6 +900,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                               </div>
                             </div>
                           </div>
+                            </Card>
 
                           <div className="space-y-6">
                             {/* Package & Services - Full Width */}
@@ -1223,84 +1224,80 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                               </div>
                             </div>
 
-                            {/* Right Column: Actions & Summary */}
-                            <div className="space-y-6">
-                              {/* Copy Config for Multi-Date Events */}
-                              {selectedDates.length > 1 && (
-                                <Card className="p-4 border-blue-200 bg-blue-50">
-                                  <h5 className="font-medium mb-2">Copy Configuration</h5>
-                                  <p className="text-sm text-slate-600 mb-3">
-                                    Copy this date's configuration to other dates
-                                  </p>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setShowCopyModal(true)}
-                                    className="w-full"
-                                  >
-                                    Copy to Other Dates
-                                  </Button>
-                                </Card>
-                              )}
-
-                              {/* Price Summary */}
-                              <Card className="p-4">
-                                <h5 className="font-medium mb-3">Price Summary</h5>
-                                <div className="space-y-2 text-sm">
-                                  {selectedPackageData && (
-                                    <div className="flex justify-between">
-                                      <span>{selectedPackageData.name}</span>
-                                      <span>
-                                        ${selectedPackageData.pricingModel === 'per_person' 
-                                          ? (parseFloat(selectedPackageData.price) * (activeDate.guestCount || 1)).toFixed(2)
-                                          : parseFloat(selectedPackageData.price).toFixed(2)}
-                                      </span>
-                                    </div>
-                                  )}
-                                  
-                                  {activeDate.selectedServices?.map(serviceId => {
-                                    const service = (services as any[]).find((s: any) => s.id === serviceId);
-                                    if (!service) return null;
-                                    
-                                    const basePrice = parseFloat(service.price || 0);
-                                    const overridePrice = activeDate.pricingOverrides?.servicePrices?.[serviceId];
-                                    const price = overridePrice ?? basePrice;
-                                    const quantity = activeDate.itemQuantities?.[serviceId] || 1;
-                                    const total = service.pricingModel === 'per_person' 
-                                      ? price * (activeDate.guestCount || 1)
-                                      : price * quantity;
-                                    
-                                    return (
-                                      <div key={serviceId} className="flex justify-between">
-                                        <span>{service.name}</span>
-                                        <span>${total.toFixed(2)}</span>
-                                      </div>
-                                    );
-                                  })}
-                                  
-                                  <div className="border-t border-slate-200 pt-2 flex justify-between font-medium">
-                                    <span>Date Total</span>
-                                    <span>${(
-                                      (selectedPackageData && activeDate.packageId ? 
-                                        (selectedPackageData.pricingModel === 'per_person' 
-                                          ? parseFloat(selectedPackageData.price) * (activeDate.guestCount || 1)
-                                          : parseFloat(selectedPackageData.price)) : 0) +
-                                      (activeDate.selectedServices?.reduce((sum, serviceId) => {
-                                        const service = (services as any[]).find((s: any) => s.id === serviceId);
-                                        if (!service) return sum;
-                                        const price = activeDate.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
-                                        const quantity = activeDate.itemQuantities?.[serviceId] || 1;
-                                        return sum + (service.pricingModel === 'per_person' ? price * (activeDate.guestCount || 1) : price * quantity);
-                                      }, 0) || 0)
-                                    ).toFixed(2)}</span>
-                                  </div>
-                                </div>
+                            {/* Copy Config for Multi-Date Events */}
+                            {selectedDates.length > 1 && (
+                              <Card className="p-4 border-blue-200 bg-blue-50">
+                                <h5 className="font-medium mb-2">Copy Configuration</h5>
+                                <p className="text-sm text-slate-600 mb-3">
+                                  Copy this date's configuration to other dates
+                                </p>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setShowCopyModal(true)}
+                                  className="w-full"
+                                >
+                                  Copy to Other Dates
+                                </Button>
                               </Card>
-                            </div>
-                          </div>
+                            )}
+
+                            {/* Price Summary */}
+                            <Card className="p-4">
+                              <h5 className="font-medium mb-3">Price Summary</h5>
+                              <div className="space-y-2 text-sm">
+                                {selectedPackageData && (
+                                  <div className="flex justify-between">
+                                    <span>{selectedPackageData.name}</span>
+                                    <span>
+                                      ${selectedPackageData.pricingModel === 'per_person' 
+                                        ? (parseFloat(selectedPackageData.price) * (activeDate.guestCount || 1)).toFixed(2)
+                                        : parseFloat(selectedPackageData.price).toFixed(2)}
+                                    </span>
+                                  </div>
+                                )}
+                                
+                                {activeDate.selectedServices?.map(serviceId => {
+                                  const service = (services as any[]).find((s: any) => s.id === serviceId);
+                                  if (!service) return null;
+                                  
+                                  const basePrice = parseFloat(service.price || 0);
+                                  const overridePrice = activeDate.pricingOverrides?.servicePrices?.[serviceId];
+                                  const price = overridePrice ?? basePrice;
+                                  const quantity = activeDate.itemQuantities?.[serviceId] || 1;
+                                  const total = service.pricingModel === 'per_person' 
+                                    ? price * (activeDate.guestCount || 1)
+                                    : price * quantity;
+                                  
+                                  return (
+                                    <div key={serviceId} className="flex justify-between">
+                                      <span>{service.name}</span>
+                                      <span>${total.toFixed(2)}</span>
+                                    </div>
+                                  );
+                                })}
+                                
+                                <div className="border-t border-slate-200 pt-2 flex justify-between font-medium">
+                                  <span>Date Total</span>
+                                  <span>${(
+                                    (selectedPackageData && activeDate.packageId ? 
+                                      (selectedPackageData.pricingModel === 'per_person' 
+                                        ? parseFloat(selectedPackageData.price) * (activeDate.guestCount || 1)
+                                        : parseFloat(selectedPackageData.price)) : 0) +
+                                    (activeDate.selectedServices?.reduce((sum, serviceId) => {
+                                      const service = (services as any[]).find((s: any) => s.id === serviceId);
+                                      if (!service) return sum;
+                                      const price = activeDate.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
+                                      const quantity = activeDate.itemQuantities?.[serviceId] || 1;
+                                      return sum + (service.pricingModel === 'per_person' ? price * (activeDate.guestCount || 1) : price * quantity);
+                                    }, 0) || 0)
+                                  ).toFixed(2)}</span>
+                                </div>
+                              </div>
                             </Card>
                           </div>
+                        </div>
                         </div>
                       )}
                     </div>
