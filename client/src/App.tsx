@@ -35,6 +35,7 @@ import Reports from "@/pages/reports";
 import VoiceBooking from "@/pages/voice-booking";
 import ProposalView from "@/pages/proposal-view";
 import Proposals from "@/pages/proposals";
+import Onboarding from "@/pages/onboarding";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -50,6 +51,7 @@ function Router() {
       <Route path="/signup" component={Signup} />
       <Route path="/verify-email-sent" component={VerifyEmailSent} />
       <Route path="/verify-email" component={EmailVerification} />
+      <Route path="/onboarding" component={Onboarding} />
       
       {/* Tenant app routes */}
       <Route path="/t/:slug/app" component={Dashboard} />

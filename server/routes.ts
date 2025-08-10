@@ -6,6 +6,7 @@ import { registerAuthRoutes } from "./routes/auth";
 import { registerPublicRoutes } from "./routes/public";
 import { registerSuperAdminRoutes } from "./routes/superadmin";
 import { registerDevRoutes } from "./routes/dev";
+import { registerOnboardingRoutes } from "./routes/onboarding";
 import { EmailService } from "./services/email";
 import { gmailService } from "./services/gmail";
 import { NotificationService } from "./services/notification";
@@ -47,6 +48,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register auth routes
   registerAuthRoutes(app);
+
+  // Register onboarding routes (after auth, before tenant middleware)
+  registerOnboardingRoutes(app);
 
   // Register superadmin routes (before tenant middleware to avoid conflicts)
   registerSuperAdminRoutes(app);
