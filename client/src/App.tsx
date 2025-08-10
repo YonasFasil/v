@@ -65,8 +65,8 @@ function Router() {
       <Route path="/t/:slug/app/proposals" component={Proposals} />
       <Route path="/t/:slug/app/proposal/:proposalId" component={ProposalView} />
       
-      {/* Superadmin routes */}
-      <Route path="/superadmin" component={SuperAdminDashboard} />
+      {/* Superadmin routes - secure hidden URL */}
+      <Route path="/sys-admin-x7k9p2w4" component={SuperAdminDashboard} />
       
       {/* Legacy fallback for existing tenant (temporary) */}
       <Route path="/events" component={Events} />

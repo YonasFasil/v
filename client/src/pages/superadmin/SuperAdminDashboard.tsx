@@ -25,6 +25,8 @@ import {
   Trash2,
   LogOut
 } from "lucide-react";
+import { useLocation } from "wouter";
+import { useEffect } from "react";
 
 interface Tenant {
   id: string;
@@ -61,8 +63,23 @@ export default function SuperAdminDashboard() {
   const [statusFilter, setStatusFilter] = useState("");
   const [isCreateTenantOpen, setIsCreateTenantOpen] = useState(false);
   const [isCreatePackageOpen, setIsCreatePackageOpen] = useState(false);
+  const [, navigate] = useLocation();
   
   const queryClient = useQueryClient();
+
+  // Check authentication status first
+  const { data: authUser, isLoading: authLoading, error: authError } = useQuery({
+    queryKey: ['/api/auth/me'],
+    retry: false,
+  });
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && (!authUser || authError)) {
+      navigate('/login');
+      return;
+    }
+  }, [authUser, authLoading, authError, navigate]);
 
   // Logout mutation
   const logoutMutation = useMutation({
@@ -84,22 +101,25 @@ export default function SuperAdminDashboard() {
     }
   });
 
-  // Analytics query
+  // Analytics query - only run if authenticated
   const { data: analytics, isLoading: analyticsLoading } = useQuery<Analytics>({
     queryKey: ['/api/superadmin/analytics'],
+    enabled: !!authUser,
   });
 
-  // Tenants query with search and filter
+  // Tenants query with search and filter - only run if authenticated
   const { data: tenantsResponse, isLoading: tenantsLoading } = useQuery<{
     data: Tenant[];
     pagination: any;
   }>({
     queryKey: ['/api/superadmin/tenants', { search: searchTerm, status: statusFilter }],
+    enabled: !!authUser,
   });
 
-  // Feature packages query
+  // Feature packages query - only run if authenticated
   const { data: featurePackages = [], isLoading: packagesLoading } = useQuery<FeaturePackage[]>({
     queryKey: ['/api/superadmin/feature-packages'],
+    enabled: !!authUser,
   });
 
   // Create tenant mutation
@@ -169,6 +189,20 @@ export default function SuperAdminDashboard() {
     };
     return <Badge variant={variants[status as keyof typeof variants] as any}>{status}</Badge>;
   };
+
+  // Show loading screen while checking authentication
+  if (authLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" aria-label="Loading"/>
+      </div>
+    );
+  }
+
+  // Don't render dashboard if not authenticated (will redirect)
+  if (!authUser) {
+    return null;
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
