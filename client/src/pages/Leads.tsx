@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Phone, Mail, Calendar, User, Building, Clock, Tag, Plus, Search, Filter } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import type { Lead, CampaignSource, Tag as TagType } from "@shared/schema";
@@ -379,6 +379,9 @@ export default function Leads() {
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Lead</DialogTitle>
+            <DialogDescription>
+              Fill out the form below to add a new lead to your system.
+            </DialogDescription>
           </DialogHeader>
           <PublicQuoteForm 
             onSuccess={() => {

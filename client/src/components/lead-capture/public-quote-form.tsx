@@ -80,14 +80,11 @@ export function PublicQuoteForm({ onSuccess, embedded = false, className }: Publ
       // Get first venue ID if available
       const venueId = venues.length > 0 ? venues[0].id : null;
       
-      return apiRequest("/api/leads", {
-        method: "POST",
-        body: JSON.stringify({
-          ...data,
-          venueId,
-          sourceId: null, // Will be set to default source on backend
-          status: "NEW"
-        })
+      return apiRequest("POST", "/api/leads", {
+        ...data,
+        venueId,
+        sourceId: null, // Will be set to default source on backend
+        status: "NEW"
       });
     },
     onSuccess: () => {
