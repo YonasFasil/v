@@ -240,6 +240,7 @@ export interface IStorage {
   deleteTenantUser(id: string): Promise<boolean>;
   getTenant(id: string): Promise<Tenant | undefined>;
   getCurrentTenantPackageFeatures(tenantId: string): Promise<any>;
+  getTenantUserByEmailGlobal(email: string): TenantUser | undefined;
 }
 
 export class MemStorage implements IStorage {
@@ -2522,6 +2523,16 @@ export class MemStorage implements IStorage {
       }
     }
     return null;
+  }
+
+  // Get tenant user by email across all tenants (for login)
+  getTenantUserByEmailGlobal(email: string): TenantUser | undefined {
+    for (const user of this.tenantUsers.values()) {
+      if (user.email === email) {
+        return user;
+      }
+    }
+    return undefined;
   }
 
   async updateTenantUserLastLogin(userId: string): Promise<void> {

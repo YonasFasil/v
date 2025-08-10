@@ -44,24 +44,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Tenant Authentication
   app.post("/api/auth/tenant/login", async (req, res) => {
     try {
-      const { email, password, tenantDomain } = req.body;
+      const { email, password } = req.body;
       
       if (!email || !password) {
         return res.status(400).json({ message: "Email and password are required" });
       }
       
-      // Find tenant by domain or ID
-      let tenant;
-      if (tenantDomain) {
-        tenant = await storage.getTenantByDomain(tenantDomain);
-      }
-      
-      if (!tenant) {
-        return res.status(404).json({ message: "Tenant not found" });
-      }
-      
-      // Find tenant user
-      const tenantUser = await storage.getTenantUserByEmail(tenant.id, email);
+      // Find tenant user by email across all tenants
+      const tenantUser = storage.getTenantUserByEmailGlobal(email);
       if (!tenantUser) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
@@ -70,9 +60,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (tenantUser.password !== password) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
+
+      if (!tenantUser.isActive) {
+        return res.status(403).json({ message: "Account is deactivated" });
+      }
       
-      // Update last login
-      await storage.updateTenantUserLastLogin(tenantUser.id);
+      // Get tenant information
+      const tenant = await storage.getTenant(tenantUser.tenantId);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+
+      if (!tenant.isActive) {
+        return res.status(403).json({ message: "Tenant account is deactivated" });
+      }
+      
+      // Update last login (simplified for in-memory storage)
+      tenantUser.lastLoginAt = new Date();
       
       // Create session (simplified for demo)
       const session = {
