@@ -2072,77 +2072,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                       </Select>
                     </div>
 
-                    {/* Tax & Fee Configuration */}
-                    <div>
-                      <Label className="text-base font-medium">Taxes & Fees</Label>
-                      <div className="mt-3 space-y-4">
-                        {/* Available Taxes */}
-                        {(taxSettings as any[]).filter((item: any) => item.type === 'tax' && item.isActive).length > 0 && (
-                          <div>
-                            <Label className="text-sm font-medium text-slate-700 mb-2 block">Applied Taxes</Label>
-                            <div className="space-y-2 max-h-32 overflow-y-auto border rounded-md p-3 bg-white">
-                              {(taxSettings as any[])
-                                .filter((item: any) => item.type === 'tax' && item.isActive)
-                                .map((tax: any) => (
-                                  <div key={tax.id} className="flex items-center space-x-2">
-                                    <Checkbox
-                                      id={`tax-${tax.id}`}
-                                      checked={taxFeeOverrides.enabledTaxIds.includes(tax.id)}
-                                      onCheckedChange={(checked) => {
-                                        setTaxFeeOverrides(prev => ({
-                                          ...prev,
-                                          enabledTaxIds: checked
-                                            ? [...prev.enabledTaxIds, tax.id]
-                                            : prev.enabledTaxIds.filter(id => id !== tax.id)
-                                        }));
-                                      }}
-                                    />
-                                    <label htmlFor={`tax-${tax.id}`} className="text-sm flex-1 cursor-pointer">
-                                      {tax.name} ({tax.value}% {tax.applyTo})
-                                    </label>
-                                  </div>
-                                ))}
-                            </div>
-                          </div>
-                        )}
 
-                        {/* Available Fees */}
-                        {(taxSettings as any[]).filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive).length > 0 && (
-                          <div>
-                            <Label className="text-sm font-medium text-slate-700 mb-2 block">Applied Fees</Label>
-                            <div className="space-y-2 max-h-32 overflow-y-auto border rounded-md p-3 bg-white">
-                              {(taxSettings as any[])
-                                .filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive)
-                                .map((fee: any) => (
-                                  <div key={fee.id} className="flex items-center space-x-2">
-                                    <Checkbox
-                                      id={`fee-${fee.id}`}
-                                      checked={taxFeeOverrides.enabledFeeIds.includes(fee.id)}
-                                      onCheckedChange={(checked) => {
-                                        setTaxFeeOverrides(prev => ({
-                                          ...prev,
-                                          enabledFeeIds: checked
-                                            ? [...prev.enabledFeeIds, fee.id]
-                                            : prev.enabledFeeIds.filter(id => id !== fee.id)
-                                        }));
-                                      }}
-                                    />
-                                    <label htmlFor={`fee-${fee.id}`} className="text-sm flex-1 cursor-pointer">
-                                      {fee.name} (${fee.value} {fee.calculation === 'percentage' ? '%' : 'fixed'} {fee.applyTo})
-                                      {fee.isTaxable && <span className="text-orange-600 ml-1">• Taxable</span>}
-                                    </label>
-                                  </div>
-                                ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Help text */}
-                        <div className="text-xs text-slate-500 bg-blue-50 p-2 rounded">
-                          <strong>Note:</strong> Select which taxes and fees apply to this event. These settings override the default package/service configurations.
-                        </div>
-                      </div>
-                    </div>
                   </div>
 
                   {/* Event Summary */}
@@ -2182,23 +2112,66 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                       {/* Pricing Breakdown */}
                       <div className="border-t pt-3">
                         {(() => {
-                          // Calculate fees and taxes
+                          let subtotal = 0;
+                          let totalFees = 0;
+                          let totalTaxes = 0;
                           const appliedFees: any[] = [];
                           const appliedTaxes: any[] = [];
-                          let subtotal = 0;
 
-                          // Calculate subtotal from all dates
+                          // Calculate total across all dates using the new per-service tax override logic
                           selectedDates.forEach(date => {
                             // Package price
                             if (date.packageId) {
                               const pkg = (packages as any[])?.find((p: any) => p.id === date.packageId);
                               if (pkg) {
                                 const packagePrice = date.pricingOverrides?.packagePrice ?? parseFloat(pkg.price || 0);
+                                let packageSubtotal = 0;
                                 if (pkg.pricingModel === 'per_person') {
-                                  subtotal += packagePrice * (date.guestCount || 1);
+                                  packageSubtotal = packagePrice * (date.guestCount || 1);
                                 } else {
-                                  subtotal += packagePrice;
+                                  packageSubtotal = packagePrice;
                                 }
+                                subtotal += packageSubtotal;
+
+                                // Calculate package fees and taxes using serviceTaxOverrides
+                                const currentOverrides = date.serviceTaxOverrides?.[pkg.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+                                
+                                // Calculate effective fee IDs (inherited + additional - disabled)
+                                const inheritedFeeIds = pkg.enabledFeeIds || [];
+                                const additionalFeeIds = currentOverrides.enabledFeeIds || [];
+                                const disabledFeeIds = currentOverrides.disabledInheritedFeeIds || [];
+                                const effectiveFeeIds = [...inheritedFeeIds.filter((id: string) => !disabledFeeIds.includes(id)), ...additionalFeeIds];
+                                
+                                // Apply package fees
+                                effectiveFeeIds.forEach((feeId: string) => {
+                                  const fee = (taxSettings as any[])?.find(f => f.id === feeId);
+                                  if (fee && fee.isActive) {
+                                    let feeAmount = 0;
+                                    if (fee.calculation === 'percentage') {
+                                      feeAmount = packageSubtotal * (parseFloat(fee.value) / 100);
+                                    } else {
+                                      feeAmount = parseFloat(fee.value);
+                                    }
+                                    totalFees += feeAmount;
+                                    appliedFees.push({ name: fee.name, amount: feeAmount });
+                                  }
+                                });
+
+                                // Calculate effective tax IDs (inherited + additional - disabled)
+                                const inheritedTaxIds = pkg.enabledTaxIds || [];
+                                const additionalTaxIds = currentOverrides.enabledTaxIds || [];
+                                const disabledTaxIds = currentOverrides.disabledInheritedTaxIds || [];
+                                const effectiveTaxIds = [...inheritedTaxIds.filter((id: string) => !disabledTaxIds.includes(id)), ...additionalTaxIds];
+                                
+                                // Apply package taxes
+                                effectiveTaxIds.forEach((taxId: string) => {
+                                  const tax = (taxSettings as any[])?.find(t => t.id === taxId);
+                                  if (tax && tax.isActive) {
+                                    const taxAmount = packageSubtotal * (parseFloat(tax.value) / 100);
+                                    totalTaxes += taxAmount;
+                                    appliedTaxes.push({ name: tax.name, amount: taxAmount });
+                                  }
+                                });
                               }
                             }
                             
@@ -2207,53 +2180,59 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                               const service = (services as any[]).find((s: any) => s.id === serviceId);
                               if (service) {
                                 const servicePrice = date.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
+                                let serviceSubtotal = 0;
                                 if (service.pricingModel === 'per_person') {
-                                  subtotal += servicePrice * (date.guestCount || 1);
+                                  serviceSubtotal = servicePrice * (date.guestCount || 1);
                                 } else {
                                   const quantity = date.itemQuantities?.[serviceId] || 1;
-                                  subtotal += servicePrice * quantity;
+                                  serviceSubtotal = servicePrice * quantity;
                                 }
+                                subtotal += serviceSubtotal;
+
+                                // Calculate service fees and taxes using serviceTaxOverrides
+                                const currentOverrides = date.serviceTaxOverrides?.[serviceId] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+                                
+                                // Calculate effective fee IDs (inherited + additional - disabled)
+                                const inheritedFeeIds = service.enabledFeeIds || [];
+                                const additionalFeeIds = currentOverrides.enabledFeeIds || [];
+                                const disabledFeeIds = currentOverrides.disabledInheritedFeeIds || [];
+                                const effectiveFeeIds = [...inheritedFeeIds.filter((id: string) => !disabledFeeIds.includes(id)), ...additionalFeeIds];
+                                
+                                // Apply service fees
+                                effectiveFeeIds.forEach((feeId: string) => {
+                                  const fee = (taxSettings as any[])?.find(f => f.id === feeId);
+                                  if (fee && fee.isActive) {
+                                    let feeAmount = 0;
+                                    if (fee.calculation === 'percentage') {
+                                      feeAmount = serviceSubtotal * (parseFloat(fee.value) / 100);
+                                    } else {
+                                      feeAmount = parseFloat(fee.value);
+                                    }
+                                    totalFees += feeAmount;
+                                    appliedFees.push({ name: fee.name, amount: feeAmount });
+                                  }
+                                });
+
+                                // Calculate effective tax IDs (inherited + additional - disabled)
+                                const inheritedTaxIds = service.enabledTaxIds || [];
+                                const additionalTaxIds = currentOverrides.enabledTaxIds || [];
+                                const disabledTaxIds = currentOverrides.disabledInheritedTaxIds || [];
+                                const effectiveTaxIds = [...inheritedTaxIds.filter((id: string) => !disabledTaxIds.includes(id)), ...additionalTaxIds];
+                                
+                                // Apply service taxes
+                                effectiveTaxIds.forEach((taxId: string) => {
+                                  const tax = (taxSettings as any[])?.find(t => t.id === taxId);
+                                  if (tax && tax.isActive) {
+                                    const taxAmount = serviceSubtotal * (parseFloat(tax.value) / 100);
+                                    totalTaxes += taxAmount;
+                                    appliedTaxes.push({ name: tax.name, amount: taxAmount });
+                                  }
+                                });
                               }
                             });
                           });
 
-                          // Calculate fees
-                          (taxSettings as any[])?.forEach((fee: any) => {
-                            if ((fee.type === 'fee' || fee.type === 'service_charge') && 
-                                fee.isActive && 
-                                taxFeeOverrides.enabledFeeIds.includes(fee.id)) {
-                              
-                              let feeAmount = 0;
-                              if (fee.calculation === 'percentage') {
-                                feeAmount = subtotal * (parseFloat(fee.value) / 100);
-                              } else {
-                                feeAmount = parseFloat(fee.value);
-                              }
-                              
-                              appliedFees.push({
-                                name: fee.name,
-                                amount: feeAmount,
-                                isTaxable: fee.isTaxable
-                              });
-                            }
-                          });
-
-                          // Calculate taxes on subtotal + taxable fees
-                          const taxableBase = subtotal + appliedFees.filter(f => f.isTaxable).reduce((sum, f) => sum + f.amount, 0);
-                          
-                          (taxSettings as any[])?.forEach((tax: any) => {
-                            if (tax.type === 'tax' && 
-                                tax.isActive && 
-                                taxFeeOverrides.enabledTaxIds.includes(tax.id)) {
-                              
-                              const taxAmount = taxableBase * (parseFloat(tax.value) / 100);
-                              appliedTaxes.push({
-                                name: tax.name,
-                                amount: taxAmount
-                              });
-                            }
-                          });
-
+                          const grandTotal = subtotal + totalFees + totalTaxes;
                           const hasFeesOrTaxes = appliedFees.length > 0 || appliedTaxes.length > 0;
 
                           return (
@@ -2285,14 +2264,14 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                                   <div className="border-t pt-2 mt-2">
                                     <div className="flex justify-between font-semibold text-lg">
                                       <span>Grand Total:</span>
-                                      <span className="text-blue-700">${totalPrice.toFixed(2)}</span>
+                                      <span className="text-blue-700">${grandTotal.toFixed(2)}</span>
                                     </div>
                                   </div>
                                 </>
                               ) : (
                                 <div className="flex justify-between font-semibold text-lg">
                                   <span>Total Price:</span>
-                                  <span className="text-green-600">${totalPrice.toFixed(2)}</span>
+                                  <span className="text-green-600">${grandTotal.toFixed(2)}</span>
                                 </div>
                               )}
                             </>
