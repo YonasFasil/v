@@ -23,6 +23,8 @@ import VoiceBooking from "@/pages/voice-booking";
 import ProposalView from "@/pages/proposal-view";
 import Proposals from "@/pages/proposals";
 import SuperAdmin from "@/pages/super-admin";
+import TenantLogin from "@/pages/tenant-login";
+import TenantDashboard from "@/pages/tenant-dashboard";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -40,6 +42,8 @@ function Router() {
     return (
       <Switch>
         <Route path="/login" component={LoginSelect} />
+        <Route path="/tenant/login" component={TenantLogin} />
+        <Route path="/tenant/dashboard" component={TenantDashboard} />
         <Route component={LoginSelect} />
       </Switch>
     );
@@ -59,6 +63,8 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={LoginSelect} />
+      <Route path="/tenant/login" component={TenantLogin} />
+      <Route path="/tenant/dashboard" component={TenantDashboard} />
       <Route path="/">
         {() => (
           <FeatureGate feature="dashboard">

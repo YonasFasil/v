@@ -447,6 +447,14 @@ export type InsertLeadTask = z.infer<typeof insertLeadTaskSchema>;
 export type Tour = typeof tours.$inferSelect;
 export type InsertTour = z.infer<typeof insertTourSchema>;
 
+// Tenant system types
+export type Tenant = typeof tenants.$inferSelect;
+export type InsertTenant = z.infer<typeof insertTenantSchema>;
+export type TenantUser = typeof tenantUsers.$inferSelect;
+export type InsertTenantUser = z.infer<typeof insertTenantUserSchema>;
+export type SuperAdmin = typeof superAdmins.$inferSelect;
+export type FeaturePackage = typeof featurePackages.$inferSelect;
+
 // ================================
 // SUPER ADMIN MULTI-TENANT SYSTEM
 // ================================

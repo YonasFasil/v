@@ -22,7 +22,9 @@ import {
   insertLeadActivitySchema,
   insertLeadTaskSchema,
   insertTourSchema,
-  insertTenantUserSchema
+  insertTenantUserSchema,
+  insertTenantSchema,
+  insertSuperAdminSchema
 } from "@shared/schema";
 import { 
   generateAIInsights,
@@ -35,6 +37,156 @@ import {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // ===============================
+  // AUTHENTICATION ROUTES
+  // ===============================
+  
+  // Tenant Authentication
+  app.post("/api/auth/tenant/login", async (req, res) => {
+    try {
+      const { email, password, tenantDomain } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+      
+      // Find tenant by domain or ID
+      let tenant;
+      if (tenantDomain) {
+        tenant = await storage.getTenantByDomain(tenantDomain);
+      }
+      
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+      
+      // Find tenant user
+      const tenantUser = await storage.getTenantUserByEmail(tenant.id, email);
+      if (!tenantUser) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // Verify password (in production, use proper password hashing)
+      if (tenantUser.password !== password) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // Update last login
+      await storage.updateTenantUserLastLogin(tenantUser.id);
+      
+      // Create session (simplified for demo)
+      const session = {
+        tenantId: tenant.id,
+        userId: tenantUser.id,
+        userRole: tenantUser.role,
+        tenantName: tenant.name,
+        packageFeatures: await storage.getCurrentTenantPackageFeatures(tenant.id)
+      };
+      
+      res.json({ 
+        success: true, 
+        session,
+        tenant: {
+          id: tenant.id,
+          name: tenant.name,
+          status: tenant.status,
+          packageId: tenant.packageId
+        },
+        user: {
+          id: tenantUser.id,
+          name: tenantUser.name,
+          email: tenantUser.email,
+          role: tenantUser.role
+        }
+      });
+    } catch (error) {
+      console.error("Tenant login error:", error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+  
+  // Super Admin Authentication
+  app.post("/api/auth/super-admin/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+      
+      const superAdmin = await storage.getSuperAdminByEmail(email);
+      if (!superAdmin) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // Verify password (in production, use proper password hashing)
+      if (superAdmin.password !== password) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // Update last login
+      await storage.updateSuperAdminLastLogin(superAdmin.id);
+      
+      res.json({ 
+        success: true, 
+        session: {
+          userId: superAdmin.id,
+          userRole: "super_admin",
+          userName: superAdmin.name
+        },
+        user: {
+          id: superAdmin.id,
+          name: superAdmin.name,
+          email: superAdmin.email,
+          role: superAdmin.role
+        }
+      });
+    } catch (error) {
+      console.error("Super admin login error:", error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+  
+  // Create tenant admin user when tenant is created
+  app.post("/api/auth/tenant/setup", async (req, res) => {
+    try {
+      const { tenantId, adminEmail, adminPassword, adminName } = req.body;
+      
+      if (!tenantId || !adminEmail || !adminPassword || !adminName) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+      
+      const tenant = await storage.getTenant(tenantId);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+      
+      // Create admin user for the tenant
+      const adminUser = await storage.createTenantUser({
+        tenantId: tenantId,
+        email: adminEmail,
+        password: adminPassword, // In production, hash this
+        name: adminName,
+        role: "admin",
+        isActive: true
+      });
+      
+      res.status(201).json({ 
+        success: true, 
+        message: "Tenant admin user created successfully",
+        user: {
+          id: adminUser.id,
+          name: adminUser.name,
+          email: adminUser.email,
+          role: adminUser.role
+        }
+      });
+    } catch (error) {
+      console.error("Tenant setup error:", error);
+      res.status(500).json({ message: "Failed to setup tenant" });
+    }
+  });
+
   // Venues
   app.get("/api/venues", async (req, res) => {
     try {

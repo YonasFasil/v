@@ -270,6 +270,7 @@ export class MemStorage implements IStorage {
   private leadTags: Set<string>; // Store leadId:tagId combinations
   private tenants: Map<string, Tenant>; // Store tenant data
   private tenantUsers: Map<string, TenantUser>; // Store tenant user data
+  private superAdmins: Map<string, any>; // Store super admin data
   private featurePackages: Map<string, FeaturePackage>; // Store feature packages
 
 
@@ -301,6 +302,7 @@ export class MemStorage implements IStorage {
     this.leadTags = new Set();
     this.tenants = new Map();
     this.tenantUsers = new Map();
+    this.superAdmins = new Map();
     this.featurePackages = new Map();
 
 
@@ -350,7 +352,7 @@ export class MemStorage implements IStorage {
         id: "user1",
         tenantId: "main-account",
         email: "john@venuineevents.com",
-        password: "hashed_password",
+        password: "demo123", // Demo password for tenant login
         name: "John Doe",
         role: "admin",
         permissions: {},
@@ -366,7 +368,7 @@ export class MemStorage implements IStorage {
         id: "user2",
         tenantId: "main-account", 
         email: "jane@venuineevents.com",
-        password: "hashed_password",
+        password: "demo123", // Demo password for tenant login
         name: "Jane Smith",
         role: "staff",
         permissions: {},
@@ -2503,6 +2505,65 @@ export class MemStorage implements IStorage {
     const featurePackage = allPackages.find(pkg => pkg.id === tenant.packageId);
     
     return featurePackage?.features || {};
+  }
+
+  // Tenant Authentication Methods
+  async getTenantByDomain(domain: string): Promise<any> {
+    // For now, return the main account since we don't have domain routing yet
+    // In production, this would search by subdomain or customDomain
+    return this.tenants.get("main-account");
+  }
+
+  async getTenantUserByEmail(tenantId: string, email: string): Promise<any> {
+    // Find tenant user by email within the specific tenant
+    for (const user of this.tenantUsers.values()) {
+      if (user.tenantId === tenantId && user.email === email) {
+        return user;
+      }
+    }
+    return null;
+  }
+
+  async updateTenantUserLastLogin(userId: string): Promise<void> {
+    const user = this.tenantUsers.get(userId);
+    if (user) {
+      user.lastLoginAt = new Date();
+      this.tenantUsers.set(userId, user);
+    }
+  }
+
+  async getSuperAdminByEmail(email: string): Promise<any> {
+    // For demo purposes, create a default super admin if it doesn't exist
+    for (const admin of this.superAdmins.values()) {
+      if (admin.email === email) {
+        return admin;
+      }
+    }
+    
+    // Create default super admin for demo
+    if (email === "superadmin@venuine.com") {
+      const defaultSuperAdmin = {
+        id: "super-admin-1",
+        email: "superadmin@venuine.com", 
+        password: "admin123", // In production, hash this
+        name: "Super Administrator",
+        role: "super_admin",
+        isActive: true,
+        createdAt: new Date()
+      };
+      this.superAdmins.set(defaultSuperAdmin.id, defaultSuperAdmin);
+      return defaultSuperAdmin;
+    }
+    
+    return null;
+  }
+
+  async updateSuperAdminLastLogin(adminId: string): Promise<void> {
+    const admin = this.superAdmins.get(adminId);
+    if (admin) {
+      admin.lastLoginAt = new Date();
+      this.superAdmins.set(adminId, admin);
+    }
   }
 
   // Feature Package Management

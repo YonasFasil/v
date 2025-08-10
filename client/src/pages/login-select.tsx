@@ -155,6 +155,26 @@ export default function LoginSelect() {
             </div>
           )}
         </div>
+
+        {/* Tenant Login Section */}
+        <div className="mt-6 pt-6 border-t border-slate-200">
+          <div className="text-center">
+            <p className="text-sm text-slate-600 mb-4 font-medium">
+              Multi-Tenant Login
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => setLocation("/tenant/login")}
+              className="w-full max-w-md mx-auto border-slate-300 hover:border-blue-500 hover:text-blue-600"
+            >
+              <Building2 className="h-4 w-4 mr-2" />
+              Tenant Account Login
+            </Button>
+            <p className="text-xs text-slate-500 mt-2">
+              For tenant accounts created by Super Admin
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
