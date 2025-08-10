@@ -86,10 +86,15 @@ export default function Settings() {
     },
     integrations: {
       stripeConnected: false,
-      emailProvider: "sendgrid",
+      emailProvider: "gmail",
       smsProvider: "twilio",
       calendarSync: "google",
-      analyticsEnabled: true
+      analyticsEnabled: true,
+      gmailSettings: {
+        email: "",
+        appPassword: "",
+        isConfigured: false
+      }
     },
     security: {
       sessionTimeout: 60,
@@ -611,6 +616,7 @@ export default function Settings() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="gmail">Gmail</SelectItem>
                           <SelectItem value="sendgrid">SendGrid</SelectItem>
                           <SelectItem value="mailgun">Mailgun</SelectItem>
                           <SelectItem value="resend">Resend</SelectItem>
@@ -618,6 +624,99 @@ export default function Settings() {
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {/* Gmail Configuration - Show when Gmail is selected */}
+                    {formData.integrations.emailProvider === "gmail" && (
+                      <div className="p-4 border rounded-lg bg-blue-50">
+                        <div className="flex items-center gap-3 mb-4">
+                          <Mail className="w-5 h-5 text-blue-600" />
+                          <div>
+                            <h4 className="font-medium text-blue-900">Gmail Configuration</h4>
+                            <p className="text-sm text-blue-700">Set up Gmail to send proposals directly from your system</p>
+                          </div>
+                          <Badge variant={formData.integrations.gmailSettings?.isConfigured ? "default" : "secondary"}>
+                            {formData.integrations.gmailSettings?.isConfigured ? "Configured" : "Not Configured"}
+                          </Badge>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="gmailEmail">Gmail Address</Label>
+                            <Input
+                              id="gmailEmail"
+                              type="email"
+                              placeholder="your-business@gmail.com"
+                              value={formData.integrations.gmailSettings?.email || ""}
+                              onChange={(e) => updateFormData("integrations", "gmailSettings", {
+                                ...formData.integrations.gmailSettings,
+                                email: e.target.value
+                              })}
+                            />
+                            <p className="text-xs text-blue-600">Use your business Gmail account that will send proposals</p>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="gmailAppPassword">App Password</Label>
+                            <Input
+                              id="gmailAppPassword"
+                              type="password"
+                              placeholder="Enter 16-character app password"
+                              value={formData.integrations.gmailSettings?.appPassword || ""}
+                              onChange={(e) => updateFormData("integrations", "gmailSettings", {
+                                ...formData.integrations.gmailSettings,
+                                appPassword: e.target.value
+                              })}
+                            />
+                            <div className="text-xs text-blue-600 space-y-1">
+                              <p>• Go to your Google Account settings</p>
+                              <p>• Enable 2-factor authentication</p>
+                              <p>• Generate an App Password for "Mail"</p>
+                              <p>• Use the 16-character password here (not your regular Gmail password)</p>
+                            </div>
+                          </div>
+                          
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={async () => {
+                              if (formData.integrations.gmailSettings?.email && formData.integrations.gmailSettings?.appPassword) {
+                                try {
+                                  await fetch('/api/gmail/test', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                      email: formData.integrations.gmailSettings.email,
+                                      appPassword: formData.integrations.gmailSettings.appPassword
+                                    })
+                                  });
+                                  
+                                  updateFormData("integrations", "gmailSettings", {
+                                    ...formData.integrations.gmailSettings,
+                                    isConfigured: true
+                                  });
+                                  
+                                  toast({
+                                    title: "Gmail Connected!",
+                                    description: "Your Gmail account is now ready to send proposals.",
+                                    variant: "default"
+                                  });
+                                } catch (error: any) {
+                                  toast({
+                                    title: "Connection Failed",
+                                    description: error.message || "Please check your Gmail credentials and try again.",
+                                    variant: "destructive"
+                                  });
+                                }
+                              }
+                            }}
+                            disabled={!formData.integrations.gmailSettings?.email || !formData.integrations.gmailSettings?.appPassword}
+                          >
+                            <Check className="w-4 h-4 mr-2" />
+                            Test Gmail Connection
+                          </Button>
+                        </div>
+                      </div>
+                    )}
 
                     {/* API Keys Section */}
                     <div className="space-y-4">

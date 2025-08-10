@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { EmailService } from "./services/email";
+import { gmailService } from "./services/gmail";
 import { 
   insertBookingSchema, 
   insertCustomerSchema, 
@@ -1814,6 +1815,18 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
         predictiveAnalytics: false,
         aiChatAssistant: true,
         contentGeneration: false
+      },
+      integrations: {
+        stripeConnected: false,
+        emailProvider: "gmail",
+        smsProvider: "twilio",
+        calendarSync: "google",
+        analyticsEnabled: true,
+        gmailSettings: {
+          email: "",
+          appPassword: "",
+          isConfigured: false
+        }
       }
     });
   });
@@ -1842,6 +1855,72 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
       res.json({ success: true, message: "AI settings saved" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/settings/integrations", async (req, res) => {
+    try {
+      console.log('Saving integration settings:', req.body);
+      
+      // Configure Gmail if settings provided
+      if (req.body.emailProvider === "gmail" && req.body.gmailSettings) {
+        const { email, appPassword } = req.body.gmailSettings;
+        if (email && appPassword) {
+          gmailService.configure({ email, appPassword });
+        }
+      }
+      
+      res.json({ success: true, message: "Integration settings saved" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Gmail test connection endpoint
+  app.post("/api/gmail/test", async (req, res) => {
+    try {
+      const { email, appPassword } = req.body;
+      
+      if (!email || !appPassword) {
+        return res.status(400).json({ message: "Email and app password are required" });
+      }
+
+      // Configure Gmail temporarily for testing
+      gmailService.configure({ email, appPassword });
+      
+      const isWorking = await gmailService.testConnection();
+      
+      if (isWorking) {
+        res.json({ success: true, message: "Gmail connection successful!" });
+      } else {
+        res.status(400).json({ message: "Gmail connection failed. Please check your credentials." });
+      }
+    } catch (error: any) {
+      res.status(400).json({ message: `Gmail test failed: ${error.message}` });
+    }
+  });
+
+  // Send proposal via Gmail
+  app.post("/api/gmail/send-proposal", async (req, res) => {
+    try {
+      const { to, customerName, proposalContent, totalAmount, validUntil, companyName } = req.body;
+      
+      if (!gmailService.isConfigured()) {
+        return res.status(400).json({ message: "Gmail not configured. Please set up Gmail credentials in Settings > Integrations." });
+      }
+
+      await gmailService.sendProposal({
+        to,
+        customerName,
+        proposalContent,
+        totalAmount,
+        validUntil,
+        companyName
+      });
+
+      res.json({ success: true, message: "Proposal sent successfully!" });
+    } catch (error: any) {
+      res.status(400).json({ message: `Failed to send proposal: ${error.message}` });
     }
   });
 
