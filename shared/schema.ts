@@ -1,7 +1,82 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, decimal, timestamp, boolean, jsonb, uuid, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from "drizzle-orm";
+
+// Multi-tenant infrastructure
+export const superAdmins = pgTable("super_admins", {
+  userId: varchar("user_id").primaryKey(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const tenants = pgTable("tenants", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  // Billing fields
+  planSlug: text("plan_slug"),
+  status: text("status").notNull().default("active"), // active, past_due, canceled, suspended
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  trialEnd: timestamp("trial_end"),
+  // Connect fields
+  stripeConnectAccountId: text("stripe_connect_account_id"),
+  connectStatus: text("connect_status").default("pending"), // pending, complete, restricted
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  slugIdx: index("tenants_slug_idx").on(table.slug),
+  customerIdx: index("tenants_stripe_customer_idx").on(table.stripeCustomerId),
+}));
+
+export const featurePackages = pgTable("feature_packages", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  status: text("status").notNull().default("draft"), // draft, active, archived
+  billingModes: jsonb("billing_modes").notNull(), // { monthly: { amount, currency }, yearly?: { amount, currency } }
+  stripeProductId: text("stripe_product_id"),
+  stripePriceIds: jsonb("stripe_price_ids"), // { monthly?: string, yearly?: string }
+  limits: jsonb("limits").notNull(), // { venues, spacesPerVenue, staff, monthlyBookings }
+  flags: jsonb("flags").notNull().default('{}'), // feature toggles
+  trialDays: integer("trial_days"),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  slugIdx: uniqueIndex("feature_packages_slug_idx").on(table.slug),
+  statusIdx: index("feature_packages_status_idx").on(table.status),
+}));
+
+export const tenantUsers = pgTable("tenant_users", {
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  role: text("role").notNull().default("staff"), // admin, staff, viewer
+  permissions: jsonb("permissions").notNull().default('{}'), // allowlist permissions
+  scopes: jsonb("scopes").notNull().default('{}'), // optional scope restrictions
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  pk: uniqueIndex("tenant_users_pk").on(table.tenantId, table.userId),
+  tenantIdx: index("tenant_users_tenant_idx").on(table.tenantId),
+  userIdx: index("tenant_users_user_idx").on(table.userId),
+}));
+
+export const auditLogs = pgTable("audit_logs", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  actorUserId: varchar("actor_user_id").references(() => users.id),
+  tenantId: uuid("tenant_id").references(() => tenants.id),
+  action: text("action").notNull(),
+  entity: text("entity").notNull(),
+  meta: jsonb("meta"),
+  ip: text("ip"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  tenantIdx: index("audit_logs_tenant_idx").on(table.tenantId),
+  actorIdx: index("audit_logs_actor_idx").on(table.actorUserId),
+  createdIdx: index("audit_logs_created_idx").on(table.createdAt),
+}));
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -10,16 +85,12 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   email: text("email").notNull(),
   role: text("role").notNull().default("manager"),
-  stripeAccountId: text("stripe_account_id"), // Stripe Connect account ID
-  stripeAccountStatus: text("stripe_account_status"), // pending, active, restricted, etc.
-  stripeOnboardingCompleted: boolean("stripe_onboarding_completed").default(false),
-  stripeChargesEnabled: boolean("stripe_charges_enabled").default(false),
-  stripePayoutsEnabled: boolean("stripe_payouts_enabled").default(false),
-  stripeConnectedAt: timestamp("stripe_connected_at"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const venues = pgTable("venues", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   description: text("description"),
   capacity: integer("capacity").notNull(),
@@ -27,10 +98,13 @@ export const venues = pgTable("venues", {
   amenities: text("amenities").array(),
   imageUrl: text("image_url"),
   isActive: boolean("is_active").default(true),
-});
+}, (table) => ({
+  tenantIdx: index("venues_tenant_idx").on(table.tenantId),
+}));
 
 export const setupStyles = pgTable("setup_styles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   description: text("description"),
   iconName: text("icon_name"), // Lucide icon name for UI display
@@ -40,10 +114,13 @@ export const setupStyles = pgTable("setup_styles", {
   floorPlan: jsonb("floor_plan"), // 2D floor plan configuration showing the layout for this setup style
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  tenantIdx: index("setup_styles_tenant_idx").on(table.tenantId),
+}));
 
 export const spaces = pgTable("spaces", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   venueId: varchar("venue_id").references(() => venues.id).notNull(),
   name: text("name").notNull(),
   description: text("description"),
@@ -55,10 +132,14 @@ export const spaces = pgTable("spaces", {
   floorPlan: jsonb("floor_plan"), // 2D floor plan configuration with elements, furniture, etc.
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  tenantIdx: index("spaces_tenant_idx").on(table.tenantId),
+  venueIdx: index("spaces_venue_idx").on(table.venueId),
+}));
 
 export const customers = pgTable("customers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone"),
@@ -67,21 +148,29 @@ export const customers = pgTable("customers", {
   status: text("status").notNull().default("lead"), // lead, customer, inactive
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  tenantIdx: index("customers_tenant_idx").on(table.tenantId),
+  emailIdx: index("customers_email_idx").on(table.email),
+}));
 
 // Contract table to group multiple events together
 export const contracts = pgTable("contracts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   customerId: varchar("customer_id").references(() => customers.id).notNull(),
   contractName: text("contract_name").notNull(),
   status: text("status").notNull().default("draft"), // draft, active, completed, cancelled
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  tenantIdx: index("contracts_tenant_idx").on(table.tenantId),
+  customerIdx: index("contracts_customer_idx").on(table.customerId),
+}));
 
 export const bookings = pgTable("bookings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   contractId: varchar("contract_id").references(() => contracts.id), // Link to contract
   eventName: text("event_name").notNull(),
   eventType: text("event_type").notNull(),
@@ -119,10 +208,15 @@ export const bookings = pgTable("bookings", {
   cancelledBy: varchar("cancelled_by").references(() => users.id),
   completedAt: timestamp("completed_at"), // Auto-set when event date passes and fully paid
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  tenantIdx: index("bookings_tenant_idx").on(table.tenantId),
+  customerIdx: index("bookings_customer_idx").on(table.customerId),
+  dateIdx: index("bookings_date_idx").on(table.eventDate),
+}));
 
 export const proposals = pgTable("proposals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   bookingId: varchar("booking_id").references(() => bookings.id),
   customerId: varchar("customer_id").references(() => customers.id),
   title: text("title").notNull(),
@@ -154,19 +248,26 @@ export const proposals = pgTable("proposals", {
   guestCount: integer("guest_count"),
   venueId: varchar("venue_id").references(() => venues.id),
   spaceId: varchar("space_id").references(() => spaces.id),
-});
+}, (table) => ({
+  tenantIdx: index("proposals_tenant_idx").on(table.tenantId),
+  customerIdx: index("proposals_customer_idx").on(table.customerId),
+}));
 
 // Settings table for deposit configuration
 export const settings = pgTable("settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  key: text("key").notNull().unique(),
+  tenantId: uuid("tenant_id").references(() => tenants.id),
+  key: text("key").notNull(),
   value: jsonb("value").notNull(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  tenantKeyIdx: index("settings_tenant_key_idx").on(table.tenantId, table.key),
+}));
 
 // Communication tracking
 export const communications = pgTable("communications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   bookingId: varchar("booking_id").references(() => bookings.id),
   customerId: varchar("customer_id").references(() => customers.id),
   type: text("type").notNull(), // email, sms, call, internal
@@ -177,10 +278,13 @@ export const communications = pgTable("communications", {
   sentAt: timestamp("sent_at").defaultNow(),
   readAt: timestamp("read_at"),
   status: text("status").default("sent"), // sent, delivered, read, failed
-});
+}, (table) => ({
+  tenantIdx: index("communications_tenant_idx").on(table.tenantId),
+}));
 
 export const payments = pgTable("payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   bookingId: varchar("booking_id").references(() => bookings.id),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   paymentType: text("payment_type").notNull(), // deposit, final, refund
@@ -189,10 +293,13 @@ export const payments = pgTable("payments", {
   transactionId: text("transaction_id"),
   processedAt: timestamp("processed_at"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  tenantIdx: index("payments_tenant_idx").on(table.tenantId),
+}));
 
 export const tasks = pgTable("tasks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   title: text("title").notNull(),
   description: text("description"),
   assignedTo: varchar("assigned_to").references(() => users.id),
@@ -201,10 +308,13 @@ export const tasks = pgTable("tasks", {
   priority: text("priority").notNull().default("medium"), // low, medium, high, urgent
   status: text("status").notNull().default("pending"), // pending, in_progress, completed
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  tenantIdx: index("tasks_tenant_idx").on(table.tenantId),
+}));
 
 export const aiInsights = pgTable("ai_insights", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   type: text("type").notNull(), // recommendation, prediction, analysis
   title: text("title").notNull(),
   description: text("description").notNull(),
@@ -212,10 +322,13 @@ export const aiInsights = pgTable("ai_insights", {
   priority: text("priority").notNull().default("medium"),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  tenantIdx: index("ai_insights_tenant_idx").on(table.tenantId),
+}));
 
 export const packages = pgTable("packages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   description: text("description"),
   category: text("category").notNull(), // wedding, corporate, social, etc.
@@ -227,10 +340,13 @@ export const packages = pgTable("packages", {
   enabledFeeIds: text("enabled_fee_ids").array(), // Which fees apply to this package
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  tenantIdx: index("packages_tenant_idx").on(table.tenantId),
+}));
 
 export const services = pgTable("services", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   description: text("description"),
   category: text("category").notNull(), // catering, entertainment, decor, etc.
@@ -240,11 +356,14 @@ export const services = pgTable("services", {
   enabledFeeIds: text("enabled_fee_ids").array(), // Which fees apply to this service
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  tenantIdx: index("services_tenant_idx").on(table.tenantId),
+}));
 
 // Tax and fees configuration
 export const taxSettings = pgTable("tax_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   type: text("type").notNull(), // 'tax', 'fee', 'service_charge'
   calculation: text("calculation").notNull(), // 'percentage', 'fixed'
@@ -255,26 +374,37 @@ export const taxSettings = pgTable("tax_settings", {
   applicableTaxIds: text("applicable_tax_ids").array(), // Array of tax IDs that apply to this fee
   description: text("description"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  tenantIdx: index("tax_settings_tenant_idx").on(table.tenantId),
+}));
 
 // Lead management system
 export const campaignSources = pgTable("campaign_sources", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
-  slug: text("slug").notNull().unique(),
+  slug: text("slug").notNull(),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  tenantIdx: index("campaign_sources_tenant_idx").on(table.tenantId),
+  tenantSlugIdx: uniqueIndex("campaign_sources_tenant_slug_idx").on(table.tenantId, table.slug),
+}));
 
 export const tags = pgTable("tags", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull().unique(),
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
+  name: text("name").notNull(),
   color: text("color").notNull().default("#3b82f6"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  tenantIdx: index("tags_tenant_idx").on(table.tenantId),
+  tenantNameIdx: uniqueIndex("tags_tenant_name_idx").on(table.tenantId, table.name),
+}));
 
 export const leads = pgTable("leads", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   venueId: varchar("venue_id").references(() => venues.id),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
@@ -299,17 +429,25 @@ export const leads = pgTable("leads", {
   proposalId: varchar("proposal_id").references(() => proposals.id), // Link to sent proposal
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  tenantIdx: index("leads_tenant_idx").on(table.tenantId),
+  emailIdx: index("leads_email_idx").on(table.email),
+  statusIdx: index("leads_status_idx").on(table.status),
+}));
 
 export const leadActivities = pgTable("lead_activities", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   leadId: varchar("lead_id").references(() => leads.id).notNull(),
   type: text("type").notNull(), // NOTE, EMAIL, SMS, CALL, STATUS_CHANGE, TOUR_SCHEDULED
   body: text("body").notNull(),
   meta: jsonb("meta"), // Additional data like email template used, etc.
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  tenantIdx: index("lead_activities_tenant_idx").on(table.tenantId),
+  leadIdx: index("lead_activities_lead_idx").on(table.leadId),
+}));
 
 export const leadTags = pgTable("lead_tags", {
   leadId: varchar("lead_id").references(() => leads.id).notNull(),
@@ -318,6 +456,7 @@ export const leadTags = pgTable("lead_tags", {
 
 export const leadTasks = pgTable("lead_tasks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   leadId: varchar("lead_id").references(() => leads.id).notNull(),
   title: text("title").notNull(),
   description: text("description"),
@@ -325,10 +464,14 @@ export const leadTasks = pgTable("lead_tasks", {
   assignedTo: varchar("assigned_to").references(() => users.id),
   status: text("status").notNull().default("OPEN"), // OPEN, DONE
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  tenantIdx: index("lead_tasks_tenant_idx").on(table.tenantId),
+  leadIdx: index("lead_tasks_lead_idx").on(table.leadId),
+}));
 
 export const tours = pgTable("tours", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   leadId: varchar("lead_id").references(() => leads.id).notNull(),
   venueId: varchar("venue_id").references(() => venues.id).notNull(),
   scheduledAt: timestamp("scheduled_at").notNull(),
@@ -338,10 +481,18 @@ export const tours = pgTable("tours", {
   notes: text("notes"),
   conductedBy: varchar("conducted_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  tenantIdx: index("tours_tenant_idx").on(table.tenantId),
+  leadIdx: index("tours_lead_idx").on(table.leadId),
+}));
 
 // Insert schemas
-export const insertUserSchema = createInsertSchema(users).omit({ id: true });
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
+export const insertSuperAdminSchema = createInsertSchema(superAdmins).omit({ createdAt: true });
+export const insertTenantSchema = createInsertSchema(tenants).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertFeaturePackageSchema = createInsertSchema(featurePackages).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertTenantUserSchema = createInsertSchema(tenantUsers).omit({ createdAt: true });
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
 export const insertVenueSchema = createInsertSchema(venues).omit({ id: true });
 export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true });
 export const insertContractSchema = createInsertSchema(contracts).omit({ id: true, createdAt: true, updatedAt: true });
@@ -396,9 +547,18 @@ export const insertTourSchema = createInsertSchema(tours).omit({ id: true, creat
 
 // Types
 export type User = typeof users.$inferSelect;
-
+export type SuperAdmin = typeof superAdmins.$inferSelect;
+export type Tenant = typeof tenants.$inferSelect;
+export type FeaturePackage = typeof featurePackages.$inferSelect;
+export type TenantUser = typeof tenantUsers.$inferSelect;
+export type AuditLog = typeof auditLogs.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertSuperAdmin = z.infer<typeof insertSuperAdminSchema>;
+export type InsertTenant = z.infer<typeof insertTenantSchema>;
+export type InsertFeaturePackage = z.infer<typeof insertFeaturePackageSchema>;
+export type InsertTenantUser = z.infer<typeof insertTenantUserSchema>;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type Venue = typeof venues.$inferSelect;
 export type InsertVenue = z.infer<typeof insertVenueSchema>;
 export type Customer = typeof customers.$inferSelect;

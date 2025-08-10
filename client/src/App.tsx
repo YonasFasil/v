@@ -15,6 +15,7 @@ import SetupStyles from "@/pages/setup-styles";
 import Packages from "@/pages/packages";
 import Settings from "@/pages/settings";
 import AIAnalytics from "@/pages/ai-analytics";
+import SuperAdminDashboard from "@/pages/superadmin/SuperAdminDashboard";
 import Reports from "@/pages/reports";
 import VoiceBooking from "@/pages/voice-booking";
 import ProposalView from "@/pages/proposal-view";
@@ -39,6 +40,7 @@ function Router() {
       <Route path="/settings" component={Settings} />
       <Route path="/proposals" component={Proposals} />
       <Route path="/proposal/:proposalId" component={ProposalView} />
+      <Route path="/superadmin" component={SuperAdminDashboard} />
       <Route component={NotFound} />
     </Switch>
   );

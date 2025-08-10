@@ -1,6 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { tenantContext, type TenantRequest } from "./middleware/tenantContext";
+import { registerSuperAdminRoutes } from "./routes/superadmin";
 import { EmailService } from "./services/email";
 import { gmailService } from "./services/gmail";
 import { NotificationService } from "./services/notification";
@@ -33,6 +35,11 @@ import {
 } from "./services/gemini";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Apply tenant context middleware to all routes
+  app.use(tenantContext);
+
+  // Register superadmin routes
+  registerSuperAdminRoutes(app);
   
   // Venues
   app.get("/api/venues", async (req, res) => {

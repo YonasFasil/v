@@ -1,0 +1,278 @@
+Goal: Extend the existing VENUIN app to add:
+
+Superadmin + multi-tenant management
+
+Superadmin-defined plans (no predefined tiers) with Stripe Billing (platform charges tenants)
+
+Stripe Connect for tenants to collect from their own clients
+
+Public website + pricing (from API) + signup → Checkout → tenant provisioning
+
+Tenant staff permissions (e.g., allow only events:create)
+
+Server-side plan limit enforcement and status gates
+
+Keep all current features/flows intact
+
+0) Stack (already in project)
+Frontend: React 18 + TS, Vite, Wouter, TanStack Query v5, shadcn/ui (Radix), RHF + Zod, Tailwind, Lucide
+Backend: Node + Express (TS), Drizzle + Postgres (Neon), connect-pg-simple sessions
+Integrations: Google Gemini, Gmail
+Existing: Full venue app + REST API, Stripe Connect for tenant client payments
+
+1) Dual Stripe model (critical)
+Implement two separate money flows in ONE Stripe platform account:
+
+A) Platform Billing (YOU ⇄ TENANTS): Stripe Billing
+
+Tenants are Customers in your Stripe account
+
+Products/Prices = your SaaS plans
+
+Checkout + Customer Portal + Billing webhooks
+
+Money → your bank
+
+B) Tenant Client Payments (TENANTS ⇄ THEIR CLIENTS): Stripe Connect
+
+Tenants onboard to a connected account (Express or Standard)
+
+Event/deposit/balance payments charge in the tenant’s connected account
+
+Money → tenant’s bank
+
+Optional application_fee_amount for platform fee (if Express/Custom)
+
+Keep existing Connect logic for event payments; just add Billing for subscriptions.
+
+2) Data model (Drizzle migrations)
+Create/extend tables (with indexes):
+
+superAdmins
+
+userId (PK/unique)
+
+tenants
+
+id (uuid), name, slug (unique)
+
+Billing fields: planSlug (nullable), status enum(active|past_due|canceled|suspended), stripeCustomerId, stripeSubscriptionId, trialEnd (timestamp null)
+
+Connect fields: stripeConnectAccountId (nullable), connectStatus (pending|complete|restricted)
+
+createdAt, updatedAt
+
+tenantUsers
+
+tenantId, userId, role enum(admin|staff|viewer),
+
+permissions JSONB default {}, scopes JSONB default {}
+
+unique (tenantId, userId)
+
+featurePackages (Superadmin-defined plans; no predefined tiers)
+
+id (uuid), name, slug (unique), status enum(draft|active|archived)
+
+billingModes JSON: { monthly: { amount, currency }, yearly?: { amount, currency } }
+
+stripeProductId (nullable), stripePriceIds JSON { monthly?: string, yearly?: string }
+
+limits JSON (e.g., { venues, spacesPerVenue, staff, monthlyBookings })
+
+flags JSON (feature toggles)
+
+trialDays int (nullable), sortOrder int, timestamps
+
+auditLogs
+
+id (uuid), actorUserId, tenantId (nullable), action, entity, meta JSON, ip, userAgent, createdAt
+
+3) Bootstrap & middleware
+First-run bootstrap: If no row in superAdmins, expose /bootstrap once to create the initial superadmin, then lock the route.
+
+Add global middleware:
+
+authGuard() – requires session
+
+tenantGuard() – resolves tenant context by path /t/:tenantSlug/* or stored selection; attaches req.tenant
+
+roleGuard(required) – checks superadmin vs tenant role
+
+statusGate() – enforces active/past_due/canceled/suspended (read-only vs billing-only)
+
+planEnforcer() – server-side limits from featurePackages.limits
+
+permissionGuard(requiredPermission, optionalScopeCheck) – staff permission allowlist
+
+auditLogger() – logs sensitive actions
+
+Tenant scoping: All business routes (venues, spaces, bookings, customers, proposals, contracts, payments, etc.) must require tenantGuard and filter by tenantId. Block any cross-tenant ID access.
+
+4) Superadmin console (/super-admin/*)
+Tenants: list/search, view status/plan, usage, Stripe links, impersonate tenant admin, suspend/reactivate.
+
+Plan Builder (/super-admin/plans): CRUD plans; set monthly/yearly prices, limits, flags, trialDays, sortOrder.
+
+Button “Sync to Stripe Billing”: create/update Product + Prices; store IDs; idempotent by slug.
+
+Prevent delete if tenants exist; allow archive instead.
+
+Activity feed from auditLogs, basic platform stats.
+
+5) Public website + pricing + signup
+Public site /: simple marketing sections + pricing pulled from GET /api/public/plans.
+
+Do not list detailed feature bullets; show: “All VENUIN features included; plan limits apply.”
+
+CTA → /signup
+
+API: GET /api/public/plans → return only status=active plans with safe fields (name, slug, prices, trialDays, summarized highlights from flags/limits). If none, return empty list.
+
+Signup /signup: company, admin name, email, password, choose plan (from /api/public/plans), interval (monthly/yearly). On submit:
+
+Create Stripe Billing Checkout Session (using platform secret key) for the chosen Price.
+
+Success URL /signup/success?session_id=....
+
+6) Billing webhooks (platform level)
+Create /api/webhooks/stripe-billing (verify signature, idempotent). Handle:
+
+checkout.session.completed → create tenant + admin user; set planSlug, stripeCustomerId, stripeSubscriptionId, status="active", apply trialEnd if plan has trialDays; write auditLogs.
+
+invoice.payment_succeeded → keep status="active"; log.
+
+invoice.payment_failed → set status="past_due"; log.
+
+customer.subscription.updated|deleted → update plan via priceId ↔ planSlug mapping as needed; set past_due|canceled; log.
+
+Tenant Billing page: Open Stripe Customer Portal to upgrade/downgrade plan, switch interval, update card.
+
+7) Connect onboarding & payments (tenant level)
+Keep existing Connect logic and add:
+
+Onboarding routes:
+
+POST /api/connect/account-link → creates account link for tenant; returns URL
+
+GET /api/connect/status → returns stripeConnectAccountId + requirements status
+
+Charging a client (event/deposit/balance): create PaymentIntent in connected account:
+stripe.paymentIntents.create(params, { stripeAccount: tenant.stripeConnectAccountId })
+Optional platform fee: application_fee_amount + transfer_data.destination.
+
+Compliance: Don’t allow client payments until connectStatus is complete (no currently_due requirements).
+
+8) Staff permissions (per tenant)
+tenantUsers.permissions is an allowlist (key → boolean). Recommended keys:
+
+makefile
+Copy
+Edit
+events:view, events:create, events:edit, events:cancel
+proposals:view, proposals:create, proposals:send, proposals:edit
+customers:view, customers:create, customers:edit
+payments:view, payments:record, payments:refund
+venues:view, venues:manage
+spaces:view, spaces:manage
+reports:view
+communications:send_email, communications:send_sms
+ai:use
+settings:manage
+team:manage
+billing:manage
+Policy: omitted = denied. admin gets all by default; viewer gets only *:view.
+
+Route mapping examples:
+
+POST /api/bookings → events:create
+
+PUT /api/bookings/:id → events:edit
+
+DELETE /api/bookings/:id → events:cancel
+
+POST /api/proposals → proposals:create
+
+POST /api/payments → payments:record
+
+Scopes (optional): tenantUsers.scopes.allowedVenueIds to restrict actions to specific venues; permissionGuard should validate.
+
+UI: /t/:slug/app/settings/team → invite by email, assign role, toggle permissions, optional venue scope. Hide buttons if missing permission; API returns 403 with clear message.
+
+9) Plan limits & status gates (server-side)
+planEnforcer loads featurePackages by tenant.planSlug and enforces limits (e.g., { venues, spacesPerVenue, staff, monthlyBookings }). On violation return 402-style JSON:
+
+json
+Copy
+Edit
+{ "code":"LIMIT_REACHED", "limit":"venues", "plan":"<slug>", "message":"Your plan allows 1 venue. Upgrade to add more." }
+statusGate behavior:
+
+active → full access
+
+past_due → read-only except Billing
+
+canceled|suspended → Billing-only
+
+10) Onboarding (after provisioning)
+Redirect to /t/:tenantSlug/app/onboarding:
+
+Confirm venue
+
+Add spaces
+
+Invite team (include permission presets: Coordinator, Sales, Finance, Viewer)
+
+11) Ops, env, docs, tests
+.env.example (commented) add:
+
+STRIPE_PLATFORM_SECRET_KEY, STRIPE_CONNECT_CLIENT_ID
+
+STRIPE_BILLING_WEBHOOK_SECRET, STRIPE_CONNECT_WEBHOOK_SECRET
+
+PUBLIC_BASE_URL, COOKIE_DOMAIN, SESSION_SECRET
+
+Neon DB, Gmail, Gemini, CSP allowlist
+
+/healthz endpoint (app, DB, session).
+
+OpenAPI 3.1: auth, public plans, signup, tenants, superadmin, staff/permissions, usage, Stripe Billing webhook, Connect endpoints. Export openapi.yaml.
+
+Postman collection + envs (dev/stage/prod).
+
+Playwright e2e:
+
+No active plans ⇒ /signup shows “Plans coming soon”
+
+Superadmin creates plan, sets active, syncs to Stripe ⇒ appears on / + /signup
+
+Signup ⇒ Billing Checkout (test) ⇒ webhook provisions tenant ⇒ onboarding
+
+Staff with only events:create can create bookings but cannot edit/cancel (403 verified)
+
+Exceed plan limit ⇒ API 402 + Upgrade modal
+
+Simulate invoice.payment_failed ⇒ past_due read-only; recover after success
+
+Connect onboarding flow creates stripeConnectAccountId; block client charges until complete
+
+12) Success criteria (must pass)
+Superadmin bootstrap works; Superadmin can create/activate/archive plans and sync to Stripe Billing.
+
+Public website pulls pricing from API; /signup shows only active plans.
+
+Successful Checkout provisions a tenant/admin tied to the chosen plan; status transitions handled via webhooks.
+
+Tenant Admin can add staff and toggle granular permissions (e.g., only events:create).
+
+Plan limits and status gates enforced server-side; UI handles errors gracefully.
+
+Connect onboarding lets tenants accept client payments in their own Stripe; your Billing is separate.
+
+Cross-tenant access is impossible.
+
+OpenAPI, Postman, Playwright, .env.example are present and usable.
+
+Deliverables: List every file created/modified and paste key snippets for: bootstrap route, tenantGuard, planEnforcer, permissionGuard, statusGate, public plans API, signup + Checkout handler, Stripe Billing webhook, Connect endpoints, Team settings UI, Plan Builder + Stripe sync, seed script.
+
+If something is ambiguous, choose reasonable defaults and document them in /docs/ops-billing-connect.md (how Billing vs Connect work, plan → price mapping, webhooks, and operational runbooks).
