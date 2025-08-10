@@ -1232,6 +1232,131 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                                                 </div>
                                               </div>
                                             )}
+
+                                            {/* Package Taxes & Fees */}
+                                            {isSelected && (
+                                              <div className="mt-2 pt-2 border-t border-slate-200 space-y-2">
+                                                {/* Additional taxes for package */}
+                                                {taxSettings.filter((item: any) => item.type === 'tax' && item.isActive).length > 0 && (
+                                                  <div>
+                                                    <div className="text-xs text-slate-600 mb-1">Additional Taxes:</div>
+                                                    <div className="flex flex-wrap gap-1">
+                                                      {taxSettings
+                                                        .filter((item: any) => item.type === 'tax' && item.isActive)
+                                                        .map((tax: any) => {
+                                                          const isInherited = (pkg.enabledTaxIds || []).includes(tax.id);
+                                                          const isOverridden = (activeDate.serviceTaxOverrides?.[pkg.id]?.enabledTaxIds || []).includes(tax.id);
+                                                          const isDisabled = (activeDate.serviceTaxOverrides?.[pkg.id]?.disabledInheritedTaxIds || []).includes(tax.id);
+                                                          const isActive = (isInherited && !isDisabled) || isOverridden;
+                                                          
+                                                          return (
+                                                            <label key={tax.id} className="flex items-center gap-1 text-xs cursor-pointer">
+                                                              <Checkbox
+                                                                checked={isActive}
+                                                                onCheckedChange={(checked) => {
+                                                                  const currentOverrides = activeDate.serviceTaxOverrides?.[pkg.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+                                                                  
+                                                                  if (isInherited) {
+                                                                    // Toggle inherited tax on/off
+                                                                    const newDisabledTaxIds = checked
+                                                                      ? currentOverrides.disabledInheritedTaxIds?.filter(id => id !== tax.id) || []
+                                                                      : [...(currentOverrides.disabledInheritedTaxIds || []), tax.id];
+                                                                    
+                                                                    updateDateConfig('serviceTaxOverrides', {
+                                                                      ...activeDate.serviceTaxOverrides,
+                                                                      [pkg.id]: {
+                                                                        ...currentOverrides,
+                                                                        disabledInheritedTaxIds: newDisabledTaxIds
+                                                                      }
+                                                                    });
+                                                                  } else {
+                                                                    // Toggle additional tax on/off
+                                                                    const newTaxIds = checked
+                                                                      ? [...(currentOverrides.enabledTaxIds || []), tax.id]
+                                                                      : currentOverrides.enabledTaxIds?.filter(id => id !== tax.id) || [];
+                                                                    
+                                                                    updateDateConfig('serviceTaxOverrides', {
+                                                                      ...activeDate.serviceTaxOverrides,
+                                                                      [pkg.id]: {
+                                                                        ...currentOverrides,
+                                                                        enabledTaxIds: newTaxIds
+                                                                      }
+                                                                    });
+                                                                  }
+                                                                }}
+                                                                className="w-3 h-3"
+                                                              />
+                                                              <span className={isInherited ? "text-blue-600" : "text-slate-700"}>
+                                                                {tax.name} ({tax.value}%)
+                                                              </span>
+                                                            </label>
+                                                          );
+                                                        })}
+                                                    </div>
+                                                  </div>
+                                                )}
+
+                                                {/* Additional fees for package */}
+                                                {taxSettings.filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive).length > 0 && (
+                                                  <div>
+                                                    <div className="text-xs text-slate-600 mb-1">Additional Fees:</div>
+                                                    <div className="flex flex-wrap gap-1">
+                                                      {taxSettings
+                                                        .filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive)
+                                                        .map((fee: any) => {
+                                                          const isInherited = (pkg.enabledFeeIds || []).includes(fee.id);
+                                                          const isOverridden = (activeDate.serviceTaxOverrides?.[pkg.id]?.enabledFeeIds || []).includes(fee.id);
+                                                          const isDisabled = (activeDate.serviceTaxOverrides?.[pkg.id]?.disabledInheritedFeeIds || []).includes(fee.id);
+                                                          const isActive = (isInherited && !isDisabled) || isOverridden;
+                                                          
+                                                          return (
+                                                            <label key={fee.id} className="flex items-center gap-1 text-xs cursor-pointer">
+                                                              <Checkbox
+                                                                checked={isActive}
+                                                                onCheckedChange={(checked) => {
+                                                                  const currentOverrides = activeDate.serviceTaxOverrides?.[pkg.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+                                                                  
+                                                                  if (isInherited) {
+                                                                    // Toggle inherited fee on/off
+                                                                    const newDisabledFeeIds = checked
+                                                                      ? currentOverrides.disabledInheritedFeeIds?.filter(id => id !== fee.id) || []
+                                                                      : [...(currentOverrides.disabledInheritedFeeIds || []), fee.id];
+                                                                    
+                                                                    updateDateConfig('serviceTaxOverrides', {
+                                                                      ...activeDate.serviceTaxOverrides,
+                                                                      [pkg.id]: {
+                                                                        ...currentOverrides,
+                                                                        disabledInheritedFeeIds: newDisabledFeeIds
+                                                                      }
+                                                                    });
+                                                                  } else {
+                                                                    // Toggle additional fee on/off
+                                                                    const newFeeIds = checked
+                                                                      ? [...(currentOverrides.enabledFeeIds || []), fee.id]
+                                                                      : currentOverrides.enabledFeeIds?.filter(id => id !== fee.id) || [];
+                                                                    
+                                                                    updateDateConfig('serviceTaxOverrides', {
+                                                                      ...activeDate.serviceTaxOverrides,
+                                                                      [pkg.id]: {
+                                                                        ...currentOverrides,
+                                                                        enabledFeeIds: newFeeIds
+                                                                      }
+                                                                    });
+                                                                  }
+                                                                }}
+                                                                className="w-3 h-3"
+                                                              />
+                                                              <span className={isInherited ? "text-blue-600" : "text-slate-700"}>
+                                                                {fee.name} ({fee.calculation === 'percentage' ? `${fee.value}%` : `$${fee.value}`})
+                                                              </span>
+                                                            </label>
+                                                          );
+                                                        })}
+                                                    </div>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
                                           </div>
                                         </div>
                                       );
@@ -1360,44 +1485,169 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                                           </div>
                                           
                                           {isSelected && (
-                                            <div className="mt-3 pt-3 border-t border-slate-200 flex items-center gap-4">
-                                              {service.pricingModel !== 'per_person' && (
-                                                <div className="flex items-center gap-2">
-                                                  <span className="text-sm">Qty:</span>
+                                            <div className="mt-3 pt-3 border-t border-slate-200 space-y-3">
+                                              <div className="flex items-center gap-4">
+                                                {service.pricingModel !== 'per_person' && (
+                                                  <div className="flex items-center gap-2">
+                                                    <span className="text-sm">Qty:</span>
+                                                    <Input
+                                                      type="number"
+                                                      min="1"
+                                                      value={activeDate.itemQuantities?.[service.id] || 1}
+                                                      onChange={(e) => {
+                                                        const newQuantities = {
+                                                          ...activeDate.itemQuantities,
+                                                          [service.id]: Math.max(1, parseInt(e.target.value, 10) || 1)
+                                                        };
+                                                        updateDateConfig('itemQuantities', newQuantities);
+                                                      }}
+                                                      className="w-16 h-8 text-xs"
+                                                    />
+                                                  </div>
+                                                )}
+                                                <div className="flex items-center gap-1">
+                                                  <span className="text-sm">$</span>
                                                   <Input
                                                     type="number"
-                                                    min="1"
-                                                    value={activeDate.itemQuantities?.[service.id] || 1}
+                                                    step="0.01"
+                                                    value={activeDate.pricingOverrides?.servicePrices?.[service.id] ?? ''}
                                                     onChange={(e) => {
-                                                      const newQuantities = {
-                                                        ...activeDate.itemQuantities,
-                                                        [service.id]: Math.max(1, parseInt(e.target.value, 10) || 1)
-                                                      };
-                                                      updateDateConfig('itemQuantities', newQuantities);
+                                                      const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                                      updateDateConfig('pricingOverrides', {
+                                                        ...activeDate.pricingOverrides,
+                                                        servicePrices: {
+                                                          ...activeDate.pricingOverrides?.servicePrices,
+                                                          [service.id]: value
+                                                        }
+                                                      });
                                                     }}
-                                                    className="w-16 h-8 text-xs"
+                                                    className="w-20 h-8 text-xs"
+                                                    placeholder={service.price}
                                                   />
                                                 </div>
-                                              )}
-                                              <div className="flex items-center gap-1">
-                                                <span className="text-sm">$</span>
-                                                <Input
-                                                  type="number"
-                                                  step="0.01"
-                                                  value={activeDate.pricingOverrides?.servicePrices?.[service.id] ?? ''}
-                                                  onChange={(e) => {
-                                                    const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
-                                                    updateDateConfig('pricingOverrides', {
-                                                      ...activeDate.pricingOverrides,
-                                                      servicePrices: {
-                                                        ...activeDate.pricingOverrides?.servicePrices,
-                                                        [service.id]: value
-                                                      }
-                                                    });
-                                                  }}
-                                                  className="w-20 h-8 text-xs"
-                                                  placeholder={service.price}
-                                                />
+                                              </div>
+
+                                              {/* Service Taxes & Fees */}
+                                              <div className="space-y-2">
+                                                {/* Additional taxes for service */}
+                                                {taxSettings.filter((item: any) => item.type === 'tax' && item.isActive).length > 0 && (
+                                                  <div>
+                                                    <div className="text-xs text-slate-600 mb-1">Additional Taxes:</div>
+                                                    <div className="flex flex-wrap gap-1">
+                                                      {taxSettings
+                                                        .filter((item: any) => item.type === 'tax' && item.isActive)
+                                                        .map((tax: any) => {
+                                                          const isInherited = (service.enabledTaxIds || []).includes(tax.id);
+                                                          const isOverridden = (activeDate.serviceTaxOverrides?.[service.id]?.enabledTaxIds || []).includes(tax.id);
+                                                          const isDisabled = (activeDate.serviceTaxOverrides?.[service.id]?.disabledInheritedTaxIds || []).includes(tax.id);
+                                                          const isActive = (isInherited && !isDisabled) || isOverridden;
+                                                          
+                                                          return (
+                                                            <label key={tax.id} className="flex items-center gap-1 text-xs cursor-pointer">
+                                                              <Checkbox
+                                                                checked={isActive}
+                                                                onCheckedChange={(checked) => {
+                                                                  const currentOverrides = activeDate.serviceTaxOverrides?.[service.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+                                                                  
+                                                                  if (isInherited) {
+                                                                    // Toggle inherited tax on/off
+                                                                    const newDisabledTaxIds = checked
+                                                                      ? currentOverrides.disabledInheritedTaxIds?.filter(id => id !== tax.id) || []
+                                                                      : [...(currentOverrides.disabledInheritedTaxIds || []), tax.id];
+                                                                    
+                                                                    updateDateConfig('serviceTaxOverrides', {
+                                                                      ...activeDate.serviceTaxOverrides,
+                                                                      [service.id]: {
+                                                                        ...currentOverrides,
+                                                                        disabledInheritedTaxIds: newDisabledTaxIds
+                                                                      }
+                                                                    });
+                                                                  } else {
+                                                                    // Toggle additional tax on/off
+                                                                    const newTaxIds = checked
+                                                                      ? [...(currentOverrides.enabledTaxIds || []), tax.id]
+                                                                      : currentOverrides.enabledTaxIds?.filter(id => id !== tax.id) || [];
+                                                                    
+                                                                    updateDateConfig('serviceTaxOverrides', {
+                                                                      ...activeDate.serviceTaxOverrides,
+                                                                      [service.id]: {
+                                                                        ...currentOverrides,
+                                                                        enabledTaxIds: newTaxIds
+                                                                      }
+                                                                    });
+                                                                  }
+                                                                }}
+                                                                className="w-3 h-3"
+                                                              />
+                                                              <span className={isInherited ? "text-blue-600" : "text-slate-700"}>
+                                                                {tax.name} ({tax.value}%)
+                                                              </span>
+                                                            </label>
+                                                          );
+                                                        })}
+                                                    </div>
+                                                  </div>
+                                                )}
+
+                                                {/* Additional fees for service */}
+                                                {taxSettings.filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive).length > 0 && (
+                                                  <div>
+                                                    <div className="text-xs text-slate-600 mb-1">Additional Fees:</div>
+                                                    <div className="flex flex-wrap gap-1">
+                                                      {taxSettings
+                                                        .filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive)
+                                                        .map((fee: any) => {
+                                                          const isInherited = (service.enabledFeeIds || []).includes(fee.id);
+                                                          const isOverridden = (activeDate.serviceTaxOverrides?.[service.id]?.enabledFeeIds || []).includes(fee.id);
+                                                          const isDisabled = (activeDate.serviceTaxOverrides?.[service.id]?.disabledInheritedFeeIds || []).includes(fee.id);
+                                                          const isActive = (isInherited && !isDisabled) || isOverridden;
+                                                          
+                                                          return (
+                                                            <label key={fee.id} className="flex items-center gap-1 text-xs cursor-pointer">
+                                                              <Checkbox
+                                                                checked={isActive}
+                                                                onCheckedChange={(checked) => {
+                                                                  const currentOverrides = activeDate.serviceTaxOverrides?.[service.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+                                                                  
+                                                                  if (isInherited) {
+                                                                    // Toggle inherited fee on/off
+                                                                    const newDisabledFeeIds = checked
+                                                                      ? currentOverrides.disabledInheritedFeeIds?.filter(id => id !== fee.id) || []
+                                                                      : [...(currentOverrides.disabledInheritedFeeIds || []), fee.id];
+                                                                    
+                                                                    updateDateConfig('serviceTaxOverrides', {
+                                                                      ...activeDate.serviceTaxOverrides,
+                                                                      [service.id]: {
+                                                                        ...currentOverrides,
+                                                                        disabledInheritedFeeIds: newDisabledFeeIds
+                                                                      }
+                                                                    });
+                                                                  } else {
+                                                                    // Toggle additional fee on/off
+                                                                    const newFeeIds = checked
+                                                                      ? [...(currentOverrides.enabledFeeIds || []), fee.id]
+                                                                      : currentOverrides.enabledFeeIds?.filter(id => id !== fee.id) || [];
+                                                                    
+                                                                    updateDateConfig('serviceTaxOverrides', {
+                                                                      ...activeDate.serviceTaxOverrides,
+                                                                      [service.id]: {
+                                                                        ...currentOverrides,
+                                                                        enabledFeeIds: newFeeIds
+                                                                      }
+                                                                    });
+                                                                  }
+                                                                }}
+                                                                className="w-3 h-3"
+                                                              />
+                                                              <span className={isInherited ? "text-blue-600" : "text-slate-700"}>
+                                                                {fee.name} ({fee.calculation === 'percentage' ? `${fee.value}%` : `$${fee.value}`})
+                                                              </span>
+                                                            </label>
+                                                          );
+                                                        })}
+                                                    </div>
+                                                  </div>
+                                                )}
                                               </div>
                                             </div>
                                           )}
@@ -1430,345 +1680,9 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                               </Card>
                             )}
 
-                            {/* Tax and Fee Configuration & Price Summary */}
+                            {/* Price Summary */}
                             <Card className="p-4">
                               <div className="space-y-4">
-                                {/* Per-Date Tax & Fee Configuration Section */}
-                                <div>
-                                  <h5 className="font-medium mb-3">Taxes & Fees for This Date</h5>
-                                  <div className="space-y-4">
-                                    {/* Show package-specific taxes and fees if package is selected */}
-                                    {selectedPackageData && activeDate.packageId && (
-                                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                                        <div className="text-sm font-medium text-blue-800 mb-2">
-                                          Package: {selectedPackageData.name}
-                                        </div>
-                                        
-                                        {/* Package Taxes */}
-                                        {((selectedPackageData.appliedTaxes as any[]) || []).length > 0 && (
-                                          <div className="mb-3">
-                                            <div className="text-xs font-medium text-slate-700 mb-1">Inherited Taxes:</div>
-                                            <div className="flex flex-wrap gap-1">
-                                              {(taxSettings as any[])
-                                                .filter((item: any) => item.type === 'tax' && item.isActive)
-                                                .map((tax: any) => {
-                                                  const isInherited = (selectedPackageData.enabledTaxIds || []).includes(tax.id);
-                                                  const isOverridden = (activeDate.serviceTaxOverrides?.[selectedPackageData.id]?.enabledTaxIds || []).includes(tax.id);
-                                                  const isDisabled = (activeDate.serviceTaxOverrides?.[selectedPackageData.id]?.disabledInheritedTaxIds || []).includes(tax.id);
-                                                  const isActive = (isInherited && !isDisabled) || isOverridden;
-                                                  
-                                                  return (
-                                                    <label key={tax.id} className="flex items-center gap-1 text-xs cursor-pointer">
-                                                      <Checkbox
-                                                        checked={isActive}
-                                                        onCheckedChange={(checked) => {
-                                                          const currentOverrides = activeDate.serviceTaxOverrides?.[selectedPackageData.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
-                                                          
-                                                          if (isInherited) {
-                                                            // Toggle inherited tax on/off
-                                                            const newDisabledTaxIds = checked
-                                                              ? currentOverrides.disabledInheritedTaxIds?.filter(id => id !== tax.id) || []
-                                                              : [...(currentOverrides.disabledInheritedTaxIds || []), tax.id];
-                                                            
-                                                            updateDateConfig('serviceTaxOverrides', {
-                                                              ...activeDate.serviceTaxOverrides,
-                                                              [selectedPackageData.id]: {
-                                                                ...currentOverrides,
-                                                                disabledInheritedTaxIds: newDisabledTaxIds
-                                                              }
-                                                            });
-                                                          } else {
-                                                            // Toggle additional tax on/off
-                                                            const newTaxIds = checked
-                                                              ? [...(currentOverrides.enabledTaxIds || []), tax.id]
-                                                              : currentOverrides.enabledTaxIds?.filter(id => id !== tax.id) || [];
-                                                            
-                                                            updateDateConfig('serviceTaxOverrides', {
-                                                              ...activeDate.serviceTaxOverrides,
-                                                              [selectedPackageData.id]: {
-                                                                ...currentOverrides,
-                                                                enabledTaxIds: newTaxIds
-                                                              }
-                                                            });
-                                                          }
-                                                        }}
-                                                        className="w-3 h-3"
-                                                      />
-                                                      <span className={isInherited ? "text-blue-600" : "text-slate-700"}>
-                                                        {tax.name} ({tax.value}%)
-                                                      </span>
-                                                    </label>
-                                                  );
-                                                })}
-                                            </div>
-                                          </div>
-                                        )}
-
-                                        {/* Package Fees */}
-                                        {((selectedPackageData.appliedFees as any[]) || []).length > 0 && (
-                                          <div>
-                                            <div className="text-xs font-medium text-slate-700 mb-1">Inherited Fees:</div>
-                                            <div className="flex flex-wrap gap-1">
-                                              {(taxSettings as any[])
-                                                .filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive)
-                                                .map((fee: any) => {
-                                                  const isInherited = (selectedPackageData.enabledFeeIds || []).includes(fee.id);
-                                                  const isOverridden = (activeDate.serviceTaxOverrides?.[selectedPackageData.id]?.enabledFeeIds || []).includes(fee.id);
-                                                  const isDisabled = (activeDate.serviceTaxOverrides?.[selectedPackageData.id]?.disabledInheritedFeeIds || []).includes(fee.id);
-                                                  const isActive = (isInherited && !isDisabled) || isOverridden;
-                                                  
-                                                  return (
-                                                    <label key={fee.id} className="flex items-center gap-1 text-xs cursor-pointer">
-                                                      <Checkbox
-                                                        checked={isActive}
-                                                        onCheckedChange={(checked) => {
-                                                          const currentOverrides = activeDate.serviceTaxOverrides?.[selectedPackageData.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
-                                                          
-                                                          if (isInherited) {
-                                                            // Toggle inherited fee on/off
-                                                            const newDisabledFeeIds = checked
-                                                              ? currentOverrides.disabledInheritedFeeIds?.filter(id => id !== fee.id) || []
-                                                              : [...(currentOverrides.disabledInheritedFeeIds || []), fee.id];
-                                                            
-                                                            updateDateConfig('serviceTaxOverrides', {
-                                                              ...activeDate.serviceTaxOverrides,
-                                                              [selectedPackageData.id]: {
-                                                                ...currentOverrides,
-                                                                disabledInheritedFeeIds: newDisabledFeeIds
-                                                              }
-                                                            });
-                                                          } else {
-                                                            // Toggle additional fee on/off
-                                                            const newFeeIds = checked
-                                                              ? [...(currentOverrides.enabledFeeIds || []), fee.id]
-                                                              : currentOverrides.enabledFeeIds?.filter(id => id !== fee.id) || [];
-                                                            
-                                                            updateDateConfig('serviceTaxOverrides', {
-                                                              ...activeDate.serviceTaxOverrides,
-                                                              [selectedPackageData.id]: {
-                                                                ...currentOverrides,
-                                                                enabledFeeIds: newFeeIds
-                                                              }
-                                                            });
-                                                          }
-                                                        }}
-                                                        className="w-3 h-3"
-                                                      />
-                                                      <span className={isInherited ? "text-blue-600" : "text-slate-700"}>
-                                                        {fee.name} ({fee.calculation === 'percentage' ? `${fee.value}%` : `$${fee.value}`})
-                                                      </span>
-                                                    </label>
-                                                  );
-                                                })}
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-
-                                    {/* Show service-specific taxes and fees */}
-                                    {activeDate.selectedServices?.map(serviceId => {
-                                      const service = (services as any[]).find((s: any) => s.id === serviceId);
-                                      if (!service) return null;
-                                      
-                                      return (
-                                        <div key={serviceId} className="bg-green-50 border border-green-200 rounded-lg p-3">
-                                          <div className="text-sm font-medium text-green-800 mb-2">
-                                            Service: {service.name}
-                                          </div>
-                                          
-                                          {/* Service Taxes */}
-                                          {((service.appliedTaxes as any[]) || []).length > 0 && (
-                                            <div className="mb-3">
-                                              <div className="text-xs font-medium text-slate-700 mb-1">Inherited Taxes:</div>
-                                              <div className="flex flex-wrap gap-1">
-                                                {(taxSettings as any[])
-                                                  .filter((item: any) => item.type === 'tax' && item.isActive)
-                                                  .map((tax: any) => {
-                                                    const isInherited = (service.enabledTaxIds || []).includes(tax.id);
-                                                    const isOverridden = (activeDate.serviceTaxOverrides?.[serviceId]?.enabledTaxIds || []).includes(tax.id);
-                                                    const isDisabled = (activeDate.serviceTaxOverrides?.[serviceId]?.disabledInheritedTaxIds || []).includes(tax.id);
-                                                    const isActive = (isInherited && !isDisabled) || isOverridden;
-                                                    
-                                                    return (
-                                                      <label key={tax.id} className="flex items-center gap-1 text-xs cursor-pointer">
-                                                        <Checkbox
-                                                          checked={isActive}
-                                                          onCheckedChange={(checked) => {
-                                                            const currentOverrides = activeDate.serviceTaxOverrides?.[serviceId] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
-                                                            
-                                                            if (isInherited) {
-                                                              // Toggle inherited tax on/off
-                                                              const newDisabledTaxIds = checked
-                                                                ? currentOverrides.disabledInheritedTaxIds?.filter(id => id !== tax.id) || []
-                                                                : [...(currentOverrides.disabledInheritedTaxIds || []), tax.id];
-                                                              
-                                                              updateDateConfig('serviceTaxOverrides', {
-                                                                ...activeDate.serviceTaxOverrides,
-                                                                [serviceId]: {
-                                                                  ...currentOverrides,
-                                                                  disabledInheritedTaxIds: newDisabledTaxIds
-                                                                }
-                                                              });
-                                                            } else {
-                                                              // Toggle additional tax on/off
-                                                              const newTaxIds = checked
-                                                                ? [...(currentOverrides.enabledTaxIds || []), tax.id]
-                                                                : currentOverrides.enabledTaxIds?.filter(id => id !== tax.id) || [];
-                                                              
-                                                              updateDateConfig('serviceTaxOverrides', {
-                                                                ...activeDate.serviceTaxOverrides,
-                                                                [serviceId]: {
-                                                                  ...currentOverrides,
-                                                                  enabledTaxIds: newTaxIds
-                                                                }
-                                                              });
-                                                            }
-                                                          }}
-                                                          className="w-3 h-3"
-                                                        />
-                                                        <span className={isInherited ? "text-blue-600" : "text-slate-700"}>
-                                                          {tax.name} ({tax.value}%)
-                                                        </span>
-                                                      </label>
-                                                    );
-                                                  })}
-                                              </div>
-                                            </div>
-                                          )}
-
-                                          {/* Service Fees */}
-                                          {((service.appliedFees as any[]) || []).length > 0 && (
-                                            <div>
-                                              <div className="text-xs font-medium text-slate-700 mb-1">Inherited Fees:</div>
-                                              <div className="flex flex-wrap gap-1">
-                                                {(taxSettings as any[])
-                                                  .filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive)
-                                                  .map((fee: any) => {
-                                                    const isInherited = (service.enabledFeeIds || []).includes(fee.id);
-                                                    const isOverridden = (activeDate.serviceTaxOverrides?.[serviceId]?.enabledFeeIds || []).includes(fee.id);
-                                                    const isDisabled = (activeDate.serviceTaxOverrides?.[serviceId]?.disabledInheritedFeeIds || []).includes(fee.id);
-                                                    const isActive = (isInherited && !isDisabled) || isOverridden;
-                                                    
-                                                    return (
-                                                      <label key={fee.id} className="flex items-center gap-1 text-xs cursor-pointer">
-                                                        <Checkbox
-                                                          checked={isActive}
-                                                          onCheckedChange={(checked) => {
-                                                            const currentOverrides = activeDate.serviceTaxOverrides?.[serviceId] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
-                                                            
-                                                            if (isInherited) {
-                                                              // Toggle inherited fee on/off
-                                                              const newDisabledFeeIds = checked
-                                                                ? currentOverrides.disabledInheritedFeeIds?.filter(id => id !== fee.id) || []
-                                                                : [...(currentOverrides.disabledInheritedFeeIds || []), fee.id];
-                                                              
-                                                              updateDateConfig('serviceTaxOverrides', {
-                                                                ...activeDate.serviceTaxOverrides,
-                                                                [serviceId]: {
-                                                                  ...currentOverrides,
-                                                                  disabledInheritedFeeIds: newDisabledFeeIds
-                                                                }
-                                                              });
-                                                            } else {
-                                                              // Toggle additional fee on/off
-                                                              const newFeeIds = checked
-                                                                ? [...(currentOverrides.enabledFeeIds || []), fee.id]
-                                                                : currentOverrides.enabledFeeIds?.filter(id => id !== fee.id) || [];
-                                                              
-                                                              updateDateConfig('serviceTaxOverrides', {
-                                                                ...activeDate.serviceTaxOverrides,
-                                                                [serviceId]: {
-                                                                  ...currentOverrides,
-                                                                  enabledFeeIds: newFeeIds
-                                                                }
-                                                              });
-                                                            }
-                                                          }}
-                                                          className="w-3 h-3"
-                                                        />
-                                                        <span className={isInherited ? "text-blue-600" : "text-slate-700"}>
-                                                          {fee.name} ({fee.calculation === 'percentage' ? `${fee.value}%` : `$${fee.value}`})
-                                                        </span>
-                                                      </label>
-                                                    );
-                                                  })}
-                                              </div>
-                                            </div>
-                                          )}
-                                        </div>
-                                      );
-                                    })}
-
-                                    {/* Global Tax/Fee overrides when no package/services selected */}
-                                    {!selectedPackageData && (!activeDate.selectedServices || activeDate.selectedServices.length === 0) && (
-                                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                                        <div className="text-sm font-medium text-slate-700 mb-3">Global Taxes & Fees</div>
-                                        
-                                        {/* Available Taxes */}
-                                        {(taxSettings as any[]).filter((item: any) => item.type === 'tax' && item.isActive).length > 0 && (
-                                          <div className="mb-3">
-                                            <Label className="text-xs font-medium text-slate-700 mb-2 block">Applied Taxes</Label>
-                                            <div className="space-y-1">
-                                              {(taxSettings as any[])
-                                                .filter((item: any) => item.type === 'tax' && item.isActive)
-                                                .map((tax: any) => (
-                                                  <div key={tax.id} className="flex items-center space-x-2">
-                                                    <Checkbox
-                                                      id={`global-tax-${tax.id}`}
-                                                      checked={taxFeeOverrides.enabledTaxIds.includes(tax.id)}
-                                                      onCheckedChange={(checked) => {
-                                                        setTaxFeeOverrides(prev => ({
-                                                          ...prev,
-                                                          enabledTaxIds: checked
-                                                            ? [...prev.enabledTaxIds, tax.id]
-                                                            : prev.enabledTaxIds.filter(id => id !== tax.id)
-                                                        }));
-                                                      }}
-                                                    />
-                                                    <label htmlFor={`global-tax-${tax.id}`} className="text-xs flex-1 cursor-pointer">
-                                                      {tax.name} ({tax.value}% {tax.applyTo})
-                                                    </label>
-                                                  </div>
-                                                ))}
-                                            </div>
-                                          </div>
-                                        )}
-
-                                        {/* Available Fees */}
-                                        {(taxSettings as any[]).filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive).length > 0 && (
-                                          <div>
-                                            <Label className="text-xs font-medium text-slate-700 mb-2 block">Applied Fees</Label>
-                                            <div className="space-y-1">
-                                              {(taxSettings as any[])
-                                                .filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive)
-                                                .map((fee: any) => (
-                                                  <div key={fee.id} className="flex items-center space-x-2">
-                                                    <Checkbox
-                                                      id={`global-fee-${fee.id}`}
-                                                      checked={taxFeeOverrides.enabledFeeIds.includes(fee.id)}
-                                                      onCheckedChange={(checked) => {
-                                                        setTaxFeeOverrides(prev => ({
-                                                          ...prev,
-                                                          enabledFeeIds: checked
-                                                            ? [...prev.enabledFeeIds, fee.id]
-                                                            : prev.enabledFeeIds.filter(id => id !== fee.id)
-                                                        }));
-                                                      }}
-                                                    />
-                                                    <label htmlFor={`global-fee-${fee.id}`} className="text-xs flex-1 cursor-pointer">
-                                                      {fee.name} ({fee.calculation === 'percentage' ? `${fee.value}%` : `$${fee.value}`})
-                                                      {fee.isTaxable && <span className="text-purple-600 ml-1">(Taxable)</span>}
-                                                    </label>
-                                                  </div>
-                                                ))}
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
 
                                 {/* Comprehensive Price Breakdown */}
                                 <div>
