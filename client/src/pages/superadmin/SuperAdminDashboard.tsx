@@ -511,20 +511,23 @@ export default function SuperAdminDashboard() {
                   <CardHeader>
                     <CardTitle className="flex justify-between items-center">
                       {pkg.name}
-                      <Badge variant={pkg.isActive ? "default" : "secondary"}>
-                        {pkg.isActive ? "Active" : "Inactive"}
+                      <Badge variant={pkg.status === 'active' ? "default" : "secondary"}>
+                        {pkg.status === 'active' ? "Active" : "Inactive"}
                       </Badge>
                     </CardTitle>
                     <CardDescription>{pkg.description}</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      <div className="text-2xl font-bold">${pkg.priceMonthly}/month</div>
-                      <div className="text-sm text-muted-foreground">Max {pkg.maxUsers} users</div>
+                      <div className="text-2xl font-bold">${pkg.price_monthly}/month</div>
+                      <div className="text-sm text-muted-foreground">
+                        {pkg.limits?.staff && `Max ${pkg.limits.staff} staff`}
+                        {pkg.limits?.venues && ` • ${pkg.limits.venues} venues`}
+                      </div>
                       <div className="space-y-1">
                         <div className="text-sm font-medium">Features:</div>
                         <ul className="text-sm text-muted-foreground space-y-1">
-                          {(pkg.features || []).map((feature, index) => (
+                          {Object.entries(pkg.features || {}).filter(([key, value]) => value).map(([feature, value], index) => (
                             <li key={index} className="flex items-center">
                               <span className="w-1 h-1 bg-current rounded-full mr-2"></span>
                               {feature}
