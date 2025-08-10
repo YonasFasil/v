@@ -1110,23 +1110,25 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
                 </div>
               </div>
               
-              <div
-                ref={canvasRef}
-                className={cn(
-                  "relative border-2 border-dashed border-slate-300 overflow-hidden transition-transform duration-300",
-                  mode === 'add' ? "cursor-crosshair" : "cursor-default",
-                  viewMode === '3d' ? "bg-gradient-to-b from-slate-100 to-slate-300" : "bg-slate-50"
-                )}
-                style={{
-                  width: canvasSize.width,
-                  height: canvasSize.height,
-                  transform: get3DCanvasTransform(),
-                  transformOrigin: 'center center',
-                  // Constrain 3D view within bounds
-                  maxWidth: '100%',
-                  maxHeight: viewMode === '3d' ? '400px' : '600px',
-                  margin: viewMode === '3d' ? '40px auto' : '0',
-                }}
+              {/* Canvas Container with proper zoom containment */}
+              <div className="relative w-full h-96 border-2 border-dashed border-slate-300 overflow-auto bg-slate-100">
+                <div className="flex items-center justify-center min-h-full p-8">
+                  <div
+                    ref={canvasRef}
+                    className={cn(
+                      "relative transition-transform duration-300 border border-slate-400",
+                      mode === 'add' ? "cursor-crosshair" : "cursor-default",
+                      viewMode === '3d' ? "bg-gradient-to-b from-slate-100 to-slate-300" : "bg-slate-50"
+                    )}
+                    style={{
+                      width: canvasSize.width,
+                      height: canvasSize.height,
+                      transform: get3DCanvasTransform(),
+                      transformOrigin: 'center center',
+                      // Create space for zoom expansion
+                      minWidth: canvasSize.width,
+                      minHeight: canvasSize.height,
+                    }}
                 onClick={handleCanvasClick}
                 onMouseDown={handleCanvasMouseDown}
                 onMouseMove={(e) => {
@@ -1253,6 +1255,8 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
                     3D Preview
                   </div>
                 )}
+                  </div>
+                </div>
               </div>
 
               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-slate-600">
