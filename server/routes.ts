@@ -1861,6 +1861,19 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
     }
   });
 
+  app.patch("/api/tax-settings/:id", async (req, res) => {
+    try {
+      const validatedData = insertTaxSettingSchema.parse(req.body);
+      const taxSetting = await storage.updateTaxSetting(req.params.id, validatedData);
+      if (!taxSetting) {
+        return res.status(404).json({ message: "Tax setting not found" });
+      }
+      res.json(taxSetting);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid tax setting data" });
+    }
+  });
+
   app.delete("/api/tax-settings/:id", async (req, res) => {
     try {
       const deleted = await storage.deleteTaxSetting(req.params.id);
