@@ -50,8 +50,8 @@ export default function Login() {
       });
       
       // Redirect to tenant app if user has a tenant, otherwise to onboarding
-      if (data.tenantSlug) {
-        setLocation(`/t/${data.tenantSlug}/app`);
+      if (data.hasTenant && data.tenant) {
+        setLocation(`/t/${data.tenant.slug}/app`);
       } else {
         setLocation("/onboarding");
       }

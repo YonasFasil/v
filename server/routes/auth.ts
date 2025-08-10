@@ -2,8 +2,8 @@ import type { Express } from "express";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { db } from "../db";
-import { users } from "@shared/schema";
-import { eq, sql } from "drizzle-orm";
+import { users, tenants, tenantUsers } from "@shared/schema";
+import { eq, sql, and } from "drizzle-orm";
 import { EmailService } from "../services/email";
 
 export function registerAuthRoutes(app: Express) {
@@ -110,6 +110,17 @@ export function registerAuthRoutes(app: Express) {
         lastName: foundUser.last_name || '',
       };
 
+      // Check if user has a tenant using raw SQL for reliability
+      const tenantResult = await db.execute(sql`
+        SELECT 
+          t.id, t.name, t.slug, t.status,
+          tu.role
+        FROM tenant_users tu
+        JOIN tenants t ON t.id = tu.tenant_id
+        WHERE tu.user_id = ${foundUser.id} AND t.status = 'active'
+        LIMIT 1
+      `);
+
       res.json({
         message: 'Login successful',
         user: {
@@ -118,6 +129,13 @@ export function registerAuthRoutes(app: Express) {
           firstName: foundUser.first_name,
           lastName: foundUser.last_name,
         },
+        hasTenant: tenantResult.rows.length > 0,
+        tenant: tenantResult.rows.length > 0 ? {
+          id: tenantResult.rows[0].id,
+          name: tenantResult.rows[0].name,
+          slug: tenantResult.rows[0].slug,
+          status: tenantResult.rows[0].status,
+        } : null,
       });
     } catch (error) {
       console.error('Login error:', error);
