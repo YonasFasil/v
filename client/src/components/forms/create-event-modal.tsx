@@ -379,24 +379,46 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         const disabledTaxIds = currentOverrides.disabledInheritedTaxIds || [];
         const effectiveTaxIds = [...inheritedTaxIds.filter(id => !disabledTaxIds.includes(id)), ...additionalTaxIds];
         
-        // Apply service fees
+        // Apply service fees and track them for potential tax application
+        let serviceFeeAmount = 0;
         effectiveFeeIds.forEach((feeId: string) => {
           const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
           if (feeSetting && (feeSetting.type === 'fee' || feeSetting.type === 'service_charge')) {
+            let feeAmount = 0;
             if (feeSetting.calculation === 'percentage') {
-              feesTotal += (serviceSubtotal * parseFloat(feeSetting.value)) / 100;
+              feeAmount = (serviceSubtotal * parseFloat(feeSetting.value)) / 100;
             } else {
-              feesTotal += parseFloat(feeSetting.value);
+              feeAmount = parseFloat(feeSetting.value);
             }
+            feesTotal += feeAmount;
+            serviceFeeAmount += feeAmount;
           }
         });
         
-        // Apply service taxes
+        // Apply service taxes (to base service amount + fees if fee is taxable)
         effectiveTaxIds.forEach((taxId: string) => {
           const taxSetting = (taxSettings as any[])?.find((s: any) => s.id === taxId && s.isActive);
           if (taxSetting) {
-            console.log('Applying tax:', taxSetting.name, 'to service:', service.name, 'amount:', serviceSubtotal * parseFloat(taxSetting.value) / 100);
-            taxesTotal += (serviceSubtotal * parseFloat(taxSetting.value)) / 100;
+            // Tax on base service amount
+            let taxableAmount = serviceSubtotal;
+            
+            // Add fees to taxable amount if any applied fees are taxable
+            effectiveFeeIds.forEach((feeId: string) => {
+              const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
+              if (feeSetting && feeSetting.isTaxable && (feeSetting.applicableTaxIds || []).includes(taxId)) {
+                let feeAmount = 0;
+                if (feeSetting.calculation === 'percentage') {
+                  feeAmount = (serviceSubtotal * parseFloat(feeSetting.value)) / 100;
+                } else {
+                  feeAmount = parseFloat(feeSetting.value);
+                }
+                taxableAmount += feeAmount;
+              }
+            });
+            
+            const taxAmount = (taxableAmount * parseFloat(taxSetting.value)) / 100;
+            console.log('Applying tax:', taxSetting.name, 'to service:', service.name, 'taxable amount:', taxableAmount, 'tax amount:', taxAmount);
+            taxesTotal += taxAmount;
           }
         });
       }
@@ -2365,11 +2387,28 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                       }
                                     });
                                     
-                                    // Apply service taxes
+                                    // Apply service taxes (to base service amount + fees if fee is taxable)
                                     effectiveTaxIds.forEach((taxId: string) => {
                                       const taxSetting = (taxSettings as any[])?.find((s: any) => s.id === taxId && s.isActive);
                                       if (taxSetting) {
-                                        const taxAmount = (serviceSubtotal * parseFloat(taxSetting.value)) / 100;
+                                        // Tax on base service amount
+                                        let taxableAmount = serviceSubtotal;
+                                        
+                                        // Add fees to taxable amount if any applied fees are taxable
+                                        effectiveFeeIds.forEach((feeId: string) => {
+                                          const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
+                                          if (feeSetting && feeSetting.isTaxable && (feeSetting.applicableTaxIds || []).includes(taxId)) {
+                                            let feeAmount = 0;
+                                            if (feeSetting.calculation === 'percentage') {
+                                              feeAmount = (serviceSubtotal * parseFloat(feeSetting.value)) / 100;
+                                            } else {
+                                              feeAmount = parseFloat(feeSetting.value);
+                                            }
+                                            taxableAmount += feeAmount;
+                                          }
+                                        });
+                                        
+                                        const taxAmount = (taxableAmount * parseFloat(taxSetting.value)) / 100;
                                         
                                         const existing = taxMap.get(taxId) || {name: taxSetting.name, amount: 0};
                                         taxMap.set(taxId, {name: taxSetting.name, amount: existing.amount + taxAmount});
