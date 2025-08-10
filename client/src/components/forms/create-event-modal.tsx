@@ -2181,77 +2181,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                         </Select>
                       </div>
 
-                      {/* Tax & Fee Configuration */}
-                      <div>
-                        <Label className="text-base font-medium">Taxes & Fees</Label>
-                        <div className="mt-3 space-y-4">
-                          {/* Available Taxes */}
-                          {taxSettings.filter((item: any) => item.type === 'tax' && item.isActive).length > 0 && (
-                            <div>
-                              <Label className="text-sm font-medium text-slate-700 mb-2 block">Applied Taxes</Label>
-                              <div className="space-y-2 max-h-32 overflow-y-auto border rounded-md p-3 bg-white">
-                                {taxSettings
-                                  .filter((item: any) => item.type === 'tax' && item.isActive)
-                                  .map((tax: any) => (
-                                    <div key={tax.id} className="flex items-center space-x-2">
-                                      <Checkbox
-                                        id={`tax-${tax.id}`}
-                                        checked={taxFeeOverrides.enabledTaxIds.includes(tax.id)}
-                                        onCheckedChange={(checked) => {
-                                          setTaxFeeOverrides(prev => ({
-                                            ...prev,
-                                            enabledTaxIds: checked
-                                              ? [...prev.enabledTaxIds, tax.id]
-                                              : prev.enabledTaxIds.filter(id => id !== tax.id)
-                                          }));
-                                        }}
-                                      />
-                                      <label htmlFor={`tax-${tax.id}`} className="text-sm flex-1 cursor-pointer">
-                                        {tax.name} ({tax.value}% {tax.applyTo})
-                                      </label>
-                                    </div>
-                                  ))}
-                              </div>
-                            </div>
-                          )}
 
-                          {/* Available Fees */}
-                          {taxSettings.filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive).length > 0 && (
-                            <div>
-                              <Label className="text-sm font-medium text-slate-700 mb-2 block">Applied Fees</Label>
-                              <div className="space-y-2 max-h-32 overflow-y-auto border rounded-md p-3 bg-white">
-                                {taxSettings
-                                  .filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive)
-                                  .map((fee: any) => (
-                                    <div key={fee.id} className="flex items-center space-x-2">
-                                      <Checkbox
-                                        id={`fee-${fee.id}`}
-                                        checked={taxFeeOverrides.enabledFeeIds.includes(fee.id)}
-                                        onCheckedChange={(checked) => {
-                                          setTaxFeeOverrides(prev => ({
-                                            ...prev,
-                                            enabledFeeIds: checked
-                                              ? [...prev.enabledFeeIds, fee.id]
-                                              : prev.enabledFeeIds.filter(id => id !== fee.id)
-                                          }));
-                                        }}
-                                      />
-                                      <label htmlFor={`fee-${fee.id}`} className="text-sm flex-1 cursor-pointer">
-                                        {fee.name} (${fee.value} {fee.calculation === 'percentage' ? '%' : 'fixed'} {fee.applyTo})
-                                        {fee.isTaxable && <span className="text-orange-600 ml-1">• Taxable</span>}
-                                      </label>
-                                    </div>
-                                  ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Help text */}
-                          <div className="text-xs text-slate-500 bg-blue-50 p-2 rounded">
-                            <strong>Note:</strong> Select which taxes and fees apply to this event. These settings override the default package/service configurations.
-                          </div>
-                        </div>
-                      </div>
 
                       <div>
                         <Label className="text-base font-medium">Applicable Policies</Label>
