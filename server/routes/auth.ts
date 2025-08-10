@@ -102,25 +102,38 @@ export function registerAuthRoutes(app: Express) {
         });
       }
 
-      // Create session
+      // Check if user is super admin first
+      const superAdminCheck = await db.execute(sql`
+        SELECT user_id FROM super_admins WHERE user_id = ${foundUser.id}
+      `);
+      
+      const isSuperAdmin = superAdminCheck.rows.length > 0;
+      
+      // Create session with role information
       (req.session as any).userId = foundUser.id;
+      (req.session as any).isSuperAdmin = isSuperAdmin;
       (req.session as any).user = {
         id: foundUser.id,
         email: foundUser.email,
         firstName: foundUser.firstName || '',
         lastName: foundUser.lastName || '',
+        isSuperAdmin: isSuperAdmin,
       };
 
-      // Check if user has a tenant using raw SQL for reliability
-      const tenantResult = await db.execute(sql`
-        SELECT 
-          t.id, t.name, t.slug, t.status,
-          tu.role
-        FROM tenant_users tu
-        JOIN tenants t ON t.id = tu.tenant_id
-        WHERE tu.user_id = ${foundUser.id} AND t.status = 'active'
-        LIMIT 1
-      `);
+      let tenantResult = { rows: [] };
+      
+      // Only check for tenant if NOT a super admin
+      if (!isSuperAdmin) {
+        tenantResult = await db.execute(sql`
+          SELECT 
+            t.id, t.name, t.slug, t.status,
+            tu.role
+          FROM tenant_users tu
+          JOIN tenants t ON t.id = tu.tenant_id
+          WHERE tu.user_id = ${foundUser.id} AND t.status = 'active'
+          LIMIT 1
+        `);
+      }
 
       res.json({
         message: 'Login successful',
@@ -129,9 +142,11 @@ export function registerAuthRoutes(app: Express) {
           email: foundUser.email,
           firstName: foundUser.firstName,
           lastName: foundUser.lastName,
+          isSuperAdmin: isSuperAdmin,
         },
-        hasTenant: tenantResult.rows.length > 0,
-        tenant: tenantResult.rows.length > 0 ? {
+        isSuperAdmin: isSuperAdmin,
+        hasTenant: !isSuperAdmin && tenantResult.rows.length > 0,
+        tenant: !isSuperAdmin && tenantResult.rows.length > 0 ? {
           id: tenantResult.rows[0].id,
           name: tenantResult.rows[0].name,
           slug: tenantResult.rows[0].slug,
@@ -152,19 +167,51 @@ export function registerAuthRoutes(app: Express) {
         return res.status(500).json({ message: 'Error logging out' });
       }
       res.clearCookie('connect.sid');
+      console.log('User logout request from:', (req.session as any)?.userId);
       res.json({ message: 'Logged out successfully' });
     });
   });
 
   // GET /api/auth/me - Get current user
-  app.get('/api/auth/me', (req, res) => {
+  app.get('/api/auth/me', async (req, res) => {
     if (!(req.session as any).userId) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
 
-    res.json({
-      user: (req.session as any).user,
-    });
+    // Verify user still exists and get current super admin status
+    try {
+      const userResult = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, (req.session as any).userId))
+        .limit(1);
+
+      if (userResult.length === 0) {
+        // User was deleted, clear session
+        req.session.destroy(() => {});
+        return res.status(401).json({ message: 'User no longer exists' });
+      }
+
+      const superAdminCheck = await db.execute(sql`
+        SELECT user_id FROM super_admins WHERE user_id = ${(req.session as any).userId}
+      `);
+      
+      const isSuperAdmin = superAdminCheck.rows.length > 0;
+      
+      // Update session with current super admin status
+      (req.session as any).isSuperAdmin = isSuperAdmin;
+      (req.session as any).user.isSuperAdmin = isSuperAdmin;
+
+      res.json({
+        user: {
+          ...(req.session as any).user,
+          isSuperAdmin: isSuperAdmin,
+        },
+      });
+    } catch (error) {
+      console.error('Error checking user status:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
   });
 
   // GET /api/auth/verify-email - Email verification

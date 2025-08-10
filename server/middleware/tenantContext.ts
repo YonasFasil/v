@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { db } from '../db';
-import { tenantUsers, tenants, superAdmins } from '@shared/schema';
+import { tenantUsers, tenants } from '@shared/schema';
 import { eq, and, sql } from 'drizzle-orm';
 
 // Extended Request interface to include tenant context
@@ -18,26 +18,27 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
     if (req.path.startsWith('/api/superadmin') || 
         req.path.startsWith('/api/public') || 
         req.path.startsWith('/api/auth') || 
-        !req.session?.userId) {
+        !(req.session as any)?.userId) {
       return next();
     }
 
     // Check if user is superadmin - superadmins should not have tenant access
     try {
       const superAdminCheck = await db.execute(sql`
-        SELECT user_id FROM super_admins WHERE user_id = ${req.session.userId}
+        SELECT user_id FROM super_admins WHERE user_id = ${(req.session as any).userId}
       `);
       
       if (superAdminCheck.rows.length > 0) {
+        console.log('Blocking super admin from accessing tenant route:', req.path);
         return res.status(403).json({ 
-          message: 'Superadmin users cannot access tenant routes' 
+          message: 'Super admin users cannot access tenant routes. Please use super admin dashboard.' 
         });
       }
     } catch (error) {
       console.error('Superadmin check error:', error);
     }
 
-    const userId = req.session.userId;
+    const userId = (req.session as any).userId;
 
     // Get user's tenant context
     const tenantUser = await db
@@ -85,11 +86,11 @@ export const requireSuperAdmin = async (req: any, res: Response, next: NextFunct
     console.log('requireSuperAdmin: session check', req.session?.userId);
     
     // Check session-based authentication first
-    if (!req.session?.userId) {
+    if (!(req.session as any)?.userId) {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    const userId = req.session.userId;
+    const userId = (req.session as any).userId;
     console.log('requireSuperAdmin: checking userId:', userId);
 
     // Check if user is super admin using super_admins table
