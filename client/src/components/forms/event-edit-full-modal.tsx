@@ -432,6 +432,117 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
       return;
     }
 
+    // Calculate the correct total amount using the new per-service tax logic
+    let calculatedTotal = 0;
+    selectedDates.forEach(date => {
+      // Package price
+      if (date.packageId) {
+        const pkg = (packages as any[])?.find((p: any) => p.id === date.packageId);
+        if (pkg) {
+          const packagePrice = date.pricingOverrides?.packagePrice ?? parseFloat(pkg.price || 0);
+          let packageSubtotal = 0;
+          if (pkg.pricingModel === 'per_person') {
+            packageSubtotal = packagePrice * (date.guestCount || 1);
+          } else {
+            packageSubtotal = packagePrice;
+          }
+          calculatedTotal += packageSubtotal;
+
+          // Calculate package fees and taxes using serviceTaxOverrides
+          const currentOverrides = date.serviceTaxOverrides?.[pkg.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+          
+          // Calculate effective fee IDs (inherited + additional - disabled)
+          const inheritedFeeIds = pkg.enabledFeeIds || [];
+          const additionalFeeIds = currentOverrides.enabledFeeIds || [];
+          const disabledFeeIds = currentOverrides.disabledInheritedFeeIds || [];
+          const effectiveFeeIds = [...inheritedFeeIds.filter((id: string) => !disabledFeeIds.includes(id)), ...additionalFeeIds];
+          
+          // Apply package fees
+          effectiveFeeIds.forEach((feeId: string) => {
+            const fee = (taxSettings as any[])?.find(f => f.id === feeId);
+            if (fee && fee.isActive) {
+              let feeAmount = 0;
+              if (fee.calculation === 'percentage') {
+                feeAmount = packageSubtotal * (parseFloat(fee.value) / 100);
+              } else {
+                feeAmount = parseFloat(fee.value);
+              }
+              calculatedTotal += feeAmount;
+            }
+          });
+
+          // Calculate effective tax IDs (inherited + additional - disabled)
+          const inheritedTaxIds = pkg.enabledTaxIds || [];
+          const additionalTaxIds = currentOverrides.enabledTaxIds || [];
+          const disabledTaxIds = currentOverrides.disabledInheritedTaxIds || [];
+          const effectiveTaxIds = [...inheritedTaxIds.filter((id: string) => !disabledTaxIds.includes(id)), ...additionalTaxIds];
+          
+          // Apply package taxes
+          effectiveTaxIds.forEach((taxId: string) => {
+            const tax = (taxSettings as any[])?.find(t => t.id === taxId);
+            if (tax && tax.isActive) {
+              const taxAmount = packageSubtotal * (parseFloat(tax.value) / 100);
+              calculatedTotal += taxAmount;
+            }
+          });
+        }
+      }
+      
+      // Services price
+      date.selectedServices?.forEach(serviceId => {
+        const service = (services as any[]).find((s: any) => s.id === serviceId);
+        if (service) {
+          const servicePrice = date.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
+          let serviceSubtotal = 0;
+          if (service.pricingModel === 'per_person') {
+            serviceSubtotal = servicePrice * (date.guestCount || 1);
+          } else {
+            const quantity = date.itemQuantities?.[serviceId] || 1;
+            serviceSubtotal = servicePrice * quantity;
+          }
+          calculatedTotal += serviceSubtotal;
+
+          // Calculate service fees and taxes using serviceTaxOverrides
+          const currentOverrides = date.serviceTaxOverrides?.[serviceId] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+          
+          // Calculate effective fee IDs (inherited + additional - disabled)
+          const inheritedFeeIds = service.enabledFeeIds || [];
+          const additionalFeeIds = currentOverrides.enabledFeeIds || [];
+          const disabledFeeIds = currentOverrides.disabledInheritedFeeIds || [];
+          const effectiveFeeIds = [...inheritedFeeIds.filter((id: string) => !disabledFeeIds.includes(id)), ...additionalFeeIds];
+          
+          // Apply service fees
+          effectiveFeeIds.forEach((feeId: string) => {
+            const fee = (taxSettings as any[])?.find(f => f.id === feeId);
+            if (fee && fee.isActive) {
+              let feeAmount = 0;
+              if (fee.calculation === 'percentage') {
+                feeAmount = serviceSubtotal * (parseFloat(fee.value) / 100);
+              } else {
+                feeAmount = parseFloat(fee.value);
+              }
+              calculatedTotal += feeAmount;
+            }
+          });
+
+          // Calculate effective tax IDs (inherited + additional - disabled)
+          const inheritedTaxIds = service.enabledTaxIds || [];
+          const additionalTaxIds = currentOverrides.enabledTaxIds || [];
+          const disabledTaxIds = currentOverrides.disabledInheritedTaxIds || [];
+          const effectiveTaxIds = [...inheritedTaxIds.filter((id: string) => !disabledTaxIds.includes(id)), ...additionalTaxIds];
+          
+          // Apply service taxes
+          effectiveTaxIds.forEach((taxId: string) => {
+            const tax = (taxSettings as any[])?.find(t => t.id === taxId);
+            if (tax && tax.isActive) {
+              const taxAmount = serviceSubtotal * (parseFloat(tax.value) / 100);
+              calculatedTotal += taxAmount;
+            }
+          });
+        }
+      });
+    });
+
     // For multi-date events, we'll submit the primary date
     const primaryDate = selectedDates[0];
     const bookingData = {
@@ -447,15 +558,13 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
       selectedServices: primaryDate.selectedServices || [],
       customerId: selectedCustomer,
       status: eventStatus,
-      totalAmount: totalPrice.toString(),
-      depositAmount: (totalPrice * 0.3).toString(),
+      totalAmount: calculatedTotal.toString(),
+      depositAmount: (calculatedTotal * 0.3).toString(),
       depositPaid: false,
       notes: "",
       itemQuantities: primaryDate.itemQuantities || {},
       pricingOverrides: primaryDate.pricingOverrides || {},
-      taxFeeOverrides: taxFeeOverrides.enabledTaxIds.length > 0 || taxFeeOverrides.enabledFeeIds.length > 0 
-        ? taxFeeOverrides 
-        : null
+      serviceTaxOverrides: primaryDate.serviceTaxOverrides || null
     };
 
     updateBooking.mutate(bookingData);
