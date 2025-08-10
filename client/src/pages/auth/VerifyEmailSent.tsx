@@ -59,10 +59,8 @@ export default function VerifyEmailSent() {
         </Card>
 
         <div className="mt-8 text-center">
-          <Link href="/">
-            <a className="text-sm text-muted-foreground hover:text-foreground">
-              ← Back to homepage
-            </a>
+          <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
+            ← Back to homepage
           </Link>
         </div>
       </div>
