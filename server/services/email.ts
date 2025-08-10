@@ -16,6 +16,7 @@ export class EmailService {
         return null;
       }
 
+      console.log('Creating email transporter with user:', process.env.GMAIL_USER);
       this.transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
@@ -38,13 +39,22 @@ export class EmailService {
       : process.env.PUBLIC_BASE_URL || 'http://localhost:5000';
     const fromEmail = process.env.GMAIL_USER;
 
-    await transporter.sendMail({
-      from: `"VENUIN" <${fromEmail}>`,
-      to,
-      subject: template.subject,
-      text: template.text,
-      html: template.html.replace(/{{baseUrl}}/g, baseUrl),
-    });
+    console.log('Attempting to send email to:', to);
+    console.log('Base URL:', baseUrl);
+    
+    try {
+      await transporter.sendMail({
+        from: `"VENUIN" <${fromEmail}>`,
+        to,
+        subject: template.subject,
+        text: template.text,
+        html: template.html.replace(/{{baseUrl}}/g, baseUrl),
+      });
+      console.log('Email sent successfully to:', to);
+    } catch (error) {
+      console.error('Failed to send email:', error);
+      throw error;
+    }
   }
 
   static async sendVerificationEmail(email: string, token: string, firstName: string): Promise<void> {

@@ -48,9 +48,11 @@ export function registerAuthRoutes(app: Express) {
 
       // Send verification email
       try {
+        console.log('Attempting to send verification email to:', email);
         await EmailService.sendVerificationEmail(email, verificationToken, firstName);
+        console.log('Verification email sent successfully to:', email);
       } catch (emailError) {
-        console.warn('Failed to send verification email:', emailError);
+        console.error('Failed to send verification email:', emailError);
         // Continue with signup even if email fails
       }
 
