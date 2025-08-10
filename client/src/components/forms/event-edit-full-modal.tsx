@@ -468,6 +468,17 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                 feeAmount = parseFloat(fee.value);
               }
               calculatedTotal += feeAmount;
+              
+              // Apply taxes to fees if the fee is taxable
+              if (fee.isTaxable && fee.applicableTaxIds && fee.applicableTaxIds.length > 0) {
+                fee.applicableTaxIds.forEach((taxId: string) => {
+                  const tax = (taxSettings as any[])?.find(t => t.id === taxId);
+                  if (tax && tax.isActive) {
+                    const taxOnFeeAmount = feeAmount * (parseFloat(tax.value) / 100);
+                    calculatedTotal += taxOnFeeAmount;
+                  }
+                });
+              }
             }
           });
 
@@ -522,6 +533,17 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                 feeAmount = parseFloat(fee.value);
               }
               calculatedTotal += feeAmount;
+              
+              // Apply taxes to fees if the fee is taxable
+              if (fee.isTaxable && fee.applicableTaxIds && fee.applicableTaxIds.length > 0) {
+                fee.applicableTaxIds.forEach((taxId: string) => {
+                  const tax = (taxSettings as any[])?.find(t => t.id === taxId);
+                  if (tax && tax.isActive) {
+                    const taxOnFeeAmount = feeAmount * (parseFloat(tax.value) / 100);
+                    calculatedTotal += taxOnFeeAmount;
+                  }
+                });
+              }
             }
           });
 
@@ -2442,6 +2464,17 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                               feeAmount = parseFloat(fee.value);
                             }
                             totalFees += feeAmount;
+                            
+                            // Apply taxes to fees if the fee is taxable
+                            if (fee.isTaxable && fee.applicableTaxIds && fee.applicableTaxIds.length > 0) {
+                              fee.applicableTaxIds.forEach((taxId: string) => {
+                                const tax = (taxSettings as any[])?.find(t => t.id === taxId);
+                                if (tax && tax.isActive) {
+                                  const taxOnFeeAmount = feeAmount * (parseFloat(tax.value) / 100);
+                                  totalTaxes += taxOnFeeAmount;
+                                }
+                              });
+                            }
                           }
                         });
 
@@ -2488,7 +2521,6 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                         // Apply service fees
                         effectiveFeeIds.forEach((feeId: string) => {
                           const fee = (taxSettings as any[])?.find(f => f.id === feeId);
-                          console.log('Footer: Checking fee', feeId, 'found:', fee, 'isActive:', fee?.isActive);
                           if (fee && fee.isActive) {
                             let feeAmount = 0;
                             if (fee.calculation === 'percentage') {
@@ -2496,8 +2528,18 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                             } else {
                               feeAmount = parseFloat(fee.value);
                             }
-                            console.log('Footer: Applying fee', fee.name, 'amount:', feeAmount, 'to totalFees:', totalFees);
                             totalFees += feeAmount;
+                            
+                            // Apply taxes to fees if the fee is taxable
+                            if (fee.isTaxable && fee.applicableTaxIds && fee.applicableTaxIds.length > 0) {
+                              fee.applicableTaxIds.forEach((taxId: string) => {
+                                const tax = (taxSettings as any[])?.find(t => t.id === taxId);
+                                if (tax && tax.isActive) {
+                                  const taxOnFeeAmount = feeAmount * (parseFloat(tax.value) / 100);
+                                  totalTaxes += taxOnFeeAmount;
+                                }
+                              });
+                            }
                           }
                         });
 
@@ -2521,8 +2563,6 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
 
                   const grandTotal = subtotal + totalFees + totalTaxes;
                   const hasFeesOrTaxes = totalFees > 0 || totalTaxes > 0;
-                  
-                  console.log('Footer calculation:', { subtotal, totalFees, totalTaxes, grandTotal, hasFeesOrTaxes });
 
                   return (
                     <div className="flex items-center gap-2">
