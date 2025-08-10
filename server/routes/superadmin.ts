@@ -12,6 +12,7 @@ import {
 import { requireSuperAdmin } from '../middleware/tenantContext';
 import { AuditService } from '../services/auditService';
 import { eq, desc, and, ilike, count, or, sql } from 'drizzle-orm';
+import { users, superAdmins } from '@shared/schema';
 
 export function registerSuperAdminRoutes(app: Express) {
   // GET /api/superadmin/users - Get all users with pagination
@@ -30,7 +31,7 @@ export function registerSuperAdminRoutes(app: Express) {
         FROM users u
         LEFT JOIN tenant_users tu ON u.id = tu.user_id
         LEFT JOIN tenants t ON tu.tenant_id = t.id
-        WHERE u.email NOT LIKE '%@admin%' AND u.email != 'yonasfasil.sl@gmail.com' AND u.email != 'eyosiasyimer@gmail.com'
+        WHERE u.email != 'eyosiasyimer@gmail.com'
         ORDER BY u.created_at DESC
         LIMIT ${limit} OFFSET ${offset}
       `);
@@ -68,11 +69,11 @@ export function registerSuperAdminRoutes(app: Express) {
 
       // Check if user exists
       const userResult = await db.execute(sql`
-        SELECT id, email FROM users WHERE id = ${id} AND email NOT LIKE '%@admin%' AND email != 'yonasfasil.sl@gmail.com' AND email != 'eyosiasyimer@gmail.com'
+        SELECT id, email FROM users WHERE id = ${id} AND email != 'eyosiasyimer@gmail.com'
       `);
 
       if (userResult.rows.length === 0) {
-        return res.status(404).json({ message: 'User not found or cannot delete super admin' });
+        return res.status(404).json({ message: 'User not found or cannot delete the super admin' });
       }
 
       // Check if user has tenants
@@ -476,6 +477,57 @@ export function registerSuperAdminRoutes(app: Express) {
     } catch (error) {
       console.error('Error fetching analytics:', error);
       res.status(500).json({ message: 'Error fetching analytics' });
+    }
+  });
+
+  // Transfer super admin privileges - EMERGENCY USE ONLY
+  app.post('/api/superadmin/transfer-privileges', requireSuperAdmin, async (req: any, res) => {
+    try {
+      const { newAdminEmail } = req.body;
+      
+      if (!newAdminEmail) {
+        return res.status(400).json({ message: 'New admin email is required' });
+      }
+
+      // Find the new admin user
+      const [newAdminUser] = await db.select().from(users).where(eq(users.email, newAdminEmail));
+      
+      if (!newAdminUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Start transaction to transfer privileges
+      await db.transaction(async (tx) => {
+        // Remove current super admin
+        await tx.delete(superAdmins).where(eq(superAdmins.userId, req.user.id));
+        
+        // Add new super admin
+        await tx.insert(superAdmins).values({
+          userId: newAdminUser.id,
+          createdAt: new Date()
+        });
+      });
+
+      // Log the transfer
+      await AuditService.logCreate(
+        'system',
+        req.user.id,
+        'super_admin_transfer',
+        newAdminUser.id,
+        { 
+          fromUser: req.user.id,
+          toUser: newAdminUser.id,
+          timestamp: new Date()
+        }
+      );
+
+      res.json({ 
+        message: 'Super admin privileges transferred successfully',
+        newAdminEmail: newAdminUser.email 
+      });
+    } catch (error: any) {
+      console.error('Error transferring super admin privileges:', error);
+      res.status(500).json({ message: 'Error transferring privileges' });
     }
   });
 }
