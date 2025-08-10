@@ -38,10 +38,16 @@ interface FeaturePackageFormProps {
   onSubmit: (data: any) => void;
   isPending: boolean;
   onCancel: () => void;
+  initialData?: any;
 }
 
-export function FeaturePackageForm({ onSubmit, isPending, onCancel }: FeaturePackageFormProps) {
-  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+export function FeaturePackageForm({ onSubmit, isPending, onCancel, initialData }: FeaturePackageFormProps) {
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>(() => {
+    if (initialData?.features) {
+      return Object.keys(initialData.features).filter(key => initialData.features[key]);
+    }
+    return [];
+  });
 
   const handleFeatureToggle = (featureKey: string, checked: boolean) => {
     if (checked) {
@@ -86,11 +92,21 @@ export function FeaturePackageForm({ onSubmit, isPending, onCancel }: FeaturePac
       <div className="space-y-4">
         <div>
           <Label htmlFor="name">Package Name</Label>
-          <Input name="name" required placeholder="e.g., Professional, Enterprise" />
+          <Input 
+            name="name" 
+            required 
+            placeholder="e.g., Professional, Enterprise"
+            defaultValue={initialData?.name || ''}
+          />
         </div>
         <div>
           <Label htmlFor="description">Description</Label>
-          <Textarea name="description" required placeholder="Brief description of this package..." />
+          <Textarea 
+            name="description" 
+            required 
+            placeholder="Brief description of this package..."
+            defaultValue={initialData?.description || ''}
+          />
         </div>
       </div>
 
@@ -128,15 +144,33 @@ export function FeaturePackageForm({ onSubmit, isPending, onCancel }: FeaturePac
           <div className="grid grid-cols-3 gap-4">
             <div>
               <Label htmlFor="maxUsers">Max Users</Label>
-              <Input name="maxUsers" type="number" required placeholder="50" />
+              <Input 
+                name="maxUsers" 
+                type="number" 
+                required 
+                placeholder="50"
+                defaultValue={initialData?.limits?.maxUsers || initialData?.limits?.staff || ''}
+              />
             </div>
             <div>
               <Label htmlFor="maxVenues">Max Venues</Label>
-              <Input name="maxVenues" type="number" required placeholder="5" />
+              <Input 
+                name="maxVenues" 
+                type="number" 
+                required 
+                placeholder="5"
+                defaultValue={initialData?.limits?.maxVenues || initialData?.limits?.venues || ''}
+              />
             </div>
             <div>
               <Label htmlFor="maxSpaces">Max Spaces per Venue</Label>
-              <Input name="maxSpaces" type="number" required placeholder="20" />
+              <Input 
+                name="maxSpaces" 
+                type="number" 
+                required 
+                placeholder="20"
+                defaultValue={initialData?.limits?.maxSpacesPerVenue || ''}
+              />
             </div>
           </div>
         </CardContent>
@@ -152,11 +186,25 @@ export function FeaturePackageForm({ onSubmit, isPending, onCancel }: FeaturePac
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="priceMonthly">Monthly Price ($)</Label>
-              <Input name="priceMonthly" type="number" step="0.01" required placeholder="99.00" />
+              <Input 
+                name="priceMonthly" 
+                type="number" 
+                step="0.01" 
+                required 
+                placeholder="99.00"
+                defaultValue={initialData?.price_monthly || ''}
+              />
             </div>
             <div>
               <Label htmlFor="priceYearly">Yearly Price ($)</Label>
-              <Input name="priceYearly" type="number" step="0.01" required placeholder="999.00" />
+              <Input 
+                name="priceYearly" 
+                type="number" 
+                step="0.01" 
+                required 
+                placeholder="999.00"
+                defaultValue={initialData?.price_yearly || ''}
+              />
               <p className="text-xs text-muted-foreground mt-1">Usually ~10-15% discount from monthly</p>
             </div>
           </div>

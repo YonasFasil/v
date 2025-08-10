@@ -64,6 +64,8 @@ export default function SuperAdminDashboard() {
   const [statusFilter, setStatusFilter] = useState("");
   const [isCreateTenantOpen, setIsCreateTenantOpen] = useState(false);
   const [isCreatePackageOpen, setIsCreatePackageOpen] = useState(false);
+  const [isEditPackageOpen, setIsEditPackageOpen] = useState(false);
+  const [editingPackage, setEditingPackage] = useState<any>(null);
   
   const generateSlug = (name: string) => {
     return name
@@ -164,6 +166,44 @@ export default function SuperAdminDashboard() {
     },
   });
 
+  // Update feature package mutation
+  const updatePackageMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      return await apiRequest('PUT', `/api/superadmin/feature-packages/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/feature-packages'] });
+      setIsEditPackageOpen(false);
+      setEditingPackage(null);
+      toast({ title: "Success", description: "Feature package updated successfully" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to update feature package", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  // Delete feature package mutation
+  const deletePackageMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest('DELETE', `/api/superadmin/feature-packages/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/feature-packages'] });
+      toast({ title: "Success", description: "Feature package deleted successfully" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to delete feature package", 
+        variant: "destructive" 
+      });
+    },
+  });
+
   const handleCreateTenant = (event: React.FormEvent) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget as HTMLFormElement);
@@ -190,6 +230,26 @@ export default function SuperAdminDashboard() {
       priceMonthly: parseFloat(formData.get('priceMonthly') as string),
       isActive: true,
     });
+  };
+
+  const handleEditPackage = (pkg: any) => {
+    setEditingPackage(pkg);
+    setIsEditPackageOpen(true);
+  };
+
+  const handleUpdatePackage = (data: any) => {
+    if (editingPackage) {
+      updatePackageMutation.mutate({
+        id: editingPackage.id,
+        data
+      });
+    }
+  };
+
+  const handleDeletePackage = (pkg: any) => {
+    if (confirm(`Are you sure you want to delete the feature package "${pkg.name}"? This action cannot be undone.`)) {
+      deletePackageMutation.mutate(pkg.id);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -492,6 +552,27 @@ export default function SuperAdminDashboard() {
             </Dialog>
           </div>
 
+          {/* Edit Feature Package Dialog */}
+          <Dialog open={isEditPackageOpen} onOpenChange={setIsEditPackageOpen}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Edit Feature Package</DialogTitle>
+                <DialogDescription>
+                  Update the feature package settings, pricing, and capabilities.
+                </DialogDescription>
+              </DialogHeader>
+              <FeaturePackageForm 
+                initialData={editingPackage}
+                onSubmit={handleUpdatePackage}
+                isPending={updatePackageMutation.isPending}
+                onCancel={() => {
+                  setIsEditPackageOpen(false);
+                  setEditingPackage(null);
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {packagesLoading ? (
               [...Array(3)].map((_, i) => (
@@ -518,22 +599,45 @@ export default function SuperAdminDashboard() {
                     <CardDescription>{pkg.description}</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-2">
-                      <div className="text-2xl font-bold">${pkg.price_monthly}/month</div>
-                      <div className="text-sm text-muted-foreground">
-                        {pkg.limits?.staff && `Max ${pkg.limits.staff} staff`}
-                        {pkg.limits?.venues && ` • ${pkg.limits.venues} venues`}
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="text-2xl font-bold">${pkg.price_monthly}/month</div>
+                        <div className="text-sm text-muted-foreground">
+                          {pkg.limits?.staff && `Max ${pkg.limits.staff} staff`}
+                          {pkg.limits?.venues && ` • ${pkg.limits.venues} venues`}
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-sm font-medium">Features:</div>
+                          <ul className="text-sm text-muted-foreground space-y-1">
+                            {Object.entries(pkg.features || {}).filter(([key, value]) => value).map(([feature, value], index) => (
+                              <li key={index} className="flex items-center">
+                                <span className="w-1 h-1 bg-current rounded-full mr-2"></span>
+                                {feature}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        <div className="text-sm font-medium">Features:</div>
-                        <ul className="text-sm text-muted-foreground space-y-1">
-                          {Object.entries(pkg.features || {}).filter(([key, value]) => value).map(([feature, value], index) => (
-                            <li key={index} className="flex items-center">
-                              <span className="w-1 h-1 bg-current rounded-full mr-2"></span>
-                              {feature}
-                            </li>
-                          ))}
-                        </ul>
+                      
+                      <div className="flex gap-2 pt-2 border-t">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditPackage(pkg)}
+                          className="flex-1"
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeletePackage(pkg)}
+                          className="text-red-600 hover:text-red-700 hover:border-red-300"
+                          disabled={deletePackageMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   </CardContent>

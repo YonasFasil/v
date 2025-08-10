@@ -238,6 +238,112 @@ export function registerSuperAdminRoutes(app: Express) {
     }
   });
 
+  // Update feature package
+  app.put('/api/superadmin/feature-packages/:id', requireSuperAdmin, async (req: any, res) => {
+    try {
+      const packageId = req.params.id;
+      console.log('Updating feature package:', packageId, 'with data:', req.body);
+      
+      const packageData = {
+        name: req.body.name,
+        slug: req.body.slug || req.body.name.toLowerCase().replace(/\s+/g, '-'),
+        description: req.body.description,
+        status: req.body.status || 'active',
+        limits: JSON.stringify(req.body.limits || {}),
+        features: JSON.stringify(req.body.features || {}),
+        priceMonthly: parseFloat(req.body.priceMonthly) || 0,
+        priceYearly: parseFloat(req.body.priceYearly) || 0,
+        billingModes: JSON.stringify({
+          monthly: { 
+            amount: Math.round((parseFloat(req.body.priceMonthly) || 0) * 100), 
+            currency: 'USD' 
+          },
+          yearly: { 
+            amount: Math.round((parseFloat(req.body.priceYearly) || 0) * 100), 
+            currency: 'USD' 
+          }
+        }),
+        trialDays: req.body.trialDays || 14
+      };
+      
+      console.log('Processed update data:', packageData);
+      
+      // Use direct SQL update
+      const result = await db.execute(sql`
+        UPDATE feature_packages SET
+          name = ${packageData.name},
+          slug = ${packageData.slug},
+          description = ${packageData.description},
+          status = ${packageData.status},
+          limits = ${packageData.limits},
+          features = ${packageData.features},
+          price_monthly = ${packageData.priceMonthly},
+          price_yearly = ${packageData.priceYearly},
+          billing_modes = ${packageData.billingModes},
+          trial_days = ${packageData.trialDays},
+          updated_at = NOW()
+        WHERE id = ${packageId}
+        RETURNING *
+      `);
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: 'Feature package not found' });
+      }
+
+      const updatedPackage = result.rows[0];
+      console.log('Updated package:', updatedPackage);
+
+      res.json(updatedPackage);
+    } catch (error) {
+      console.error('Error updating feature package:', error);
+      console.error('Error details:', error.message, error.stack);
+      res.status(500).json({ 
+        message: 'Error updating feature package',
+        error: error.message 
+      });
+    }
+  });
+
+  // Delete feature package
+  app.delete('/api/superadmin/feature-packages/:id', requireSuperAdmin, async (req: any, res) => {
+    try {
+      const packageId = req.params.id;
+      console.log('Deleting feature package:', packageId);
+
+      // Check if any tenants are using this package
+      const tenantsUsingPackage = await db
+        .select({ count: count() })
+        .from(tenants)
+        .where(eq(tenants.featurePackageId, packageId));
+
+      if (tenantsUsingPackage[0].count > 0) {
+        return res.status(400).json({ 
+          message: `Cannot delete feature package. ${tenantsUsingPackage[0].count} tenant(s) are currently using this package.`
+        });
+      }
+
+      // Delete the package
+      const result = await db.execute(sql`
+        DELETE FROM feature_packages 
+        WHERE id = ${packageId}
+        RETURNING *
+      `);
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: 'Feature package not found' });
+      }
+
+      console.log('Deleted package:', result.rows[0]);
+      res.json({ message: 'Feature package deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting feature package:', error);
+      res.status(500).json({ 
+        message: 'Error deleting feature package',
+        error: error.message 
+      });
+    }
+  });
+
   // Get audit logs with filtering
   app.get('/api/superadmin/audit-logs', requireSuperAdmin, async (req, res) => {
     try {
