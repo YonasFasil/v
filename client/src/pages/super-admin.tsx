@@ -632,6 +632,65 @@ function PackageDialog({ isOpen, onClose, package: pkg, isEdit }: {
 
   const queryClient = useQueryClient();
 
+  // Complete list of all available features
+  const allFeatures = {
+    // Core Features
+    bookingManagement: "Booking Management",
+    customerManagement: "Customer Management", 
+    paymentProcessing: "Payment Processing",
+    proposalSystem: "Proposal System",
+    contractManagement: "Contract Management",
+    taskManagement: "Task Management",
+    
+    // Calendar & Scheduling
+    basicCalendar: "Basic Calendar",
+    advancedCalendar: "Advanced Calendar",
+    
+    // Reporting & Analytics
+    basicReporting: "Basic Reporting",
+    advancedReporting: "Advanced Reporting", 
+    enterpriseReporting: "Enterprise Reporting",
+    advancedAnalytics: "Advanced Analytics",
+    customReports: "Custom Reports",
+    
+    // AI & Automation
+    aiInsights: "AI Insights",
+    emailAutomation: "Email Automation",
+    leadScoring: "Lead Scoring",
+    
+    // Design & Customization
+    floorPlanDesigner: "Floor Plan Designer",
+    beoGeneration: "BEO Generation",
+    customBranding: "Custom Branding",
+    whiteLabel: "White Label",
+    customFields: "Custom Fields",
+    
+    // Multi-tenant & Enterprise
+    multiVenueManagement: "Multi-Venue Management",
+    multiTenantManagement: "Multi-Tenant Management",
+    advancedPermissions: "Advanced Permissions",
+    
+    // Technical Features
+    apiAccess: "API Access",
+    webhooks: "Webhooks",
+    sso: "Single Sign-On (SSO)",
+    customIntegrations: "Custom Integrations",
+    
+    // Support & Services
+    emailSupport: "Email Support",
+    prioritySupport: "Priority Support",
+    dedicatedSupport: "Dedicated Support",
+    priorityOnboarding: "Priority Onboarding",
+    accountManager: "Dedicated Account Manager",
+    
+    // Mobile & Apps
+    mobileApp: "Mobile App Access",
+    
+    // Operations
+    bulkOperations: "Bulk Operations",
+    dataExport: "Data Export"
+  };
+
   // Initialize form data when editing
   useState(() => {
     if (isEdit && pkg) {
@@ -648,8 +707,92 @@ function PackageDialog({ isOpen, onClose, package: pkg, isEdit }: {
         storageLimit: pkg.storageLimit?.toString() || "",
         features: pkg.features || {}
       });
+    } else {
+      // Initialize with all features disabled for new packages
+      const initialFeatures = Object.keys(allFeatures).reduce((acc, key) => {
+        acc[key] = false;
+        return acc;
+      }, {} as any);
+      setFormData(prev => ({ ...prev, features: initialFeatures }));
     }
   });
+
+  const toggleFeature = (featureKey: string) => {
+    setFormData(prev => ({
+      ...prev,
+      features: {
+        ...prev.features,
+        [featureKey]: !prev.features[featureKey]
+      }
+    }));
+  };
+
+  const toggleAllFeatures = (enabled: boolean) => {
+    const allFeaturesState = Object.keys(allFeatures).reduce((acc, key) => {
+      acc[key] = enabled;
+      return acc;
+    }, {} as any);
+    setFormData(prev => ({ ...prev, features: allFeaturesState }));
+  };
+
+  const getFeaturesByCategory = () => {
+    return {
+      "Core Features": {
+        bookingManagement: "Booking Management",
+        customerManagement: "Customer Management", 
+        paymentProcessing: "Payment Processing",
+        proposalSystem: "Proposal System",
+        contractManagement: "Contract Management",
+        taskManagement: "Task Management"
+      },
+      "Calendar & Scheduling": {
+        basicCalendar: "Basic Calendar",
+        advancedCalendar: "Advanced Calendar"
+      },
+      "Reporting & Analytics": {
+        basicReporting: "Basic Reporting",
+        advancedReporting: "Advanced Reporting", 
+        enterpriseReporting: "Enterprise Reporting",
+        advancedAnalytics: "Advanced Analytics",
+        customReports: "Custom Reports"
+      },
+      "AI & Automation": {
+        aiInsights: "AI Insights",
+        emailAutomation: "Email Automation",
+        leadScoring: "Lead Scoring"
+      },
+      "Design & Customization": {
+        floorPlanDesigner: "Floor Plan Designer",
+        beoGeneration: "BEO Generation",
+        customBranding: "Custom Branding",
+        whiteLabel: "White Label",
+        customFields: "Custom Fields"
+      },
+      "Multi-tenant & Enterprise": {
+        multiVenueManagement: "Multi-Venue Management",
+        multiTenantManagement: "Multi-Tenant Management",
+        advancedPermissions: "Advanced Permissions"
+      },
+      "Technical Features": {
+        apiAccess: "API Access",
+        webhooks: "Webhooks",
+        sso: "Single Sign-On (SSO)",
+        customIntegrations: "Custom Integrations"
+      },
+      "Support & Services": {
+        emailSupport: "Email Support",
+        prioritySupport: "Priority Support",
+        dedicatedSupport: "Dedicated Support",
+        priorityOnboarding: "Priority Onboarding",
+        accountManager: "Dedicated Account Manager"
+      },
+      "Mobile & Operations": {
+        mobileApp: "Mobile App Access",
+        bulkOperations: "Bulk Operations",
+        dataExport: "Data Export"
+      }
+    };
+  };
 
   const createPackageMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -692,134 +835,204 @@ function PackageDialog({ isOpen, onClose, package: pkg, isEdit }: {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Package" : "Create New Package"}</DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Basic Package Information */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Basic Information</h3>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="name">Package Name</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g. custom-package"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="displayName">Display Name</Label>
+                <Input
+                  id="displayName"
+                  value={formData.displayName}
+                  onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
+                  placeholder="e.g. Custom Package"
+                  required
+                />
+              </div>
+            </div>
+
             <div>
-              <Label htmlFor="name">Package Name</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g. custom-package"
-                required
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Describe what this package includes..."
               />
             </div>
-            <div>
-              <Label htmlFor="displayName">Display Name</Label>
-              <Input
-                id="displayName"
-                value={formData.displayName}
-                onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
-                placeholder="e.g. Custom Package"
-                required
-              />
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="price">Price</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  placeholder="29.99"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="billingInterval">Billing Interval</Label>
+                <Select 
+                  value={formData.billingInterval} 
+                  onValueChange={(value) => setFormData({ ...formData, billingInterval: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="yearly">Yearly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Describe what this package includes..."
-            />
-          </div>
+          {/* Package Limits */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Package Limits</h3>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="maxUsers">Max Users (leave empty for unlimited)</Label>
+                <Input
+                  id="maxUsers"
+                  type="number"
+                  value={formData.maxUsers}
+                  onChange={(e) => setFormData({ ...formData, maxUsers: e.target.value })}
+                  placeholder="10"
+                />
+              </div>
+              <div>
+                <Label htmlFor="maxVenues">Max Venues (leave empty for unlimited)</Label>
+                <Input
+                  id="maxVenues"
+                  type="number"
+                  value={formData.maxVenues}
+                  onChange={(e) => setFormData({ ...formData, maxVenues: e.target.value })}
+                  placeholder="5"
+                />
+              </div>
+            </div>
 
-          <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="maxSpaces">Max Spaces (leave empty for unlimited)</Label>
+                <Input
+                  id="maxSpaces"
+                  type="number"
+                  value={formData.maxSpaces}
+                  onChange={(e) => setFormData({ ...formData, maxSpaces: e.target.value })}
+                  placeholder="25"
+                />
+              </div>
+              <div>
+                <Label htmlFor="storageLimit">Storage Limit (GB)</Label>
+                <Input
+                  id="storageLimit"
+                  type="number"
+                  value={formData.storageLimit}
+                  onChange={(e) => setFormData({ ...formData, storageLimit: e.target.value })}
+                  placeholder="50"
+                  required
+                />
+              </div>
+            </div>
+
             <div>
-              <Label htmlFor="price">Price</Label>
+              <Label htmlFor="maxBookingsPerMonth">Max Monthly Bookings (leave empty for unlimited)</Label>
               <Input
-                id="price"
+                id="maxBookingsPerMonth"
                 type="number"
-                step="0.01"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                placeholder="29.99"
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="billingInterval">Billing Interval</Label>
-              <Select 
-                value={formData.billingInterval} 
-                onValueChange={(value) => setFormData({ ...formData, billingInterval: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="yearly">Yearly</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="maxUsers">Max Users (leave empty for unlimited)</Label>
-              <Input
-                id="maxUsers"
-                type="number"
-                value={formData.maxUsers}
-                onChange={(e) => setFormData({ ...formData, maxUsers: e.target.value })}
-                placeholder="10"
-              />
-            </div>
-            <div>
-              <Label htmlFor="maxVenues">Max Venues (leave empty for unlimited)</Label>
-              <Input
-                id="maxVenues"
-                type="number"
-                value={formData.maxVenues}
-                onChange={(e) => setFormData({ ...formData, maxVenues: e.target.value })}
-                placeholder="5"
+                value={formData.maxBookingsPerMonth}
+                onChange={(e) => setFormData({ ...formData, maxBookingsPerMonth: e.target.value })}
+                placeholder="100"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="maxSpaces">Max Spaces (leave empty for unlimited)</Label>
-              <Input
-                id="maxSpaces"
-                type="number"
-                value={formData.maxSpaces}
-                onChange={(e) => setFormData({ ...formData, maxSpaces: e.target.value })}
-                placeholder="25"
-              />
+          {/* Feature Configuration */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium">Feature Configuration</h3>
+              <div className="flex gap-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => toggleAllFeatures(true)}
+                >
+                  Enable All
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => toggleAllFeatures(false)}
+                >
+                  Disable All
+                </Button>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="storageLimit">Storage Limit (GB)</Label>
-              <Input
-                id="storageLimit"
-                type="number"
-                value={formData.storageLimit}
-                onChange={(e) => setFormData({ ...formData, storageLimit: e.target.value })}
-                placeholder="50"
-                required
-              />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Object.entries(getFeaturesByCategory()).map(([category, features]) => (
+                <Card key={category} className="p-4">
+                  <h4 className="font-medium mb-3 text-sm">{category}</h4>
+                  <div className="space-y-2">
+                    {Object.entries(features).map(([featureKey, featureLabel]) => (
+                      <div key={featureKey} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={featureKey}
+                          checked={formData.features[featureKey] || false}
+                          onChange={() => toggleFeature(featureKey)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <Label 
+                          htmlFor={featureKey} 
+                          className="text-sm font-normal cursor-pointer"
+                        >
+                          {featureLabel}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              ))}
+            </div>
+
+            {/* Feature Summary */}
+            <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+              <div className="text-sm text-slate-600 dark:text-slate-400">
+                <strong>Selected Features: </strong>
+                {Object.values(formData.features).filter(Boolean).length} of {Object.keys(allFeatures).length} features enabled
+              </div>
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="maxBookingsPerMonth">Max Monthly Bookings (leave empty for unlimited)</Label>
-            <Input
-              id="maxBookingsPerMonth"
-              type="number"
-              value={formData.maxBookingsPerMonth}
-              onChange={(e) => setFormData({ ...formData, maxBookingsPerMonth: e.target.value })}
-              placeholder="100"
-            />
-          </div>
-
-          <div className="flex gap-2 pt-4">
+          <div className="flex gap-2 pt-4 border-t">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
