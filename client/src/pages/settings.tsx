@@ -1416,38 +1416,40 @@ function StripePaymentSection() {
       {/* Configuration Status */}
       <div className="space-y-3 mb-4">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-slate-600">Stripe Secret Key:</span>
+          <span className="text-slate-600">Stripe Connect Account:</span>
           <div className="flex items-center gap-2">
             {isConfigured ? (
               <>
                 <CheckCircle className="w-4 h-4 text-green-600" />
-                <span className="text-green-600">Configured</span>
+                <span className="text-green-600">Connected</span>
               </>
             ) : (
               <>
                 <XCircle className="w-4 h-4 text-red-600" />
-                <span className="text-red-600">Missing</span>
+                <span className="text-red-600">Not Connected</span>
               </>
             )}
           </div>
         </div>
         
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-slate-600">Stripe Public Key:</span>
-          <div className="flex items-center gap-2">
-            {isConfigured ? (
-              <>
-                <CheckCircle className="w-4 h-4 text-green-600" />
-                <span className="text-green-600">Configured</span>
-              </>
-            ) : (
-              <>
-                <XCircle className="w-4 h-4 text-red-600" />
-                <span className="text-red-600">Missing</span>
-              </>
-            )}
+        {isConfigured && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-600">Payment Processing:</span>
+            <div className="flex items-center gap-2">
+              {isReady ? (
+                <>
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <span className="text-green-600">Active</span>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="w-4 h-4 text-amber-600" />
+                  <span className="text-amber-600">Setup Required</span>
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Setup Instructions */}
@@ -1466,7 +1468,7 @@ function StripePaymentSection() {
                   className="bg-blue-600 hover:bg-blue-700"
                 >
                   <a 
-                    href="https://connect.stripe.com/d/setup/s/_SqAltRcVdQLKVeCY6XaaPGrxJb/YWNjdF8xUnVVUHdFWWo5VGhEbmtk/d5dd17491555ab49a"
+                    href="https://connect.stripe.com/d/setup/s/_SqBRbOzYAs1NHOUIfHZJLBpBD4/YWNjdF8xUnVWNHlSQ1ROTFBEaDJ2/9f48a3151cb6a548c"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -1477,6 +1479,56 @@ function StripePaymentSection() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Manage Connected Account */}
+      {isConfigured && (
+        <div className="space-y-3 mb-4">
+          <Button
+            onClick={async () => {
+              try {
+                const response = await apiRequest("POST", "/api/stripe/connect/create-login-link");
+                const data = await response.json();
+                window.open(data.loginUrl, '_blank');
+              } catch (error) {
+                toast({
+                  title: "Error",
+                  description: "Failed to open Stripe dashboard",
+                  variant: "destructive"
+                });
+              }
+            }}
+            variant="outline"
+            className="w-full"
+          >
+            <ExternalLink className="w-4 h-4 mr-2" />
+            Manage Stripe Dashboard
+          </Button>
+          
+          <Button
+            onClick={async () => {
+              try {
+                await apiRequest("DELETE", "/api/stripe/connect/disconnect");
+                toast({
+                  title: "Success",
+                  description: "Stripe account disconnected successfully"
+                });
+                queryClient.invalidateQueries({ queryKey: ["/api/stripe/status"] });
+              } catch (error) {
+                toast({
+                  title: "Error",
+                  description: "Failed to disconnect Stripe account",
+                  variant: "destructive"
+                });
+              }
+            }}
+            variant="outline"
+            className="w-full text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+          >
+            <XCircle className="w-4 h-4 mr-2" />
+            Disconnect Stripe Account
+          </Button>
         </div>
       )}
 
@@ -1502,8 +1554,8 @@ function StripePaymentSection() {
           <div className="text-sm text-blue-800 dark:text-blue-200">
             <p className="font-medium mb-1">About Stripe Integration</p>
             <p>
-              This integration allows you to accept payments directly for venue bookings and events. 
-              Payments are processed securely through Stripe's platform.
+              This integration uses Stripe Connect to securely process payments for venue bookings and events. 
+              Stripe Connect provides a complete payment solution with built-in compliance and fraud protection.
             </p>
           </div>
         </div>

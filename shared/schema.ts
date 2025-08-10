@@ -364,7 +364,14 @@ export const insertBookingSchema = createInsertSchema(bookings, {
     val === null ? null : (typeof val === 'string' ? new Date(val) : val)
   ).optional(),
 }).omit({ id: true, createdAt: true });
-export const insertProposalSchema = createInsertSchema(proposals).omit({ id: true, createdAt: true, sentAt: true, viewedAt: true });
+export const insertProposalSchema = createInsertSchema(proposals, {
+  validUntil: z.union([z.string(), z.date(), z.null()]).transform((val) => 
+    val === null ? null : (typeof val === 'string' ? new Date(val) : val)
+  ).optional(),
+  eventDate: z.union([z.string(), z.date(), z.null()]).transform((val) => 
+    val === null ? null : (typeof val === 'string' ? new Date(val) : val)
+  ).optional(),
+}).omit({ id: true, createdAt: true, sentAt: true, viewedAt: true });
 export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true, createdAt: true, processedAt: true });
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true, createdAt: true });
 export const insertAiInsightSchema = createInsertSchema(aiInsights).omit({ id: true, createdAt: true });
