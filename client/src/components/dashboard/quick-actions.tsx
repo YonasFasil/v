@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Calendar, Users, Settings, CreditCard, Plus } from "lucide-react";
 import { useState } from "react";
+import { FeatureCheck } from "@/components/FeatureGate";
 
 export function QuickActions() {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -11,28 +12,32 @@ export function QuickActions() {
       title: "New Event",
       icon: Calendar,
       color: "bg-blue-600 hover:bg-blue-700",
-      description: "Create new event"
+      description: "Create new event",
+      feature: "create_bookings"
     },
     {
       id: "customer",
       title: "Add Customer",
       icon: Users,
       color: "bg-green-600 hover:bg-green-700",
-      description: "Add new customer"
+      description: "Add new customer",
+      feature: "manage_customers"
     },
     {
       id: "payment",
       title: "Payments",
       icon: CreditCard,
       color: "bg-purple-600 hover:bg-purple-700",
-      description: "Manage payments"
+      description: "Manage payments",
+      feature: "payments"
     },
     {
       id: "settings",
       title: "Settings",
       icon: Settings,
       color: "bg-gray-600 hover:bg-gray-700",
-      description: "App settings"
+      description: "App settings",
+      feature: "settings"
     }
   ];
 
@@ -69,21 +74,20 @@ export function QuickActions() {
             const Icon = action.icon;
             
             return (
-              <div
-                key={action.id}
-                className="flex items-center justify-end"
-              >
-                <div className="bg-black/80 text-white px-3 py-2 rounded-lg text-sm mr-3 shadow-lg backdrop-blur-sm">
-                  {action.description}
+              <FeatureCheck key={action.id} feature={action.feature}>
+                <div className="flex items-center justify-end">
+                  <div className="bg-black/80 text-white px-3 py-2 rounded-lg text-sm mr-3 shadow-lg backdrop-blur-sm">
+                    {action.description}
+                  </div>
+                  <Button
+                    size="lg"
+                    className={`w-14 h-14 rounded-full shadow-lg ${action.color} text-white transition-all duration-200 hover:scale-110`}
+                    onClick={() => handleAction(action.id)}
+                  >
+                    <Icon className="w-6 h-6" />
+                  </Button>
                 </div>
-                <Button
-                  size="lg"
-                  className={`w-14 h-14 rounded-full shadow-lg ${action.color} text-white transition-all duration-200 hover:scale-110`}
-                  onClick={() => handleAction(action.id)}
-                >
-                  <Icon className="w-6 h-6" />
-                </Button>
-              </div>
+              </FeatureCheck>
             );
           })}
         </div>

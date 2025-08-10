@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { useUserRole } from "@/hooks/useUserRole";
+import { FeatureGate } from "@/components/FeatureGate";
 import LoginSelect from "@/pages/login-select";
 import Dashboard from "@/pages/dashboard";
 import Events from "@/pages/events";
@@ -58,21 +59,111 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={LoginSelect} />
-      <Route path="/" component={Dashboard} />
-      <Route path="/events" component={Events} />
-      <Route path="/customers" component={Customers} />
-      <Route path="/leads" component={Leads} />
-      <Route path="/payments" component={Payments} />
-      <Route path="/tasks" component={Tasks} />
-      <Route path="/venues" component={Venues} />
-      <Route path="/setup-styles" component={SetupStyles} />
-      <Route path="/packages" component={Packages} />
-      <Route path="/ai-analytics" component={AIAnalytics} />
-      <Route path="/reports" component={Reports} />
-      <Route path="/voice-booking" component={VoiceBooking} />
-      <Route path="/settings" component={Settings} />
-      <Route path="/proposals" component={Proposals} />
-      <Route path="/proposal/:proposalId" component={ProposalView} />
+      <Route path="/">
+        {() => (
+          <FeatureGate feature="dashboard">
+            <Dashboard />
+          </FeatureGate>
+        )}
+      </Route>
+      <Route path="/events">
+        {() => (
+          <FeatureGate feature="view_bookings">
+            <Events />
+          </FeatureGate>
+        )}
+      </Route>
+      <Route path="/customers">
+        {() => (
+          <FeatureGate feature="view_customers">
+            <Customers />
+          </FeatureGate>
+        )}
+      </Route>
+      <Route path="/leads">
+        {() => (
+          <FeatureGate feature="lead_management">
+            <Leads />
+          </FeatureGate>
+        )}
+      </Route>
+      <Route path="/payments">
+        {() => (
+          <FeatureGate feature="payments">
+            <Payments />
+          </FeatureGate>
+        )}
+      </Route>
+      <Route path="/tasks">
+        {() => (
+          <FeatureGate feature="view_bookings">
+            <Tasks />
+          </FeatureGate>
+        )}
+      </Route>
+      <Route path="/venues">
+        {() => (
+          <FeatureGate feature="manage_venues">
+            <Venues />
+          </FeatureGate>
+        )}
+      </Route>
+      <Route path="/setup-styles">
+        {() => (
+          <FeatureGate feature="floor_plans">
+            <SetupStyles />
+          </FeatureGate>
+        )}
+      </Route>
+      <Route path="/packages">
+        {() => (
+          <FeatureGate feature="manage_bookings">
+            <Packages />
+          </FeatureGate>
+        )}
+      </Route>
+      <Route path="/ai-analytics">
+        {() => (
+          <FeatureGate feature="ai_insights">
+            <AIAnalytics />
+          </FeatureGate>
+        )}
+      </Route>
+      <Route path="/reports">
+        {() => (
+          <FeatureGate feature="reports">
+            <Reports />
+          </FeatureGate>
+        )}
+      </Route>
+      <Route path="/voice-booking">
+        {() => (
+          <FeatureGate feature="ai_features">
+            <VoiceBooking />
+          </FeatureGate>
+        )}
+      </Route>
+      <Route path="/settings">
+        {() => (
+          <FeatureGate feature="settings">
+            <Settings />
+          </FeatureGate>
+        )}
+      </Route>
+      <Route path="/proposals">
+        {() => (
+          <FeatureGate feature="proposals">
+            <Proposals />
+          </FeatureGate>
+        )}
+      </Route>
+      <Route path="/proposal/:proposalId">
+        {() => (
+          <FeatureGate feature="proposals">
+            <ProposalView />
+          </FeatureGate>
+        )}
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );

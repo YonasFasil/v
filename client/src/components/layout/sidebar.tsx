@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
@@ -55,7 +56,8 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed = false }: SidebarProps) {
   const [location] = useLocation();
-  const { userRoleData, isSuperAdmin, isAdmin, isStaff, hasPermission, logout } = useUserRole();
+  const { userRoleData, isSuperAdmin, isAdmin, isStaff, logout } = useUserRole();
+  const { canAccess } = useFeatureAccess();
 
   const isActive = (href: string) => {
     if (href === "/") {
@@ -64,20 +66,32 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
     return location.startsWith(href);
   };
 
-  // Filter navigation items based on user permissions
+  // Filter navigation items based on feature access
   const getFilteredNavigation = () => {
     return navigationItems.filter(item => {
       switch (item.href) {
-        case "/venues":
-          return hasPermission("manage_venues") || hasPermission("view_venues");
-        case "/setup-styles":
-          return hasPermission("manage_venues");
-        case "/packages":
-          return hasPermission("manage_packages") || hasPermission("view_packages");
+        case "/":
+          return canAccess("dashboard");
+        case "/events":
+          return canAccess("view_bookings");
+        case "/customers":
+          return canAccess("view_customers");
         case "/leads":
-          return hasPermission("view_customers");
+          return canAccess("lead_management");
+        case "/proposals":
+          return canAccess("proposals");
+        case "/payments":
+          return canAccess("payments");
+        case "/tasks":
+          return canAccess("view_bookings"); // Tasks are related to bookings
+        case "/venues":
+          return canAccess("manage_venues");
+        case "/setup-styles":
+          return canAccess("floor_plans");
+        case "/packages":
+          return canAccess("manage_bookings"); // Package management requires booking access
         default:
-          return true; // Basic pages like dashboard, events, customers, proposals are always visible
+          return true;
       }
     });
   };
@@ -86,11 +100,11 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
     return aiFeatures.filter(item => {
       switch (item.href) {
         case "/ai-analytics":
-          return hasPermission("ai_insights");
+          return canAccess("ai_insights");
         case "/voice-booking":
-          return hasPermission("create_bookings");
+          return canAccess("ai_features") && canAccess("create_bookings");
         default:
-          return true;
+          return canAccess("ai_features");
       }
     });
   };
@@ -98,10 +112,12 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
   const getFilteredAnalytics = () => {
     return analyticsItems.filter(item => {
       switch (item.href) {
+        case "/reports":
+          return canAccess("reports");
         case "/settings":
-          return hasPermission("system_settings");
+          return canAccess("settings");
         default:
-          return hasPermission("basic_reports") || hasPermission("advanced_reports");
+          return true;
       }
     });
   };
