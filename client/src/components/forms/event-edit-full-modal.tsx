@@ -52,6 +52,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   
   // Copy config functionality
   const [showCopyModal, setShowCopyModal] = useState(false);
+  const [selectedCopyIndices, setSelectedCopyIndices] = useState<number[]>([]);
   
   // Package and service selection states
   const [showPackageSelection, setShowPackageSelection] = useState(false);
@@ -1232,12 +1233,12 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                               </div>
                             </div>
 
-                            {/* Copy Config for Multi-Date Events */}
+                            {/* Apply Settings for Multi-Date Events */}
                             {selectedDates.length > 1 && (
                               <Card className="p-4 border-blue-200 bg-blue-50">
-                                <h5 className="font-medium mb-2">Copy Configuration</h5>
+                                <h5 className="font-medium mb-2">Apply Settings</h5>
                                 <p className="text-sm text-slate-600 mb-3">
-                                  Copy this date's configuration to other dates
+                                  Apply this date's settings to other dates
                                 </p>
                                 <Button
                                   type="button"
@@ -1246,7 +1247,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                                   onClick={() => setShowCopyModal(true)}
                                   className="w-full"
                                 >
-                                  Copy to Other Dates
+                                  Apply to Other Dates
                                 </Button>
                               </Card>
                             )}
@@ -1527,15 +1528,15 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
         </div>
       </DialogContent>
 
-      {/* Copy Config Modal */}
+      {/* Apply Settings Modal */}
       <Dialog open={showCopyModal} onOpenChange={setShowCopyModal}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Copy Configuration</DialogTitle>
+            <DialogTitle>Apply Settings</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-slate-600">
-              Copy the current date's configuration to selected dates below:
+              Apply the current date's settings to selected dates below:
             </p>
             
             <div className="space-y-2">
@@ -1544,7 +1545,16 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                 
                 return (
                   <label key={index} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
-                    <Checkbox />
+                    <Checkbox 
+                      checked={selectedCopyIndices.includes(index)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedCopyIndices(prev => [...prev, index]);
+                        } else {
+                          setSelectedCopyIndices(prev => prev.filter(i => i !== index));
+                        }
+                      }}
+                    />
                     <div className="flex-1">
                       <div className="font-medium text-sm">{format(date.date, 'EEEE, MMMM d, yyyy')}</div>
                       <div className="text-xs text-slate-600">{date.startTime} - {date.endTime}</div>
@@ -1557,17 +1567,18 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
             <div className="flex gap-2 pt-4">
               <Button
                 onClick={() => {
-                  const checkboxes = document.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
-                  const selectedIndices = Array.from(checkboxes)
-                    .map((checkbox, index) => checkbox.checked ? index : -1)
-                    .filter(index => index !== -1);
-                  handleCopyConfig(selectedIndices);
+                  handleCopyConfig(selectedCopyIndices);
+                  setSelectedCopyIndices([]);
                 }}
+                disabled={selectedCopyIndices.length === 0}
                 className="flex-1 bg-blue-600 hover:bg-blue-700"
               >
-                Copy Configuration
+                Apply Settings ({selectedCopyIndices.length})
               </Button>
-              <Button variant="outline" onClick={() => setShowCopyModal(false)}>
+              <Button variant="outline" onClick={() => {
+                setShowCopyModal(false);
+                setSelectedCopyIndices([]);
+              }}>
                 Cancel
               </Button>
             </div>
