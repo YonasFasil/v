@@ -68,7 +68,7 @@ export function EmailPreviewModal({
           <h3 style="color: #1f2937; margin-top: 0;">Event Details</h3>
           ${eventData.eventDates.map(eventDate => `
             <div style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #e5e7eb;">
-              <p><strong>📅 Date:</strong> ${format(eventDate.date, 'MMMM d, yyyy')}</p>
+              <p><strong>📅 Date:</strong> ${eventDate.date instanceof Date && !isNaN(eventDate.date.getTime()) ? format(eventDate.date, 'MMMM d, yyyy') : 'Invalid Date'}</p>
               <p><strong>🕐 Time:</strong> ${eventDate.startTime} - ${eventDate.endTime}</p>
               <p><strong>📍 Location:</strong> ${eventDate.venue} - ${eventDate.space}</p>
               <p><strong>👥 Guest Count:</strong> ${eventDate.guestCount} guests</p>
@@ -297,7 +297,7 @@ export function EmailPreviewModal({
                   <div key={index} className="space-y-2 p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center gap-2 text-sm">
                       <Calendar className="h-3 w-3" />
-                      <span>{format(eventDate.date, 'MMM d, yyyy')}</span>
+                      <span>{eventDate.date instanceof Date && !isNaN(eventDate.date.getTime()) ? format(eventDate.date, 'MMM d, yyyy') : 'Invalid Date'}</span>
                       <span className="text-gray-500">•</span>
                       <span>{eventDate.startTime} - {eventDate.endTime}</span>
                     </div>
