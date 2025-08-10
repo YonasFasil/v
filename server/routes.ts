@@ -4002,6 +4002,100 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     }
   });
 
+  // ===== PUBLIC API ENDPOINTS =====
+  // Public plans endpoint (for pricing page) - uses actual feature packages from super admin
+  app.get("/api/public/plans", async (req, res) => {
+    try {
+      // Get active feature packages from database
+      const result = await db.execute(sql`
+        SELECT 
+          id, name, slug, description, 
+          price_monthly, price_yearly, 
+          limits, features, billing_modes, 
+          trial_days, status
+        FROM feature_packages 
+        WHERE status = 'active'
+        ORDER BY price_monthly ASC NULLS LAST
+      `);
+      
+      const plans = result.rows.map((pkg: any) => {
+        const limits = typeof pkg.limits === 'string' ? JSON.parse(pkg.limits) : pkg.limits;
+        const features = typeof pkg.features === 'string' ? JSON.parse(pkg.features) : pkg.features;
+        const billingModes = typeof pkg.billing_modes === 'string' ? JSON.parse(pkg.billing_modes) : pkg.billing_modes;
+        
+        // Convert feature flags to human readable feature list
+        const featureList = [];
+        const featureMap = {
+          'dashboard-analytics': 'Smart booking management',
+          'event-management': 'Event & Booking Management',
+          'customer-management': 'Customer database',
+          'lead-management': 'Lead management & scoring',
+          'proposal-system': 'Professional proposals',
+          'stripe-payments': 'Stripe payment processing',
+          'venue-management': 'Multi-venue management',
+          'service-packages': 'Service & package management',
+          'gmail-integration': 'Gmail integration',
+          'task-management': 'Task & team management',
+          'ai-voice-booking': 'AI voice-to-text booking',
+          'ai-scheduling': 'Smart AI scheduling',
+          'ai-email-replies': 'AI email auto-replies',
+          'ai-lead-scoring': 'AI lead priority scoring',
+          'ai-insights': 'AI-powered insights',
+          'ai-proposal-generation': 'AI proposal content generation',
+          'mobile-responsive': 'Mobile-responsive interface',
+          'audit-logs': 'Audit logging & security',
+          'custom-branding': 'Custom branding & themes',
+          'priority-support': 'Priority customer support',
+          'api-access': 'API access',
+          'advanced-reporting': 'Advanced reports & export',
+          'calendar-integration': 'Calendar integration',
+          'floor-plan-designer': '2D floor plan designer'
+        };
+        
+        Object.entries(features || {}).forEach(([key, enabled]) => {
+          if (enabled && featureMap[key]) {
+            featureList.push(featureMap[key]);
+          }
+        });
+
+        // Add basic features for empty lists
+        if (featureList.length === 0) {
+          featureList.push('Basic venue management', 'Email support', 'Mobile access');
+        }
+        
+        return {
+          id: pkg.id,
+          name: pkg.name,
+          slug: pkg.slug,
+          description: pkg.description || `Perfect for ${pkg.name.toLowerCase()} venue management needs.`,
+          billingModes: billingModes || {
+            monthly: { amount: Math.round((pkg.price_monthly || 29.99) * 100), currency: "USD" },
+            yearly: { amount: Math.round((pkg.price_yearly || 299.90) * 100), currency: "USD" }
+          },
+          limits: {
+            venues: limits?.maxVenues || 1,
+            staff: limits?.maxUsers || 5,
+            monthlyBookings: limits?.maxBookings || 100,
+            maxSpacesPerVenue: limits?.maxSpacesPerVenue || 10
+          },
+          flags: {
+            stripe: features?.['stripe-payments'] || false,
+            analytics: features?.['dashboard-analytics'] || false,
+            customBranding: features?.['custom-branding'] || false,
+            prioritySupport: features?.['priority-support'] || false
+          },
+          trialDays: pkg.trial_days || 14,
+          features: featureList
+        };
+      });
+      
+      res.json(plans);
+    } catch (error) {
+      console.error("Error fetching plans:", error);
+      res.status(500).json({ message: "Failed to fetch plans" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
