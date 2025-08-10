@@ -1853,6 +1853,39 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
           appPassword: gmailService.isConfigured() ? "••••••••••••••••" : "",
           isConfigured: gmailService.isConfigured()
         }
+      },
+      appearance: {
+        theme: "light",
+        primaryColor: "blue",
+        accentColor: "purple",
+        fontFamily: "inter",
+        compactMode: false,
+        sidebarCollapsed: false
+      },
+      beo: {
+        defaultTemplate: "standard",
+        enabledBeoTypes: ["floor_plan", "timeline", "catering", "av_requirements"],
+        autoGenerate: true,
+        includeVendorInfo: true,
+        showPricing: false,
+        customHeader: "",
+        customFooter: ""
+      },
+      security: {
+        sessionTimeout: 60,
+        passwordPolicy: "strong",
+        auditLogging: true,
+        dataBackupFrequency: "daily",
+        twoFactorEnabled: false,
+        ipWhitelist: ""
+      },
+      taxes: {
+        defaultTaxRate: 8.5,
+        taxName: "Sales Tax",
+        taxNumber: "",
+        applyToServices: true,
+        applyToPackages: true,
+        includeTaxInPrice: false
       }
     });
   });
