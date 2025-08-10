@@ -22,6 +22,7 @@ interface TaxFeeFormData {
   description: string;
   isActive: boolean;
   isTaxable: boolean;
+  applicableTaxIds: string[];
 }
 
 const defaultTaxFeeForm: TaxFeeFormData = {
@@ -32,7 +33,8 @@ const defaultTaxFeeForm: TaxFeeFormData = {
   applyTo: "both",
   description: "",
   isActive: true,
-  isTaxable: false
+  isTaxable: false,
+  applicableTaxIds: []
 };
 
 export function TaxesAndFeesSettings() {
@@ -47,6 +49,9 @@ export function TaxesAndFeesSettings() {
   const { data: taxesAndFees = [], isLoading } = useQuery({
     queryKey: ["/api/tax-settings"],
   });
+
+  // Get available taxes for selection
+  const availableTaxes = taxesAndFees.filter((item: TaxSetting) => item.type === 'tax' && item.isActive);
 
   // Create tax/fee mutation
   const createMutation = useMutation({
@@ -134,6 +139,7 @@ export function TaxesAndFeesSettings() {
       description: formData.description || null,
       isActive: formData.isActive,
       isTaxable: formData.isTaxable,
+      applicableTaxIds: formData.applicableTaxIds,
     };
 
     if (editingItem) {
@@ -154,6 +160,7 @@ export function TaxesAndFeesSettings() {
       description: item.description || "",
       isActive: item.isActive || true,
       isTaxable: item.isTaxable || false,
+      applicableTaxIds: item.applicableTaxIds || [],
     });
     setIsAddDialogOpen(true);
   };
@@ -297,16 +304,57 @@ export function TaxesAndFeesSettings() {
                 </div>
 
                 {(formData.type === "fee" || formData.type === "service_charge") && (
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <Label className="text-base font-medium">Subject to Tax</Label>
-                      <p className="text-xs text-slate-500">Whether this {formData.type.replace("_", " ")} is taxable</p>
+                  <>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label className="text-base font-medium">Subject to Tax</Label>
+                        <p className="text-xs text-slate-500">Whether this {formData.type.replace("_", " ")} is taxable</p>
+                      </div>
+                      <Switch
+                        checked={formData.isTaxable}
+                        onCheckedChange={(checked) => setFormData({ ...formData, isTaxable: checked, applicableTaxIds: checked ? formData.applicableTaxIds : [] })}
+                      />
                     </div>
-                    <Switch
-                      checked={formData.isTaxable}
-                      onCheckedChange={(checked) => setFormData({ ...formData, isTaxable: checked })}
-                    />
-                  </div>
+
+                    {formData.isTaxable && availableTaxes.length > 0 && (
+                      <div className="space-y-2">
+                        <Label>Applicable Taxes</Label>
+                        <p className="text-xs text-slate-500">Select which taxes apply to this {formData.type.replace("_", " ")}</p>
+                        <div className="space-y-2 max-h-32 overflow-y-auto border rounded-md p-2">
+                          {availableTaxes.map((tax: TaxSetting) => (
+                            <div key={tax.id} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`tax-${tax.id}`}
+                                checked={formData.applicableTaxIds.includes(tax.id)}
+                                onChange={(e) => {
+                                  const isChecked = e.target.checked;
+                                  setFormData({
+                                    ...formData,
+                                    applicableTaxIds: isChecked
+                                      ? [...formData.applicableTaxIds, tax.id]
+                                      : formData.applicableTaxIds.filter(id => id !== tax.id)
+                                  });
+                                }}
+                                className="rounded border-gray-300"
+                              />
+                              <label htmlFor={`tax-${tax.id}`} className="text-sm flex-1 cursor-pointer">
+                                {tax.name} ({tax.value}% {tax.applyTo})
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {formData.isTaxable && availableTaxes.length === 0 && (
+                      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                        <p className="text-sm text-yellow-800">
+                          No active taxes found. You need to create at least one tax before marking fees as taxable.
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 <div className="flex items-center justify-between">
@@ -377,6 +425,16 @@ export function TaxesAndFeesSettings() {
                           <span className="text-orange-600 ml-2">• Taxable</span>
                         )}
                       </p>
+                      {item.isTaxable && item.applicableTaxIds && item.applicableTaxIds.length > 0 && (
+                        <div className="mt-1">
+                          <p className="text-xs text-slate-500">
+                            Applied taxes: {item.applicableTaxIds.map(taxId => {
+                              const tax = availableTaxes.find(t => t.id === taxId);
+                              return tax ? tax.name : 'Unknown';
+                            }).join(', ')}
+                          </p>
+                        </div>
+                      )}
                       {item.description && (
                         <p className="text-xs text-slate-500 mt-1">{item.description}</p>
                       )}
@@ -410,8 +468,10 @@ export function TaxesAndFeesSettings() {
           <ul className="text-sm text-blue-800 space-y-1">
             <li>• <strong>Taxes:</strong> Applied based on local tax requirements (sales tax, VAT, etc.)</li>
             <li>• <strong>Fees:</strong> Additional charges like processing fees, service charges</li>
-            <li>• <strong>Taxable Fees:</strong> Fees can be marked as "Subject to Tax" if they need tax applied to them</li>
-            <li>• <strong>Calculation Order:</strong> Base price + fees → apply taxes to taxable items</li>
+            <li>• <strong>Taxable Fees:</strong> Fees can be marked as "Subject to Tax" with specific taxes selected</li>
+            <li>• <strong>Tax Selection:</strong> When a fee is taxable, choose which specific taxes apply to it</li>
+            <li>• <strong>Calculation Order:</strong> Base price + fees → apply selected taxes to taxable items</li>
+            <li>• <strong>Multiple Taxes:</strong> Each taxable fee can have different tax combinations applied</li>
             <li>• <strong>Packages/Services:</strong> Control which taxes and fees apply to each package or service</li>
             <li>• <strong>Event Level:</strong> Override tax/fee settings for individual events during creation</li>
           </ul>
