@@ -26,7 +26,7 @@ export default function Venues() {
   const { toast } = useToast();
 
   const { data: venues, isLoading } = useQuery({
-    queryKey: ["/api/venues"],
+    queryKey: ["/api/venues-with-spaces"],
   });
 
   const [newVenue, setNewVenue] = useState({
@@ -55,7 +55,7 @@ export default function Venues() {
         capacity: parseInt(newVenue.capacity),
         hourlyRate: parseFloat(newVenue.hourlyRate) || 0
       });
-      await queryClient.invalidateQueries({ queryKey: ["/api/venues"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/venues-with-spaces"] });
       
       setShowCreateForm(false);
       setNewVenue({
