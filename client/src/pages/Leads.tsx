@@ -9,8 +9,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Phone, Mail, Calendar, User, Building, Clock, Tag, Plus, Search, Filter } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import type { Lead, CampaignSource, Tag as TagType } from "@shared/schema";
+import { Sidebar } from "@/components/layout/sidebar";
+import { Header } from "@/components/layout/header";
+import { MobileNav } from "@/components/layout/mobile-nav";
 
 export default function Leads() {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
@@ -107,13 +112,29 @@ export default function Leads() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Lead Management</h1>
-          <p className="text-muted-foreground">Track and manage potential customers through your sales pipeline</p>
-        </div>
+    <div className="flex h-screen overflow-hidden bg-slate-50">
+      <div className="hidden lg:block">
+        <Sidebar collapsed={sidebarCollapsed} />
+      </div>
+      
+      <MobileNav 
+        isOpen={mobileNavOpen} 
+        onClose={() => setMobileNavOpen(false)} 
+      />
+      
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header 
+          title="Lead Management" 
+          subtitle="Track and manage potential customers through your sales pipeline"
+          onMobileMenuToggle={() => setMobileNavOpen(true)}
+          onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          sidebarCollapsed={sidebarCollapsed}
+        />
+        
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="space-y-6">
+      {/* Add Lead Button */}
+      <div className="flex justify-end">
         <Button>
           <Plus className="h-4 w-4 mr-2" />
           Add Lead
@@ -345,6 +366,9 @@ export default function Leads() {
             </Card>
           ))
         )}
+      </div>
+          </div>
+        </main>
       </div>
     </div>
   );
