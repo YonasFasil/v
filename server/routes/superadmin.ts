@@ -112,7 +112,7 @@ export function registerSuperAdminRoutes(app: Express) {
       );
 
       res.json(updatedTenant);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating tenant:', error);
       res.status(500).json({ message: 'Error updating tenant' });
     }
@@ -152,7 +152,7 @@ export function registerSuperAdminRoutes(app: Express) {
         userCount: Number(userCountResult.rows[0]?.count || 0),
         featurePackage
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching tenant details:', error);
       res.status(500).json({ message: 'Error fetching tenant details' });
     }
@@ -163,12 +163,12 @@ export function registerSuperAdminRoutes(app: Express) {
     try {
       // Use direct SQL to avoid schema issues
       const result = await db.execute(sql`
-        SELECT id, name, slug, description, price_monthly, max_users, features, is_active
+        SELECT id, name, slug, description, price_monthly, price_yearly, limits, features, billing_modes, status, trial_days, created_at
         FROM feature_packages 
-        ORDER BY name
+        ORDER BY sort_order ASC, name ASC
       `);
       res.json(result.rows);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching feature packages:', error);
       res.status(500).json({ message: 'Error fetching feature packages' });
     }
