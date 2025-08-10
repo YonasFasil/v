@@ -86,6 +86,65 @@ export default function Packages() {
     enabledFeeIds: [] as string[]
   });
 
+  // Live calculation functions
+  const calculateServiceTotal = () => {
+    if (!newService.price || !taxSettings) return 0;
+    
+    const basePrice = parseFloat(newService.price) || 0;
+    let total = basePrice;
+    
+    // Apply fees first
+    serviceTaxFeeSelection.enabledFeeIds.forEach(feeId => {
+      const fee = (taxSettings as any[]).find((t: any) => t.id === feeId);
+      if (fee) {
+        if (fee.calculation === 'percentage') {
+          total += (basePrice * parseFloat(fee.value)) / 100;
+        } else {
+          total += parseFloat(fee.value);
+        }
+      }
+    });
+    
+    // Apply taxes on the total including fees
+    serviceTaxFeeSelection.enabledTaxIds.forEach(taxId => {
+      const tax = (taxSettings as any[]).find((t: any) => t.id === taxId);
+      if (tax) {
+        total += (total * parseFloat(tax.value)) / 100;
+      }
+    });
+    
+    return total;
+  };
+
+  const calculatePackageTotal = () => {
+    if (!newPackage.basePrice || !taxSettings) return 0;
+    
+    const basePrice = parseFloat(newPackage.basePrice) || 0;
+    let total = basePrice;
+    
+    // Apply fees first
+    packageTaxFeeSelection.enabledFeeIds.forEach(feeId => {
+      const fee = (taxSettings as any[]).find((t: any) => t.id === feeId);
+      if (fee) {
+        if (fee.calculation === 'percentage') {
+          total += (basePrice * parseFloat(fee.value)) / 100;
+        } else {
+          total += parseFloat(fee.value);
+        }
+      }
+    });
+    
+    // Apply taxes on the total including fees
+    packageTaxFeeSelection.enabledTaxIds.forEach(taxId => {
+      const tax = (taxSettings as any[]).find((t: any) => t.id === taxId);
+      if (tax) {
+        total += (total * parseFloat(tax.value)) / 100;
+      }
+    });
+    
+    return total;
+  };
+
   const createPackage = async () => {
     if (!newPackage.name || !newPackage.basePrice) {
       toast({
@@ -436,6 +495,75 @@ export default function Packages() {
                         </div>
                       </div>
                     )}
+
+                    {/* Live Pricing Preview */}
+                    {newService.price && parseFloat(newService.price) > 0 && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <h4 className="font-medium text-sm text-green-800 mb-2">Pricing Preview</h4>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-green-700">Base Price:</span>
+                            <span className="font-medium">${parseFloat(newService.price).toFixed(2)}</span>
+                          </div>
+                          
+                          {/* Show applied fees */}
+                          {serviceTaxFeeSelection.enabledFeeIds.length > 0 && (
+                            <>
+                              {serviceTaxFeeSelection.enabledFeeIds.map(feeId => {
+                                const fee = (taxSettings as any[])?.find((t: any) => t.id === feeId);
+                                if (!fee) return null;
+                                const basePrice = parseFloat(newService.price) || 0;
+                                const feeAmount = fee.calculation === 'percentage' 
+                                  ? (basePrice * parseFloat(fee.value)) / 100 
+                                  : parseFloat(fee.value);
+                                return (
+                                  <div key={feeId} className="flex justify-between text-blue-600">
+                                    <span>{fee.name}:</span>
+                                    <span>+${feeAmount.toFixed(2)}</span>
+                                  </div>
+                                );
+                              })}
+                            </>
+                          )}
+                          
+                          {/* Show applied taxes */}
+                          {serviceTaxFeeSelection.enabledTaxIds.length > 0 && (
+                            <>
+                              {serviceTaxFeeSelection.enabledTaxIds.map(taxId => {
+                                const tax = (taxSettings as any[])?.find((t: any) => t.id === taxId);
+                                if (!tax) return null;
+                                // Calculate tax on base + fees
+                                const baseWithFees = parseFloat(newService.price) || 0;
+                                let feeTotal = 0;
+                                serviceTaxFeeSelection.enabledFeeIds.forEach(fId => {
+                                  const f = (taxSettings as any[])?.find((t: any) => t.id === fId);
+                                  if (f) {
+                                    feeTotal += f.calculation === 'percentage' 
+                                      ? (baseWithFees * parseFloat(f.value)) / 100 
+                                      : parseFloat(f.value);
+                                  }
+                                });
+                                const taxableAmount = baseWithFees + feeTotal;
+                                const taxAmount = (taxableAmount * parseFloat(tax.value)) / 100;
+                                return (
+                                  <div key={taxId} className="flex justify-between text-purple-600">
+                                    <span>{tax.name}:</span>
+                                    <span>+${taxAmount.toFixed(2)}</span>
+                                  </div>
+                                );
+                              })}
+                            </>
+                          )}
+                          
+                          <div className="border-t border-green-300 pt-1 mt-2">
+                            <div className="flex justify-between font-semibold text-green-800">
+                              <span>Total Price:</span>
+                              <span>${calculateServiceTotal().toFixed(2)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     
                     <Button
                       onClick={createService}
@@ -670,6 +798,75 @@ export default function Packages() {
 
                         <div className="text-xs text-slate-500 bg-blue-50 p-2 rounded">
                           <strong>Note:</strong> These settings can be overridden at the event level during booking.
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Live Pricing Preview */}
+                    {newPackage.basePrice && parseFloat(newPackage.basePrice) > 0 && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <h4 className="font-medium text-sm text-green-800 mb-2">Pricing Preview</h4>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-green-700">Base Price:</span>
+                            <span className="font-medium">${parseFloat(newPackage.basePrice).toFixed(2)}</span>
+                          </div>
+                          
+                          {/* Show applied fees */}
+                          {packageTaxFeeSelection.enabledFeeIds.length > 0 && (
+                            <>
+                              {packageTaxFeeSelection.enabledFeeIds.map(feeId => {
+                                const fee = (taxSettings as any[])?.find((t: any) => t.id === feeId);
+                                if (!fee) return null;
+                                const basePrice = parseFloat(newPackage.basePrice) || 0;
+                                const feeAmount = fee.calculation === 'percentage' 
+                                  ? (basePrice * parseFloat(fee.value)) / 100 
+                                  : parseFloat(fee.value);
+                                return (
+                                  <div key={feeId} className="flex justify-between text-blue-600">
+                                    <span>{fee.name}:</span>
+                                    <span>+${feeAmount.toFixed(2)}</span>
+                                  </div>
+                                );
+                              })}
+                            </>
+                          )}
+                          
+                          {/* Show applied taxes */}
+                          {packageTaxFeeSelection.enabledTaxIds.length > 0 && (
+                            <>
+                              {packageTaxFeeSelection.enabledTaxIds.map(taxId => {
+                                const tax = (taxSettings as any[])?.find((t: any) => t.id === taxId);
+                                if (!tax) return null;
+                                // Calculate tax on base + fees
+                                const baseWithFees = parseFloat(newPackage.basePrice) || 0;
+                                let feeTotal = 0;
+                                packageTaxFeeSelection.enabledFeeIds.forEach(fId => {
+                                  const f = (taxSettings as any[])?.find((t: any) => t.id === fId);
+                                  if (f) {
+                                    feeTotal += f.calculation === 'percentage' 
+                                      ? (baseWithFees * parseFloat(f.value)) / 100 
+                                      : parseFloat(f.value);
+                                  }
+                                });
+                                const taxableAmount = baseWithFees + feeTotal;
+                                const taxAmount = (taxableAmount * parseFloat(tax.value)) / 100;
+                                return (
+                                  <div key={taxId} className="flex justify-between text-purple-600">
+                                    <span>{tax.name}:</span>
+                                    <span>+${taxAmount.toFixed(2)}</span>
+                                  </div>
+                                );
+                              })}
+                            </>
+                          )}
+                          
+                          <div className="border-t border-green-300 pt-1 mt-2">
+                            <div className="flex justify-between font-semibold text-green-800">
+                              <span>Total Price:</span>
+                              <span>${calculatePackageTotal().toFixed(2)}</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )}
