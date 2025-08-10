@@ -18,8 +18,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Grid3X3,
-  Crown
+  Crown,
+  LogOut
 } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { toast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 
 const navigationItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -54,6 +59,26 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed = false }: SidebarProps) {
   const [location] = useLocation();
+  
+  // Logout mutation
+  const logoutMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/auth/logout"),
+    onSuccess: () => {
+      toast({
+        title: "Logged out successfully",
+        description: "You have been logged out.",
+      });
+      // Redirect to home page
+      window.location.href = "/";
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Logout failed", 
+        description: error.message || "Failed to logout",
+        variant: "destructive",
+      });
+    }
+  });
 
   const isActive = (href: string) => {
     if (href === "/") {
@@ -276,23 +301,49 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
       </nav>
 
       {/* User Profile */}
-      <div className="border-t border-slate-200 p-4">
+      <div className="border-t border-slate-200 p-4 space-y-3">
         {collapsed ? (
-          <div className="flex justify-center">
-            <div className="w-8 h-8 bg-slate-300 rounded-full flex items-center justify-center" title="John Doe - Venue Manager">
-              <span className="text-sm font-medium text-slate-700">JD</span>
+          <>
+            <div className="flex justify-center">
+              <div className="w-8 h-8 bg-slate-300 rounded-full flex items-center justify-center" title="John Doe - Venue Manager">
+                <span className="text-sm font-medium text-slate-700">JD</span>
+              </div>
             </div>
-          </div>
+            <div className="flex justify-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => logoutMutation.mutate()}
+                disabled={logoutMutation.isPending}
+                className="w-8 h-8 p-0 hover:bg-red-50"
+                title="Logout"
+              >
+                <LogOut className="h-4 w-4 text-red-600" />
+              </Button>
+            </div>
+          </>
         ) : (
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-slate-300 rounded-full flex items-center justify-center">
-              <span className="text-sm font-medium text-slate-700">JD</span>
+          <>
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-slate-300 rounded-full flex items-center justify-center">
+                <span className="text-sm font-medium text-slate-700">JD</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-900 truncate">John Doe</p>
+                <p className="text-xs text-slate-500 truncate">Venue Manager</p>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-900 truncate">John Doe</p>
-              <p className="text-xs text-slate-500 truncate">Venue Manager</p>
-            </div>
-          </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => logoutMutation.mutate()}
+              disabled={logoutMutation.isPending}
+              className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              {logoutMutation.isPending ? "Logging out..." : "Logout"}
+            </Button>
+          </>
         )}
       </div>
     </div>
