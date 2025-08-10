@@ -230,8 +230,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           customerBookings.some(booking => booking.id === payment.bookingId)
         );
         
-        // Calculate total revenue
-        const totalRevenue = customerPayments.reduce((sum, payment) => sum + payment.amount, 0);
+        // Calculate total revenue from bookings (using totalPrice from bookings)
+        const totalRevenue = customerBookings.reduce((sum, booking) => sum + (booking.totalPrice || 0), 0);
         
         // Calculate event count
         const eventCount = customerBookings.length;
@@ -252,7 +252,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Calculate booking statuses
         const confirmedBookings = customerBookings.filter(b => b.status === "confirmed").length;
-        const pendingBookings = customerBookings.filter(b => b.status === "pending").length;
+        const pendingBookings = customerBookings.filter(b => b.status === "inquiry" || b.status === "proposal").length;
         const cancelledBookings = customerBookings.filter(b => b.status === "cancelled").length;
         
         return {
