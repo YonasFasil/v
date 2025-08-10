@@ -365,7 +365,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         }
         
         // Apply service fees
-        (service.enabledFeeIds || []).forEach(feeId => {
+        (service.enabledFeeIds || []).forEach((feeId: string) => {
           const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
           if (feeSetting && (feeSetting.type === 'fee' || feeSetting.type === 'service_charge')) {
             if (feeSetting.calculation === 'percentage') {
@@ -377,9 +377,10 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         });
         
         // Apply service taxes
-        (service.enabledTaxIds || []).forEach(taxId => {
+        (service.enabledTaxIds || []).forEach((taxId: string) => {
           const taxSetting = (taxSettings as any[])?.find((s: any) => s.id === taxId && s.isActive);
           if (taxSetting) {
+            console.log('Applying tax:', taxSetting.name, 'to service:', service.name, 'amount:', serviceSubtotal * parseFloat(taxSetting.value) / 100);
             taxesTotal += (serviceSubtotal * parseFloat(taxSetting.value)) / 100;
           }
         });
@@ -2261,7 +2262,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                     }
                                     
                                     // Apply package fees
-                                    (pkg.enabledFeeIds || []).forEach(feeId => {
+                                    (pkg.enabledFeeIds || []).forEach((feeId: string) => {
                                       const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
                                       if (feeSetting && (feeSetting.type === 'fee' || feeSetting.type === 'service_charge')) {
                                         let feeAmount = 0;
@@ -2278,7 +2279,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                     });
                                     
                                     // Apply package taxes
-                                    (pkg.enabledTaxIds || []).forEach(taxId => {
+                                    (pkg.enabledTaxIds || []).forEach((taxId: string) => {
                                       const taxSetting = (taxSettings as any[])?.find((s: any) => s.id === taxId && s.isActive);
                                       if (taxSetting) {
                                         const taxAmount = (packageSubtotal * parseFloat(taxSetting.value)) / 100;
@@ -2318,7 +2319,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                     }
                                     
                                     // Apply service fees
-                                    (service.enabledFeeIds || []).forEach(feeId => {
+                                    (service.enabledFeeIds || []).forEach((feeId: string) => {
                                       const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
                                       if (feeSetting && (feeSetting.type === 'fee' || feeSetting.type === 'service_charge')) {
                                         let feeAmount = 0;
@@ -2335,7 +2336,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                     });
                                     
                                     // Apply service taxes
-                                    (service.enabledTaxIds || []).forEach(taxId => {
+                                    (service.enabledTaxIds || []).forEach((taxId: string) => {
                                       const taxSetting = (taxSettings as any[])?.find((s: any) => s.id === taxId && s.isActive);
                                       if (taxSetting) {
                                         const taxAmount = (serviceSubtotal * parseFloat(taxSetting.value)) / 100;
