@@ -75,7 +75,7 @@ export default function Signup() {
   }, [billingInterval, form]);
 
   // Fetch available plans
-  const { data: plans = [], isLoading: plansLoading } = useQuery({
+  const { data: plans = [], isLoading: plansLoading } = useQuery<Plan[]>({
     queryKey: ["/api/public/plans"],
     retry: false,
   });
@@ -295,12 +295,12 @@ export default function Signup() {
                         <div className="space-y-1 leading-none">
                           <FormLabel className="text-sm font-normal">
                             I agree to the{" "}
-                            <Link href="/terms">
-                              <a className="text-primary hover:underline">Terms of Service</a>
+                            <Link href="/terms" className="text-primary hover:underline">
+                              Terms of Service
                             </Link>
                             {" "}and{" "}
-                            <Link href="/privacy">
-                              <a className="text-primary hover:underline">Privacy Policy</a>
+                            <Link href="/privacy" className="text-primary hover:underline">
+                              Privacy Policy
                             </Link>
                           </FormLabel>
                         </div>
@@ -322,10 +322,8 @@ export default function Signup() {
 
               <div className="mt-6 text-center text-sm">
                 <span className="text-muted-foreground">Already have an account? </span>
-                <Link href="/login">
-                  <a className="text-primary hover:underline font-medium">
-                    Sign in
-                  </a>
+                <Link href="/login" className="text-primary hover:underline font-medium">
+                  Sign in
                 </Link>
               </div>
             </CardContent>
@@ -474,10 +472,8 @@ export default function Signup() {
         </div>
 
         <div className="mt-8 text-center">
-          <Link href="/">
-            <a className="text-sm text-muted-foreground hover:text-foreground">
-              ← Back to homepage
-            </a>
+          <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
+            ← Back to homepage
           </Link>
         </div>
       </div>
