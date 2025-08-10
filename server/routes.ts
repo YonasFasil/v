@@ -42,14 +42,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { sessionMiddleware } = await import('./middleware/session');
   app.use(sessionMiddleware);
 
-  // Apply tenant context middleware to all routes
-  app.use(tenantContext);
-
   // Register public routes (no auth required)
   registerPublicRoutes(app);
 
   // Register auth routes
   registerAuthRoutes(app);
+
+  // Register superadmin routes (before tenant middleware to avoid conflicts)
+  registerSuperAdminRoutes(app);
 
   // Register dev routes (development only)
   if (process.env.NODE_ENV === 'development') {
@@ -57,8 +57,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     registerDevRoutes(app);
   }
 
-  // Register superadmin routes
-  registerSuperAdminRoutes(app);
+  // Apply tenant context middleware to tenant-specific routes only
+  app.use('/api/venues', tenantContext);
+  app.use('/api/bookings', tenantContext);
+  app.use('/api/customers', tenantContext);
+  app.use('/api/leads', tenantContext);
+  app.use('/api/proposals', tenantContext);
 
   // Register development helper routes
   registerDevRoutes(app);

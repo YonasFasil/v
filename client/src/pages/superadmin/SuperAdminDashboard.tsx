@@ -22,7 +22,8 @@ import {
   Filter,
   MoreHorizontal,
   Edit,
-  Trash2
+  Trash2,
+  LogOut
 } from "lucide-react";
 
 interface Tenant {
@@ -62,6 +63,26 @@ export default function SuperAdminDashboard() {
   const [isCreatePackageOpen, setIsCreatePackageOpen] = useState(false);
   
   const queryClient = useQueryClient();
+
+  // Logout mutation
+  const logoutMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/auth/logout"),
+    onSuccess: () => {
+      toast({
+        title: "Logged out successfully",
+        description: "You have been logged out of the superadmin console.",
+      });
+      // Redirect to login or home page
+      window.location.href = "/";
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Logout failed", 
+        description: error.message || "Failed to logout",
+        variant: "destructive",
+      });
+    }
+  });
 
   // Analytics query
   const { data: analytics, isLoading: analyticsLoading } = useQuery<Analytics>({
@@ -156,6 +177,14 @@ export default function SuperAdminDashboard() {
           <h1 className="text-3xl font-bold">Super Admin Dashboard</h1>
           <p className="text-muted-foreground">Manage tenants, packages, and platform analytics</p>
         </div>
+        <Button 
+          variant="outline"
+          onClick={() => logoutMutation.mutate()}
+          disabled={logoutMutation.isPending}
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          {logoutMutation.isPending ? "Logging out..." : "Logout"}
+        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">

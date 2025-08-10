@@ -64,13 +64,16 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
 // Super admin middleware - checks if user is a super admin
 export const requireSuperAdmin = async (req: any, res: Response, next: NextFunction) => {
   try {
-    if (!req.user?.id) {
+    // Check session-based authentication first
+    if (!req.session?.userId) {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
+    const userId = req.session.userId;
+
     // Check if user has superadmin role directly from users table
     const result = await db.execute(sql`
-      SELECT role FROM users WHERE id = ${req.user.id} AND role = 'superadmin'
+      SELECT role FROM users WHERE id = ${userId} AND role = 'superadmin'
     `);
 
     if (!result.rows.length) {
@@ -78,6 +81,9 @@ export const requireSuperAdmin = async (req: any, res: Response, next: NextFunct
         message: 'Super admin access required' 
       });
     }
+
+    // Set req.user for consistency
+    req.user = req.session.user || { id: userId };
 
     next();
   } catch (error) {

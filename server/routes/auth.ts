@@ -91,8 +91,8 @@ export function registerAuthRoutes(app: Express) {
         return res.status(401).json({ message: 'Invalid credentials' });
       }
 
-      // Check if email is verified
-      if (!foundUser.emailVerified) {
+      // Check if email is verified (using snake_case from database)
+      if (!foundUser.email_verified) {
         return res.status(403).json({ 
           message: 'Please verify your email address before signing in',
           emailVerificationRequired: true
@@ -104,8 +104,8 @@ export function registerAuthRoutes(app: Express) {
       req.session.user = {
         id: foundUser.id,
         email: foundUser.email,
-        firstName: foundUser.firstName || '',
-        lastName: foundUser.lastName || '',
+        firstName: foundUser.first_name || '',
+        lastName: foundUser.last_name || '',
       };
 
       res.json({
@@ -113,8 +113,8 @@ export function registerAuthRoutes(app: Express) {
         user: {
           id: foundUser.id,
           email: foundUser.email,
-          firstName: foundUser.firstName,
-          lastName: foundUser.lastName,
+          firstName: foundUser.first_name,
+          lastName: foundUser.last_name,
         },
       });
     } catch (error) {
