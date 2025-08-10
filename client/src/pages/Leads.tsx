@@ -80,13 +80,33 @@ export default function Leads() {
     });
   };
 
+  // Send proposal mutation
+  const sendProposalMutation = useMutation({
+    mutationFn: async (leadId: string) => {
+      return await apiRequest(`/api/leads/${leadId}/send-proposal`, {
+        method: "POST"
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      toast({
+        title: "Success",
+        description: "Proposal sent successfully!",
+        variant: "default",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to send proposal. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Handle send proposal
   const handleSendProposal = (leadId: string) => {
-    // Update status to proposal sent
-    updateLeadMutation.mutate({ 
-      id: leadId, 
-      data: { status: "PROPOSAL_SENT" } 
-    });
+    sendProposalMutation.mutate(leadId);
   };
 
   const getStatusColor = (status: string) => {
@@ -394,10 +414,10 @@ export default function Leads() {
                       variant="outline" 
                       size="sm"
                       onClick={() => handleSendProposal(lead.id)}
-                      disabled={updateLeadMutation.isPending}
+                      disabled={sendProposalMutation.isPending || updateLeadMutation.isPending}
                     >
                       <Mail className="h-4 w-4 mr-1" />
-                      Send Proposal
+                      {sendProposalMutation.isPending ? "Sending..." : "Send Proposal"}
                     </Button>
                     {lead.status === "QUALIFIED" && (
                       <Button 

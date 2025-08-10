@@ -2574,6 +2574,98 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
     }
   });
 
+  app.post("/api/leads/:id/send-proposal", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+
+      // First, check if lead has a customer, if not create one
+      let customer;
+      const existingCustomer = await storage.getCustomerByEmail(lead.email);
+      
+      if (existingCustomer) {
+        customer = existingCustomer;
+      } else {
+        // Create customer from lead data
+        const customerData = {
+          name: `${lead.firstName} ${lead.lastName}`,
+          email: lead.email,
+          phone: lead.phone || "",
+          notes: lead.notes || "",
+          eventType: lead.eventType,
+          status: "ACTIVE",
+          source: "Lead Proposal"
+        };
+        customer = await storage.createCustomer(customerData);
+      }
+
+      // Generate proposal content based on lead information
+      const proposalContent = `
+# Event Proposal for ${lead.firstName} ${lead.lastName}
+
+## Event Details
+- **Event Type**: ${lead.eventType}
+- **Expected Guests**: ${lead.guestCount || 'TBD'}
+- **Preferred Date**: ${lead.dateStart ? new Date(lead.dateStart).toLocaleDateString() : 'TBD'}
+- **Budget Range**: ${lead.budgetMin || lead.budgetMax ? 
+  `$${lead.budgetMin || 0} - $${lead.budgetMax || 'Open'}` : 'To be discussed'}
+
+## Venue Recommendation
+We have reviewed your requirements and believe our venue would be perfect for your ${lead.eventType} event.
+
+## Services Included
+- Event coordination
+- Setup and breakdown
+- Basic lighting and sound
+- Tables and seating
+
+## Next Steps
+Please review this proposal and let us know if you have any questions. We'd be happy to schedule a venue tour at your convenience.
+
+${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
+      `;
+
+      // Create and send proposal
+      const proposalData = {
+        title: `${lead.eventType} Event Proposal`,
+        content: proposalContent.trim(),
+        customerId: customer.id,
+        eventType: lead.eventType,
+        guestCount: lead.guestCount,
+        eventDate: lead.dateStart ? new Date(lead.dateStart) : null,
+        status: "sent",
+        totalAmount: lead.budgetMax || 0,
+        venueId: lead.venueId || null
+      };
+
+      const proposal = await storage.createProposal(proposalData);
+
+      // Update lead status to proposal sent
+      await storage.updateLead(id, { status: "PROPOSAL_SENT" });
+
+      // Log the proposal sent activity
+      await storage.createLeadActivity({
+        leadId: id,
+        type: "PROPOSAL_SENT",
+        body: `Proposal sent: ${proposal.title}`,
+        meta: { 
+          proposalId: proposal.id,
+          customerId: customer.id,
+          proposalTitle: proposal.title
+        }
+      });
+
+      res.json({ proposal, customer, message: "Proposal sent successfully" });
+    } catch (error) {
+      console.error("Error sending proposal:", error);
+      res.status(500).json({ message: "Failed to send proposal" });
+    }
+  });
+
   // Lead Activities
   app.post("/api/leads/:id/activities", async (req, res) => {
     try {
