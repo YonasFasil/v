@@ -241,6 +241,88 @@ export const taxSettings = pgTable("tax_settings", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Lead management system
+export const campaignSources = pgTable("campaign_sources", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const tags = pgTable("tags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  color: text("color").notNull().default("#3b82f6"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const leads = pgTable("leads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  venueId: varchar("venue_id").references(() => venues.id),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone"),
+  eventType: text("event_type").notNull(),
+  guestCount: integer("guest_count").notNull(),
+  dateStart: timestamp("date_start"),
+  dateEnd: timestamp("date_end"),
+  budgetMin: decimal("budget_min", { precision: 10, scale: 2 }),
+  budgetMax: decimal("budget_max", { precision: 10, scale: 2 }),
+  preferredContact: text("preferred_contact").notNull().default("email"), // email, phone, sms
+  notes: text("notes"),
+  status: text("status").notNull().default("NEW"), // NEW, CONTACTED, TOUR_SCHEDULED, PROPOSAL_SENT, WON, LOST
+  sourceId: varchar("source_id").references(() => campaignSources.id),
+  utmSource: text("utm_source"),
+  utmMedium: text("utm_medium"),
+  utmCampaign: text("utm_campaign"),
+  consentEmail: boolean("consent_email").default(true),
+  consentSms: boolean("consent_sms").default(false),
+  convertedCustomerId: varchar("converted_customer_id").references(() => customers.id), // When lead converts to customer
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const leadActivities = pgTable("lead_activities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadId: varchar("lead_id").references(() => leads.id).notNull(),
+  type: text("type").notNull(), // NOTE, EMAIL, SMS, CALL, STATUS_CHANGE, TOUR_SCHEDULED
+  body: text("body").notNull(),
+  meta: jsonb("meta"), // Additional data like email template used, etc.
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const leadTags = pgTable("lead_tags", {
+  leadId: varchar("lead_id").references(() => leads.id).notNull(),
+  tagId: varchar("tag_id").references(() => tags.id).notNull(),
+});
+
+export const leadTasks = pgTable("lead_tasks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadId: varchar("lead_id").references(() => leads.id).notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  dueAt: timestamp("due_at"),
+  assignedTo: varchar("assigned_to").references(() => users.id),
+  status: text("status").notNull().default("OPEN"), // OPEN, DONE
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const tours = pgTable("tours", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadId: varchar("lead_id").references(() => leads.id).notNull(),
+  venueId: varchar("venue_id").references(() => venues.id).notNull(),
+  scheduledAt: timestamp("scheduled_at").notNull(),
+  duration: integer("duration").notNull().default(30), // minutes
+  status: text("status").notNull().default("SCHEDULED"), // SCHEDULED, COMPLETED, CANCELLED, NO_SHOW
+  attendeeCount: integer("attendee_count").default(1),
+  notes: text("notes"),
+  conductedBy: varchar("conducted_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertVenueSchema = createInsertSchema(venues).omit({ id: true });
@@ -274,6 +356,19 @@ export const insertServiceSchema = createInsertSchema(services).omit({ id: true,
 export const insertSpaceSchema = createInsertSchema(spaces).omit({ id: true, createdAt: true });
 export const insertSetupStyleSchema = createInsertSchema(setupStyles).omit({ id: true, createdAt: true });
 export const insertTaxSettingSchema = createInsertSchema(taxSettings).omit({ id: true, createdAt: true });
+export const insertCampaignSourceSchema = createInsertSchema(campaignSources).omit({ id: true, createdAt: true });
+export const insertTagSchema = createInsertSchema(tags).omit({ id: true, createdAt: true });
+export const insertLeadSchema = createInsertSchema(leads, {
+  dateStart: z.union([z.string(), z.date(), z.null()]).transform((val) => 
+    val === null ? null : (typeof val === 'string' ? new Date(val) : val)
+  ).optional(),
+  dateEnd: z.union([z.string(), z.date(), z.null()]).transform((val) => 
+    val === null ? null : (typeof val === 'string' ? new Date(val) : val)
+  ).optional(),
+}).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertLeadActivitySchema = createInsertSchema(leadActivities).omit({ id: true, createdAt: true });
+export const insertLeadTaskSchema = createInsertSchema(leadTasks).omit({ id: true, createdAt: true });
+export const insertTourSchema = createInsertSchema(tours).omit({ id: true, createdAt: true });
 
 // Types
 export type User = typeof users.$inferSelect;
@@ -308,3 +403,15 @@ export type SetupStyle = typeof setupStyles.$inferSelect;
 export type InsertSetupStyle = z.infer<typeof insertSetupStyleSchema>;
 export type TaxSetting = typeof taxSettings.$inferSelect;
 export type InsertTaxSetting = z.infer<typeof insertTaxSettingSchema>;
+export type CampaignSource = typeof campaignSources.$inferSelect;
+export type InsertCampaignSource = z.infer<typeof insertCampaignSourceSchema>;
+export type Tag = typeof tags.$inferSelect;
+export type InsertTag = z.infer<typeof insertTagSchema>;
+export type Lead = typeof leads.$inferSelect;
+export type InsertLead = z.infer<typeof insertLeadSchema>;
+export type LeadActivity = typeof leadActivities.$inferSelect;
+export type InsertLeadActivity = z.infer<typeof insertLeadActivitySchema>;
+export type LeadTask = typeof leadTasks.$inferSelect;
+export type InsertLeadTask = z.infer<typeof insertLeadTaskSchema>;
+export type Tour = typeof tours.$inferSelect;
+export type InsertTour = z.infer<typeof insertTourSchema>;

@@ -14,6 +14,12 @@ import {
   type Service, type InsertService,
   type TaxSetting, type InsertTaxSetting,
   type Communication, type InsertCommunication,
+  type CampaignSource, type InsertCampaignSource,
+  type Tag, type InsertTag,
+  type Lead, type InsertLead,
+  type LeadActivity, type InsertLeadActivity,
+  type LeadTask, type InsertLeadTask,
+  type Tour, type InsertTour,
 
 } from "@shared/schema";
 
@@ -141,6 +147,45 @@ export interface IStorage {
   createTaxSetting(taxSetting: InsertTaxSetting): Promise<TaxSetting>;
   updateTaxSetting(id: string, taxSetting: Partial<InsertTaxSetting>): Promise<TaxSetting | undefined>;
   deleteTaxSetting(id: string): Promise<boolean>;
+
+  // Lead Management
+  // Campaign Sources
+  getCampaignSources(): Promise<CampaignSource[]>;
+  createCampaignSource(source: InsertCampaignSource): Promise<CampaignSource>;
+  updateCampaignSource(id: string, source: Partial<InsertCampaignSource>): Promise<CampaignSource | undefined>;
+  
+  // Tags
+  getTags(): Promise<Tag[]>;
+  createTag(tag: InsertTag): Promise<Tag>;
+  updateTag(id: string, tag: Partial<InsertTag>): Promise<Tag | undefined>;
+  deleteTag(id: string): Promise<boolean>;
+  
+  // Leads
+  getLeads(filters?: { status?: string; source?: string; q?: string }): Promise<Lead[]>;
+  getLead(id: string): Promise<Lead | undefined>;
+  createLead(lead: InsertLead): Promise<Lead>;
+  updateLead(id: string, lead: Partial<InsertLead>): Promise<Lead | undefined>;
+  deleteLead(id: string): Promise<boolean>;
+  
+  // Lead Activities
+  getLeadActivities(leadId: string): Promise<LeadActivity[]>;
+  createLeadActivity(activity: InsertLeadActivity): Promise<LeadActivity>;
+  
+  // Lead Tasks
+  getLeadTasks(filters?: { assignee?: string; due?: string }): Promise<LeadTask[]>;
+  createLeadTask(task: InsertLeadTask): Promise<LeadTask>;
+  updateLeadTask(id: string, task: Partial<InsertLeadTask>): Promise<LeadTask | undefined>;
+  
+  // Tours
+  getTours(): Promise<Tour[]>;
+  getTour(id: string): Promise<Tour | undefined>;
+  createTour(tour: InsertTour): Promise<Tour>;
+  updateTour(id: string, tour: Partial<InsertTour>): Promise<Tour | undefined>;
+  
+  // Lead Tags (many-to-many)
+  getLeadTags(leadId: string): Promise<Tag[]>;
+  addLeadTag(leadId: string, tagId: string): Promise<void>;
+  removeLeadTag(leadId: string, tagId: string): Promise<void>;
   
 
   
@@ -169,6 +214,15 @@ export class MemStorage implements IStorage {
   private taxSettings: Map<string, TaxSetting>;
   private communications: Map<string, Communication>;
   private settings: Map<string, Setting>;
+  
+  // Lead Management Maps
+  private campaignSources: Map<string, CampaignSource>;
+  private tags: Map<string, Tag>;
+  private leads: Map<string, Lead>;
+  private leadActivities: Map<string, LeadActivity>;
+  private leadTasks: Map<string, LeadTask>;
+  private tours: Map<string, Tour>;
+  private leadTags: Set<string>; // Store leadId:tagId combinations
 
 
   constructor() {
@@ -188,14 +242,25 @@ export class MemStorage implements IStorage {
     this.taxSettings = new Map();
     this.communications = new Map();
     this.settings = new Map();
+    
+    // Lead Management initialization
+    this.campaignSources = new Map();
+    this.tags = new Map();
+    this.leads = new Map();
+    this.leadActivities = new Map();
+    this.leadTasks = new Map();
+    this.tours = new Map();
+    this.leadTags = new Set();
 
 
     this.initializeData();
+    this.initializeLeadManagementData();
   }
 
   private initializeData() {
     this.initializeSamplePackagesAndServices();
     this.initializeSampleSetupStyles();
+    this.initializeLeadManagementData();
     // Initialize with some default venues
     const defaultVenues: InsertVenue[] = [
       {
@@ -1381,6 +1446,397 @@ export class MemStorage implements IStorage {
 
   async deleteSetupStyle(id: string): Promise<boolean> {
     return this.setupStyles.delete(id);
+  }
+
+  // Initialize lead management sample data
+  private initializeLeadManagementData() {
+    // Sample campaign sources
+    const websiteSource: CampaignSource = {
+      id: randomUUID(),
+      name: "Website Organic",
+      slug: "website-organic",
+      isActive: true,
+      createdAt: new Date()
+    };
+    const googleAdsSource: CampaignSource = {
+      id: randomUUID(),
+      name: "Google Ads",
+      slug: "google-ads",
+      isActive: true,
+      createdAt: new Date()
+    };
+    const socialMediaSource: CampaignSource = {
+      id: randomUUID(),
+      name: "Social Media",
+      slug: "social-media",
+      isActive: true,
+      createdAt: new Date()
+    };
+
+    this.campaignSources.set(websiteSource.id, websiteSource);
+    this.campaignSources.set(googleAdsSource.id, googleAdsSource);
+    this.campaignSources.set(socialMediaSource.id, socialMediaSource);
+
+    // Sample tags
+    const hotLeadTag: Tag = {
+      id: randomUUID(),
+      name: "Hot Lead",
+      color: "#ef4444",
+      createdAt: new Date()
+    };
+    const corporateTag: Tag = {
+      id: randomUUID(),
+      name: "Corporate",
+      color: "#3b82f6",
+      createdAt: new Date()
+    };
+    const weddingTag: Tag = {
+      id: randomUUID(),
+      name: "Wedding",
+      color: "#ec4899",
+      createdAt: new Date()
+    };
+
+    this.tags.set(hotLeadTag.id, hotLeadTag);
+    this.tags.set(corporateTag.id, corporateTag);
+    this.tags.set(weddingTag.id, weddingTag);
+
+    // Sample leads
+    const sampleLead1: Lead = {
+      id: randomUUID(),
+      venueId: Array.from(this.venues.keys())[0] || null,
+      firstName: "Emma",
+      lastName: "Wilson",
+      email: "emma.wilson@techcorp.com",
+      phone: "(555) 234-5678",
+      eventType: "corporate",
+      guestCount: 150,
+      dateStart: new Date("2025-09-15"),
+      dateEnd: new Date("2025-09-15"),
+      budgetMin: 8000,
+      budgetMax: 12000,
+      preferredContact: "email",
+      notes: "Looking for corporate annual meeting venue with AV capabilities",
+      status: "NEW",
+      sourceId: websiteSource.id,
+      utmSource: "google",
+      utmMedium: "organic",
+      utmCampaign: null,
+      consentEmail: true,
+      consentSms: false,
+      convertedCustomerId: null,
+      createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
+      updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000)
+    };
+
+    const sampleLead2: Lead = {
+      id: randomUUID(),
+      venueId: Array.from(this.venues.keys())[0] || null,
+      firstName: "Michael",
+      lastName: "Chen",
+      email: "michael.chen@gmail.com",
+      phone: "(555) 345-6789",
+      eventType: "wedding",
+      guestCount: 80,
+      dateStart: new Date("2025-10-20"),
+      dateEnd: new Date("2025-10-20"),
+      budgetMin: 15000,
+      budgetMax: 25000,
+      preferredContact: "phone",
+      notes: "Intimate wedding ceremony and reception",
+      status: "CONTACTED",
+      sourceId: socialMediaSource.id,
+      utmSource: "facebook",
+      utmMedium: "social",
+      utmCampaign: "wedding-promo",
+      consentEmail: true,
+      consentSms: true,
+      convertedCustomerId: null,
+      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+      updatedAt: new Date(Date.now() - 12 * 60 * 60 * 1000) // 12 hours ago
+    };
+
+    this.leads.set(sampleLead1.id, sampleLead1);
+    this.leads.set(sampleLead2.id, sampleLead2);
+
+    // Sample lead activities
+    const activity1: LeadActivity = {
+      id: randomUUID(),
+      leadId: sampleLead1.id,
+      type: "NOTE",
+      body: "Lead submitted inquiry through website contact form",
+      meta: { source: "website_form" },
+      createdBy: null,
+      createdAt: sampleLead1.createdAt
+    };
+
+    const activity2: LeadActivity = {
+      id: randomUUID(),
+      leadId: sampleLead2.id,
+      type: "EMAIL",
+      body: "Initial follow-up email sent",
+      meta: { template: "initial_followup", email_sent: true },
+      createdBy: null,
+      createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000)
+    };
+
+    this.leadActivities.set(activity1.id, activity1);
+    this.leadActivities.set(activity2.id, activity2);
+
+    // Sample lead tasks
+    const task1: LeadTask = {
+      id: randomUUID(),
+      leadId: sampleLead1.id,
+      title: "Call potential client",
+      description: "Follow up on venue inquiry for corporate event",
+      dueAt: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
+      assignedTo: null,
+      status: "OPEN",
+      createdAt: new Date()
+    };
+
+    const task2: LeadTask = {
+      id: randomUUID(),
+      leadId: sampleLead2.id,
+      title: "Send proposal",
+      description: "Prepare and send wedding package proposal",
+      dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+      assignedTo: null,
+      status: "OPEN",
+      createdAt: new Date()
+    };
+
+    this.leadTasks.set(task1.id, task1);
+    this.leadTasks.set(task2.id, task2);
+
+    // Add some lead tags
+    this.leadTags.add(`${sampleLead1.id}:${corporateTag.id}`);
+    this.leadTags.add(`${sampleLead2.id}:${weddingTag.id}`);
+    this.leadTags.add(`${sampleLead2.id}:${hotLeadTag.id}`);
+  }
+
+  // Campaign Sources implementation
+  async getCampaignSources(): Promise<CampaignSource[]> {
+    return Array.from(this.campaignSources.values());
+  }
+
+  async createCampaignSource(source: InsertCampaignSource): Promise<CampaignSource> {
+    const newSource: CampaignSource = {
+      id: randomUUID(),
+      ...source,
+      createdAt: new Date(),
+    };
+    this.campaignSources.set(newSource.id, newSource);
+    return newSource;
+  }
+
+  async updateCampaignSource(id: string, source: Partial<InsertCampaignSource>): Promise<CampaignSource | undefined> {
+    const existing = this.campaignSources.get(id);
+    if (!existing) return undefined;
+    
+    const updated = { ...existing, ...source };
+    this.campaignSources.set(id, updated);
+    return updated;
+  }
+
+  // Tags implementation
+  async getTags(): Promise<Tag[]> {
+    return Array.from(this.tags.values());
+  }
+
+  async createTag(tag: InsertTag): Promise<Tag> {
+    const newTag: Tag = {
+      id: randomUUID(),
+      ...tag,
+      createdAt: new Date(),
+    };
+    this.tags.set(newTag.id, newTag);
+    return newTag;
+  }
+
+  async updateTag(id: string, tag: Partial<InsertTag>): Promise<Tag | undefined> {
+    const existing = this.tags.get(id);
+    if (!existing) return undefined;
+    
+    const updated = { ...existing, ...tag };
+    this.tags.set(id, updated);
+    return updated;
+  }
+
+  async deleteTag(id: string): Promise<boolean> {
+    // Remove all lead-tag associations for this tag
+    const toRemove = Array.from(this.leadTags).filter(combo => combo.endsWith(`:${id}`));
+    toRemove.forEach(combo => this.leadTags.delete(combo));
+    
+    return this.tags.delete(id);
+  }
+
+  // Leads implementation
+  async getLeads(filters?: { status?: string; source?: string; q?: string }): Promise<Lead[]> {
+    let leads = Array.from(this.leads.values());
+    
+    if (filters?.status) {
+      leads = leads.filter(lead => lead.status === filters.status);
+    }
+    
+    if (filters?.source) {
+      leads = leads.filter(lead => lead.sourceId === filters.source);
+    }
+    
+    if (filters?.q) {
+      const query = filters.q.toLowerCase();
+      leads = leads.filter(lead => 
+        lead.firstName.toLowerCase().includes(query) ||
+        lead.lastName.toLowerCase().includes(query) ||
+        lead.email.toLowerCase().includes(query) ||
+        lead.eventType.toLowerCase().includes(query) ||
+        (lead.notes && lead.notes.toLowerCase().includes(query))
+      );
+    }
+    
+    return leads.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getLead(id: string): Promise<Lead | undefined> {
+    return this.leads.get(id);
+  }
+
+  async createLead(lead: InsertLead): Promise<Lead> {
+    const newLead: Lead = {
+      id: randomUUID(),
+      ...lead,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.leads.set(newLead.id, newLead);
+    return newLead;
+  }
+
+  async updateLead(id: string, lead: Partial<InsertLead>): Promise<Lead | undefined> {
+    const existing = this.leads.get(id);
+    if (!existing) return undefined;
+    
+    const updated = { ...existing, ...lead, updatedAt: new Date() };
+    this.leads.set(id, updated);
+    return updated;
+  }
+
+  async deleteLead(id: string): Promise<boolean> {
+    // Remove all activities, tasks, and tag associations for this lead
+    const activitiesToRemove = Array.from(this.leadActivities.values()).filter(a => a.leadId === id);
+    activitiesToRemove.forEach(activity => this.leadActivities.delete(activity.id));
+    
+    const tasksToRemove = Array.from(this.leadTasks.values()).filter(t => t.leadId === id);
+    tasksToRemove.forEach(task => this.leadTasks.delete(task.id));
+    
+    const tagsToRemove = Array.from(this.leadTags).filter(combo => combo.startsWith(`${id}:`));
+    tagsToRemove.forEach(combo => this.leadTags.delete(combo));
+    
+    return this.leads.delete(id);
+  }
+
+  // Lead Activities implementation
+  async getLeadActivities(leadId: string): Promise<LeadActivity[]> {
+    return Array.from(this.leadActivities.values())
+      .filter(activity => activity.leadId === leadId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async createLeadActivity(activity: InsertLeadActivity): Promise<LeadActivity> {
+    const newActivity: LeadActivity = {
+      id: randomUUID(),
+      ...activity,
+      createdAt: new Date(),
+    };
+    this.leadActivities.set(newActivity.id, newActivity);
+    return newActivity;
+  }
+
+  // Lead Tasks implementation
+  async getLeadTasks(filters?: { assignee?: string; due?: string }): Promise<LeadTask[]> {
+    let tasks = Array.from(this.leadTasks.values());
+    
+    if (filters?.assignee) {
+      tasks = tasks.filter(task => task.assignedTo === filters.assignee);
+    }
+    
+    if (filters?.due) {
+      const dueDate = new Date(filters.due);
+      tasks = tasks.filter(task => 
+        task.dueAt && task.dueAt.toDateString() === dueDate.toDateString()
+      );
+    }
+    
+    return tasks.sort((a, b) => {
+      if (!a.dueAt && !b.dueAt) return 0;
+      if (!a.dueAt) return 1;
+      if (!b.dueAt) return -1;
+      return a.dueAt.getTime() - b.dueAt.getTime();
+    });
+  }
+
+  async createLeadTask(task: InsertLeadTask): Promise<LeadTask> {
+    const newTask: LeadTask = {
+      id: randomUUID(),
+      ...task,
+      createdAt: new Date(),
+    };
+    this.leadTasks.set(newTask.id, newTask);
+    return newTask;
+  }
+
+  async updateLeadTask(id: string, task: Partial<InsertLeadTask>): Promise<LeadTask | undefined> {
+    const existing = this.leadTasks.get(id);
+    if (!existing) return undefined;
+    
+    const updated = { ...existing, ...task };
+    this.leadTasks.set(id, updated);
+    return updated;
+  }
+
+  // Tours implementation
+  async getTours(): Promise<Tour[]> {
+    return Array.from(this.tours.values()).sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime());
+  }
+
+  async getTour(id: string): Promise<Tour | undefined> {
+    return this.tours.get(id);
+  }
+
+  async createTour(tour: InsertTour): Promise<Tour> {
+    const newTour: Tour = {
+      id: randomUUID(),
+      ...tour,
+      createdAt: new Date(),
+    };
+    this.tours.set(newTour.id, newTour);
+    return newTour;
+  }
+
+  async updateTour(id: string, tour: Partial<InsertTour>): Promise<Tour | undefined> {
+    const existing = this.tours.get(id);
+    if (!existing) return undefined;
+    
+    const updated = { ...existing, ...tour };
+    this.tours.set(id, updated);
+    return updated;
+  }
+
+  // Lead Tags (many-to-many) implementation
+  async getLeadTags(leadId: string): Promise<Tag[]> {
+    const tagIds = Array.from(this.leadTags)
+      .filter(combo => combo.startsWith(`${leadId}:`))
+      .map(combo => combo.split(':')[1]);
+    
+    return tagIds.map(tagId => this.tags.get(tagId)).filter(Boolean) as Tag[];
+  }
+
+  async addLeadTag(leadId: string, tagId: string): Promise<void> {
+    this.leadTags.add(`${leadId}:${tagId}`);
+  }
+
+  async removeLeadTag(leadId: string, tagId: string): Promise<void> {
+    this.leadTags.delete(`${leadId}:${tagId}`);
   }
 
 

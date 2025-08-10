@@ -10,6 +10,7 @@ import Customers from "@/pages/customers";
 import Payments from "@/pages/payments";
 import Tasks from "@/pages/tasks";
 import Venues from "@/pages/venues";
+import Leads from "@/pages/Leads";
 import SetupStyles from "@/pages/setup-styles";
 import Packages from "@/pages/packages";
 import Settings from "@/pages/settings";
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/events" component={Events} />
       <Route path="/customers" component={Customers} />
+      <Route path="/leads" component={Leads} />
       <Route path="/payments" component={Payments} />
       <Route path="/tasks" component={Tasks} />
       <Route path="/venues" component={Venues} />

@@ -14,7 +14,12 @@ import {
   insertSettingsSchema,
   insertCommunicationSchema,
   insertSetupStyleSchema,
-
+  insertCampaignSourceSchema,
+  insertTagSchema,
+  insertLeadSchema,
+  insertLeadActivitySchema,
+  insertLeadTaskSchema,
+  insertTourSchema
 } from "@shared/schema";
 import { 
   generateAIInsights,
@@ -2356,7 +2361,365 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
     }
   });
 
+  // Lead Management Routes
+  
+  // Campaign Sources
+  app.get("/api/campaign-sources", async (req, res) => {
+    try {
+      const sources = await storage.getCampaignSources();
+      res.json(sources);
+    } catch (error) {
+      console.error("Error fetching campaign sources:", error);
+      res.status(500).json({ message: "Failed to fetch campaign sources" });
+    }
+  });
 
+  app.post("/api/campaign-sources", async (req, res) => {
+    try {
+      const validatedData = insertCampaignSourceSchema.parse(req.body);
+      const source = await storage.createCampaignSource(validatedData);
+      res.status(201).json(source);
+    } catch (error) {
+      console.error("Error creating campaign source:", error);
+      res.status(500).json({ message: "Failed to create campaign source" });
+    }
+  });
+
+  // Tags
+  app.get("/api/tags", async (req, res) => {
+    try {
+      const tags = await storage.getTags();
+      res.json(tags);
+    } catch (error) {
+      console.error("Error fetching tags:", error);
+      res.status(500).json({ message: "Failed to fetch tags" });
+    }
+  });
+
+  app.post("/api/tags", async (req, res) => {
+    try {
+      const validatedData = insertTagSchema.parse(req.body);
+      const tag = await storage.createTag(validatedData);
+      res.status(201).json(tag);
+    } catch (error) {
+      console.error("Error creating tag:", error);
+      res.status(500).json({ message: "Failed to create tag" });
+    }
+  });
+
+  app.delete("/api/tags/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteTag(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Tag not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting tag:", error);
+      res.status(500).json({ message: "Failed to delete tag" });
+    }
+  });
+
+  // Leads
+  app.get("/api/leads", async (req, res) => {
+    try {
+      const { status, source, q } = req.query;
+      const filters = {
+        status: status as string,
+        source: source as string,
+        q: q as string
+      };
+      const leads = await storage.getLeads(filters);
+      res.json(leads);
+    } catch (error) {
+      console.error("Error fetching leads:", error);
+      res.status(500).json({ message: "Failed to fetch leads" });
+    }
+  });
+
+  app.get("/api/leads/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+
+      // Get additional lead data
+      const activities = await storage.getLeadActivities(id);
+      const tags = await storage.getLeadTags(id);
+      const tasks = await storage.getLeadTasks();
+      const leadTasks = tasks.filter(task => task.leadId === id);
+
+      res.json({
+        ...lead,
+        activities,
+        tags,
+        tasks: leadTasks
+      });
+    } catch (error) {
+      console.error("Error fetching lead:", error);
+      res.status(500).json({ message: "Failed to fetch lead" });
+    }
+  });
+
+  app.post("/api/leads", async (req, res) => {
+    try {
+      const validatedData = insertLeadSchema.parse(req.body);
+      const lead = await storage.createLead(validatedData);
+
+      // Log initial activity
+      await storage.createLeadActivity({
+        leadId: lead.id,
+        type: "NOTE",
+        body: "Lead submitted through quote form",
+        meta: { 
+          source: validatedData.utmSource || "direct",
+          medium: validatedData.utmMedium || "website"
+        }
+      });
+
+      // Create initial follow-up task
+      await storage.createLeadTask({
+        leadId: lead.id,
+        title: "Contact new lead",
+        description: `Follow up with ${lead.firstName} ${lead.lastName} about their ${lead.eventType} event`,
+        dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+        status: "OPEN"
+      });
+
+      res.status(201).json(lead);
+    } catch (error) {
+      console.error("Error creating lead:", error);
+      res.status(500).json({ message: "Failed to create lead" });
+    }
+  });
+
+  app.patch("/api/leads/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      
+      const originalLead = await storage.getLead(id);
+      if (!originalLead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+
+      const updatedLead = await storage.updateLead(id, updateData);
+      
+      // Log status change if status was updated
+      if (updateData.status && updateData.status !== originalLead.status) {
+        await storage.createLeadActivity({
+          leadId: id,
+          type: "STATUS_CHANGE",
+          body: `Status changed from ${originalLead.status} to ${updateData.status}`,
+          meta: { 
+            oldStatus: originalLead.status,
+            newStatus: updateData.status
+          }
+        });
+      }
+
+      res.json(updatedLead);
+    } catch (error) {
+      console.error("Error updating lead:", error);
+      res.status(500).json({ message: "Failed to update lead" });
+    }
+  });
+
+  // Lead Activities
+  app.post("/api/leads/:id/activities", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertLeadActivitySchema.parse({
+        ...req.body,
+        leadId: id
+      });
+      
+      const activity = await storage.createLeadActivity(validatedData);
+      res.status(201).json(activity);
+    } catch (error) {
+      console.error("Error creating lead activity:", error);
+      res.status(500).json({ message: "Failed to create lead activity" });
+    }
+  });
+
+  // Lead Tags
+  app.post("/api/leads/:id/tags", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { tagId } = req.body;
+      
+      await storage.addLeadTag(id, tagId);
+      res.status(201).json({ message: "Tag added to lead" });
+    } catch (error) {
+      console.error("Error adding tag to lead:", error);
+      res.status(500).json({ message: "Failed to add tag to lead" });
+    }
+  });
+
+  app.delete("/api/leads/:id/tags/:tagId", async (req, res) => {
+    try {
+      const { id, tagId } = req.params;
+      
+      await storage.removeLeadTag(id, tagId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error removing tag from lead:", error);
+      res.status(500).json({ message: "Failed to remove tag from lead" });
+    }
+  });
+
+  // Lead Tasks
+  app.get("/api/lead-tasks", async (req, res) => {
+    try {
+      const { assignee, due } = req.query;
+      const filters = {
+        assignee: assignee as string,
+        due: due as string
+      };
+      const tasks = await storage.getLeadTasks(filters);
+      res.json(tasks);
+    } catch (error) {
+      console.error("Error fetching lead tasks:", error);
+      res.status(500).json({ message: "Failed to fetch lead tasks" });
+    }
+  });
+
+  app.post("/api/lead-tasks", async (req, res) => {
+    try {
+      const validatedData = insertLeadTaskSchema.parse(req.body);
+      const task = await storage.createLeadTask(validatedData);
+      res.status(201).json(task);
+    } catch (error) {
+      console.error("Error creating lead task:", error);
+      res.status(500).json({ message: "Failed to create lead task" });
+    }
+  });
+
+  app.patch("/api/lead-tasks/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      const updatedTask = await storage.updateLeadTask(id, updateData);
+      
+      if (!updatedTask) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      res.json(updatedTask);
+    } catch (error) {
+      console.error("Error updating lead task:", error);
+      res.status(500).json({ message: "Failed to update lead task" });
+    }
+  });
+
+  // Tours
+  app.get("/api/tours", async (req, res) => {
+    try {
+      const tours = await storage.getTours();
+      res.json(tours);
+    } catch (error) {
+      console.error("Error fetching tours:", error);
+      res.status(500).json({ message: "Failed to fetch tours" });
+    }
+  });
+
+  app.post("/api/tours", async (req, res) => {
+    try {
+      const validatedData = insertTourSchema.parse(req.body);
+      const tour = await storage.createTour(validatedData);
+
+      // Update lead status to TOUR_SCHEDULED
+      if (tour.leadId) {
+        await storage.updateLead(tour.leadId, { status: "TOUR_SCHEDULED" });
+        
+        // Log activity
+        await storage.createLeadActivity({
+          leadId: tour.leadId,
+          type: "TOUR_SCHEDULED",
+          body: `Venue tour scheduled for ${tour.scheduledAt.toLocaleString()}`,
+          meta: { 
+            tourId: tour.id,
+            venueId: tour.venueId,
+            duration: tour.duration
+          }
+        });
+      }
+
+      res.status(201).json(tour);
+    } catch (error) {
+      console.error("Error creating tour:", error);
+      res.status(500).json({ message: "Failed to create tour" });
+    }
+  });
+
+  app.patch("/api/tours/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      const updatedTour = await storage.updateTour(id, updateData);
+      
+      if (!updatedTour) {
+        return res.status(404).json({ message: "Tour not found" });
+      }
+      
+      res.json(updatedTour);
+    } catch (error) {
+      console.error("Error updating tour:", error);
+      res.status(500).json({ message: "Failed to update tour" });
+    }
+  });
+
+  // Convert Lead to Customer
+  app.post("/api/leads/:id/convert", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const lead = await storage.getLead(id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+
+      // Create customer from lead data
+      const customer = await storage.createCustomer({
+        name: `${lead.firstName} ${lead.lastName}`,
+        email: lead.email,
+        phone: lead.phone || "",
+        company: "", // Could be added to lead model if needed
+        notes: lead.notes || ""
+      });
+
+      // Update lead with converted customer ID and status
+      await storage.updateLead(id, {
+        convertedCustomerId: customer.id,
+        status: "WON"
+      });
+
+      // Log conversion activity
+      await storage.createLeadActivity({
+        leadId: id,
+        type: "STATUS_CHANGE",
+        body: `Lead converted to customer: ${customer.name}`,
+        meta: { 
+          customerId: customer.id,
+          conversionDate: new Date().toISOString()
+        }
+      });
+
+      res.json({
+        customer,
+        lead: await storage.getLead(id)
+      });
+    } catch (error) {
+      console.error("Error converting lead to customer:", error);
+      res.status(500).json({ message: "Failed to convert lead to customer" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

@@ -3,6 +3,7 @@ import {
   LayoutDashboard, 
   Calendar, 
   Users, 
+  UserPlus,
   FileText, 
   CreditCard, 
   CheckSquare,
@@ -17,7 +18,8 @@ import { Button } from "@/components/ui/button";
 const navigationItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Events & Bookings", href: "/events", icon: Calendar },
-  { name: "Customers & Leads", href: "/customers", icon: Users },
+  { name: "Customers", href: "/customers", icon: Users },
+  { name: "Leads", href: "/leads", icon: UserPlus },
   { name: "Proposals & Contracts", href: "/proposals", icon: FileText },
   { name: "Payments", href: "/payments", icon: CreditCard },
   { name: "Tasks & Team", href: "/tasks", icon: CheckSquare },
