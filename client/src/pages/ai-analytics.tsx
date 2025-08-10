@@ -2,6 +2,9 @@ import { useState } from "react";
 import { AnalyticsDashboard } from "@/components/ai/analytics-dashboard";
 import { CreatePackageModal } from "@/components/forms/create-package-modal";
 import { CreateServiceModal } from "@/components/forms/create-service-modal";
+import { Sidebar } from "@/components/layout/sidebar";
+import { Header } from "@/components/layout/header";
+import { MobileNav } from "@/components/layout/mobile-nav";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AIAnalytics() {
@@ -9,6 +12,7 @@ export default function AIAnalytics() {
   const [showCreateService, setShowCreateService] = useState(false);
   const [prefilledPackageData, setPrefilledPackageData] = useState<any>(null);
   const [prefilledServiceData, setPrefilledServiceData] = useState<any>(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const { toast } = useToast();
 
   const handleCreatePackage = (packageData: any) => {
@@ -30,11 +34,26 @@ export default function AIAnalytics() {
   };
 
   return (
-    <>
-      <AnalyticsDashboard 
-        onCreatePackage={handleCreatePackage}
-        onCreateService={handleCreateService}
-      />
+    <div className="flex h-screen overflow-hidden bg-slate-50">
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:block">
+        <Sidebar />
+      </div>
+
+      {/* Mobile Navigation */}
+      <MobileNav open={mobileNavOpen} onOpenChange={setMobileNavOpen} />
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header onMobileNavToggle={() => setMobileNavOpen(true)} />
+        
+        <main className="flex-1 overflow-y-auto">
+          <AnalyticsDashboard 
+            onCreatePackage={handleCreatePackage}
+            onCreateService={handleCreateService}
+          />
+        </main>
+      </div>
       
       <CreatePackageModal
         open={showCreatePackage}
@@ -53,6 +72,6 @@ export default function AIAnalytics() {
         }}
         initialData={prefilledServiceData}
       />
-    </>
+    </div>
   );
 }
