@@ -1,8 +1,8 @@
-# Event Venue Management System - "Venuine"
+# VENUIN - Complete Venue Management Platform Documentation
 
 ## Overview
 
-"Venuine" is a comprehensive event venue management system designed for venue owners and event managers. It provides tools to manage bookings, customers, proposals, payments, and tasks. The system incorporates AI-powered features such as smart scheduling, automated email replies, lead scoring, and predictive analytics to optimize venue operations and enhance customer experience. The business vision is to streamline venue management, increase efficiency, and provide data-driven insights to maximize revenue and customer satisfaction in the event industry.
+VENUIN is an advanced multi-tenant SaaS platform designed for comprehensive venue management. Its primary purpose is to provide venue owners and event managers with a complete suite of tools for managing bookings, customers, proposals, payments, and tasks. The platform incorporates AI-powered features to optimize operations, enhance administrative capabilities with role-based access controls, and ensure scalability. The business vision is to streamline venue operations, improve efficiency, and leverage AI for intelligent insights, positioning VENUIN as a leading solution in the event management market.
 
 ## User Preferences
 
@@ -10,77 +10,48 @@ Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Frontend Architecture
-- **Framework**: React with TypeScript, using Vite.
-- **Routing**: Wouter.
-- **State Management**: TanStack Query (React Query) for server state and caching.
-- **UI Components**: Radix UI primitives with custom styling using Tailwind CSS and shadcn/ui.
-- **Forms**: React Hook Form with Zod validation.
-- **Styling**: Tailwind CSS with CSS variables.
-- **UI/UX Decisions**:
-    - Default view for Events & Bookings is cards for immediate overview.
-    - Full-width calendar layout for enhanced event visibility.
-    - Modern settings redesign with organized tabs for clear configuration.
-    - Enhanced event action buttons with sticky, semi-transparent design.
-    - Clean, grid-based layouts for modals (e.g., event creation/editing).
-    - Mobile-responsive design for all key features like proposals.
-    - Visual indicators for pricing, categories, and booking statuses.
+VENUIN is built with a modern, scalable architecture designed for high performance and maintainability.
 
-### Backend Architecture
-- **Framework**: Express.js with TypeScript on Node.js.
-- **API Design**: RESTful API.
-- **Database Layer**: Abstracted storage interface (`IStorage`) for flexible database implementations.
-- **Error Handling**: Centralized middleware.
+**Frontend Architecture:**
+- **Framework**: React 18 with TypeScript, using Vite for build tooling.
+- **Routing**: Wouter for lightweight client-side routing.
+- **State Management**: TanStack Query (React Query v5) for server state and caching.
+- **UI Components**: Radix UI primitives with shadcn/ui design system.
+- **Styling**: Tailwind CSS with custom CSS variables for theming.
+- **Forms**: React Hook Form with Zod validation schemas.
+- **Icons**: Lucide React icons.
 
-### Data Storage
-- **ORM**: Drizzle ORM configured for PostgreSQL.
-- **Database**: PostgreSQL (Neon serverless).
-- **Migrations**: Drizzle Kit.
-- **Schema**: Comprehensive data model for users, venues, customers, bookings, proposals, payments, tasks, and AI insights.
-
-### Authentication & Authorization
+**Backend Architecture:**
+- **Runtime**: Node.js with Express.js and TypeScript.
+- **API Design**: RESTful API with comprehensive error handling.
+- **Database**: PostgreSQL with Drizzle ORM for type-safe operations.
 - **Session Management**: Express sessions with PostgreSQL session store.
-- **User System**: Role-based access (manager role by default).
-- **Security**: Secure session handling.
 
-### Core Technical Implementations & Feature Specifications
-- **Dedicated Floor Plans & Setup Section**: Centralized management and design of venue floor plans, independent of venue editing, with interactive 2D designer (drag-and-drop, resizable objects, multiple setup styles, capacity tracking).
-- **Modern Settings**: Comprehensive configuration for General, Notifications, Appearance, Integrations, BEO, Taxes, Security.
-- **BEO (Banquet Event Orders) System**: Template-based professional BEO generation from event summaries with customizable sections and print/download capabilities.
-- **Service & Package Management**: One-click duplication, comprehensive category management (visual overview, color coding), and flexible pricing models including "Per Hour," "Fixed Price," and "Per Person." Corrected package-service pricing logic to include bundled services at no extra cost.
-- **Event Workflow**: Seamless integration of proposals into event creation with status tracking (sent, viewed, accepted, declined). Enhanced event creation and editing modals with component editing, copy configuration for multi-date events, and in-workflow service creation.
-- **Customer Communication**: Integrated panel for direct messaging (email, SMS, internal notes) from event details.
-- **Booking Conflict Detection**: Space-specific checking with detailed warnings.
-- **Real-Time Availability**: Calendar shows actual booking status with detailed event cards.
-- **Contract System**: Multi-date contract system grouping events, with UI integration and highlighting.
-- **Reports & Analytics**: Comprehensive dashboard with real-time data, interactive charts, and AI-powered insights.
-- **Tax and Fees System**: Configurable percentage and fixed-rate options.
+**Major Features & Capabilities:**
+- **Dashboard & Analytics**: Real-time metrics, booking pipeline visualization, AI-powered insights, and comprehensive reports.
+- **Event & Booking Management**: Complete booking lifecycle, multi-date event support, interactive calendar, proposal integration, and 2D floor plan designer.
+- **Customer & Lead Management**: Lead capture with UTM tracking, lead scoring, customer lifecycle tracking, and communication history.
+- **Proposal System**: Professional proposal generation, email delivery with tracking, digital signature acceptance, and auto-conversion to bookings.
+- **Payment Processing**: Secure payment handling via Stripe Connect, including onboarding, payment intent creation, and webhook integration.
+- **Venue & Space Management**: Multi-venue support, capacity management, amenity tracking, and flexible pricing configuration.
+- **Service & Package Management**: Flexible service catalog, package bundling, dynamic pricing models, and tax/fee application.
+- **Communication & Notifications**: Gmail integration for automated workflows, internal notes, and customizable email templates.
+- **Task & Team Management**: Task assignment, due date tracking, booking-linked automation, and team collaboration.
+- **AI-Powered Features**: Voice-to-text booking capture, smart scheduling, automated email replies, lead priority scoring, predictive analytics, and proposal content generation.
 
-### AI Integration
-- **Provider**: Google Gemini API.
-- **Features**: Voice-to-Text Booking (with error correction), Smart Scheduling, Automated Email Replies, Lead Scoring, Predictive Analytics, AI-powered Proposal Generation, Natural Language Processing for voice data extraction.
-- **AI-Powered Insights**: Suggestions for packages and services with one-click application.
-- **Disclaimers**: Clear warnings about potential AI errors.
+**User Interface & Experience:**
+- **Design System**: Modern, clean interface using Tailwind CSS, responsive design for desktop and mobile, with infrastructure for dark/light themes. Consistent component library built with Radix UI.
+- **Navigation Structure**: Collapsible sidebar with organized sections for Dashboard, Events, Customers, Leads, Proposals, Business tools (Payments, Tasks, Venues, Setup Styles, Packages), AI features, and Configuration.
+- **Mobile Responsiveness**: Fully responsive layout, mobile-optimized navigation, and touch-friendly elements.
+
+**Security & Role Management:**
+- Session-based authentication with PostgreSQL session store.
+- Role-based access control with an initial "manager" role and future extensibility for multi-role systems.
+- Secure session handling with HTTP-only cookies and environment-based secret management.
 
 ## External Dependencies
 
-### Core Backend Services
-- **Database**: Neon PostgreSQL serverless database.
-- **Session Store**: PostgreSQL-backed session storage (`connect-pg-simple`).
-- **ORM**: Drizzle ORM.
-
-### AI & Machine Learning
-- **Google Gemini API**: Gemini 2.5 Flash model.
-- **Voice Recognition**: Browser Web Speech API.
-
-### Frontend Libraries
-- **UI Framework**: Radix UI.
-- **Styling**: Tailwind CSS.
-- **Validation**: Zod.
-- **Date Handling**: date-fns.
-- **Carousel**: Embla Carousel.
-
-### Development Tools
-- **Build System**: Vite.
-- **Type Checking**: TypeScript.
-- **Code Quality**: ESLint, Prettier.
+- **AI Provider**: Google Gemini 2.5 Flash (for AI-powered insights, voice-to-text, scheduling, lead scoring, and content generation).
+- **Payments**: Stripe Connect (for secure payment processing, account onboarding, and payment intent creation).
+- **Email Services**: Gmail SMTP integration (for notifications, proposals, and automated email workflows).
+- **Icons**: Lucide React (for UI icons).
