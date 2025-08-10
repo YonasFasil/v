@@ -39,8 +39,17 @@ import {
 export default function SuperAdmin() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { logout, userRoleData, isSuperAdmin } = useUserRole();
+  const { logout, userRoleData, isSuperAdmin, isLoading } = useUserRole();
   const [selectedTab, setSelectedTab] = useState("overview");
+
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   // Ensure only Super Admin can access this page
   if (!isSuperAdmin) {
