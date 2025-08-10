@@ -12,16 +12,44 @@ export function registerPublicRoutes(app: Express) {
           id: featurePackages.id,
           name: featurePackages.name,
           slug: featurePackages.slug,
-          billingModes: featurePackages.billingModes,
-          limits: featurePackages.limits,
-          flags: featurePackages.flags,
-          trialDays: featurePackages.trialDays,
+          description: featurePackages.description,
+          priceMonthly: featurePackages.price_monthly,
+          maxUsers: featurePackages.max_users,
+          features: featurePackages.features,
         })
         .from(featurePackages)
-        .where(eq(featurePackages.status, 'active'))
-        .orderBy(featurePackages.sortOrder);
+        .where(eq(featurePackages.is_active, true))
+        .orderBy(featurePackages.name);
 
-      res.json(activePlans);
+      // Transform to expected format for frontend
+      const transformedPlans = activePlans.map(plan => ({
+        id: plan.id,
+        name: plan.name,
+        slug: plan.slug,
+        billingModes: {
+          monthly: {
+            amount: Math.round(plan.priceMonthly * 100), // Convert to cents
+            currency: 'USD'
+          }
+        },
+        limits: {
+          venues: plan.slug === 'starter' ? 1 : plan.slug === 'professional' ? 3 : 999,
+          staff: plan.maxUsers,
+          monthlyBookings: plan.slug === 'starter' ? 50 : plan.slug === 'professional' ? 200 : 999
+        },
+        flags: {
+          aiFeatures: plan.slug !== 'starter',
+          multiVenue: plan.slug !== 'starter',
+          advancedReporting: plan.slug === 'professional' || plan.slug === 'enterprise',
+          apiAccess: plan.slug === 'enterprise',
+          customBranding: plan.slug === 'enterprise',
+          prioritySupport: plan.slug === 'enterprise'
+        },
+        trialDays: 14,
+        features: plan.features || []
+      }));
+
+      res.json(transformedPlans);
     } catch (error) {
       console.error('Error fetching public plans:', error);
       res.status(500).json({ message: 'Error fetching plans' });

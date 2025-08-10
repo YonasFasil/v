@@ -38,6 +38,10 @@ import {
 } from "./services/gemini";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Add session middleware
+  const { sessionMiddleware } = await import('./middleware/session');
+  app.use(sessionMiddleware);
+
   // Apply tenant context middleware to all routes
   app.use(tenantContext);
 

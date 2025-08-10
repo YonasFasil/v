@@ -25,17 +25,17 @@ export default function Home() {
             <span className="text-2xl font-bold">VENUIN</span>
           </div>
           <nav className="hidden md:flex items-center space-x-6">
-            <Link href="/features">
-              <a className="text-muted-foreground hover:text-foreground transition-colors">Features</a>
+            <Link href="/features" className="text-muted-foreground hover:text-foreground transition-colors">
+              Features
             </Link>
-            <Link href="/pricing">
-              <a className="text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
+            <Link href="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">
+              Pricing
             </Link>
-            <Link href="/contact">
-              <a className="text-muted-foreground hover:text-foreground transition-colors">Contact</a>
+            <Link href="/contact" className="text-muted-foreground hover:text-foreground transition-colors">
+              Contact
             </Link>
-            <Link href="/login">
-              <a className="text-muted-foreground hover:text-foreground transition-colors">Sign In</a>
+            <Link href="/login" className="text-muted-foreground hover:text-foreground transition-colors">
+              Sign In
             </Link>
             <Link href="/signup">
               <Button size="sm">Get Started</Button>
@@ -290,8 +290,8 @@ export default function Home() {
             <div>
               <h4 className="font-semibold mb-4">Product</h4>
               <div className="space-y-2 text-sm">
-                <Link href="/features"><a className="text-muted-foreground hover:text-foreground">Features</a></Link>
-                <Link href="/pricing"><a className="text-muted-foreground hover:text-foreground">Pricing</a></Link>
+                <Link href="/features" className="text-muted-foreground hover:text-foreground">Features</Link>
+                <Link href="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</Link>
                 <a href="#" className="text-muted-foreground hover:text-foreground">Security</a>
                 <a href="#" className="text-muted-foreground hover:text-foreground">Integrations</a>
               </div>
@@ -301,15 +301,15 @@ export default function Home() {
               <div className="space-y-2 text-sm">
                 <a href="#" className="text-muted-foreground hover:text-foreground">About</a>
                 <a href="#" className="text-muted-foreground hover:text-foreground">Blog</a>
-                <Link href="/contact"><a className="text-muted-foreground hover:text-foreground">Contact</a></Link>
+                <Link href="/contact" className="text-muted-foreground hover:text-foreground">Contact</Link>
                 <a href="#" className="text-muted-foreground hover:text-foreground">Careers</a>
               </div>
             </div>
             <div>
               <h4 className="font-semibold mb-4">Legal</h4>
               <div className="space-y-2 text-sm">
-                <Link href="/privacy"><a className="text-muted-foreground hover:text-foreground">Privacy Policy</a></Link>
-                <Link href="/terms"><a className="text-muted-foreground hover:text-foreground">Terms of Service</a></Link>
+                <Link href="/privacy" className="text-muted-foreground hover:text-foreground">Privacy Policy</Link>
+                <Link href="/terms" className="text-muted-foreground hover:text-foreground">Terms of Service</Link>
                 <a href="#" className="text-muted-foreground hover:text-foreground">Cookie Policy</a>
                 <a href="#" className="text-muted-foreground hover:text-foreground">GDPR</a>
               </div>
