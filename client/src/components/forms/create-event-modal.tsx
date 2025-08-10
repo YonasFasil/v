@@ -55,6 +55,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
   
   // Copy config functionality
   const [showCopyModal, setShowCopyModal] = useState(false);
+  const [selectedCopyIndices, setSelectedCopyIndices] = useState<number[]>([]);
   
   // New service creation
   const [showNewServiceForm, setShowNewServiceForm] = useState(false);
@@ -387,19 +388,10 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
 
     setSelectedDates(prev => 
       prev.map((date, index) => {
-        // Only apply to selected indices, but skip current active tab
+        // Apply configuration to selected indices, skip current active tab
         if (index === activeTabIndex) return date;
         
-        // Map checkbox indices to actual date indices (excluding current)
-        const nonCurrentIndices = prev
-          .map((_, i) => i)
-          .filter(i => i !== activeTabIndex);
-        
-        const isSelected = selectedIndices.some(checkboxIndex => 
-          nonCurrentIndices[checkboxIndex] === index
-        );
-        
-        return isSelected ? { ...date, ...currentConfig } : date;
+        return selectedIndices.includes(index) ? { ...date, ...currentConfig } : date;
       })
     );
 
@@ -1902,9 +1894,23 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
               {selectedDates.map((date, index) => {
                 if (index === activeTabIndex) return null; // Don't show current date
                 
+                const checkboxIndex = selectedDates
+                  .map((_, i) => i)
+                  .filter(i => i !== activeTabIndex)
+                  .indexOf(index);
+                
                 return (
                   <label key={index} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
-                    <Checkbox />
+                    <Checkbox 
+                      checked={selectedCopyIndices.includes(index)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedCopyIndices(prev => [...prev, index]);
+                        } else {
+                          setSelectedCopyIndices(prev => prev.filter(i => i !== index));
+                        }
+                      }}
+                    />
                     <div className="flex-1">
                       <div className="font-medium text-sm">{format(date.date, 'EEEE, MMMM d, yyyy')}</div>
                       <div className="text-xs text-slate-600">{date.startTime} - {date.endTime}</div>
@@ -1917,17 +1923,18 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
             <div className="flex gap-2 pt-4">
               <Button
                 onClick={() => {
-                  const checkboxes = document.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
-                  const selectedIndices = Array.from(checkboxes)
-                    .map((checkbox, index) => checkbox.checked ? index : -1)
-                    .filter(index => index !== -1);
-                  handleCopyConfig(selectedIndices);
+                  handleCopyConfig(selectedCopyIndices);
+                  setSelectedCopyIndices([]);
                 }}
+                disabled={selectedCopyIndices.length === 0}
                 className="flex-1 bg-blue-600 hover:bg-blue-700"
               >
-                Apply Settings
+                Apply Settings ({selectedCopyIndices.length})
               </Button>
-              <Button variant="outline" onClick={() => setShowCopyModal(false)}>
+              <Button variant="outline" onClick={() => {
+                setShowCopyModal(false);
+                setSelectedCopyIndices([]);
+              }}>
                 Cancel
               </Button>
             </div>
