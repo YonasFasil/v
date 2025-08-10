@@ -615,8 +615,8 @@ export default function Settings() {
                   </CardHeader>
                   <CardContent className="space-y-6">
                     
-                    {/* Stripe Connect Integration */}
-                    <StripeConnectSection />
+                    {/* Stripe Payment Integration */}
+                    <StripePaymentSection />
 
                     {/* Email Provider */}
                     <div className="space-y-3">
@@ -1344,106 +1344,55 @@ export default function Settings() {
   );
 }
 
-// Stripe Connect Component
-function StripeConnectSection() {
+// Stripe Payment Integration Component
+function StripePaymentSection() {
   const { toast } = useToast();
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [showAccountDetails, setShowAccountDetails] = useState(false);
+  const [testingPayment, setTestingPayment] = useState(false);
   
-  // Query Stripe Connect status
+  // Query Stripe status
   const { data: stripeStatus, isLoading: statusLoading } = useQuery({
-    queryKey: ["/api/stripe/connect/status"],
+    queryKey: ["/api/stripe/status"],
     staleTime: 30000, // Cache for 30 seconds
   });
 
-  // Connect to Stripe mutation
-  const connectMutation = useMutation({
-    mutationFn: async (businessName?: string) => {
-      const response = await fetch("/api/stripe/connect/create-account", {
+  // Test payment intent creation
+  const testPaymentMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/stripe/create-payment-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessName }),
+        body: JSON.stringify({ 
+          amount: 10.00, // $10 test amount
+          metadata: { test: true, booking_id: "test-" + Date.now() }
+        }),
       });
-      if (!response.ok) throw new Error("Failed to create Stripe account");
+      if (!response.ok) throw new Error("Failed to create payment intent");
       return response.json();
     },
     onSuccess: (data) => {
-      window.location.href = data.onboardingUrl;
+      toast({
+        title: "Payment Test Successful",
+        description: `Payment intent created: ${data.paymentIntentId}`,
+      });
+      setTestingPayment(false);
     },
     onError: (error: any) => {
       toast({
-        title: "Connection Failed",
-        description: error.message || "Failed to connect to Stripe",
+        title: "Payment Test Failed",
+        description: error.message || "Failed to create payment intent",
         variant: "destructive",
       });
-      setIsConnecting(false);
+      setTestingPayment(false);
     },
   });
 
-  // Create login link mutation
-  const loginLinkMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch("/api/stripe/connect/create-login-link", {
-        method: "POST",
-      });
-      if (!response.ok) throw new Error("Failed to create login link");
-      return response.json();
-    },
-    onSuccess: (data) => {
-      window.open(data.loginUrl, "_blank");
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to access Stripe dashboard",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Disconnect mutation
-  const disconnectMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch("/api/stripe/connect/disconnect", {
-        method: "DELETE",
-      });
-      if (!response.ok) throw new Error("Failed to disconnect");
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Disconnected",
-        description: "Your Stripe account has been disconnected",
-      });
-      // Refresh status
-      window.location.reload();
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Disconnection Failed",
-        description: error.message || "Failed to disconnect Stripe account",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleConnect = () => {
-    setIsConnecting(true);
-    connectMutation.mutate();
+  const handleTestPayment = () => {
+    setTestingPayment(true);
+    testPaymentMutation.mutate();
   };
 
-  const handleManageAccount = () => {
-    loginLinkMutation.mutate();
-  };
-
-  const handleDisconnect = () => {
-    if (confirm("Are you sure you want to disconnect your Stripe account? This will disable all payment processing.")) {
-      disconnectMutation.mutate();
-    }
-  };
-
-  const isConnected = stripeStatus?.connected;
-  const requiresAction = stripeStatus?.status === 'restricted';
+  const isConfigured = stripeStatus?.configured;
+  const isReady = stripeStatus?.ready;
 
   return (
     <div className="p-4 border rounded-lg">
@@ -1451,140 +1400,101 @@ function StripeConnectSection() {
         <div className="flex items-center gap-3">
           <CreditCard className="w-5 h-5 text-purple-600" />
           <div>
-            <h4 className="font-medium">Stripe Connect</h4>
-            <p className="text-sm text-slate-600">Connect your own Stripe account to accept payments</p>
+            <h4 className="font-medium">Stripe Payments</h4>
+            <p className="text-sm text-slate-600">Accept credit card payments for bookings and events</p>
           </div>
         </div>
         
         <div className="flex items-center gap-2">
-          {requiresAction && (
-            <Badge variant="destructive" className="mr-2">
-              <AlertCircle className="w-3 h-3 mr-1" />
-              Action Required
-            </Badge>
-          )}
-          <Badge variant={isConnected ? (requiresAction ? "secondary" : "default") : "secondary"}>
-            {statusLoading ? "Checking..." : 
-             isConnected ? (requiresAction ? "Setup Incomplete" : "Connected") : "Not Connected"}
+          <Badge variant={isReady ? "default" : "secondary"}>
+            {statusLoading ? "Checking..." : isReady ? "Ready" : "Setup Required"}
           </Badge>
         </div>
       </div>
 
-      {/* Account Status Details */}
-      {isConnected && (
-        <div className="mb-4 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-medium text-sm">Account Details</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowAccountDetails(!showAccountDetails)}
-            >
-              {showAccountDetails ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </Button>
-          </div>
-          
-          {showAccountDetails && (
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-600">Account ID:</span>
-                <span className="font-mono text-xs">{stripeStatus.accountId}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-600">Onboarding:</span>
-                <span className={stripeStatus.onboardingCompleted ? "text-green-600" : "text-orange-600"}>
-                  {stripeStatus.onboardingCompleted ? "Complete" : "Incomplete"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-600">Charges:</span>
-                <span className={stripeStatus.chargesEnabled ? "text-green-600" : "text-red-600"}>
-                  {stripeStatus.chargesEnabled ? "Enabled" : "Disabled"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-600">Payouts:</span>
-                <span className={stripeStatus.payoutsEnabled ? "text-green-600" : "text-red-600"}>
-                  {stripeStatus.payoutsEnabled ? "Enabled" : "Disabled"}
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Connection Status Message */}
-      {requiresAction && (
-        <div className="mb-4 p-3 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 text-orange-600 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-medium text-orange-800 dark:text-orange-200">Account Setup Required</p>
-              <p className="text-orange-700 dark:text-orange-300">
-                Your Stripe account needs additional information to process payments. Click "Complete Setup" to continue.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Action Buttons */}
-      <div className="space-y-2">
-        {!isConnected ? (
-          <Button
-            onClick={handleConnect}
-            disabled={isConnecting || connectMutation.isPending}
-            className="w-full"
-          >
-            <ExternalLink className="w-4 h-4 mr-2" />
-            {isConnecting || connectMutation.isPending ? "Connecting..." : "Connect Stripe Account"}
-          </Button>
-        ) : (
-          <div className="space-y-2">
-            {requiresAction && (
-              <Button
-                onClick={handleConnect}
-                disabled={connectMutation.isPending}
-                className="w-full bg-orange-600 hover:bg-orange-700"
-              >
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Complete Setup
-              </Button>
+      {/* Configuration Status */}
+      <div className="space-y-3 mb-4">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-slate-600">Stripe Secret Key:</span>
+          <div className="flex items-center gap-2">
+            {isConfigured ? (
+              <>
+                <CheckCircle className="w-4 h-4 text-green-600" />
+                <span className="text-green-600">Configured</span>
+              </>
+            ) : (
+              <>
+                <XCircle className="w-4 h-4 text-red-600" />
+                <span className="text-red-600">Missing</span>
+              </>
             )}
-            
-            <Button
-              onClick={handleManageAccount}
-              disabled={loginLinkMutation.isPending}
-              variant="outline"
-              className="w-full"
-            >
-              <ExternalLink className="w-4 h-4 mr-2" />
-              {loginLinkMutation.isPending ? "Opening..." : "Manage Stripe Dashboard"}
-            </Button>
-            
-            <Button
-              onClick={handleDisconnect}
-              disabled={disconnectMutation.isPending}
-              variant="destructive"
-              size="sm"
-              className="w-full"
-            >
-              <ExternalLink className="w-4 h-4 mr-2" />
-              {disconnectMutation.isPending ? "Disconnecting..." : "Disconnect Account"}
-            </Button>
           </div>
-        )}
+        </div>
+        
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-slate-600">Stripe Public Key:</span>
+          <div className="flex items-center gap-2">
+            {isConfigured ? (
+              <>
+                <CheckCircle className="w-4 h-4 text-green-600" />
+                <span className="text-green-600">Configured</span>
+              </>
+            ) : (
+              <>
+                <XCircle className="w-4 h-4 text-red-600" />
+                <span className="text-red-600">Missing</span>
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Info Text */}
-      <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+      {/* Setup Instructions */}
+      {!isConfigured && (
+        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3 mb-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-orange-600 mt-0.5" />
+            <div>
+              <p className="font-medium text-orange-800 dark:text-orange-200">Setup Required</p>
+              <p className="text-orange-700 dark:text-orange-300 text-sm mt-1">
+                Configure your Stripe API keys in the Replit Secrets tab to enable payment processing.
+              </p>
+              <div className="mt-2 text-xs text-orange-600">
+                <p>Required secrets:</p>
+                <ul className="list-disc list-inside ml-2">
+                  <li>STRIPE_SECRET_KEY (starts with sk_)</li>
+                  <li>VITE_STRIPE_PUBLIC_KEY (starts with pk_)</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Test Payment Button */}
+      {isReady && (
+        <div className="space-y-2">
+          <Button
+            onClick={handleTestPayment}
+            disabled={testingPayment || testPaymentMutation.isPending}
+            variant="outline"
+            className="w-full"
+          >
+            <CreditCard className="w-4 h-4 mr-2" />
+            {testingPayment || testPaymentMutation.isPending ? "Testing..." : "Test Payment Integration"}
+          </Button>
+        </div>
+      )}
+
+      {/* Info Section */}
+      <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
         <div className="flex items-start gap-2">
           <CreditCard className="w-4 h-4 text-blue-600 mt-0.5" />
           <div className="text-sm text-blue-800 dark:text-blue-200">
-            <p className="font-medium mb-1">About Stripe Connect</p>
+            <p className="font-medium mb-1">About Stripe Integration</p>
             <p>
-              Stripe Connect allows you to accept payments directly into your own Stripe account. 
-              You'll have full control over your funds, fees, and payout schedule.
+              This integration allows you to accept payments directly for venue bookings and events. 
+              Payments are processed securely through Stripe's platform.
             </p>
           </div>
         </div>

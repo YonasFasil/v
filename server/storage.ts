@@ -815,7 +815,13 @@ export class MemStorage implements IStorage {
     const user: User = { 
       ...insertUser, 
       id,
-      role: insertUser.role || "manager"
+      role: insertUser.role || "manager",
+      stripeAccountId: insertUser.stripeAccountId || null,
+      stripeAccountStatus: insertUser.stripeAccountStatus || null,
+      stripeOnboardingCompleted: insertUser.stripeOnboardingCompleted || false,
+      stripeChargesEnabled: insertUser.stripeChargesEnabled || false,
+      stripePayoutsEnabled: insertUser.stripePayoutsEnabled || false,
+      stripeConnectedAt: insertUser.stripeConnectedAt || null
     };
     this.users.set(id, user);
     return user;
