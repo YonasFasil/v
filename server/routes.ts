@@ -214,6 +214,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get customer analytics
+  app.get("/api/customers/analytics", async (req, res) => {
+    try {
+      const customers = await storage.getCustomers();
+      const bookings = await storage.getBookings();
+      const payments = await storage.getPayments();
+      
+      const customerAnalytics = customers.map(customer => {
+        // Find all bookings for this customer
+        const customerBookings = bookings.filter(booking => booking.customerId === customer.id);
+        
+        // Find all payments for this customer's bookings
+        const customerPayments = payments.filter(payment => 
+          customerBookings.some(booking => booking.id === payment.bookingId)
+        );
+        
+        // Calculate total revenue
+        const totalRevenue = customerPayments.reduce((sum, payment) => sum + payment.amount, 0);
+        
+        // Calculate event count
+        const eventCount = customerBookings.length;
+        
+        // Calculate average event value
+        const averageEventValue = eventCount > 0 ? totalRevenue / eventCount : 0;
+        
+        // Get most recent booking
+        const recentBooking = customerBookings.sort((a, b) => 
+          new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime()
+        )[0];
+        
+        // Calculate lifetime value category
+        let lifetimeValueCategory = "Bronze";
+        if (totalRevenue >= 50000) lifetimeValueCategory = "Platinum";
+        else if (totalRevenue >= 25000) lifetimeValueCategory = "Gold";
+        else if (totalRevenue >= 10000) lifetimeValueCategory = "Silver";
+        
+        // Calculate booking statuses
+        const confirmedBookings = customerBookings.filter(b => b.status === "confirmed").length;
+        const pendingBookings = customerBookings.filter(b => b.status === "pending").length;
+        const cancelledBookings = customerBookings.filter(b => b.status === "cancelled").length;
+        
+        return {
+          ...customer,
+          analytics: {
+            totalRevenue,
+            eventCount,
+            averageEventValue,
+            lastEventDate: recentBooking?.eventDate || null,
+            lastEventName: recentBooking?.eventName || null,
+            lifetimeValueCategory,
+            totalPaid: customerPayments.filter(p => p.status === "paid").reduce((sum, p) => sum + p.amount, 0),
+            totalPending: customerPayments.filter(p => p.status === "pending").reduce((sum, p) => sum + p.amount, 0),
+            confirmedBookings,
+            pendingBookings,
+            cancelledBookings,
+            customerSince: customer.createdAt,
+          }
+        };
+      });
+      
+      // Sort by total revenue descending
+      customerAnalytics.sort((a, b) => b.analytics.totalRevenue - a.analytics.totalRevenue);
+      
+      res.json(customerAnalytics);
+    } catch (error) {
+      console.error("Error fetching customer analytics:", error);
+      res.status(500).json({ message: "Failed to fetch customer analytics" });
+    }
+  });
+
   app.post("/api/customers", async (req, res) => {
     try {
       const validatedData = insertCustomerSchema.parse(req.body);

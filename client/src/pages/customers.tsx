@@ -1,33 +1,62 @@
 import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { 
+  Users, Mail, Phone, Building, Star, DollarSign, Calendar, 
+  TrendingUp, Search, Filter, Plus, Eye, Edit2, MoreHorizontal,
+  Crown, Award, Medal, Trophy
+} from "lucide-react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import type { Customer } from "@shared/schema";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useLeads } from "@/hooks/use-leads";
-import { Users, Mail, Phone, Building, Star } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertCustomerSchema } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
-import { EditCustomerModal } from "@/components/forms/edit-customer-modal";
+
+interface CustomerAnalytics extends Customer {
+  analytics: {
+    totalRevenue: number;
+    eventCount: number;
+    averageEventValue: number;
+    lastEventDate: string | null;
+    lastEventName: string | null;
+    lifetimeValueCategory: "Bronze" | "Silver" | "Gold" | "Platinum";
+    totalPaid: number;
+    totalPending: number;
+    confirmedBookings: number;
+    pendingBookings: number;
+    cancelledBookings: number;
+    customerSince: string;
+  };
+}
 
 export default function Customers() {
-  const { data: customers, isLoading } = useLeads();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [valueFilter, setValueFilter] = useState<string>("all");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [editingCustomer, setEditingCustomer] = useState<any>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerAnalytics | null>(null);
   const { toast } = useToast();
+
+  // Fetch customer analytics
+  const { data: customerAnalytics = [], isLoading } = useQuery<CustomerAnalytics[]>({
+    queryKey: ["/api/customers/analytics"],
+  });
 
   const form = useForm({
     resolver: zodResolver(insertCustomerSchema),
@@ -41,32 +70,44 @@ export default function Customers() {
     }
   });
 
-  const onSubmit = async (data: any) => {
-    setIsSubmitting(true);
-    try {
-      await apiRequest("POST", "/api/customers", data);
-      await queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+  const createCustomerMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return apiRequest("POST", "/api/customers", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers/analytics"] });
       setShowCreateForm(false);
       form.reset();
-      
-      // Test notification - make it more prominent
       toast({
-        title: "✅ Success!",
-        description: `Customer "${data.name}" was created successfully`,
-        duration: 5000,
+        title: "Success",
+        description: "Customer created successfully!",
       });
-      
-    } catch (error: any) {
+    },
+    onError: (error) => {
       toast({
-        title: "❌ Error",
-        description: error?.response?.data?.message || "Failed to create customer. Please try again.",
+        title: "Error",
+        description: "Failed to create customer. Please try again.",
         variant: "destructive",
-        duration: 8000,
       });
-    } finally {
-      setIsSubmitting(false);
-    }
+    },
+  });
+
+  const onSubmit = async (data: any) => {
+    createCustomerMutation.mutate(data);
   };
+
+  // Filter customers
+  const filteredCustomers = customerAnalytics.filter(customer => {
+    const matchesSearch = customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (customer.company?.toLowerCase().includes(searchQuery.toLowerCase()) || false);
+    
+    const matchesStatus = statusFilter === "all" || customer.status === statusFilter;
+    
+    const matchesValue = valueFilter === "all" || customer.analytics.lifetimeValueCategory === valueFilter;
+    
+    return matchesSearch && matchesStatus && matchesValue;
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -77,30 +118,65 @@ export default function Customers() {
     }
   };
 
-  const getPriorityColor = (score: number) => {
-    if (score >= 80) return "text-red-600";
-    if (score >= 60) return "text-orange-600";
-    if (score >= 40) return "text-yellow-600";
-    return "text-gray-600";
+  const getValueIcon = (category: string) => {
+    switch (category) {
+      case "Platinum": return <Crown className="h-4 w-4 text-purple-600" />;
+      case "Gold": return <Trophy className="h-4 w-4 text-yellow-600" />;
+      case "Silver": return <Award className="h-4 w-4 text-gray-600" />;
+      default: return <Medal className="h-4 w-4 text-orange-600" />;
+    }
   };
+
+  const getValueColor = (category: string) => {
+    switch (category) {
+      case "Platinum": return "bg-purple-100 text-purple-800";
+      case "Gold": return "bg-yellow-100 text-yellow-800";
+      case "Silver": return "bg-gray-100 text-gray-800";
+      default: return "bg-orange-100 text-orange-800";
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount);
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "Never";
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  // Calculate summary stats
+  const totalRevenue = customerAnalytics.reduce((sum, customer) => sum + customer.analytics.totalRevenue, 0);
+  const totalCustomers = customerAnalytics.filter(c => c.status === "customer").length;
+  const totalLeads = customerAnalytics.filter(c => c.status === "lead").length;
+  const averageValue = customerAnalytics.length > 0 ? totalRevenue / customerAnalytics.length : 0;
 
   if (isLoading) {
     return (
       <div className="flex h-screen overflow-hidden bg-slate-50">
         <Sidebar />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <Header title="Customers & Leads" subtitle="Manage your customer relationships and leads" />
+          <Header title="Customer Analytics" subtitle="Comprehensive customer data and revenue insights" />
           <main className="flex-1 overflow-y-auto p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
-                <Card key={i} className="animate-pulse">
-                  <CardContent className="p-4">
-                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded w-3/4"></div>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {[...Array(4)].map((_, i) => (
+                  <Card key={i} className="animate-pulse">
+                    <CardContent className="p-4">
+                      <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                      <div className="h-6 bg-gray-200 rounded"></div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              <Card className="animate-pulse">
+                <CardContent className="p-4">
+                  <div className="h-96 bg-gray-200 rounded"></div>
+                </CardContent>
+              </Card>
             </div>
           </main>
         </div>
@@ -121,13 +197,14 @@ export default function Customers() {
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header 
-          title="Customers & Leads" 
-          subtitle="Manage your customer relationships and leads"
+          title="Customer Analytics" 
+          subtitle="Comprehensive customer data and revenue insights"
           action={
             <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
               <DialogTrigger asChild>
                 <Button className="bg-blue-600 hover:bg-blue-700">
-                  + Add Customer
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Customer
                 </Button>
               </DialogTrigger>
               <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto">
@@ -222,30 +299,20 @@ export default function Customers() {
                         <FormItem>
                           <FormLabel>Notes (Optional)</FormLabel>
                           <FormControl>
-                            <Textarea placeholder="Add any relevant notes..." rows={3} {...field} />
+                            <Textarea placeholder="Enter any notes" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
 
-                    <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        onClick={() => setShowCreateForm(false)}
-                        className="min-h-[44px] order-2 sm:order-1"
-                      >
-                        Cancel
-                      </Button>
-                      <Button 
-                        type="submit" 
-                        disabled={isSubmitting}
-                        className="bg-blue-600 hover:bg-blue-700 min-h-[44px] order-1 sm:order-2"
-                      >
-                        {isSubmitting ? "Creating..." : "Add Customer"}
-                      </Button>
-                    </div>
+                    <Button 
+                      type="submit" 
+                      className="w-full" 
+                      disabled={createCustomerMutation.isPending}
+                    >
+                      {createCustomerMutation.isPending ? "Creating..." : "Create Customer"}
+                    </Button>
                   </form>
                 </Form>
               </DialogContent>
@@ -254,73 +321,335 @@ export default function Customers() {
         />
         
         <main className="flex-1 overflow-y-auto p-6">
-          {!customers || customers.length === 0 ? (
-            <div className="text-center py-12">
-              <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No customers yet</h3>
-              <p className="text-gray-600 mb-6">Start building your customer base by adding your first customer or lead.</p>
-              <Button onClick={() => setShowCreateForm(true)} className="bg-blue-600 hover:bg-blue-700">
-                Add First Customer
-              </Button>
+          <div className="space-y-6">
+            {/* Summary Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <DollarSign className="h-4 w-4 text-green-600" />
+                    <span className="text-sm font-medium text-gray-500">Total Revenue</span>
+                  </div>
+                  <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <Users className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-gray-500">Total Customers</span>
+                  </div>
+                  <div className="text-2xl font-bold">{totalCustomers}</div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <TrendingUp className="h-4 w-4 text-orange-600" />
+                    <span className="text-sm font-medium text-gray-500">Total Leads</span>
+                  </div>
+                  <div className="text-2xl font-bold">{totalLeads}</div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <Star className="h-4 w-4 text-purple-600" />
+                    <span className="text-sm font-medium text-gray-500">Avg. Customer Value</span>
+                  </div>
+                  <div className="text-2xl font-bold">{formatCurrency(averageValue)}</div>
+                </CardContent>
+              </Card>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {customers.map((customer) => (
-                <Card key={customer.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setEditingCustomer(customer)}>
+
+            {/* Filters */}
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Input
+                        placeholder="Search customers by name, email, or company..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                  
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Filter by Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="lead">Leads</SelectItem>
+                      <SelectItem value="customer">Customers</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <Select value={valueFilter} onValueChange={setValueFilter}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Filter by Value" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      <SelectItem value="Platinum">Platinum</SelectItem>
+                      <SelectItem value="Gold">Gold</SelectItem>
+                      <SelectItem value="Silver">Silver</SelectItem>
+                      <SelectItem value="Bronze">Bronze</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Customer Analytics Table */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Customer Analytics ({filteredCustomers.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Value Tier</TableHead>
+                        <TableHead className="text-right">Total Revenue</TableHead>
+                        <TableHead className="text-right">Events</TableHead>
+                        <TableHead className="text-right">Avg. Event Value</TableHead>
+                        <TableHead>Last Event</TableHead>
+                        <TableHead>Customer Since</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredCustomers.map((customer) => (
+                        <TableRow key={customer.id}>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <div className="font-medium">{customer.name}</div>
+                              <div className="text-sm text-gray-500 flex items-center gap-1">
+                                <Mail className="h-3 w-3" />
+                                {customer.email}
+                              </div>
+                              {customer.company && (
+                                <div className="text-sm text-gray-500 flex items-center gap-1">
+                                  <Building className="h-3 w-3" />
+                                  {customer.company}
+                                </div>
+                              )}
+                              {customer.phone && (
+                                <div className="text-sm text-gray-500 flex items-center gap-1">
+                                  <Phone className="h-3 w-3" />
+                                  {customer.phone}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          
+                          <TableCell>
+                            <Badge className={getStatusColor(customer.status)}>
+                              {customer.status}
+                            </Badge>
+                          </TableCell>
+                          
+                          <TableCell>
+                            <Badge className={getValueColor(customer.analytics.lifetimeValueCategory)}>
+                              <span className="flex items-center gap-1">
+                                {getValueIcon(customer.analytics.lifetimeValueCategory)}
+                                {customer.analytics.lifetimeValueCategory}
+                              </span>
+                            </Badge>
+                          </TableCell>
+                          
+                          <TableCell className="text-right font-medium">
+                            {formatCurrency(customer.analytics.totalRevenue)}
+                          </TableCell>
+                          
+                          <TableCell className="text-right">
+                            <div className="space-y-1">
+                              <div className="font-medium">{customer.analytics.eventCount}</div>
+                              <div className="text-xs text-gray-500">
+                                {customer.analytics.confirmedBookings}C / {customer.analytics.pendingBookings}P / {customer.analytics.cancelledBookings}X
+                              </div>
+                            </div>
+                          </TableCell>
+                          
+                          <TableCell className="text-right">
+                            {formatCurrency(customer.analytics.averageEventValue)}
+                          </TableCell>
+                          
+                          <TableCell>
+                            {customer.analytics.lastEventDate ? (
+                              <div className="space-y-1">
+                                <div className="text-sm">{formatDate(customer.analytics.lastEventDate)}</div>
+                                <div className="text-xs text-gray-500 truncate max-w-[120px]">
+                                  {customer.analytics.lastEventName}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-gray-500">No events</span>
+                            )}
+                          </TableCell>
+                          
+                          <TableCell>
+                            {formatDate(customer.analytics.customerSince)}
+                          </TableCell>
+                          
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedCustomer(customer)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                
+                {filteredCustomers.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    No customers found matching your criteria.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+      </div>
+
+      {/* Customer Detail Modal */}
+      {selectedCustomer && (
+        <Dialog open={!!selectedCustomer} onOpenChange={() => setSelectedCustomer(null)}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                {selectedCustomer.name} - Customer Details
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-6">
+              {/* Contact Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
                   <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg font-semibold">{customer.name}</CardTitle>
-                        {customer.company && (
-                          <p className="text-sm text-gray-600 flex items-center mt-1">
-                            <Building className="w-3 h-3 mr-1" />
-                            {customer.company}
-                          </p>
-                        )}
-                      </div>
-                      <Badge className={getStatusColor(customer.status)}>
-                        {customer.status}
-                      </Badge>
-                    </div>
+                    <CardTitle className="text-lg">Contact Information</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Mail className="w-4 h-4 mr-2" />
-                      {customer.email}
+                  <CardContent className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-gray-500" />
+                      <span>{selectedCustomer.email}</span>
                     </div>
-                    {customer.phone && (
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Phone className="w-4 h-4 mr-2" />
-                        {customer.phone}
+                    {selectedCustomer.phone && (
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-gray-500" />
+                        <span>{selectedCustomer.phone}</span>
                       </div>
                     )}
-                    {customer.leadScore && customer.leadScore > 0 && (
-                      <div className="flex items-center text-sm">
-                        <Star className={`w-4 h-4 mr-2 ${getPriorityColor(customer.leadScore)}`} />
-                        <span className={getPriorityColor(customer.leadScore)}>
-                          Lead Score: {customer.leadScore}
-                        </span>
+                    {selectedCustomer.company && (
+                      <div className="flex items-center gap-2">
+                        <Building className="h-4 w-4 text-gray-500" />
+                        <span>{selectedCustomer.company}</span>
                       </div>
                     )}
-                    {customer.notes && (
-                      <p className="text-sm text-gray-600 italic">"{customer.notes}"</p>
-                    )}
-                    <div className="flex justify-end pt-2">
-                      <span className="text-xs text-blue-600 hover:text-blue-800">Click to edit →</span>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-gray-500" />
+                      <span>Customer since {formatDate(selectedCustomer.analytics.customerSince)}</span>
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Revenue Analytics</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Total Revenue:</span>
+                      <span className="font-medium">{formatCurrency(selectedCustomer.analytics.totalRevenue)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Total Paid:</span>
+                      <span className="font-medium text-green-600">{formatCurrency(selectedCustomer.analytics.totalPaid)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Total Pending:</span>
+                      <span className="font-medium text-orange-600">{formatCurrency(selectedCustomer.analytics.totalPending)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Avg. Event Value:</span>
+                      <span className="font-medium">{formatCurrency(selectedCustomer.analytics.averageEventValue)}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              {/* Event Statistics */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Event Statistics</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">{selectedCustomer.analytics.eventCount}</div>
+                      <div className="text-sm text-gray-500">Total Events</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">{selectedCustomer.analytics.confirmedBookings}</div>
+                      <div className="text-sm text-gray-500">Confirmed</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-orange-600">{selectedCustomer.analytics.pendingBookings}</div>
+                      <div className="text-sm text-gray-500">Pending</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-red-600">{selectedCustomer.analytics.cancelledBookings}</div>
+                      <div className="text-sm text-gray-500">Cancelled</div>
+                    </div>
+                  </div>
+                  
+                  {selectedCustomer.analytics.lastEventDate && (
+                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                      <div className="font-medium">Last Event:</div>
+                      <div className="text-sm text-gray-600">{selectedCustomer.analytics.lastEventName}</div>
+                      <div className="text-sm text-gray-500">{formatDate(selectedCustomer.analytics.lastEventDate)}</div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              
+              {/* Notes */}
+              {selectedCustomer.notes && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Notes</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-600">{selectedCustomer.notes}</p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
-          )}
-          
-          <EditCustomerModal 
-            open={!!editingCustomer} 
-            onOpenChange={(open) => !open && setEditingCustomer(null)} 
-            customer={editingCustomer}
-          />
-        </main>
-      </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
