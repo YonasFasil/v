@@ -211,7 +211,7 @@ export default function SuperAdmin() {
           {/* Tenants Tab */}
           <TabsContent value="tenants" className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Tenant Management</h2>
+              <h2 className="text-xl font-semibold">Account Management</h2>
               <CreateTenantDialog />
             </div>
 
@@ -220,11 +220,12 @@ export default function SuperAdmin() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Tenant</TableHead>
+                      <TableHead>Account</TableHead>
                       <TableHead>Package</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Venues</TableHead>
                       <TableHead>Users</TableHead>
-                      <TableHead>Created</TableHead>
+                      <TableHead>Revenue</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -235,6 +236,9 @@ export default function SuperAdmin() {
                           <div>
                             <p className="font-medium">{tenant.name}</p>
                             <p className="text-sm text-slate-600">{tenant.contactEmail}</p>
+                            <p className="text-xs text-slate-500 mt-1">
+                              {tenant.venueCount} venues, {tenant.spaceCount} spaces
+                            </p>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -248,8 +252,26 @@ export default function SuperAdmin() {
                             {tenant.status}
                           </Badge>
                         </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            {tenant.venues?.slice(0, 3).map((venue: any) => (
+                              <div key={venue.id} className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">
+                                {venue.name} ({venue.spaces} spaces)
+                              </div>
+                            ))}
+                            {tenant.venues?.length > 3 && (
+                              <div className="text-xs text-slate-500">
+                                +{tenant.venues.length - 3} more
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>{tenant.userCount}</TableCell>
-                        <TableCell>{new Date(tenant.createdAt).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <span className="font-medium text-green-600">
+                            ${tenant.monthlyRevenue?.toLocaleString() || 0}
+                          </span>
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Button variant="ghost" size="sm">
@@ -266,8 +288,8 @@ export default function SuperAdmin() {
                       </TableRow>
                     )) || (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-slate-600">
-                          No tenants found. Create the first tenant to get started.
+                        <TableCell colSpan={7} className="text-center py-8 text-slate-600">
+                          No tenant accounts found. Create the first account to get started.
                         </TableCell>
                       </TableRow>
                     )}
@@ -321,24 +343,27 @@ function CreateTenantDialog() {
       <DialogTrigger asChild>
         <Button>
           <Plus className="w-4 h-4 mr-2" />
-          Create Tenant
+          Create Account
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Create New Tenant</DialogTitle>
+          <DialogTitle>Create New Account</DialogTitle>
+          <p className="text-sm text-slate-600">
+            Create an account that can manage multiple venues and spaces.
+          </p>
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <Label htmlFor="name">Organization Name</Label>
+            <Label htmlFor="name">Business Name</Label>
             <Input id="name" placeholder="Acme Events Inc." />
           </div>
           <div>
-            <Label htmlFor="contactEmail">Contact Email</Label>
+            <Label htmlFor="contactEmail">Admin Email</Label>
             <Input id="contactEmail" type="email" placeholder="admin@acme.com" />
           </div>
           <div>
-            <Label htmlFor="contactName">Contact Name</Label>
+            <Label htmlFor="contactName">Admin Name</Label>
             <Input id="contactName" placeholder="John Doe" />
           </div>
           <div>
@@ -355,7 +380,7 @@ function CreateTenantDialog() {
             </Select>
           </div>
           <Button className="w-full" disabled={createTenantMutation.isPending}>
-            {createTenantMutation.isPending ? "Creating..." : "Create Tenant"}
+            {createTenantMutation.isPending ? "Creating..." : "Create Account"}
           </Button>
         </div>
       </DialogContent>

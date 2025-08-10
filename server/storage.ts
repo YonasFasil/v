@@ -1878,6 +1878,7 @@ export class MemStorage implements IStorage {
     const customers = Array.from(this.customers.values());
     const venues = Array.from(this.venues.values());
     const payments = Array.from(this.payments.values());
+    const settings = await this.getSettings();
     
     // Calculate revenue from bookings and payments
     const totalRevenue = bookings.reduce((sum, booking) => {
@@ -1899,54 +1900,84 @@ export class MemStorage implements IStorage {
       customer.createdAt && customer.createdAt >= thisMonth
     ).length;
     
+    // In a multi-tenant system, we would have multiple accounts
+    // For now, treat this as one account with multiple venues
     return {
-      totalTenants: venues.length || 1, // Use venue count as "tenants"
-      newTenantsThisMonth: newCustomersThisMonth,
+      totalTenants: 1, // Single account managing multiple venues
+      newTenantsThisMonth: newCustomersThisMonth > 0 ? 1 : 0,
       activeUsers: customers.length,
       monthlyRevenue: Math.round(combinedRevenue),
-      platformHealth: 99.9 // Keep static for now
+      platformHealth: 99.9
     };
   }
 
   async getTenants(): Promise<any[]> {
-    // Use actual venues as "tenants" in the Super Admin view
+    // Create tenant accounts that can manage multiple venues
     const venues = Array.from(this.venues.values());
     const customers = Array.from(this.customers.values());
     const bookings = Array.from(this.bookings.values());
+    const spaces = Array.from(this.spaces.values());
+    const settings = await this.getSettings();
     
-    return venues.map(venue => {
-      // Count customers associated with this venue through bookings
-      const venueBookings = bookings.filter(booking => booking.venueId === venue.id);
-      const venueCustomerIds = new Set(venueBookings.map(booking => booking.customerId).filter(Boolean));
-      const userCount = venueCustomerIds.size;
-      
-      // Calculate status based on recent activity
-      const recentBookings = venueBookings.filter(booking => {
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        return booking.eventDate >= thirtyDaysAgo;
-      });
-      
-      const status = recentBookings.length > 0 ? "active" : "trial";
-      
-      // Determine package based on venue features/size
-      let packageName = "Basic";
-      if (userCount > 15) {
-        packageName = "Enterprise";
-      } else if (userCount > 5) {
-        packageName = "Professional";
-      }
-      
-      return {
+    // Group venues by account (for now, we'll simulate accounts based on business patterns)
+    // In a real multi-tenant system, venues would have an accountId field
+    
+    // For demonstration, let's create logical account groupings
+    const accountGroups = new Map<string, any>();
+    
+    // Main business account containing all current venues
+    const companyName = settings.business?.companyName || "Venuine Events";
+    const contactEmail = settings.business?.contactEmail || "admin@venuine.com";
+    
+    const mainAccount = {
+      id: "main-account",
+      name: companyName,
+      contactEmail: contactEmail,
+      venues: venues,
+      totalSpaces: spaces.length,
+      userCount: customers.length,
+      createdAt: venues.length > 0 ? venues[0].createdAt : new Date()
+    };
+    
+    // Calculate recent activity for status
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const recentBookings = bookings.filter(booking => booking.eventDate >= thirtyDaysAgo);
+    
+    const status = recentBookings.length > 0 ? "active" : "trial";
+    
+    // Determine package based on total venues and users
+    let packageName = "Basic";
+    if (venues.length > 3 || customers.length > 15) {
+      packageName = "Enterprise";
+    } else if (venues.length > 1 || customers.length > 5) {
+      packageName = "Professional";
+    }
+    
+    // Calculate total revenue for this account
+    const totalRevenue = bookings.reduce((sum, booking) => {
+      const amount = parseFloat(booking.totalAmount || '0');
+      return sum + amount;
+    }, 0);
+    
+    return [{
+      id: mainAccount.id,
+      name: mainAccount.name,
+      contactEmail: mainAccount.contactEmail,
+      packageName,
+      status,
+      userCount: mainAccount.userCount,
+      venueCount: venues.length,
+      spaceCount: mainAccount.totalSpaces,
+      monthlyRevenue: Math.round(totalRevenue),
+      createdAt: mainAccount.createdAt,
+      venues: venues.map(venue => ({
         id: venue.id,
         name: venue.name,
-        contactEmail: venue.contactEmail || "contact@venue.com",
-        packageName,
-        status,
-        userCount,
-        createdAt: venue.createdAt
-      };
-    });
+        description: venue.description,
+        spaces: spaces.filter(space => space.venueId === venue.id).length
+      }))
+    }];
   }
 
   async createTenant(tenant: any): Promise<any> {
@@ -2068,8 +2099,10 @@ export class MemStorage implements IStorage {
     const customers = Array.from(this.customers.values());
     const payments = Array.from(this.payments.values());
     const proposals = Array.from(this.proposals.values());
+    const settings = await this.getSettings();
     
     const activities: any[] = [];
+    const accountName = settings.business?.companyName || "Venuine Events";
     
     // Recent bookings as activities
     bookings
@@ -2081,21 +2114,21 @@ export class MemStorage implements IStorage {
         
         activities.push({
           id: `booking-${index + 1}`,
-          tenantName: venue?.name || "Unknown Venue",
+          tenantName: accountName,
           action: "Booking created",
-          details: `New ${booking.eventType} booking "${booking.eventName}" for ${customer?.name || 'customer'}`,
+          details: `New ${booking.eventType} booking "${booking.eventName}" at ${venue?.name || 'venue'} for ${customer?.name || 'customer'}`,
           createdAt: booking.createdAt || new Date(Date.now() - (index * 3600000))
         });
       });
     
-    // Recent payments as activities
+    // Recent payments as activities  
     payments
       .sort((a, b) => (b.processedAt?.getTime() || 0) - (a.processedAt?.getTime() || 0))
       .slice(0, 2)
       .forEach((payment, index) => {
         activities.push({
           id: `payment-${index + 1}`,
-          tenantName: "Platform Payment",
+          tenantName: accountName,
           action: "Payment processed",
           details: `$${payment.amount} ${payment.paymentType} payment received via ${payment.paymentMethod}`,
           createdAt: payment.processedAt || new Date(Date.now() - ((index + 3) * 3600000))
@@ -2111,20 +2144,31 @@ export class MemStorage implements IStorage {
         
         activities.push({
           id: `proposal-${index + 1}`,
-          tenantName: "Proposal System",
+          tenantName: accountName,
           action: "Proposal sent",
           details: `Proposal "${proposal.title}" sent to ${customer?.name || 'customer'} for $${proposal.totalAmount}`,
           createdAt: proposal.sentAt || proposal.createdAt || new Date(Date.now() - ((index + 5) * 3600000))
         });
       });
     
+    // Account-level activities
+    if (venues.length > 0) {
+      activities.push({
+        id: "account-setup",
+        tenantName: accountName,
+        action: "Account configured",
+        details: `Account setup with ${venues.length} venues and ${customers.length} customers`,
+        createdAt: new Date(Date.now() - (7 * 24 * 3600000)) // 7 days ago
+      });
+    }
+    
     // If no real activities, create a default one
     if (activities.length === 0) {
       activities.push({
         id: "1",
-        tenantName: "Platform",
-        action: "System initialized",
-        details: "Venue management system is ready for use",
+        tenantName: accountName,
+        action: "Account created",
+        details: "Venue management account initialized",
         createdAt: new Date()
       });
     }
