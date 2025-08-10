@@ -21,6 +21,7 @@ import Reports from "@/pages/reports";
 import VoiceBooking from "@/pages/voice-booking";
 import ProposalView from "@/pages/proposal-view";
 import Proposals from "@/pages/proposals";
+import SuperAdmin from "@/pages/super-admin";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -45,6 +46,7 @@ function Router() {
 
   return (
     <Switch>
+      <Route path="/super-admin" component={SuperAdmin} />
       <Route path="/" component={Dashboard} />
       <Route path="/events" component={Events} />
       <Route path="/customers" component={Customers} />

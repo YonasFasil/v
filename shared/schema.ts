@@ -439,3 +439,111 @@ export type LeadTask = typeof leadTasks.$inferSelect;
 export type InsertLeadTask = z.infer<typeof insertLeadTaskSchema>;
 export type Tour = typeof tours.$inferSelect;
 export type InsertTour = z.infer<typeof insertTourSchema>;
+
+// ================================
+// SUPER ADMIN MULTI-TENANT SYSTEM
+// ================================
+
+// Super Admin accounts that manage the entire platform
+export const superAdmins = pgTable("super_admins", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: text("email").notNull().unique(),
+  password: text("password").notNull(), // In production, properly hash this
+  name: text("name").notNull(),
+  role: text("role").notNull().default("super_admin"),
+  isActive: boolean("is_active").default(true),
+  lastLoginAt: timestamp("last_login_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Feature packages/tiers that can be assigned to tenants
+export const featurePackages = pgTable("feature_packages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(), // Basic, Professional, Enterprise, Custom
+  displayName: text("display_name").notNull(),
+  description: text("description"),
+  price: decimal("price", { precision: 10, scale: 2 }), // Monthly price
+  billingInterval: text("billing_interval").notNull().default("monthly"), // monthly, yearly
+  features: jsonb("features").notNull(), // Feature flags and limits
+  maxUsers: integer("max_users"), // Max number of users per tenant
+  maxVenues: integer("max_venues"), // Max number of venues
+  maxBookingsPerMonth: integer("max_bookings_per_month"),
+  storageLimit: integer("storage_limit"), // In GB
+  isActive: boolean("is_active").default(true),
+  isCustom: boolean("is_custom").default(false), // Custom packages for enterprise clients
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Tenant organizations (venue management accounts)
+export const tenants = pgTable("tenants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // Company/Organization name
+  subdomain: text("subdomain").unique(), // Optional subdomain (e.g., company.venuine.com)
+  customDomain: text("custom_domain").unique(), // Optional custom domain
+  contactEmail: text("contact_email").notNull(),
+  contactName: text("contact_name").notNull(),
+  contactPhone: text("contact_phone"),
+  packageId: varchar("package_id").references(() => featurePackages.id).notNull(),
+  status: text("status").notNull().default("active"), // active, suspended, trial, cancelled
+  trialEndsAt: timestamp("trial_ends_at"),
+  subscriptionStatus: text("subscription_status").default("trial"), // trial, active, past_due, cancelled
+  billingEmail: text("billing_email"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  settings: jsonb("settings").default({}), // Tenant-specific configuration
+  usage: jsonb("usage").default({}), // Current usage metrics
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Tenant users (admin/staff users within each tenant)
+export const tenantUsers = pgTable("tenant_users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  email: text("email").notNull(),
+  password: text("password"), // For email/password auth, can be null for SSO-only users
+  name: text("name").notNull(),
+  role: text("role").notNull().default("staff"), // admin, staff, viewer
+  permissions: jsonb("permissions").default({}), // Custom permission overrides
+  isActive: boolean("is_active").default(true),
+  lastLoginAt: timestamp("last_login_at"),
+  invitedBy: varchar("invited_by").references(() => tenantUsers.id),
+  invitedAt: timestamp("invited_at"),
+  acceptedAt: timestamp("accepted_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Activity log for super admin monitoring
+export const tenantActivities = pgTable("tenant_activities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  userId: varchar("user_id").references(() => tenantUsers.id),
+  action: text("action").notNull(), // login, booking_created, payment_processed, etc.
+  details: jsonb("details"), // Additional action details
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Super Admin schemas
+export const insertSuperAdminSchema = createInsertSchema(superAdmins).omit({ id: true, createdAt: true });
+export const insertFeaturePackageSchema = createInsertSchema(featurePackages).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertTenantSchema = createInsertSchema(tenants).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertTenantUserSchema = createInsertSchema(tenantUsers).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertTenantActivitySchema = createInsertSchema(tenantActivities).omit({ id: true, createdAt: true });
+
+// Super Admin types
+export type SuperAdmin = typeof superAdmins.$inferSelect;
+export type InsertSuperAdmin = z.infer<typeof insertSuperAdminSchema>;
+export type FeaturePackage = typeof featurePackages.$inferSelect;
+export type InsertFeaturePackage = z.infer<typeof insertFeaturePackageSchema>;
+export type Tenant = typeof tenants.$inferSelect;
+export type InsertTenant = z.infer<typeof insertTenantSchema>;
+export type TenantUser = typeof tenantUsers.$inferSelect;
+export type InsertTenantUser = z.infer<typeof insertTenantUserSchema>;
+export type TenantActivity = typeof tenantActivities.$inferSelect;
+export type InsertTenantActivity = z.infer<typeof insertTenantActivitySchema>;

@@ -3969,6 +3969,116 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     }
   });
 
+  // ================================
+  // SUPER ADMIN ROUTES
+  // ================================
+
+  // Super Admin Statistics
+  app.get("/api/super-admin/stats", async (req, res) => {
+    try {
+      const stats = await storage.getSuperAdminStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching super admin stats:", error);
+      res.status(500).json({ message: "Failed to fetch statistics" });
+    }
+  });
+
+  // Tenant Management
+  app.get("/api/super-admin/tenants", async (req, res) => {
+    try {
+      const tenants = await storage.getTenants();
+      res.json(tenants);
+    } catch (error) {
+      console.error("Error fetching tenants:", error);
+      res.status(500).json({ message: "Failed to fetch tenants" });
+    }
+  });
+
+  app.post("/api/super-admin/tenants", async (req, res) => {
+    try {
+      const tenantData = req.body;
+      const tenant = await storage.createTenant(tenantData);
+      res.status(201).json(tenant);
+    } catch (error) {
+      console.error("Error creating tenant:", error);
+      res.status(500).json({ message: "Failed to create tenant" });
+    }
+  });
+
+  app.put("/api/super-admin/tenants/:id", async (req, res) => {
+    try {
+      const tenant = await storage.updateTenant(req.params.id, req.body);
+      res.json(tenant);
+    } catch (error) {
+      console.error("Error updating tenant:", error);
+      res.status(500).json({ message: "Failed to update tenant" });
+    }
+  });
+
+  app.delete("/api/super-admin/tenants/:id", async (req, res) => {
+    try {
+      await storage.deleteTenant(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting tenant:", error);
+      res.status(500).json({ message: "Failed to delete tenant" });
+    }
+  });
+
+  // Feature Package Management
+  app.get("/api/super-admin/packages", async (req, res) => {
+    try {
+      const packages = await storage.getFeaturePackages();
+      res.json(packages);
+    } catch (error) {
+      console.error("Error fetching packages:", error);
+      res.status(500).json({ message: "Failed to fetch packages" });
+    }
+  });
+
+  app.post("/api/super-admin/packages", async (req, res) => {
+    try {
+      const packageData = req.body;
+      const newPackage = await storage.createFeaturePackage(packageData);
+      res.status(201).json(newPackage);
+    } catch (error) {
+      console.error("Error creating package:", error);
+      res.status(500).json({ message: "Failed to create package" });
+    }
+  });
+
+  app.put("/api/super-admin/packages/:id", async (req, res) => {
+    try {
+      const updatedPackage = await storage.updateFeaturePackage(req.params.id, req.body);
+      res.json(updatedPackage);
+    } catch (error) {
+      console.error("Error updating package:", error);
+      res.status(500).json({ message: "Failed to update package" });
+    }
+  });
+
+  app.delete("/api/super-admin/packages/:id", async (req, res) => {
+    try {
+      await storage.deleteFeaturePackage(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting package:", error);
+      res.status(500).json({ message: "Failed to delete package" });
+    }
+  });
+
+  // Activity Logs
+  app.get("/api/super-admin/activities", async (req, res) => {
+    try {
+      const activities = await storage.getTenantActivities();
+      res.json(activities);
+    } catch (error) {
+      console.error("Error fetching activities:", error);
+      res.status(500).json({ message: "Failed to fetch activities" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -55,7 +55,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed = false }: SidebarProps) {
   const [location] = useLocation();
-  const { userRoleData, isAdmin, isStaff, hasPermission, logout } = useUserRole();
+  const { userRoleData, isSuperAdmin, isAdmin, isStaff, hasPermission, logout } = useUserRole();
 
   const isActive = (href: string) => {
     if (href === "/") {
@@ -122,7 +122,9 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
       {!collapsed && userRoleData && (
         <div className="px-4 py-3 border-b border-slate-200">
           <div className="flex items-center gap-2">
-            {isAdmin ? (
+            {isSuperAdmin ? (
+              <Crown className="w-4 h-4 text-pink-600" />
+            ) : isAdmin ? (
               <Crown className="w-4 h-4 text-purple-600" />
             ) : (
               <UserCheck className="w-4 h-4 text-blue-600" />
@@ -130,7 +132,10 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-slate-900">{userRoleData.name}</span>
-                <Badge variant={isAdmin ? "default" : "secondary"} className="text-xs">
+                <Badge 
+                  variant={isSuperAdmin || isAdmin ? "default" : "secondary"} 
+                  className={`text-xs ${isSuperAdmin ? 'bg-gradient-to-r from-purple-600 to-pink-600' : ''}`}
+                >
                   {userRoleData.name}
                 </Badge>
               </div>
@@ -142,6 +147,28 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
 
       {/* Navigation Menu */}
       <nav className="flex-1 px-4 py-4 space-y-1 sidebar-scroll overflow-y-auto">
+        {/* Super Admin Quick Link */}
+        {isSuperAdmin && (
+          <div className="mb-4">
+            <Link href="/super-admin">
+              <div
+                className={`${collapsed ? 
+                  'flex items-center justify-center w-10 h-10 mx-auto rounded-lg text-sm font-medium transition-colors cursor-pointer' :
+                  'flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer'
+                } ${
+                  isActive("/super-admin")
+                    ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                }`}
+                title={collapsed ? "Super Admin" : undefined}
+              >
+                <Crown className={collapsed ? "w-5 h-5" : "w-5 h-5 mr-3"} />
+                {!collapsed && "Super Admin"}
+              </div>
+            </Link>
+          </div>
+        )}
+
         {/* Main Navigation */}
         <div className="space-y-1">
           {getFilteredNavigation().map((item) => {

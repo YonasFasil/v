@@ -33,6 +33,7 @@ export function useUserRole() {
     setIsLoading(false);
   }, []);
 
+  const isSuperAdmin = userRole === "super_admin";
   const isAdmin = userRole === "admin";
   const isStaff = userRole === "staff";
   const isAuthenticated = !!userRole;
@@ -46,7 +47,7 @@ export function useUserRole() {
   };
 
   const hasPermission = (feature: string): boolean => {
-    if (isAdmin) return true; // Admin has all permissions
+    if (isSuperAdmin || isAdmin) return true; // Super Admin and Admin have all permissions
     
     if (!userRoleData) return false;
     
@@ -91,6 +92,7 @@ export function useUserRole() {
     userRoleData,
     isLoading,
     isAuthenticated,
+    isSuperAdmin,
     isAdmin,
     isStaff,
     hasPermission,

@@ -197,6 +197,18 @@ export interface IStorage {
   deleteVenue(id: string): Promise<boolean>;
   deleteSpace(id: string): Promise<boolean>;
   deleteBooking(id: string): Promise<boolean>;
+
+  // Super Admin operations
+  getSuperAdminStats(): Promise<any>;
+  getTenants(): Promise<any[]>;
+  createTenant(tenant: any): Promise<any>;
+  updateTenant(id: string, updates: any): Promise<any>;
+  deleteTenant(id: string): Promise<void>;
+  getFeaturePackages(): Promise<any[]>;
+  createFeaturePackage(pkg: any): Promise<any>;
+  updateFeaturePackage(id: string, updates: any): Promise<any>;
+  deleteFeaturePackage(id: string): Promise<void>;
+  getTenantActivities(): Promise<any[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -1859,6 +1871,186 @@ export class MemStorage implements IStorage {
     this.leadTags.delete(`${leadId}:${tagId}`);
   }
 
+  // Super Admin implementation
+  async getSuperAdminStats(): Promise<any> {
+    return {
+      totalTenants: 5,
+      newTenantsThisMonth: 2,
+      activeUsers: 47,
+      monthlyRevenue: 12450,
+      platformHealth: 99.9
+    };
+  }
+
+  async getTenants(): Promise<any[]> {
+    return [
+      {
+        id: "1",
+        name: "Premier Events LLC",
+        contactEmail: "admin@premierevents.com",
+        packageName: "Professional",
+        status: "active",
+        userCount: 12,
+        createdAt: new Date("2024-01-15")
+      },
+      {
+        id: "2", 
+        name: "Luxury Venues Inc",
+        contactEmail: "contact@luxuryvenues.com",
+        packageName: "Enterprise",
+        status: "active",
+        userCount: 25,
+        createdAt: new Date("2024-02-10")
+      },
+      {
+        id: "3",
+        name: "City Event Center",
+        contactEmail: "info@cityeventcenter.com", 
+        packageName: "Basic",
+        status: "trial",
+        userCount: 3,
+        createdAt: new Date("2024-07-20")
+      }
+    ];
+  }
+
+  async createTenant(tenant: any): Promise<any> {
+    const newTenant = {
+      id: randomUUID(),
+      ...tenant,
+      status: "trial",
+      userCount: 0,
+      createdAt: new Date()
+    };
+    return newTenant;
+  }
+
+  async updateTenant(id: string, updates: any): Promise<any> {
+    // Mock implementation
+    return { id, ...updates };
+  }
+
+  async deleteTenant(id: string): Promise<void> {
+    // Mock implementation
+  }
+
+  async getFeaturePackages(): Promise<any[]> {
+    return [
+      {
+        id: "basic",
+        name: "basic",
+        displayName: "Basic",
+        description: "Perfect for small venues just getting started",
+        price: 49,
+        billingInterval: "monthly",
+        maxUsers: 3,
+        maxVenues: 1,
+        storageLimit: 5,
+        isActive: true,
+        features: {
+          bookingManagement: true,
+          customerManagement: true,
+          basicReporting: true,
+          emailSupport: true,
+          aiInsights: false,
+          customBranding: false,
+          apiAccess: false
+        }
+      },
+      {
+        id: "professional",
+        name: "professional", 
+        displayName: "Professional",
+        description: "Ideal for growing venues with advanced needs",
+        price: 149,
+        billingInterval: "monthly",
+        maxUsers: 10,
+        maxVenues: 5,
+        storageLimit: 50,
+        isActive: true,
+        features: {
+          bookingManagement: true,
+          customerManagement: true,
+          advancedReporting: true,
+          prioritySupport: true,
+          aiInsights: true,
+          customBranding: true,
+          apiAccess: true,
+          multiVenueManagement: true
+        }
+      },
+      {
+        id: "enterprise",
+        name: "enterprise",
+        displayName: "Enterprise",
+        description: "Complete solution for large venue operations",
+        price: 399,
+        billingInterval: "monthly",
+        maxUsers: null,
+        maxVenues: null,
+        storageLimit: 500,
+        isActive: true,
+        features: {
+          bookingManagement: true,
+          customerManagement: true,
+          enterpriseReporting: true,
+          dedicatedSupport: true,
+          aiInsights: true,
+          customBranding: true,
+          apiAccess: true,
+          multiVenueManagement: true,
+          whiteLabel: true,
+          sso: true,
+          customIntegrations: true
+        }
+      }
+    ];
+  }
+
+  async createFeaturePackage(pkg: any): Promise<any> {
+    const newPackage = {
+      id: randomUUID(),
+      ...pkg,
+      isActive: true,
+      createdAt: new Date()
+    };
+    return newPackage;
+  }
+
+  async updateFeaturePackage(id: string, updates: any): Promise<any> {
+    // Mock implementation
+    return { id, ...updates };
+  }
+
+  async deleteFeaturePackage(id: string): Promise<void> {
+    // Mock implementation
+  }
+
+  async getTenantActivities(): Promise<any[]> {
+    return [
+      {
+        id: "1",
+        tenantName: "Premier Events LLC",
+        action: "User logged in",
+        details: "John Doe logged into the system",
+        createdAt: new Date()
+      },
+      {
+        id: "2",
+        tenantName: "Luxury Venues Inc",
+        action: "Booking created",
+        details: "New booking for corporate event on Dec 15th",
+        createdAt: new Date(Date.now() - 3600000)
+      },
+      {
+        id: "3",
+        tenantName: "City Event Center",
+        action: "Payment processed",
+        details: "$2,500 payment received for wedding booking",
+        createdAt: new Date(Date.now() - 7200000)
+      }
+    ];
+  }
 
 }
 
