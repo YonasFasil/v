@@ -744,6 +744,18 @@ export default function Settings() {
                                 textColor: "text-gray-900",
                                 accentColor: "border-gray-200"
                               }
+                            },
+                            {
+                              id: "executive",
+                              name: "Executive",
+                              description: "Professional document-style layout",
+                              features: ["Document header", "Sectioned layout", "Professional fonts"],
+                              preview: {
+                                bgColor: "bg-white",
+                                headerColor: "bg-gradient-to-r from-slate-800 to-slate-700",
+                                textColor: "text-slate-800",
+                                accentColor: "border-slate-400"
+                              }
                             }
                           ].map((template) => {
                             const isSelected = formData.beo.defaultTemplate === template.id;
@@ -766,19 +778,48 @@ export default function Settings() {
                                 
                                 {/* Template Preview */}
                                 <div className={cn("w-full h-32 rounded border overflow-hidden mb-3", template.preview.bgColor)}>
-                                  <div className={cn("h-8 w-full", template.preview.headerColor, template.preview.accentColor, "border-b")}>
-                                    <div className="px-3 py-2">
-                                      <div className="h-4 w-20 bg-current opacity-20 rounded"></div>
-                                    </div>
-                                  </div>
-                                  <div className="p-3 space-y-2">
-                                    <div className={cn("h-3 bg-current opacity-30 rounded w-3/4", template.preview.textColor)}></div>
-                                    <div className={cn("h-2 bg-current opacity-20 rounded w-full", template.preview.textColor)}></div>
-                                    <div className={cn("h-2 bg-current opacity-20 rounded w-5/6", template.preview.textColor)}></div>
-                                    <div className="pt-2">
-                                      <div className={cn("h-2 bg-current opacity-15 rounded w-2/3", template.preview.textColor)}></div>
-                                    </div>
-                                  </div>
+                                  {template.id === "executive" ? (
+                                    // Executive template with document-style layout
+                                    <>
+                                      <div className={cn("h-10 w-full", template.preview.headerColor, "border-b flex items-center px-3")}>
+                                        <div className="flex items-center justify-between w-full">
+                                          <div className="h-3 w-16 bg-white opacity-80 rounded"></div>
+                                          <div className="h-2 w-24 bg-white opacity-60 rounded"></div>
+                                        </div>
+                                      </div>
+                                      <div className="p-3 space-y-1.5">
+                                        <div className="flex justify-between items-center">
+                                          <div className={cn("h-2.5 bg-current opacity-40 rounded w-20", template.preview.textColor)}></div>
+                                          <div className={cn("h-2 bg-current opacity-25 rounded w-16", template.preview.textColor)}></div>
+                                        </div>
+                                        <div className="border-t pt-1.5 space-y-1">
+                                          <div className={cn("h-2 bg-current opacity-20 rounded w-full", template.preview.textColor)}></div>
+                                          <div className={cn("h-2 bg-current opacity-20 rounded w-4/5", template.preview.textColor)}></div>
+                                        </div>
+                                        <div className="pt-1 space-y-1">
+                                          <div className={cn("h-1.5 bg-current opacity-15 rounded w-3/5", template.preview.textColor)}></div>
+                                          <div className={cn("h-1.5 bg-current opacity-15 rounded w-2/3", template.preview.textColor)}></div>
+                                        </div>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    // Standard preview for other templates
+                                    <>
+                                      <div className={cn("h-8 w-full", template.preview.headerColor, template.preview.accentColor, "border-b")}>
+                                        <div className="px-3 py-2">
+                                          <div className="h-4 w-20 bg-current opacity-20 rounded"></div>
+                                        </div>
+                                      </div>
+                                      <div className="p-3 space-y-2">
+                                        <div className={cn("h-3 bg-current opacity-30 rounded w-3/4", template.preview.textColor)}></div>
+                                        <div className={cn("h-2 bg-current opacity-20 rounded w-full", template.preview.textColor)}></div>
+                                        <div className={cn("h-2 bg-current opacity-20 rounded w-5/6", template.preview.textColor)}></div>
+                                        <div className="pt-2">
+                                          <div className={cn("h-2 bg-current opacity-15 rounded w-2/3", template.preview.textColor)}></div>
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
                                 
                                 <div className="space-y-2">
