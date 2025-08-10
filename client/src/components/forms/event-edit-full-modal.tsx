@@ -110,6 +110,180 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   const { data: customers = [] } = useQuery({ queryKey: ["/api/customers"] });
   const { data: taxSettings = [] } = useQuery({ queryKey: ["/api/tax-settings"] });
 
+  // Memoized price calculation that updates when tax/fee overrides change
+  const calculateDatePrice = useMemo(() => {
+    return (dateConfig: SelectedDate) => {
+      let subtotal = 0;
+      const feeBreakdown: Array<{name: string, amount: number, description: string}> = [];
+      const taxBreakdown: Array<{name: string, amount: number, description: string}> = [];
+      
+      // Package calculation
+      const selectedPackageData = dateConfig.packageId ? (packages as any[]).find((p: any) => p.id === dateConfig.packageId) : null;
+      if (selectedPackageData) {
+        const packagePrice = dateConfig.pricingOverrides?.packagePrice ?? parseFloat(selectedPackageData.price || 0);
+        let packageSubtotal = 0;
+        
+        if (selectedPackageData.pricingModel === 'per_person') {
+          packageSubtotal = packagePrice * (dateConfig.guestCount || 1);
+        } else {
+          packageSubtotal = packagePrice;
+        }
+        
+        subtotal += packageSubtotal;
+        
+        // Get effective fee and tax IDs for package (using serviceTaxOverrides logic)
+        const currentOverrides = dateConfig.serviceTaxOverrides?.[selectedPackageData.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+        
+        // Calculate effective fee IDs (inherited + additional - disabled)
+        const inheritedFeeIds = selectedPackageData.enabledFeeIds || [];
+        const additionalFeeIds = currentOverrides.enabledFeeIds || [];
+        const disabledFeeIds = currentOverrides.disabledInheritedFeeIds || [];
+        const effectiveFeeIds = [...inheritedFeeIds.filter((id: string) => !disabledFeeIds.includes(id)), ...additionalFeeIds];
+        
+        // Calculate effective tax IDs (inherited + additional - disabled)
+        const inheritedTaxIds = selectedPackageData.enabledTaxIds || [];
+        const additionalTaxIds = currentOverrides.enabledTaxIds || [];
+        const disabledTaxIds = currentOverrides.disabledInheritedTaxIds || [];
+        const effectiveTaxIds = [...inheritedTaxIds.filter((id: string) => !disabledTaxIds.includes(id)), ...additionalTaxIds];
+        
+        // Apply package fees
+        effectiveFeeIds.forEach((feeId: string) => {
+          const fee = ((taxSettings as any[]) || [])?.find(f => f.id === feeId);
+          if (fee && fee.isActive) {
+            let feeAmount = 0;
+            if (fee.calculation === 'percentage') {
+              feeAmount = packageSubtotal * (parseFloat(fee.value) / 100);
+            } else {
+              feeAmount = parseFloat(fee.value);
+            }
+            
+            feeBreakdown.push({
+              name: `${fee.name} (Package)`,
+              amount: feeAmount,
+              description: fee.calculation === 'percentage' 
+                ? `${fee.value}% of package ($${packageSubtotal.toFixed(2)})`
+                : 'Fixed amount'
+            });
+          }
+        });
+      }
+      
+      // Services calculation
+      dateConfig.selectedServices?.forEach(serviceId => {
+        const service = (services as any[]).find((s: any) => s.id === serviceId);
+        if (service) {
+          const servicePrice = dateConfig.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
+          let serviceSubtotal = 0;
+          
+          if (service.pricingModel === 'per_person') {
+            serviceSubtotal = servicePrice * (dateConfig.guestCount || 1);
+          } else {
+            const quantity = dateConfig.itemQuantities?.[serviceId] || 1;
+            serviceSubtotal = servicePrice * quantity;
+          }
+          
+          subtotal += serviceSubtotal;
+          
+          // Get effective fee and tax IDs for service (using serviceTaxOverrides logic)
+          const currentOverrides = dateConfig.serviceTaxOverrides?.[serviceId] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+          
+          // Calculate effective fee IDs (inherited + additional - disabled)
+          const inheritedFeeIds = service.enabledFeeIds || [];
+          const additionalFeeIds = currentOverrides.enabledFeeIds || [];
+          const disabledFeeIds = currentOverrides.disabledInheritedFeeIds || [];
+          const effectiveFeeIds = [...inheritedFeeIds.filter((id: string) => !disabledFeeIds.includes(id)), ...additionalFeeIds];
+          
+          // Apply service fees
+          effectiveFeeIds.forEach((feeId: string) => {
+            const fee = ((taxSettings as any[]) || [])?.find(f => f.id === feeId);
+            if (fee && fee.isActive) {
+              let feeAmount = 0;
+              if (fee.calculation === 'percentage') {
+                feeAmount = serviceSubtotal * (parseFloat(fee.value) / 100);
+              } else {
+                feeAmount = parseFloat(fee.value);
+              }
+              
+              feeBreakdown.push({
+                name: `${fee.name} (${service.name})`,
+                amount: feeAmount,
+                description: fee.calculation === 'percentage' 
+                  ? `${fee.value}% of service ($${serviceSubtotal.toFixed(2)})`
+                  : 'Fixed amount'
+              });
+            }
+          });
+        }
+      });
+
+      // Calculate total fees
+      const feesTotal = feeBreakdown.reduce((sum, fee) => sum + fee.amount, 0);
+
+      // Calculate taxes on subtotal + taxable fees
+      const taxableFees = feeBreakdown
+        .filter(fee => {
+          // Extract fee name without service/package prefix
+          const baseName = fee.name.replace(/ \(.+\)$/, '');
+          const feeData = ((taxSettings as any[]) || [])?.find(f => f.name === baseName);
+          return feeData?.isTaxable;
+        })
+        .reduce((sum, fee) => sum + fee.amount, 0);
+
+      const taxableBase = subtotal + taxableFees;
+
+      // Apply taxes from all packages and services
+      const allTaxIds = new Set<string>();
+      
+      // Collect tax IDs from package
+      if (selectedPackageData) {
+        const currentOverrides = dateConfig.serviceTaxOverrides?.[selectedPackageData.id] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+        const inheritedTaxIds = selectedPackageData.enabledTaxIds || [];
+        const additionalTaxIds = currentOverrides.enabledTaxIds || [];
+        const disabledTaxIds = currentOverrides.disabledInheritedTaxIds || [];
+        const effectiveTaxIds = [...inheritedTaxIds.filter((id: string) => !disabledTaxIds.includes(id)), ...additionalTaxIds];
+        effectiveTaxIds.forEach(id => allTaxIds.add(id));
+      }
+      
+      // Collect tax IDs from services
+      dateConfig.selectedServices?.forEach(serviceId => {
+        const service = (services as any[]).find((s: any) => s.id === serviceId);
+        if (service) {
+          const currentOverrides = dateConfig.serviceTaxOverrides?.[serviceId] || { enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] };
+          const inheritedTaxIds = service.enabledTaxIds || [];
+          const additionalTaxIds = currentOverrides.enabledTaxIds || [];
+          const disabledTaxIds = currentOverrides.disabledInheritedTaxIds || [];
+          const effectiveTaxIds = [...inheritedTaxIds.filter((id: string) => !disabledTaxIds.includes(id)), ...additionalTaxIds];
+          effectiveTaxIds.forEach(id => allTaxIds.add(id));
+        }
+      });
+
+      // Calculate taxes
+      Array.from(allTaxIds).forEach(taxId => {
+        const tax = ((taxSettings as any[]) || [])?.find(t => t.id === taxId);
+        if (tax && tax.isActive) {
+          const taxAmount = (taxableBase * parseFloat(tax.value)) / 100;
+          taxBreakdown.push({
+            name: tax.name,
+            amount: taxAmount,
+            description: `${tax.value}% of taxable base ($${taxableBase.toFixed(2)})`
+          });
+        }
+      });
+
+      const taxesTotal = taxBreakdown.reduce((sum, tax) => sum + tax.amount, 0);
+      const grandTotal = subtotal + feesTotal + taxesTotal;
+      
+      return {
+        subtotal,
+        feesTotal,
+        taxesTotal,
+        grandTotal,
+        feeBreakdown,
+        taxBreakdown
+      };
+    };
+  }, [packages, services, taxSettings]); // Dependencies that affect price calculation
+
   // Initialize form data when booking changes
   useEffect(() => {
     if (booking && open) {
@@ -1237,11 +1411,11 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                                             {isSelected && (
                                               <div className="mt-2 pt-2 border-t border-slate-200 space-y-2">
                                                 {/* Additional taxes for package */}
-                                                {taxSettings.filter((item: any) => item.type === 'tax' && item.isActive).length > 0 && (
+                                                {((taxSettings as any[]) || []).filter((item: any) => item.type === 'tax' && item.isActive).length > 0 && (
                                                   <div>
                                                     <div className="text-xs text-slate-600 mb-1">Additional Taxes:</div>
                                                     <div className="flex flex-wrap gap-1">
-                                                      {taxSettings
+                                                      {((taxSettings as any[]) || [])
                                                         .filter((item: any) => item.type === 'tax' && item.isActive)
                                                         .map((tax: any) => {
                                                           const isInherited = (pkg.enabledTaxIds || []).includes(tax.id);
@@ -1297,11 +1471,11 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                                                 )}
 
                                                 {/* Additional fees for package */}
-                                                {taxSettings.filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive).length > 0 && (
+                                                {((taxSettings as any[]) || []).filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive).length > 0 && (
                                                   <div>
                                                     <div className="text-xs text-slate-600 mb-1">Additional Fees:</div>
                                                     <div className="flex flex-wrap gap-1">
-                                                      {taxSettings
+                                                      {((taxSettings as any[]) || [])
                                                         .filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive)
                                                         .map((fee: any) => {
                                                           const isInherited = (pkg.enabledFeeIds || []).includes(fee.id);
@@ -1530,11 +1704,11 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                                               {/* Service Taxes & Fees */}
                                               <div className="space-y-2">
                                                 {/* Additional taxes for service */}
-                                                {taxSettings.filter((item: any) => item.type === 'tax' && item.isActive).length > 0 && (
+                                                {((taxSettings as any[]) || []).filter((item: any) => item.type === 'tax' && item.isActive).length > 0 && (
                                                   <div>
                                                     <div className="text-xs text-slate-600 mb-1">Additional Taxes:</div>
                                                     <div className="flex flex-wrap gap-1">
-                                                      {taxSettings
+                                                      {((taxSettings as any[]) || [])
                                                         .filter((item: any) => item.type === 'tax' && item.isActive)
                                                         .map((tax: any) => {
                                                           const isInherited = (service.enabledTaxIds || []).includes(tax.id);
@@ -1590,11 +1764,11 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                                                 )}
 
                                                 {/* Additional fees for service */}
-                                                {taxSettings.filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive).length > 0 && (
+                                                {((taxSettings as any[]) || []).filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive).length > 0 && (
                                                   <div>
                                                     <div className="text-xs text-slate-600 mb-1">Additional Fees:</div>
                                                     <div className="flex flex-wrap gap-1">
-                                                      {taxSettings
+                                                      {((taxSettings as any[]) || [])
                                                         .filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive)
                                                         .map((fee: any) => {
                                                           const isInherited = (service.enabledFeeIds || []).includes(fee.id);
@@ -1688,15 +1862,14 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                                 <div>
                                   <h5 className="font-medium mb-3">Price Breakdown</h5>
                                   {(() => {
-                                    // Calculate comprehensive breakdown with taxes and fees using per-service logic
-                                    let subtotal = 0;
-                                    const feeBreakdown: Array<{name: string, amount: number, description: string}> = [];
-                                    const taxBreakdown: Array<{name: string, amount: number, description: string}> = [];
-                                    
-                                    // Package calculation
-                                    if (selectedPackageData && activeDate.packageId) {
-                                      const packagePrice = activeDate.pricingOverrides?.packagePrice ?? parseFloat(selectedPackageData.price || 0);
-                                      let packageSubtotal = 0;
+                                    // Use memoized price calculation that updates reactively with tax/fee changes
+                                    const priceData = calculateDatePrice(activeDate);
+                                    const { subtotal, feesTotal, taxesTotal, grandTotal, feeBreakdown, taxBreakdown } = priceData;
+
+                                    return (
+                                      <div className="space-y-3">
+                                        {/* Items breakdown */}
+                                        <div className="space-y-2 text-sm">
                                       
                                       if (selectedPackageData.pricingModel === 'per_person') {
                                         packageSubtotal = packagePrice * (activeDate.guestCount || 1);
