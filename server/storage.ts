@@ -36,6 +36,25 @@ interface InsertSetting {
   key: string;
   value: any;
 }
+
+interface Tenant {
+  id: string;
+  name: string;
+  contactEmail: string;
+  contactName?: string;
+  packageId: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface InsertTenant {
+  name: string;
+  contactEmail: string;
+  contactName?: string;
+  packageId: string;
+  status?: string;
+}
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -201,8 +220,8 @@ export interface IStorage {
   // Super Admin operations
   getSuperAdminStats(): Promise<any>;
   getTenants(): Promise<any[]>;
-  createTenant(tenant: any): Promise<any>;
-  updateTenant(id: string, updates: any): Promise<any>;
+  createTenant(tenant: InsertTenant): Promise<Tenant>;
+  updateTenant(id: string, updates: Partial<InsertTenant>): Promise<Tenant>;
   deleteTenant(id: string): Promise<void>;
   getFeaturePackages(): Promise<any[]>;
   createFeaturePackage(pkg: any): Promise<any>;
@@ -237,6 +256,7 @@ export class MemStorage implements IStorage {
   private leadTasks: Map<string, LeadTask>;
   private tours: Map<string, Tour>;
   private leadTags: Set<string>; // Store leadId:tagId combinations
+  private tenants: Map<string, Tenant>; // Store tenant data
 
 
   constructor() {
@@ -265,16 +285,34 @@ export class MemStorage implements IStorage {
     this.leadTasks = new Map();
     this.tours = new Map();
     this.leadTags = new Set();
+    this.tenants = new Map();
 
 
     this.initializeData();
     this.initializeLeadManagementData();
   }
 
+  private initializeTenantData() {
+    // Initialize the main account tenant
+    const mainTenant: Tenant = {
+      id: "main-account",
+      name: "Venuine Events",
+      contactEmail: "admin@venuine.com",
+      contactName: "Admin User",
+      packageId: "professional", // Default to professional package
+      status: "active",
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    this.tenants.set(mainTenant.id, mainTenant);
+  }
+
   private initializeData() {
     this.initializeSamplePackagesAndServices();
     this.initializeSampleSetupStyles();
     this.initializeLeadManagementData();
+    this.initializeTenantData();
     // Initialize with some default venues
     const defaultVenues: InsertVenue[] = [
       {
@@ -1912,88 +1950,87 @@ export class MemStorage implements IStorage {
   }
 
   async getTenants(): Promise<any[]> {
-    // Create tenant accounts that can manage multiple venues
+    const packages = await this.getPackages();
     const venues = Array.from(this.venues.values());
+    const spaces = Array.from(this.spaces.values());
     const customers = Array.from(this.customers.values());
     const bookings = Array.from(this.bookings.values());
-    const spaces = Array.from(this.spaces.values());
-    const settings = await this.getSettings();
     
-    // Group venues by account (for now, we'll simulate accounts based on business patterns)
-    // In a real multi-tenant system, venues would have an accountId field
+    const tenantList = [];
     
-    // For demonstration, let's create logical account groupings
-    const accountGroups = new Map<string, any>();
-    
-    // Main business account containing all current venues
-    const companyName = settings.business?.companyName || "Venuine Events";
-    const contactEmail = settings.business?.contactEmail || "admin@venuine.com";
-    
-    const mainAccount = {
-      id: "main-account",
-      name: companyName,
-      contactEmail: contactEmail,
-      venues: venues,
-      totalSpaces: spaces.length,
-      userCount: customers.length,
-      createdAt: venues.length > 0 ? venues[0].createdAt : new Date()
-    };
-    
-    // Calculate recent activity for status
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const recentBookings = bookings.filter(booking => booking.eventDate >= thirtyDaysAgo);
-    
-    const status = recentBookings.length > 0 ? "active" : "trial";
-    
-    // Determine package based on total venues and users
-    let packageName = "Basic";
-    if (venues.length > 3 || customers.length > 15) {
-      packageName = "Enterprise";
-    } else if (venues.length > 1 || customers.length > 5) {
-      packageName = "Professional";
+    for (const [id, tenant] of this.tenants) {
+      // Get package information
+      const packageInfo = packages.find(pkg => pkg.id === tenant.packageId);
+      const packageName = packageInfo ? packageInfo.displayName : "Unknown";
+      
+      // Calculate recent activity for status
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const recentBookings = bookings.filter(booking => booking.eventDate >= thirtyDaysAgo);
+      
+      // Calculate total revenue
+      const totalRevenue = bookings.reduce((sum, booking) => {
+        const amount = parseFloat(booking.totalAmount || '0');
+        return sum + amount;
+      }, 0);
+      
+      tenantList.push({
+        id: tenant.id,
+        name: tenant.name,
+        contactEmail: tenant.contactEmail,
+        contactName: tenant.contactName,
+        packageId: tenant.packageId,
+        packageName,
+        status: tenant.status,
+        userCount: customers.length,
+        venueCount: venues.length,
+        spaceCount: spaces.length,
+        monthlyRevenue: Math.round(totalRevenue),
+        createdAt: tenant.createdAt,
+        updatedAt: tenant.updatedAt,
+        venues: venues.map(venue => ({
+          id: venue.id,
+          name: venue.name,
+          description: venue.description,
+          spaces: spaces.filter(space => space.venueId === venue.id).length
+        }))
+      });
     }
     
-    // Calculate total revenue for this account
-    const totalRevenue = bookings.reduce((sum, booking) => {
-      const amount = parseFloat(booking.totalAmount || '0');
-      return sum + amount;
-    }, 0);
-    
-    return [{
-      id: mainAccount.id,
-      name: mainAccount.name,
-      contactEmail: mainAccount.contactEmail,
-      packageName,
-      status,
-      userCount: mainAccount.userCount,
-      venueCount: venues.length,
-      spaceCount: mainAccount.totalSpaces,
-      monthlyRevenue: Math.round(totalRevenue),
-      createdAt: mainAccount.createdAt,
-      venues: venues.map(venue => ({
-        id: venue.id,
-        name: venue.name,
-        description: venue.description,
-        spaces: spaces.filter(space => space.venueId === venue.id).length
-      }))
-    }];
+    return tenantList;
   }
 
-  async createTenant(tenant: any): Promise<any> {
-    const newTenant = {
+  async createTenant(tenantData: InsertTenant): Promise<Tenant> {
+    const newTenant: Tenant = {
       id: randomUUID(),
-      ...tenant,
-      status: "trial",
-      userCount: 0,
-      createdAt: new Date()
+      name: tenantData.name,
+      contactEmail: tenantData.contactEmail,
+      contactName: tenantData.contactName,
+      packageId: tenantData.packageId,
+      status: tenantData.status || "active",
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
+    
+    this.tenants.set(newTenant.id, newTenant);
     return newTenant;
   }
 
-  async updateTenant(id: string, updates: any): Promise<any> {
-    // Mock implementation
-    return { id, ...updates };
+  async updateTenant(id: string, updates: Partial<InsertTenant>): Promise<Tenant> {
+    const existingTenant = this.tenants.get(id);
+    if (!existingTenant) {
+      throw new Error(`Tenant with id ${id} not found`);
+    }
+    
+    const updatedTenant: Tenant = {
+      ...existingTenant,
+      ...updates,
+      id, // Ensure ID doesn't change
+      updatedAt: new Date()
+    };
+    
+    this.tenants.set(id, updatedTenant);
+    return updatedTenant;
   }
 
   async deleteTenant(id: string): Promise<void> {
