@@ -33,7 +33,9 @@ export class EmailService {
       throw new Error('Email service not configured');
     }
 
-    const baseUrl = process.env.PUBLIC_BASE_URL || 'http://localhost:5000';
+    const baseUrl = process.env.REPLIT_DOMAINS 
+      ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
+      : process.env.PUBLIC_BASE_URL || 'http://localhost:5000';
     const fromEmail = process.env.GMAIL_USER;
 
     await transporter.sendMail({
@@ -46,7 +48,10 @@ export class EmailService {
   }
 
   static async sendVerificationEmail(email: string, token: string, firstName: string): Promise<void> {
-    const verifyUrl = `${process.env.PUBLIC_BASE_URL || 'http://localhost:5000'}/verify-email?token=${token}`;
+    const baseUrl = process.env.REPLIT_DOMAINS 
+      ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
+      : process.env.PUBLIC_BASE_URL || 'http://localhost:5000';
+    const verifyUrl = `${baseUrl}/verify-email?token=${token}`;
     
     const template: EmailTemplate = {
       subject: 'Verify Your VENUIN Account',
