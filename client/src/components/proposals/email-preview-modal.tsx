@@ -126,11 +126,33 @@ export function EmailPreviewModal({
     }
   });
 
-  const handleSendEmail = () => {
+  const handleSendEmail = async () => {
     if (!eventData.customerData?.email) {
       toast({
         title: "Missing Email",
         description: "Customer email address is required to send the proposal.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if email is configured before attempting to send
+    try {
+      const emailStatusResponse = await apiRequest("GET", "/api/gmail/status");
+      const emailStatus = await emailStatusResponse.json();
+      
+      if (!emailStatus.configured) {
+        toast({
+          title: "Email Not Configured",
+          description: "Please set up Gmail credentials in Settings > Integrations before sending proposals.",
+          variant: "destructive",
+        });
+        return;
+      }
+    } catch (error) {
+      toast({
+        title: "Email Configuration Error",
+        description: "Unable to verify email configuration. Please check Settings > Integrations.",
         variant: "destructive",
       });
       return;
@@ -150,14 +172,14 @@ export function EmailPreviewModal({
       },
       // Include event data to create tentative booking
       eventData: {
-        eventName: eventData.eventDates?.[0]?.eventName || "Event",
-        eventType: eventData.eventType || "general",
-        eventDate: eventData.eventDates?.[0]?.date,
-        startTime: eventData.eventDates?.[0]?.startTime,
-        endTime: eventData.eventDates?.[0]?.endTime,
-        guestCount: eventData.eventDates?.[0]?.guestCount,
-        venueId: eventData.eventDates?.[0]?.venue,
-        spaceId: eventData.eventDates?.[0]?.space
+        eventName: eventData.eventName || "Event Proposal",
+        eventType: "general",
+        eventDate: eventData.eventDates?.[0]?.date || new Date(),
+        startTime: eventData.eventDates?.[0]?.startTime || "09:00",
+        endTime: eventData.eventDates?.[0]?.endTime || "17:00",
+        guestCount: eventData.eventDates?.[0]?.guestCount || 50,
+        venueId: null, // Will be set when customer selects venue
+        spaceId: null  // Will be set when customer selects space
       }
     };
 

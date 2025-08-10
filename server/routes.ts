@@ -2691,41 +2691,33 @@ This is a test email from your Venuine venue management system.
         });
 
         // Create tentative booking if event data is provided
-        if (eventData && (eventData.eventDate || (eventData.eventDates && eventData.eventDates.length > 0))) {
+        if (eventData) {
           try {
-            // Handle single event or multiple events from proposal
-            const eventDates = eventData.eventDates || [eventData];
+            console.log('Creating tentative booking with event data:', eventData);
             
-            for (const eventDate of eventDates) {
-              if (eventDate.date) {
-                // Find venue and space IDs from names
-                const venues = await storage.getVenues();
-                const allSpaces = await storage.getSpaces();
-                
-                const venue = venues.find(v => v.name === eventDate.venue);
-                const space = allSpaces.find(s => s.name === eventDate.space);
-                
-                const tentativeBooking = {
-                  eventName: eventData.eventName || eventDate.eventName || `Proposed Event for ${customer.name}`,
-                  eventType: eventData.eventType || "general",
-                  eventDate: new Date(eventDate.date || eventDate.eventDate),
-                  startTime: eventDate.startTime,
-                  endTime: eventDate.endTime,
-                  guestCount: eventDate.guestCount || 1,
-                  customerId: customer.id,
-                  venueId: venue?.id,
-                  spaceId: space?.id,
-                  status: "tentative", // New status for proposals
-                  totalAmount: proposal.totalAmount || null,
-                  notes: `Tentative booking created from sent proposal on ${new Date().toDateString()}`,
-                  proposalStatus: "sent",
-                  proposalSentAt: new Date()
-                };
+            // Create tentative booking for the proposal
+            const tentativeBookingData = {
+              eventName: eventData.eventName || 'Event Proposal',
+              eventType: eventData.eventType || 'general',
+              eventDate: eventData.eventDate || new Date(),
+              startTime: eventData.startTime || '09:00',
+              endTime: eventData.endTime || '17:00',
+              guestCount: eventData.guestCount || 50,
+              customerId: customerId,
+              status: 'inquiry', // Start with inquiry status for proposals
+              venueId: eventData.venueId || null,
+              spaceId: eventData.spaceId || null,
+              totalPrice: 0, // Will be updated when proposal is accepted
+              notes: `Tentative booking created from proposal ${proposalId}`,
+              proposalId: proposalId,
+              createdFrom: 'proposal'
+            };
 
-                const createdBooking = await storage.createBooking(tentativeBooking);
-                console.log(`✅ Tentative booking created for proposal sent to ${customer.email}`, createdBooking.id);
-              }
-            }
+            console.log('Tentative booking data:', tentativeBookingData);
+            
+            const createdBooking = await storage.createBooking(tentativeBookingData);
+            console.log(`✅ Tentative booking created for proposal ${proposalId}:`, createdBooking.id);
+            
           } catch (bookingError) {
             console.error('Failed to create tentative booking:', bookingError);
             // Don't fail the email sending if booking creation fails
