@@ -71,6 +71,18 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
     req.tenant = tenantUser[0].tenant;
     req.userRole = tenantUser[0].role;
 
+    // Get user permissions from database
+    const userPermissions = await db
+      .select({ permissions: tenantUsers.permissions })
+      .from(tenantUsers)
+      .where(and(
+        eq(tenantUsers.tenantId, tenantUser[0].tenantId),
+        eq(tenantUsers.userId, userId)
+      ))
+      .limit(1);
+
+    (req as any).userPermissions = userPermissions[0]?.permissions || {};
+
     next();
   } catch (error) {
     console.error('Tenant context error:', error);

@@ -84,3 +84,4 @@ VENUIN is built with a modern, scalable architecture designed for high performan
 - **Enhanced Security System**: Implemented strict role-based access control preventing cross-role access and unauthorized impersonation
 - **Complete Logout System**: Added proper logout functionality for both super admin and tenant users with session clearing and secure redirects
 - **Single Super Admin Policy**: Implemented database-level constraints ensuring only one super admin can exist, with emergency transfer privileges functionality
+- **Enhanced Permission System**: Added granular permission middleware with role presets (owner, admin, manager, staff, viewer) and plan enforcement capabilities following industry best practices
