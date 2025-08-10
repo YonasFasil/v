@@ -15,6 +15,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { VoiceBookingPanel } from "../voice/voice-booking-panel";
 import { ProposalCreationModal } from "../proposals/proposal-creation-modal";
+import { ProposalEmailModal } from "../proposals/proposal-email-modal";
 
 interface Props {
   open: boolean;
@@ -95,6 +96,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
 
   // Proposal creation
   const [showCreateProposal, setShowCreateProposal] = useState(false);
+  const [showProposalEmail, setShowProposalEmail] = useState(false);
   
   // Summary details modal
   const [showSummaryDetails, setShowSummaryDetails] = useState(false);
@@ -747,6 +749,12 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         description: `Please select a space for ${missingSpaces.length} event date${missingSpaces.length > 1 ? 's' : ''}`,
         variant: "destructive" 
       });
+      return;
+    }
+
+    // If this is a proposal submission, show the email modal instead
+    if (submitType === 'proposal') {
+      setShowProposalEmail(true);
       return;
     }
 
@@ -3087,6 +3095,41 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
             totalAmount: totalPrice,
             packageItems: selectedDates.map(d => d.packageId ? (packages as any[])?.find((p: any) => p.id === d.packageId) : null).filter(Boolean),
             serviceItems: selectedDates.flatMap(d => (d.selectedServices || []).map(serviceId => (services as any[])?.find((s: any) => s.id === serviceId))).filter(Boolean)
+          }}
+        />
+      )}
+
+      {/* Proposal Email Modal */}
+      {showProposalEmail && selectedCustomer && (
+        <ProposalEmailModal
+          open={showProposalEmail}
+          onOpenChange={setShowProposalEmail}
+          eventData={{
+            eventName,
+            customerId: selectedCustomer,
+            customerEmail: (customers as any[])?.find((c: any) => c.id === selectedCustomer)?.email || "",
+            customerName: (customers as any[])?.find((c: any) => c.id === selectedCustomer)?.name || "",
+            totalAmount: totalPrice,
+            eventDates: selectedDates.map(d => ({
+              date: d.date,
+              startTime: d.startTime,
+              endTime: d.endTime,
+              venue: selectedVenueData?.name || "",
+              space: d.spaceId ? (venues as any[])?.find((v: any) => v.id === selectedVenue)?.spaces?.find((s: any) => s.id === d.spaceId)?.name || "" : "",
+              guestCount: d.guestCount || 1
+            }))
+          }}
+          onProposalSent={() => {
+            // Close both modals and refresh data
+            setShowProposalEmail(false);
+            onOpenChange(false);
+            // Reset form state
+            setEventName("");
+            setSelectedCustomer("");
+            setSelectedDates([]);
+            setSelectedVenue("");
+            setCurrentStep(1);
+            setActiveTabIndex(0);
           }}
         />
       )}
