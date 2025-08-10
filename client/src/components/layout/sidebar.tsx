@@ -36,7 +36,6 @@ const navigationItems = [
 const aiFeatures = [
   { name: "AI Analytics & Reports", href: "/ai-analytics", icon: BarChart3 },
   { name: "Voice Booking", href: "/voice-booking", icon: Mic },
-  { name: "Smart Scheduling", href: "/ai/scheduling", icon: Zap },
 ];
 
 const analyticsItems = [
