@@ -155,9 +155,11 @@ This proposal is valid for 30 days from the date of this email.`);
         title: `Proposal for ${eventData.eventName}`,
         content: generateHtmlContent(),
         totalAmount: eventData.totalAmount.toString(),
-        validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+        validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
         status: 'sent',
-        sentAt: new Date()
+        sentAt: new Date().toISOString(),
+        eventType: 'corporate',
+        guestCount: eventData.eventDates[0]?.guestCount || 1
       };
       
       const proposal = await fetch("/api/proposals", {
