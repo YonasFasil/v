@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { 
   Building2, 
   Mail, 
@@ -36,7 +37,8 @@ import {
   Copy,
   Eye,
   EyeOff,
-  ExternalLink
+  ExternalLink,
+  Check
 } from "lucide-react";
 
 export default function Settings() {
@@ -676,24 +678,125 @@ export default function Settings() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="defaultTemplate">Default Template</Label>
-                        <Select 
-                          value={formData.beo.defaultTemplate} 
-                          onValueChange={(value) => updateFormData("beo", "defaultTemplate", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="standard">Standard</SelectItem>
-                            <SelectItem value="luxury">Luxury</SelectItem>
-                            <SelectItem value="corporate">Corporate</SelectItem>
-                            <SelectItem value="wedding">Wedding</SelectItem>
-                            <SelectItem value="minimal">Minimal</SelectItem>
-                          </SelectContent>
-                        </Select>
+                    <div className="space-y-6">
+                      <div className="space-y-4">
+                        <Label className="text-base font-medium">BEO Template Design</Label>
+                        <p className="text-sm text-slate-600">Choose the visual design for your Banquet Event Orders</p>
+                        
+                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                          {[
+                            {
+                              id: "standard",
+                              name: "Standard",
+                              description: "Clean and professional template",
+                              features: ["Header with logo", "Structured sections", "Standard fonts"],
+                              preview: {
+                                bgColor: "bg-white",
+                                headerColor: "bg-slate-100",
+                                textColor: "text-slate-900",
+                                accentColor: "border-slate-300"
+                              }
+                            },
+                            {
+                              id: "luxury",
+                              name: "Luxury",
+                              description: "Elegant design with premium styling",
+                              features: ["Gold accents", "Elegant typography", "Premium layout"],
+                              preview: {
+                                bgColor: "bg-gradient-to-br from-amber-50 to-white",
+                                headerColor: "bg-gradient-to-r from-amber-100 to-amber-50",
+                                textColor: "text-amber-900",
+                                accentColor: "border-amber-300"
+                              }
+                            },
+                            {
+                              id: "corporate",
+                              name: "Corporate",
+                              description: "Professional business template",
+                              features: ["Bold headers", "Business colors", "Structured layout"],
+                              preview: {
+                                bgColor: "bg-white",
+                                headerColor: "bg-blue-600",
+                                textColor: "text-blue-900",
+                                accentColor: "border-blue-300"
+                              }
+                            },
+                            {
+                              id: "wedding",
+                              name: "Wedding",
+                              description: "Romantic design for wedding events",
+                              features: ["Soft colors", "Decorative elements", "Elegant styling"],
+                              preview: {
+                                bgColor: "bg-gradient-to-br from-rose-50 to-pink-50",
+                                headerColor: "bg-gradient-to-r from-rose-100 to-pink-100",
+                                textColor: "text-rose-900",
+                                accentColor: "border-rose-300"
+                              }
+                            },
+                            {
+                              id: "minimal",
+                              name: "Minimal",
+                              description: "Simple and clean design",
+                              features: ["Minimal styling", "Clean typography", "Simple layout"],
+                              preview: {
+                                bgColor: "bg-white",
+                                headerColor: "bg-gray-50",
+                                textColor: "text-gray-900",
+                                accentColor: "border-gray-200"
+                              }
+                            }
+                          ].map((template) => {
+                            const isSelected = formData.beo.defaultTemplate === template.id;
+                            return (
+                              <div
+                                key={template.id}
+                                className={cn(
+                                  "relative border-2 rounded-lg p-4 cursor-pointer transition-all",
+                                  isSelected 
+                                    ? "border-blue-500 bg-blue-50 shadow-md" 
+                                    : "border-slate-200 hover:border-slate-300 hover:shadow-sm"
+                                )}
+                                onClick={() => updateFormData("beo", "defaultTemplate", template.id)}
+                              >
+                                {isSelected && (
+                                  <div className="absolute top-2 right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                                    <Check className="w-4 h-4 text-white" />
+                                  </div>
+                                )}
+                                
+                                {/* Template Preview */}
+                                <div className={cn("w-full h-32 rounded border overflow-hidden mb-3", template.preview.bgColor)}>
+                                  <div className={cn("h-8 w-full", template.preview.headerColor, template.preview.accentColor, "border-b")}>
+                                    <div className="px-3 py-2">
+                                      <div className="h-4 w-20 bg-current opacity-20 rounded"></div>
+                                    </div>
+                                  </div>
+                                  <div className="p-3 space-y-2">
+                                    <div className={cn("h-3 bg-current opacity-30 rounded w-3/4", template.preview.textColor)}></div>
+                                    <div className={cn("h-2 bg-current opacity-20 rounded w-full", template.preview.textColor)}></div>
+                                    <div className={cn("h-2 bg-current opacity-20 rounded w-5/6", template.preview.textColor)}></div>
+                                    <div className="pt-2">
+                                      <div className={cn("h-2 bg-current opacity-15 rounded w-2/3", template.preview.textColor)}></div>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  <h3 className="font-medium text-sm">{template.name}</h3>
+                                  <p className="text-xs text-slate-600">{template.description}</p>
+                                  <div className="space-y-1">
+                                    {template.features.map((feature, index) => (
+                                      <div key={index} className="flex items-center gap-1">
+                                        <div className="w-1 h-1 bg-slate-400 rounded-full"></div>
+                                        <span className="text-xs text-slate-500">{feature}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
 
