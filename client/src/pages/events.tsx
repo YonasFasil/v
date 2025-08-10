@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreateEventModal } from "@/components/forms/create-event-modal";
 import { EventSummaryModal } from "@/components/forms/event-summary-modal";
 import { EventEditFullModal } from "@/components/forms/event-edit-full-modal";
+import { StatusChangeModal } from "@/components/modals/status-change-modal";
 import { AdvancedCalendar } from "@/components/dashboard/advanced-calendar";
 import { useBookings } from "@/hooks/use-bookings";
 import { Calendar, Clock, MapPin, Users, Table as TableIcon, Grid3X3, DollarSign, FileText, Plus, Search, Filter, MoreHorizontal } from "lucide-react";
@@ -22,16 +23,21 @@ export default function Events() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
   const [viewMode, setViewMode] = useState<"calendar" | "cards" | "table">("cards");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case "inquiry": return "bg-purple-100 text-purple-800";
+      case "quoted": return "bg-blue-100 text-blue-800";
       case "confirmed": return "bg-green-100 text-green-800";
+      case "completed": return "bg-gray-100 text-gray-800";
+      case "cancelled": return "bg-red-100 text-red-800";
+      // Legacy statuses for backwards compatibility
       case "pending": return "bg-yellow-100 text-yellow-800";
       case "tentative": return "bg-blue-100 text-blue-800";
-      case "cancelled": return "bg-red-100 text-red-800";
       default: return "bg-gray-100 text-gray-800";
     }
   };
@@ -166,9 +172,23 @@ export default function Events() {
                                 }
                               </CardTitle>
                             </div>
-                            <Badge className={getStatusColor(booking.status)}>
-                              {booking.status}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge className={getStatusColor(booking.status)}>
+                                {booking.status}
+                              </Badge>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedBooking(booking);
+                                  setShowStatusModal(true);
+                                }}
+                                className="h-6 w-6 p-0 hover:bg-gray-100"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                         </CardHeader>
                         <CardContent>
@@ -363,6 +383,20 @@ export default function Events() {
             if (!open) setSelectedBooking(null);
           }}
           booking={selectedBooking}
+        />
+
+        {/* Status Change Modal */}
+        <StatusChangeModal
+          open={showStatusModal && !!selectedBooking}
+          onOpenChange={(open) => {
+            setShowStatusModal(false);
+            if (!open) setSelectedBooking(null);
+          }}
+          booking={selectedBooking}
+          onStatusChanged={() => {
+            // Refetch bookings to get updated data
+            window.location.reload(); // Simple refresh for now
+          }}
         />
       </div>
     </div>

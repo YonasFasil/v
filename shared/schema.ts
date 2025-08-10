@@ -106,12 +106,18 @@ export const bookings = pgTable("bookings", {
   pricingOverrides: jsonb("pricing_overrides"),
   taxFeeOverrides: jsonb("tax_fee_overrides"), // Legacy: Override taxes and fees for specific services/packages in this event
   serviceTaxOverrides: jsonb("service_tax_overrides"), // New: Per-service tax and fee overrides with inheritance control
-  status: text("status").notNull().default("pending"), // pending, confirmed, cancelled
+  status: text("status").notNull().default("inquiry"), // inquiry, quoted, confirmed, completed, cancelled
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
   depositAmount: decimal("deposit_amount", { precision: 10, scale: 2 }),
   depositPaid: boolean("deposit_paid").default(false),
   isMultiDay: boolean("is_multi_day").default(false),
   notes: text("notes"),
+  // Cancellation tracking
+  cancellationReason: text("cancellation_reason"), // Common reasons: client_request, venue_conflict, weather, insufficient_payment, etc.
+  cancellationNote: text("cancellation_note"), // Additional details about cancellation
+  cancelledAt: timestamp("cancelled_at"),
+  cancelledBy: varchar("cancelled_by").references(() => users.id),
+  completedAt: timestamp("completed_at"), // Auto-set when event date passes and fully paid
   createdAt: timestamp("created_at").defaultNow(),
 });
 

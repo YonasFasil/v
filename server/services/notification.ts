@@ -40,6 +40,21 @@ export class NotificationService {
     });
   }
 
+  async sendCancellationNotification(booking: Booking, customer: Customer, cancellationReason: string): Promise<boolean> {
+    if (!this.preferences.emailNotifications) {
+      return false;
+    }
+
+    const subject = `Booking Cancelled - ${booking.eventName}`;
+    const html = this.generateCancellationTemplate(booking, customer, cancellationReason);
+
+    return this.sendEmail({
+      to: customer.email,
+      subject,
+      html
+    });
+  }
+
   async sendPaymentReminder(booking: Booking, customer: Customer, amountDue: number): Promise<boolean> {
     if (!this.preferences.emailNotifications || !this.preferences.paymentReminders) {
       return false;
@@ -154,6 +169,77 @@ export class NotificationService {
           
           <div class="footer">
             <p>Thank you for your business!</p>
+            <p><strong>Venuine Events</strong></p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  private generateCancellationTemplate(booking: Booking, customer: Customer, cancellationReason: string): string {
+    const eventDate = new Date(booking.eventDate).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    // Format cancellation reason for display
+    const reasonMap: Record<string, string> = {
+      client_request: "Client request",
+      venue_conflict: "Venue scheduling conflict",
+      weather: "Weather-related issues",
+      insufficient_payment: "Payment issues",
+      force_majeure: "Unforeseen circumstances",
+      vendor_unavailable: "Required vendor unavailable",
+      permit_issues: "Permit or licensing issues",
+      client_emergency: "Client emergency",
+      other: "Other circumstances"
+    };
+
+    const displayReason = reasonMap[cancellationReason] || cancellationReason;
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Booking Cancellation</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #fef2f2; padding: 30px; border-radius: 0 0 10px 10px; }
+          .booking-box { background: white; padding: 25px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+          .event-details { background: #fee2e2; padding: 20px; border-radius: 8px; border-left: 4px solid #ef4444; }
+          .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>📅 Booking Cancelled</h1>
+          <p>Your event reservation has been cancelled</p>
+        </div>
+        <div class="content">
+          <p>Dear ${customer.name},</p>
+          <p>We want to inform you that your booking has been cancelled due to: <strong>${displayReason}</strong></p>
+          
+          <div class="booking-box">
+            <h2 style="color: #dc2626; margin-top: 0;">Cancelled Event Details</h2>
+            <div class="event-details">
+              <p><strong>Event:</strong> ${booking.eventName}</p>
+              <p><strong>Date:</strong> ${eventDate}</p>
+              <p><strong>Time:</strong> ${booking.startTime} - ${booking.endTime}</p>
+              <p><strong>Guest Count:</strong> ${booking.guestCount}</p>
+              ${booking.totalAmount ? `<p><strong>Total Amount:</strong> $${booking.totalAmount}</p>` : ''}
+            </div>
+          </div>
+
+          <p>We sincerely apologize for any inconvenience this may cause. If you have any questions about refunds or would like to reschedule, please don't hesitate to contact us.</p>
+          
+          <div class="footer">
+            <p>We appreciate your understanding.</p>
             <p><strong>Venuine Events</strong></p>
           </div>
         </div>

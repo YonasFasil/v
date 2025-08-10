@@ -536,7 +536,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/bookings/:id", async (req, res) => {
     try {
-      const booking = await storage.updateBooking(req.params.id, req.body);
+      const updateData = { ...req.body };
+
+      // Auto-complete booking if status is being set to completed and event date has passed
+      if (updateData.status === "completed" && !updateData.completedAt) {
+        updateData.completedAt = new Date();
+      }
+
+      const booking = await storage.updateBooking(req.params.id, updateData);
       if (!booking) {
         return res.status(404).json({ message: "Booking not found" });
       }
@@ -557,6 +564,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Booking delete error:', error);
       res.status(500).json({ message: "Failed to delete booking" });
+    }
+  });
+
+  // Cancel booking with reason tracking
+  app.post("/api/bookings/:id/cancel", async (req, res) => {
+    try {
+      const { cancellationReason, cancellationNote } = req.body;
+      
+      if (!cancellationReason) {
+        return res.status(400).json({ message: "Cancellation reason is required" });
+      }
+
+      const updateData = {
+        status: "cancelled",
+        cancellationReason,
+        cancellationNote,
+        cancelledAt: new Date(),
+        // TODO: Add cancelled_by field when user management is implemented
+        // cancelledBy: req.user?.id
+      };
+
+      const booking = await storage.updateBooking(req.params.id, updateData);
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      // Send cancellation notification if enabled
+      try {
+        const settings = await storage.getSettings();
+        const notificationPrefs = {
+          emailNotifications: settings.notifications?.emailNotifications ?? true,
+          bookingConfirmations: settings.notifications?.bookingConfirmations ?? true,
+        };
+
+        if (notificationPrefs.emailNotifications && booking.customerId) {
+          const customer = await storage.getCustomer(booking.customerId);
+          if (customer && customer.email) {
+            const notificationService = new NotificationService(gmailService, notificationPrefs);
+            await notificationService.sendCancellationNotification(booking, customer, cancellationReason);
+            console.log(`Cancellation notification sent to ${customer.email}`);
+          }
+        }
+      } catch (notificationError) {
+        console.error('Failed to send cancellation notification:', notificationError);
+        // Don't fail the cancellation if notification fails
+      }
+
+      res.json(booking);
+    } catch (error) {
+      console.error('Booking cancellation error:', error);
+      res.status(500).json({ message: "Failed to cancel booking" });
     }
   });
 
