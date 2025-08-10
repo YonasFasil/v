@@ -538,10 +538,12 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                     </h2>
                   </div>
                 </div>
-                <Button variant="ghost" size="sm" onClick={resetForm}>
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Reset
-                </Button>
+                <div className="flex items-center gap-3">
+                  <Button variant="ghost" size="sm" onClick={resetForm}>
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Reset
+                  </Button>
+                </div>
               </div>
               
               {/* Contract Summary */}
