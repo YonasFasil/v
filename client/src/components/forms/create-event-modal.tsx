@@ -1888,9 +1888,127 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                           </div>
                         </div>
                         <div className="border-t pt-3 mt-4">
-                          <div className="flex justify-between font-semibold text-lg">
-                            <span>Total Price</span>
-                            <span>${totalPrice.toFixed(2)}</span>
+                          {/* Pricing Breakdown */}
+                          <div className="space-y-2 mb-3">
+                            {(() => {
+                              // Calculate subtotal (packages + services without taxes/fees)
+                              let subtotal = 0;
+                              let feesTotal = 0;
+                              let taxesTotal = 0;
+                              
+                              selectedDates.forEach(date => {
+                                // Package price
+                                if (date.packageId) {
+                                  const pkg = (packages as any[])?.find((p: any) => p.id === date.packageId);
+                                  if (pkg) {
+                                    const packagePrice = date.pricingOverrides?.packagePrice ?? parseFloat(pkg.price);
+                                    subtotal += pkg.pricingModel === 'per_person' 
+                                      ? packagePrice * (date.guestCount || 1)
+                                      : packagePrice;
+                                  }
+                                }
+                                
+                                // Service prices
+                                (date.selectedServices || []).forEach(serviceId => {
+                                  const service = (services as any[])?.find((s: any) => s.id === serviceId);
+                                  if (service) {
+                                    const quantity = date.itemQuantities?.[serviceId] || 1;
+                                    const overridePrice = date.pricingOverrides?.servicePrices?.[serviceId];
+                                    const price = overridePrice ?? parseFloat(service.price || 0);
+                                    const eventDuration = calculateEventDuration(date.startTime, date.endTime);
+                                    
+                                    if (service.pricingModel === 'per_person') {
+                                      subtotal += price * (date.guestCount || 1);
+                                    } else if (service.pricingModel === 'per_hour') {
+                                      subtotal += price * eventDuration;
+                                    } else {
+                                      subtotal += price * quantity;
+                                    }
+                                  }
+                                });
+                              });
+                              
+                              // Calculate taxes and fees using actual settings
+                              let tempTotal = subtotal;
+                              const appliedFees: Array<{name: string, amount: number}> = [];
+                              const appliedTaxes: Array<{name: string, amount: number}> = [];
+                              
+                              // Apply fees first (on base amount)
+                              (taxSettings as any[])?.forEach((setting: any) => {
+                                if (setting.type === 'fee') {
+                                  let feeAmount = 0;
+                                  if (setting.calculation === 'percentage') {
+                                    feeAmount = (subtotal * parseFloat(setting.value)) / 100;
+                                  } else {
+                                    feeAmount = parseFloat(setting.value);
+                                  }
+                                  feesTotal += feeAmount;
+                                  appliedFees.push({ name: setting.name, amount: feeAmount });
+                                }
+                              });
+                              
+                              // Update temp total to include fees for tax calculation
+                              tempTotal = subtotal + feesTotal;
+                              
+                              // Apply taxes (on total including fees)
+                              (taxSettings as any[])?.forEach((setting: any) => {
+                                if (setting.type === 'tax') {
+                                  const taxAmount = (tempTotal * parseFloat(setting.value)) / 100;
+                                  taxesTotal += taxAmount;
+                                  appliedTaxes.push({ name: setting.name, amount: taxAmount });
+                                }
+                              });
+                              
+                              const displayBreakdown = subtotal > 0;
+                              
+                              return displayBreakdown ? (
+                                <>
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-slate-600">Subtotal (Packages + Services):</span>
+                                    <span className="text-green-600 font-medium">${subtotal.toFixed(2)}</span>
+                                  </div>
+                                  
+                                  {/* Individual Fees */}
+                                  {appliedFees.map((fee, index) => (
+                                    <div key={`fee-${index}`} className="flex justify-between text-sm text-blue-600">
+                                      <span className="pl-2">+ {fee.name}:</span>
+                                      <span>+${fee.amount.toFixed(2)}</span>
+                                    </div>
+                                  ))}
+                                  
+                                  {/* Individual Taxes */}
+                                  {appliedTaxes.map((tax, index) => (
+                                    <div key={`tax-${index}`} className="flex justify-between text-sm text-purple-600">
+                                      <span className="pl-2">+ {tax.name}:</span>
+                                      <span>+${tax.amount.toFixed(2)}</span>
+                                    </div>
+                                  ))}
+                                  
+                                  {(appliedFees.length > 0 || appliedTaxes.length > 0) && (
+                                    <div className="border-t pt-2 mt-2">
+                                      <div className="flex justify-between font-semibold text-lg">
+                                        <span>Grand Total:</span>
+                                        <span className="text-blue-700">${totalPrice.toFixed(2)}</span>
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {appliedFees.length === 0 && appliedTaxes.length === 0 && (
+                                    <div className="border-t pt-2 mt-2">
+                                      <div className="flex justify-between font-semibold text-lg">
+                                        <span>Total Price:</span>
+                                        <span className="text-green-600">${totalPrice.toFixed(2)}</span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                <div className="flex justify-between font-semibold text-lg">
+                                  <span>Total Price:</span>
+                                  <span>${totalPrice.toFixed(2)}</span>
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
