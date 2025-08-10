@@ -372,12 +372,17 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
     if (!activeDate || selectedIndices.length === 0) return;
     
     const currentConfig = {
-      guestCount: activeDate.guestCount,
+      // Copy all configuration fields except date, startTime, endTime which are unique per date
+      spaceId: activeDate.spaceId,
       packageId: activeDate.packageId,
-      selectedServices: [...(activeDate.selectedServices || [])],
-      itemQuantities: { ...activeDate.itemQuantities },
-      pricingOverrides: { ...activeDate.pricingOverrides },
-      setupStyle: activeDate.setupStyle
+      selectedServices: activeDate.selectedServices ? [...activeDate.selectedServices] : [],
+      guestCount: activeDate.guestCount,
+      setupStyle: activeDate.setupStyle,
+      itemQuantities: activeDate.itemQuantities ? { ...activeDate.itemQuantities } : {},
+      pricingOverrides: activeDate.pricingOverrides ? {
+        packagePrice: activeDate.pricingOverrides.packagePrice,
+        servicePrices: activeDate.pricingOverrides.servicePrices ? { ...activeDate.pricingOverrides.servicePrices } : {}
+      } : {}
     };
 
     setSelectedDates(prev => 
