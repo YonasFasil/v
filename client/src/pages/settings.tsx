@@ -667,53 +667,92 @@ export default function Settings() {
                                 appPassword: e.target.value
                               })}
                             />
-                            <div className="text-xs text-blue-600 space-y-1">
-                              <p>• Go to your Google Account settings</p>
-                              <p>• Enable 2-factor authentication</p>
-                              <p>• Generate an App Password for "Mail"</p>
-                              <p>• Use the 16-character password here (not your regular Gmail password)</p>
+                            <div className="text-xs space-y-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
+                              <p className="font-semibold text-blue-800 dark:text-blue-200">📧 Gmail App Password Setup Required:</p>
+                              <div className="space-y-1 text-blue-700 dark:text-blue-300">
+                                <p><strong>1.</strong> Enable 2-Factor Authentication on your Gmail account</p>
+                                <p><strong>2.</strong> Go to <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-900 dark:hover:text-blue-100">Google App Passwords</a></p>
+                                <p><strong>3.</strong> Select "Mail" or "Other (Custom)" and create app password</p>
+                                <p><strong>4.</strong> Copy the 16-character password (format: "abcd efgh ijkl mnop")</p>
+                                <p><strong>5.</strong> Paste that password here (NOT your regular Gmail password)</p>
+                              </div>
+                              <div className="text-amber-600 dark:text-amber-400 font-medium">
+                                ⚠️ You must use an App Password for this to work!
+                              </div>
                             </div>
                           </div>
                           
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={async () => {
-                              if (formData.integrations.gmailSettings?.email && formData.integrations.gmailSettings?.appPassword) {
-                                try {
-                                  await fetch('/api/gmail/test', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                      email: formData.integrations.gmailSettings.email,
-                                      appPassword: formData.integrations.gmailSettings.appPassword
-                                    })
-                                  });
-                                  
-                                  updateFormData("integrations", "gmailSettings", {
-                                    ...formData.integrations.gmailSettings,
-                                    isConfigured: true
-                                  });
-                                  
-                                  toast({
-                                    title: "Gmail Connected!",
-                                    description: "Your Gmail account is now ready to send proposals.",
-                                    variant: "default"
-                                  });
-                                } catch (error: any) {
-                                  toast({
-                                    title: "Connection Failed",
-                                    description: error.message || "Please check your Gmail credentials and try again.",
-                                    variant: "destructive"
-                                  });
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={async () => {
+                                if (formData.integrations.gmailSettings?.email && formData.integrations.gmailSettings?.appPassword) {
+                                  try {
+                                    await fetch('/api/gmail/test', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({
+                                        email: formData.integrations.gmailSettings.email,
+                                        appPassword: formData.integrations.gmailSettings.appPassword
+                                      })
+                                    });
+                                    
+                                    updateFormData("integrations", "gmailSettings", {
+                                      ...formData.integrations.gmailSettings,
+                                      isConfigured: true
+                                    });
+                                    
+                                    toast({
+                                      title: "Gmail Connected!",
+                                      description: "Your Gmail account is now ready to send proposals.",
+                                      variant: "default"
+                                    });
+                                  } catch (error: any) {
+                                    toast({
+                                      title: "Connection Failed",
+                                      description: error.message || "Please check your Gmail credentials and try again.",
+                                      variant: "destructive"
+                                    });
+                                  }
                                 }
-                              }
-                            }}
-                            disabled={!formData.integrations.gmailSettings?.email || !formData.integrations.gmailSettings?.appPassword}
-                          >
-                            <Check className="w-4 h-4 mr-2" />
-                            Test Gmail Connection
-                          </Button>
+                              }}
+                              disabled={!formData.integrations.gmailSettings?.email || !formData.integrations.gmailSettings?.appPassword}
+                            >
+                              <Check className="w-4 h-4 mr-2" />
+                              Test Connection
+                            </Button>
+                            
+                            {formData.integrations.gmailSettings?.isConfigured && (
+                              <Button 
+                                variant="default" 
+                                size="sm"
+                                onClick={async () => {
+                                  try {
+                                    await fetch('/api/gmail/send-test', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' }
+                                    });
+                                    
+                                    toast({
+                                      title: "Test Email Sent!",
+                                      description: "Check your Gmail inbox for the test email.",
+                                      variant: "default"
+                                    });
+                                  } catch (error: any) {
+                                    toast({
+                                      title: "Failed to Send",
+                                      description: error.message || "Failed to send test email.",
+                                      variant: "destructive"
+                                    });
+                                  }
+                                }}
+                              >
+                                <Mail className="w-4 h-4 mr-2" />
+                                Send Test Email
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}

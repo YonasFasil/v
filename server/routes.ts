@@ -1900,6 +1900,60 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
     }
   });
 
+  // Send test email via Gmail
+  app.post("/api/gmail/send-test", async (req, res) => {
+    try {
+      if (!gmailService.isConfigured()) {
+        return res.status(400).json({ message: "Gmail not configured. Please set up Gmail credentials in Settings > Integrations." });
+      }
+
+      const testEmail = gmailService.getConfiguredEmail();
+      
+      await gmailService.sendEmail({
+        to: testEmail,
+        subject: "✅ Venuine Gmail Integration Test",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; border-radius: 8px;">
+              <h1>🎉 Gmail Integration Working!</h1>
+              <p>Your Venuine venue management system is successfully connected to Gmail.</p>
+            </div>
+            <div style="background: #f8f9fa; padding: 20px; margin-top: 10px; border-radius: 8px;">
+              <h2>Test Results:</h2>
+              <p>✅ Gmail SMTP connection established</p>
+              <p>✅ Authentication successful</p>
+              <p>✅ Email delivery working</p>
+              <p style="margin-top: 20px; color: #666;">
+                You can now send professional proposals directly from Venuine through your Gmail account.
+              </p>
+            </div>
+            <div style="text-align: center; margin-top: 20px; color: #666; font-size: 12px;">
+              <p>This is a test email from your Venuine venue management system.</p>
+            </div>
+          </div>
+        `,
+        text: `
+Gmail Integration Test - SUCCESS!
+
+Your Venuine venue management system is successfully connected to Gmail.
+
+Test Results:
+✅ Gmail SMTP connection established
+✅ Authentication successful  
+✅ Email delivery working
+
+You can now send professional proposals directly from Venuine through your Gmail account.
+
+This is a test email from your Venuine venue management system.
+        `
+      });
+
+      res.json({ success: true, message: "Test email sent successfully! Check your inbox." });
+    } catch (error: any) {
+      res.status(400).json({ message: `Failed to send test email: ${error.message}` });
+    }
+  });
+
   // Send proposal via Gmail
   app.post("/api/gmail/send-proposal", async (req, res) => {
     try {
