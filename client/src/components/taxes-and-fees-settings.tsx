@@ -49,10 +49,7 @@ export function TaxesAndFeesSettings() {
   // Create tax/fee mutation
   const createMutation = useMutation({
     mutationFn: async (data: InsertTaxSetting) => {
-      return apiRequest(`/api/tax-settings`, {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      return apiRequest("POST", `/api/tax-settings`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tax-settings"] });
@@ -75,10 +72,7 @@ export function TaxesAndFeesSettings() {
   // Update tax/fee mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<InsertTaxSetting> }) => {
-      return apiRequest(`/api/tax-settings/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      });
+      return apiRequest("PATCH", `/api/tax-settings/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tax-settings"] });
@@ -101,9 +95,7 @@ export function TaxesAndFeesSettings() {
   // Delete tax/fee mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest(`/api/tax-settings/${id}`, {
-        method: "DELETE",
-      });
+      return apiRequest("DELETE", `/api/tax-settings/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tax-settings"] });
