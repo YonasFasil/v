@@ -2292,34 +2292,26 @@ This is a test email from your Venuine venue management system.
         sentAt: new Date()
       });
 
-      // Send email to customer
+      // Send email to customer via Gmail
       try {
         const customer = await storage.getCustomer(proposal.customerId);
         if (customer?.email && proposal.content) {
-          // Import email functions dynamically
-          const { sendEmail, generateProposalEmail } = await import("./services/email");
-          
-          const htmlContent = generateProposalEmail(
-            customer.name, 
-            proposal.content,
-            'Venuine Events'
-          );
-          
-          const emailSent = await sendEmail({
-            to: customer.email,
-            subject: `Your Event Proposal: ${proposal.title}`,
-            html: htmlContent,
-            from: 'noreply@venuine.com'
-          });
-          
-          if (emailSent) {
-            console.log(`✅ Proposal email sent to ${customer.email}`);
+          if (gmailService.isConfigured()) {
+            await gmailService.sendProposal({
+              to: customer.email,
+              customerName: customer.name,
+              proposalContent: proposal.content,
+              totalAmount: proposal.totalAmount || "0",
+              validUntil: proposal.validUntil?.toISOString(),
+              companyName: 'Venuine Events'
+            });
+            console.log(`✅ Proposal email sent via Gmail to ${customer.email}`);
           } else {
-            console.log(`❌ Failed to send proposal email to ${customer.email}`);
+            console.log(`❌ Gmail not configured - proposal email not sent to ${customer.email}`);
           }
         }
       } catch (emailError) {
-        console.error("Failed to send proposal email:", emailError);
+        console.error("Failed to send proposal email via Gmail:", emailError);
       }
 
       res.status(201).json(proposal);
@@ -2349,20 +2341,23 @@ This is a test email from your Venuine venue management system.
         return res.status(404).json({ message: "Proposal not found" });
       }
 
-      // Initialize email service
-      const emailService = new EmailService();
-
-      // Send email
+      // Send email via Gmail
       try {
-        const result = await emailService.sendProposalEmail({
+        if (!gmailService.isConfigured()) {
+          return res.status(400).json({ message: "Gmail not configured. Please set up Gmail credentials in Settings > Integrations." });
+        }
+
+        await gmailService.sendEmail({
           to: emailData.to,
           subject: emailData.subject,
-          htmlContent: emailData.message || `
-            <h2>Event Proposal</h2>
-            <p>Please view your complete proposal at: ${emailData.proposalViewLink}</p>
-            <p>Best regards,<br>Venuine Events Team</p>
+          html: emailData.message || `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2>Event Proposal</h2>
+              <p>Please view your complete proposal at: ${emailData.proposalViewLink}</p>
+              <p>Best regards,<br>Venuine Events Team</p>
+            </div>
           `,
-          proposalViewLink: emailData.proposalViewLink
+          text: `Event Proposal\n\nPlease view your complete proposal at: ${emailData.proposalViewLink}\n\nBest regards,\nVenuine Events Team`
         });
 
         // Log communication in database
@@ -2386,7 +2381,7 @@ This is a test email from your Venuine venue management system.
 
         res.json({
           success: true,
-          messageId: result.messageId,
+          messageId: `gmail-${Date.now()}`,
           communicationLogged: true
         });
 
