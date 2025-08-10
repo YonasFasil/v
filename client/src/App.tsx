@@ -4,6 +4,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QuickActions } from "@/components/dashboard/quick-actions";
+import { useUserRole } from "@/hooks/useUserRole";
+import LoginSelect from "@/pages/login-select";
 import Dashboard from "@/pages/dashboard";
 import Events from "@/pages/events";
 import Customers from "@/pages/customers";
@@ -22,6 +24,25 @@ import Proposals from "@/pages/proposals";
 import NotFound from "@/pages/not-found";
 
 function Router() {
+  const { isAuthenticated, isLoading } = useUserRole();
+  
+  if (isLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+  
+  if (!isAuthenticated) {
+    return (
+      <Switch>
+        <Route path="/login" component={LoginSelect} />
+        <Route component={LoginSelect} />
+      </Switch>
+    );
+  }
+
   return (
     <Switch>
       <Route path="/" component={Dashboard} />

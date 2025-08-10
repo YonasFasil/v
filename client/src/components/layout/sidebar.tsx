@@ -1,4 +1,7 @@
 import { Link, useLocation } from "wouter";
+import { useUserRole } from "@/hooks/useUserRole";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { 
   LayoutDashboard, 
   Calendar, 
@@ -17,7 +20,10 @@ import {
   Mic,
   ChevronLeft,
   ChevronRight,
-  Grid3X3
+  Grid3X3,
+  LogOut,
+  Crown,
+  UserCheck
 } from "lucide-react";
 
 const navigationItems = [
@@ -49,12 +55,55 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed = false }: SidebarProps) {
   const [location] = useLocation();
+  const { userRoleData, isAdmin, isStaff, hasPermission, logout } = useUserRole();
 
   const isActive = (href: string) => {
     if (href === "/") {
       return location === "/";
     }
     return location.startsWith(href);
+  };
+
+  // Filter navigation items based on user permissions
+  const getFilteredNavigation = () => {
+    return navigationItems.filter(item => {
+      switch (item.href) {
+        case "/venues":
+          return hasPermission("manage_venues") || hasPermission("view_venues");
+        case "/setup-styles":
+          return hasPermission("manage_venues");
+        case "/packages":
+          return hasPermission("manage_packages") || hasPermission("view_packages");
+        case "/leads":
+          return hasPermission("view_customers");
+        default:
+          return true; // Basic pages like dashboard, events, customers, proposals are always visible
+      }
+    });
+  };
+
+  const getFilteredAIFeatures = () => {
+    return aiFeatures.filter(item => {
+      switch (item.href) {
+        case "/ai-analytics":
+          return hasPermission("ai_insights");
+        case "/voice-booking":
+          return hasPermission("create_bookings");
+        default:
+          return true;
+      }
+    });
+  };
+
+  const getFilteredAnalytics = () => {
+    return analyticsItems.filter(item => {
+      switch (item.href) {
+        case "/settings":
+          return hasPermission("system_settings");
+        default:
+          return hasPermission("basic_reports") || hasPermission("advanced_reports");
+      }
+    });
   };
 
   return (
@@ -69,11 +118,33 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         </div>
       </div>
 
+      {/* User Role Display */}
+      {!collapsed && userRoleData && (
+        <div className="px-4 py-3 border-b border-slate-200">
+          <div className="flex items-center gap-2">
+            {isAdmin ? (
+              <Crown className="w-4 h-4 text-purple-600" />
+            ) : (
+              <UserCheck className="w-4 h-4 text-blue-600" />
+            )}
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-slate-900">{userRoleData.name}</span>
+                <Badge variant={isAdmin ? "default" : "secondary"} className="text-xs">
+                  {userRoleData.name}
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-600">{userRoleData.title}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Navigation Menu */}
       <nav className="flex-1 px-4 py-4 space-y-1 sidebar-scroll overflow-y-auto">
         {/* Main Navigation */}
         <div className="space-y-1">
-          {navigationItems.map((item) => {
+          {getFilteredNavigation().map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
             
@@ -111,7 +182,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
                 </div>
               </div>
             </div>
-            {aiFeatures.map((item) => {
+            {getFilteredAIFeatures().map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
               
@@ -167,7 +238,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
                 Analytics
               </span>
             </div>
-            {analyticsItems.map((item) => {
+            {getFilteredAnalytics().map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
               
@@ -192,7 +263,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         {/* Analytics Section - Collapsed */}
         {collapsed && (
           <div className="pt-4 space-y-1">
-            {analyticsItems.map((item) => {
+            {getFilteredAnalytics().map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
               
@@ -215,24 +286,27 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         )}
       </nav>
 
-      {/* User Profile */}
+      {/* Logout Button */}
       <div className="border-t border-slate-200 p-4">
         {collapsed ? (
-          <div className="flex justify-center">
-            <div className="w-8 h-8 bg-slate-300 rounded-full flex items-center justify-center" title="John Doe - Venue Manager">
-              <span className="text-sm font-medium text-slate-700">JD</span>
-            </div>
-          </div>
+          <Button
+            onClick={logout}
+            variant="ghost"
+            size="sm"
+            className="w-full flex justify-center p-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+            title="Logout"
+          >
+            <LogOut className="w-5 h-5" />
+          </Button>
         ) : (
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-slate-300 rounded-full flex items-center justify-center">
-              <span className="text-sm font-medium text-slate-700">JD</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-900 truncate">John Doe</p>
-              <p className="text-xs text-slate-500 truncate">Venue Manager</p>
-            </div>
-          </div>
+          <Button
+            onClick={logout}
+            variant="ghost"
+            className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Switch User
+          </Button>
         )}
       </div>
     </div>
