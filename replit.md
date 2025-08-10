@@ -56,6 +56,7 @@ Preferred communication style: Simple, everyday language.
 - **Reports & Analytics**: Comprehensive dashboard with real-time data, interactive charts, and AI-powered insights.
 - **Tax and Fees System**: Configurable percentage and fixed-rate options.
 - **User Management System**: Fully functional tenant user management with role-based access control (Admin, Staff, Viewer), feature-based permissions tied to subscription packages, and complete CRUD operations through Settings → Users tab.
+- **Super Admin Panel**: Complete platform administration with tenant account management, custom package creation, real-time updates, and activity monitoring. Account management includes proper edit modal functionality for existing accounts.
 
 ### AI Integration
 - **Provider**: Google Gemini API.
