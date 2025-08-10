@@ -162,7 +162,7 @@ export default function SuperAdminDashboard() {
       slug: formData.get('slug'),
       contactName: formData.get('contactName'),
       contactEmail: formData.get('contactEmail'),
-      featurePackageId: featurePackageId === 'none' ? null : featurePackageId,
+      featurePackageId: featurePackageId === 'no-package' ? null : featurePackageId,
       status: 'active',
     });
   };
@@ -302,7 +302,7 @@ export default function SuperAdminDashboard() {
                   <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All statuses</SelectItem>
+                  <SelectItem value="all">All statuses</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="suspended">Suspended</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
@@ -347,7 +347,7 @@ export default function SuperAdminDashboard() {
                         <SelectValue placeholder="Select package (optional)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">No package</SelectItem>
+                        <SelectItem value="no-package">No package</SelectItem>
                         {featurePackages?.map(pkg => (
                           <SelectItem key={pkg.id} value={pkg.id}>
                             {pkg.name} - ${pkg.priceMonthly}/month

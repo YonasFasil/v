@@ -29,7 +29,7 @@ export function registerSuperAdminRoutes(app: Express) {
           )
         );
       }
-      if (status) {
+      if (status && status !== 'all') {
         conditions.push(eq(tenants.status, status));
       }
 

@@ -14,9 +14,27 @@ export interface TenantRequest extends Request {
 // Tenant context middleware - extracts tenant from user session
 export const tenantContext = async (req: TenantRequest, res: Response, next: NextFunction) => {
   try {
-    // Skip tenant context for superadmin routes and non-authenticated routes
-    if (req.path.startsWith('/api/superadmin') || !req.user?.id) {
+    // Skip tenant context for superadmin routes, public routes, and non-authenticated routes
+    if (req.path.startsWith('/api/superadmin') || 
+        req.path.startsWith('/api/public') || 
+        req.path.startsWith('/api/auth') || 
+        !req.user?.id) {
       return next();
+    }
+
+    // Check if user is superadmin - superadmins should not have tenant access
+    try {
+      const superAdminCheck = await db.execute(sql`
+        SELECT role FROM users WHERE id = ${req.user.id} AND role = 'superadmin'
+      `);
+      
+      if (superAdminCheck.rows.length > 0) {
+        return res.status(403).json({ 
+          message: 'Superadmin users cannot access tenant routes' 
+        });
+      }
+    } catch (error) {
+      console.error('Superadmin check error:', error);
     }
 
     const userId = req.user.id;

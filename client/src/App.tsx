@@ -70,22 +70,7 @@ function Router() {
       <Route path="/sys-admin-x7k9p2w4" component={SuperAdminDashboard} />
       <Route path="/sys-admin-login-x7k9p2w4" component={SuperAdminLogin} />
       
-      {/* Legacy fallback for existing tenant (temporary) */}
-      <Route path="/events" component={Events} />
-      <Route path="/customers" component={Customers} />
-      <Route path="/leads" component={Leads} />
-      <Route path="/payments" component={Payments} />
-      <Route path="/tasks" component={Tasks} />
-      <Route path="/venues" component={Venues} />
-      <Route path="/setup-styles" component={SetupStyles} />
-      <Route path="/packages" component={Packages} />
-      <Route path="/ai-analytics" component={AIAnalytics} />
-      <Route path="/reports" component={Reports} />
-      <Route path="/voice-booking" component={VoiceBooking} />
-      <Route path="/settings" component={Settings} />
-      <Route path="/proposals" component={Proposals} />
-      <Route path="/proposal/:proposalId" component={ProposalView} />
-      <Route path="/dashboard" component={Dashboard} />
+      {/* Legacy routes removed for security - all tenant routes must use /t/:slug/app/* pattern */}
       
       <Route component={NotFound} />
     </Switch>
