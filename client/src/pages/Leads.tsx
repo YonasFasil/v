@@ -6,12 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Phone, Mail, Calendar, User, Building, Clock, Tag, Plus, Search, Filter } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import type { Lead, CampaignSource, Tag as TagType } from "@shared/schema";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { PublicQuoteForm } from "@/components/lead-capture/public-quote-form";
 
 export default function Leads() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -19,11 +21,12 @@ export default function Leads() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [showAddModal, setShowAddModal] = useState(false);
   const queryClient = useQueryClient();
 
   // Fetch leads with filters
   const { data: leads = [], isLoading: leadsLoading } = useQuery({
-    queryKey: ["/api/leads", { status: statusFilter === "all" ? undefined : statusFilter, q: searchQuery, source: sourceFilter === "all" ? undefined : sourceFilter }],
+    queryKey: ["/api/leads"],
     enabled: true
   });
 
@@ -135,7 +138,7 @@ export default function Leads() {
           <div className="space-y-6">
       {/* Add Lead Button */}
       <div className="flex justify-end">
-        <Button>
+        <Button onClick={() => setShowAddModal(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Add Lead
         </Button>
@@ -370,6 +373,22 @@ export default function Leads() {
           </div>
         </main>
       </div>
+
+      {/* Add Lead Modal */}
+      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Lead</DialogTitle>
+          </DialogHeader>
+          <PublicQuoteForm 
+            onSuccess={() => {
+              setShowAddModal(false);
+              queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+            }}
+            embedded={true}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
