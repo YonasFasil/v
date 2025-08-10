@@ -47,6 +47,19 @@ interface FloorPlan {
   updatedAt: string;
 }
 
+interface SetupStyle {
+  id: string;
+  name: string;
+  description?: string;
+  iconName?: string;
+  category: string;
+  minCapacity?: number;
+  maxCapacity?: number;
+  floorPlan?: any;
+  isActive: boolean;
+  createdAt: string;
+}
+
 export default function FloorPlansPage() {
   const [selectedTab, setSelectedTab] = useState('plans');
   const [showDesigner, setShowDesigner] = useState(false);
@@ -73,6 +86,11 @@ export default function FloorPlansPage() {
   // Fetch venues
   const { data: venues = [] } = useQuery({
     queryKey: ['/api/venues-with-spaces'],
+  });
+
+  // Fetch setup styles
+  const { data: setupStyles = [] } = useQuery<SetupStyle[]>({
+    queryKey: ['/api/setup-styles'],
   });
 
   // Create floor plan mutation
@@ -120,73 +138,17 @@ export default function FloorPlansPage() {
     }
   });
 
-  // Setup style configurations
-  const setupStyles = [
-    {
-      id: 'round-tables',
-      name: 'Round Tables',
-      description: 'Perfect for dining events with conversation flow',
-      icon: '⭕',
-      capacity: '8-10 per table',
-      color: 'bg-blue-50 border-blue-200 text-blue-800'
-    },
-    {
-      id: 'theater',
-      name: 'Theater Style',
-      description: 'Rows of chairs facing a stage or presentation area',
-      icon: '🎭',
-      capacity: 'Maximum capacity',
-      color: 'bg-purple-50 border-purple-200 text-purple-800'
-    },
-    {
-      id: 'classroom',
-      name: 'Classroom',
-      description: 'Tables and chairs in rows for learning environments',
-      icon: '📚',
-      capacity: '2-3 per table',
-      color: 'bg-green-50 border-green-200 text-green-800'
-    },
-    {
-      id: 'u-shape',
-      name: 'U-Shape',
-      description: 'Horseshoe arrangement for interactive discussions',
-      icon: '🔄',
-      capacity: 'Interactive seating',
-      color: 'bg-orange-50 border-orange-200 text-orange-800'
-    },
-    {
-      id: 'cocktail',
-      name: 'Cocktail Reception',
-      description: 'Standing reception with high tables and bars',
-      icon: '🍸',
-      capacity: 'Standing/mixing',
-      color: 'bg-pink-50 border-pink-200 text-pink-800'
-    },
-    {
-      id: 'banquet',
-      name: 'Banquet',
-      description: 'Long rectangular tables for formal dining',
-      icon: '🍽️',
-      capacity: '6-8 per table',
-      color: 'bg-amber-50 border-amber-200 text-amber-800'
-    },
-    {
-      id: 'conference',
-      name: 'Conference',
-      description: 'Board room style with central table',
-      icon: '💼',
-      capacity: 'Meeting style',
-      color: 'bg-slate-50 border-slate-200 text-slate-800'
-    },
-    {
-      id: 'custom',
-      name: 'Custom Layout',
-      description: 'Create your own unique arrangement',
-      icon: '🎨',
-      capacity: 'Flexible',
-      color: 'bg-indigo-50 border-indigo-200 text-indigo-800'
-    }
-  ];
+  // Map categories to colors for display
+  const getCategoryColor = (category: string) => {
+    const colorMap: Record<string, string> = {
+      dining: 'bg-blue-50 border-blue-200 text-blue-800',
+      presentation: 'bg-purple-50 border-purple-200 text-purple-800',
+      meeting: 'bg-green-50 border-green-200 text-green-800',
+      social: 'bg-pink-50 border-pink-200 text-pink-800',
+      general: 'bg-slate-50 border-slate-200 text-slate-800'
+    };
+    return colorMap[category] || 'bg-gray-50 border-gray-200 text-gray-800';
+  };
 
   // Filter floor plans
   const filteredPlans = (floorPlans as FloorPlan[]).filter((plan: FloorPlan) => {
@@ -301,9 +263,9 @@ export default function FloorPlansPage() {
                     <SelectValue placeholder="Select setup style" />
                   </SelectTrigger>
                   <SelectContent>
-                    {setupStyles.map((style) => (
+                    {setupStyles.map((style: SetupStyle) => (
                       <SelectItem key={style.id} value={style.id}>
-                        {style.icon} {style.name}
+                        {style.iconName && `${style.iconName} `}{style.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -353,9 +315,9 @@ export default function FloorPlansPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Styles</SelectItem>
-                    {setupStyles.map((style) => (
+                    {setupStyles.map((style: SetupStyle) => (
                       <SelectItem key={style.id} value={style.id}>
-                        {style.icon} {style.name}
+                        {style.iconName && `${style.iconName} `}{style.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -510,17 +472,17 @@ export default function FloorPlansPage() {
         {/* Setup Styles Tab */}
         <TabsContent value="styles" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {setupStyles.map((style) => (
-              <Card key={style.id} className={cn("p-6 cursor-pointer transition-all hover:shadow-md", style.color)}>
+            {setupStyles.map((style: SetupStyle) => (
+              <Card key={style.id} className={cn("p-6 cursor-pointer transition-all hover:shadow-md", getCategoryColor(style.category))}>
                 <div className="text-center space-y-4">
-                  <div className="text-4xl">{style.icon}</div>
+                  <div className="text-4xl">{style.iconName || '🏢'}</div>
                   <div>
                     <h3 className="font-semibold">{style.name}</h3>
                     <p className="text-sm mt-1 opacity-80">{style.description}</p>
                   </div>
                   <div className="space-y-2">
                     <Badge variant="outline" className="text-xs">
-                      {style.capacity}
+                      {style.minCapacity && style.maxCapacity ? `${style.minCapacity}-${style.maxCapacity}` : 'Flexible'}
                     </Badge>
                     <div className="pt-2">
                       <Button

@@ -71,7 +71,7 @@ export function FloorPlan3DDesigner({ isOpen, onClose, venueId, setupStyle, onSa
   const [showObjectPanel, setShowObjectPanel] = useState(false);
 
   // Object templates with realistic properties
-  const objectTemplates = {
+  const objectTemplates: Record<string, Record<string, { width: number; height: number; seats?: number; color: string }>> = {
     table: {
       round: { width: 60, height: 60, seats: 8, color: '#8B4513' },
       rectangular: { width: 80, height: 40, seats: 6, color: '#8B4513' },
@@ -91,26 +91,32 @@ export function FloorPlan3DDesigner({ isOpen, onClose, venueId, setupStyle, onSa
     }
   };
 
-  // Load setup style template when venueId or setupStyle changes
+  // Load setup style template when setupStyle changes
   useEffect(() => {
     if (setupStyle && objects.length === 0) {
       loadSetupStyleTemplate();
     }
-  }, [setupStyle]);
+  }, [setupStyle, objects.length]);
 
   const loadSetupStyleTemplate = async () => {
     if (!setupStyle) return;
     
     try {
-      const response = await fetch(`/api/setup-styles/${setupStyle}`);
-      if (response.ok) {
-        const style = await response.json();
-        if (style.floorPlan && style.floorPlan.objects) {
-          setObjects(style.floorPlan.objects);
-          if (style.floorPlan.canvasSize) {
-            setCanvasSize(style.floorPlan.canvasSize);
+      // First get all setup styles to find the one with matching name
+      const stylesResponse = await fetch('/api/setup-styles');
+      if (stylesResponse.ok) {
+        const allStyles = await stylesResponse.json();
+        const matchingStyle = allStyles.find((style: any) => 
+          style.name.toLowerCase().replace(/\s+/g, '-') === setupStyle ||
+          style.id === setupStyle
+        );
+        
+        if (matchingStyle && matchingStyle.floorPlan && matchingStyle.floorPlan.objects) {
+          setObjects(matchingStyle.floorPlan.objects);
+          if (matchingStyle.floorPlan.canvasSize) {
+            setCanvasSize(matchingStyle.floorPlan.canvasSize);
           }
-          saveToHistory(style.floorPlan.objects);
+          saveToHistory(matchingStyle.floorPlan.objects);
         }
       }
     } catch (error) {
