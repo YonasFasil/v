@@ -2488,6 +2488,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                         // Apply service fees
                         effectiveFeeIds.forEach((feeId: string) => {
                           const fee = (taxSettings as any[])?.find(f => f.id === feeId);
+                          console.log('Footer: Checking fee', feeId, 'found:', fee, 'isActive:', fee?.isActive);
                           if (fee && fee.isActive) {
                             let feeAmount = 0;
                             if (fee.calculation === 'percentage') {
@@ -2495,6 +2496,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                             } else {
                               feeAmount = parseFloat(fee.value);
                             }
+                            console.log('Footer: Applying fee', fee.name, 'amount:', feeAmount, 'to totalFees:', totalFees);
                             totalFees += feeAmount;
                           }
                         });
@@ -2519,6 +2521,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
 
                   const grandTotal = subtotal + totalFees + totalTaxes;
                   const hasFeesOrTaxes = totalFees > 0 || totalTaxes > 0;
+                  
+                  console.log('Footer calculation:', { subtotal, totalFees, totalTaxes, grandTotal, hasFeesOrTaxes });
 
                   return (
                     <div className="flex items-center gap-2">
