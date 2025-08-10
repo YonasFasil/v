@@ -2691,26 +2691,34 @@ This is a test email from your Venuine venue management system.
         });
 
         // Create tentative booking if event data is provided
-        if (eventData) {
+        if (eventData && eventData.eventName && eventData.eventType && eventData.eventDate && 
+            eventData.startTime && eventData.endTime && eventData.guestCount) {
           try {
             console.log('Creating tentative booking with event data:', eventData);
             
+            // Ensure eventDate is a proper Date object
+            const eventDate = eventData.eventDate instanceof Date 
+              ? eventData.eventDate 
+              : new Date(eventData.eventDate);
+            
             // Create tentative booking for the proposal
             const tentativeBookingData = {
-              eventName: eventData.eventName || 'Event Proposal',
-              eventType: eventData.eventType || 'general',
-              eventDate: eventData.eventDate || new Date(),
-              startTime: eventData.startTime || '09:00',
-              endTime: eventData.endTime || '17:00',
-              guestCount: eventData.guestCount || 50,
+              eventName: eventData.eventName,
+              eventType: eventData.eventType,
+              eventDate: eventDate,
+              startTime: eventData.startTime,
+              endTime: eventData.endTime,
+              guestCount: parseInt(eventData.guestCount) || 50,
               customerId: customerId,
               status: 'inquiry', // Start with inquiry status for proposals
               venueId: eventData.venueId || null,
               spaceId: eventData.spaceId || null,
-              totalPrice: 0, // Will be updated when proposal is accepted
+              totalAmount: eventData.totalAmount || '0',
               notes: `Tentative booking created from proposal ${proposalId}`,
-              proposalId: proposalId,
-              createdFrom: 'proposal'
+              proposalStatus: 'sent',
+              proposalSentAt: new Date(),
+              packageId: eventData.packageId || null,
+              selectedServices: eventData.selectedServices || []
             };
 
             console.log('Tentative booking data:', tentativeBookingData);
@@ -2722,6 +2730,8 @@ This is a test email from your Venuine venue management system.
             console.error('Failed to create tentative booking:', bookingError);
             // Don't fail the email sending if booking creation fails
           }
+        } else {
+          console.log('Event data incomplete, skipping tentative booking creation:', eventData);
         }
 
         res.json({
