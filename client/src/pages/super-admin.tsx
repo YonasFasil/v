@@ -42,6 +42,31 @@ export default function SuperAdmin() {
   const { logout, userRoleData, isSuperAdmin, isLoading } = useUserRole();
   const [selectedTab, setSelectedTab] = useState("overview");
 
+  // Queries - must be called before any early returns to follow React hooks rules
+  const { data: stats } = useQuery({
+    queryKey: ["/api/super-admin/stats"],
+    staleTime: 60000,
+    enabled: isSuperAdmin, // Only run query if user is super admin
+  });
+
+  const { data: tenants } = useQuery({
+    queryKey: ["/api/super-admin/tenants"],
+    staleTime: 30000,
+    enabled: isSuperAdmin,
+  });
+
+  const { data: packages } = useQuery({
+    queryKey: ["/api/super-admin/packages"],
+    staleTime: 60000,
+    enabled: isSuperAdmin,
+  });
+
+  const { data: activities } = useQuery({
+    queryKey: ["/api/super-admin/activities"],
+    staleTime: 30000,
+    enabled: isSuperAdmin,
+  });
+
   // Show loading while checking authentication
   if (isLoading) {
     return (
@@ -56,27 +81,6 @@ export default function SuperAdmin() {
     navigate("/login");
     return null;
   }
-
-  // Queries
-  const { data: stats } = useQuery({
-    queryKey: ["/api/super-admin/stats"],
-    staleTime: 60000,
-  });
-
-  const { data: tenants } = useQuery({
-    queryKey: ["/api/super-admin/tenants"],
-    staleTime: 30000,
-  });
-
-  const { data: packages } = useQuery({
-    queryKey: ["/api/super-admin/packages"],
-    staleTime: 60000,
-  });
-
-  const { data: activities } = useQuery({
-    queryKey: ["/api/super-admin/activities"],
-    staleTime: 30000,
-  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
