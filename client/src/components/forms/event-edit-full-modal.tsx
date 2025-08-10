@@ -1422,56 +1422,240 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                               </Card>
                             )}
 
-                            {/* Price Summary */}
+                            {/* Tax and Fee Configuration & Price Summary */}
                             <Card className="p-4">
-                              <h5 className="font-medium mb-3">Price Summary</h5>
-                              <div className="space-y-2 text-sm">
-                                {selectedPackageData && (
-                                  <div className="flex justify-between">
-                                    <span>{selectedPackageData.name}</span>
-                                    <span>
-                                      ${selectedPackageData.pricingModel === 'per_person' 
-                                        ? (parseFloat(selectedPackageData.price) * (activeDate.guestCount || 1)).toFixed(2)
-                                        : parseFloat(selectedPackageData.price).toFixed(2)}
-                                    </span>
+                              <div className="space-y-4">
+                                {/* Tax & Fee Configuration Section */}
+                                <div>
+                                  <h5 className="font-medium mb-3">Taxes & Fees</h5>
+                                  <div className="space-y-4">
+                                    {/* Available Taxes */}
+                                    {(taxSettings as any[]).filter((item: any) => item.type === 'tax' && item.isActive).length > 0 && (
+                                      <div>
+                                        <Label className="text-sm font-medium text-slate-700 mb-2 block">Applied Taxes</Label>
+                                        <div className="space-y-2 max-h-32 overflow-y-auto border rounded-md p-3 bg-white">
+                                          {(taxSettings as any[])
+                                            .filter((item: any) => item.type === 'tax' && item.isActive)
+                                            .map((tax: any) => (
+                                              <div key={tax.id} className="flex items-center space-x-2">
+                                                <Checkbox
+                                                  id={`tax-${tax.id}`}
+                                                  checked={taxFeeOverrides.enabledTaxIds.includes(tax.id)}
+                                                  onCheckedChange={(checked) => {
+                                                    setTaxFeeOverrides(prev => ({
+                                                      ...prev,
+                                                      enabledTaxIds: checked
+                                                        ? [...prev.enabledTaxIds, tax.id]
+                                                        : prev.enabledTaxIds.filter(id => id !== tax.id)
+                                                    }));
+                                                  }}
+                                                />
+                                                <label htmlFor={`tax-${tax.id}`} className="text-sm flex-1 cursor-pointer">
+                                                  {tax.name} ({tax.value}% {tax.applyTo})
+                                                </label>
+                                              </div>
+                                            ))}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Available Fees */}
+                                    {(taxSettings as any[]).filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive).length > 0 && (
+                                      <div>
+                                        <Label className="text-sm font-medium text-slate-700 mb-2 block">Applied Fees</Label>
+                                        <div className="space-y-2 max-h-32 overflow-y-auto border rounded-md p-3 bg-white">
+                                          {(taxSettings as any[])
+                                            .filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive)
+                                            .map((fee: any) => (
+                                              <div key={fee.id} className="flex items-center space-x-2">
+                                                <Checkbox
+                                                  id={`fee-${fee.id}`}
+                                                  checked={taxFeeOverrides.enabledFeeIds.includes(fee.id)}
+                                                  onCheckedChange={(checked) => {
+                                                    setTaxFeeOverrides(prev => ({
+                                                      ...prev,
+                                                      enabledFeeIds: checked
+                                                        ? [...prev.enabledFeeIds, fee.id]
+                                                        : prev.enabledFeeIds.filter(id => id !== fee.id)
+                                                    }));
+                                                  }}
+                                                />
+                                                <label htmlFor={`fee-${fee.id}`} className="text-sm flex-1 cursor-pointer">
+                                                  {fee.name} ({fee.calculation === 'percentage' ? `${fee.value}%` : `$${fee.value}`})
+                                                  {fee.isTaxable && <span className="text-purple-600 ml-1">(Taxable)</span>}
+                                                </label>
+                                              </div>
+                                            ))}
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
-                                )}
-                                
-                                {activeDate.selectedServices?.map(serviceId => {
-                                  const service = (services as any[]).find((s: any) => s.id === serviceId);
-                                  if (!service) return null;
-                                  
-                                  const basePrice = parseFloat(service.price || 0);
-                                  const overridePrice = activeDate.pricingOverrides?.servicePrices?.[serviceId];
-                                  const price = overridePrice ?? basePrice;
-                                  const quantity = activeDate.itemQuantities?.[serviceId] || 1;
-                                  const total = service.pricingModel === 'per_person' 
-                                    ? price * (activeDate.guestCount || 1)
-                                    : price * quantity;
-                                  
-                                  return (
-                                    <div key={serviceId} className="flex justify-between">
-                                      <span>{service.name}</span>
-                                      <span>${total.toFixed(2)}</span>
-                                    </div>
-                                  );
-                                })}
-                                
-                                <div className="border-t border-slate-200 pt-2 flex justify-between font-medium">
-                                  <span>Date Total</span>
-                                  <span>${(
-                                    (selectedPackageData && activeDate.packageId ? 
-                                      (selectedPackageData.pricingModel === 'per_person' 
-                                        ? parseFloat(selectedPackageData.price) * (activeDate.guestCount || 1)
-                                        : parseFloat(selectedPackageData.price)) : 0) +
-                                    (activeDate.selectedServices?.reduce((sum, serviceId) => {
+                                </div>
+
+                                {/* Comprehensive Price Breakdown */}
+                                <div>
+                                  <h5 className="font-medium mb-3">Price Breakdown</h5>
+                                  {(() => {
+                                    // Calculate comprehensive breakdown with taxes and fees
+                                    let subtotal = 0;
+                                    const feeBreakdown: Array<{name: string, amount: number, description: string}> = [];
+                                    const taxBreakdown: Array<{name: string, amount: number, description: string}> = [];
+                                    
+                                    // Package price
+                                    if (selectedPackageData && activeDate.packageId) {
+                                      const packagePrice = activeDate.pricingOverrides?.packagePrice ?? parseFloat(selectedPackageData.price || 0);
+                                      if (selectedPackageData.pricingModel === 'per_person') {
+                                        subtotal += packagePrice * (activeDate.guestCount || 1);
+                                      } else {
+                                        subtotal += packagePrice;
+                                      }
+                                    }
+                                    
+                                    // Services price
+                                    activeDate.selectedServices?.forEach(serviceId => {
                                       const service = (services as any[]).find((s: any) => s.id === serviceId);
-                                      if (!service) return sum;
-                                      const price = activeDate.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
-                                      const quantity = activeDate.itemQuantities?.[serviceId] || 1;
-                                      return sum + (service.pricingModel === 'per_person' ? price * (activeDate.guestCount || 1) : price * quantity);
-                                    }, 0) || 0)
-                                  ).toFixed(2)}</span>
+                                      if (service) {
+                                        const servicePrice = activeDate.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
+                                        if (service.pricingModel === 'per_person') {
+                                          subtotal += servicePrice * (activeDate.guestCount || 1);
+                                        } else {
+                                          const quantity = activeDate.itemQuantities?.[serviceId] || 1;
+                                          subtotal += servicePrice * quantity;
+                                        }
+                                      }
+                                    });
+
+                                    // Calculate fees
+                                    let feesTotal = 0;
+                                    (taxSettings as any[])?.forEach((fee: any) => {
+                                      if ((fee.type === 'fee' || fee.type === 'service_charge') && 
+                                          fee.isActive && 
+                                          taxFeeOverrides.enabledFeeIds.includes(fee.id)) {
+                                        
+                                        let feeAmount = 0;
+                                        let description = '';
+                                        
+                                        if (fee.calculation === 'percentage') {
+                                          feeAmount = subtotal * (parseFloat(fee.value) / 100);
+                                          description = `${fee.value}% of subtotal ($${subtotal.toFixed(2)})`;
+                                        } else {
+                                          feeAmount = parseFloat(fee.value);
+                                          description = 'Fixed amount';
+                                        }
+                                        
+                                        feesTotal += feeAmount;
+                                        feeBreakdown.push({
+                                          name: fee.name,
+                                          amount: feeAmount,
+                                          description
+                                        });
+                                      }
+                                    });
+
+                                    // Calculate taxes on subtotal + taxable fees
+                                    const taxableFees = feeBreakdown
+                                      .filter(fee => {
+                                        const feeData = (taxSettings as any[])?.find(f => f.name === fee.name);
+                                        return feeData?.isTaxable;
+                                      })
+                                      .reduce((sum, fee) => sum + fee.amount, 0);
+
+                                    const taxableBase = subtotal + taxableFees;
+                                    
+                                    let taxesTotal = 0;
+                                    (taxSettings as any[])?.forEach((tax: any) => {
+                                      if (tax.type === 'tax' && 
+                                          tax.isActive && 
+                                          taxFeeOverrides.enabledTaxIds.includes(tax.id)) {
+                                        
+                                        const taxAmount = taxableBase * (parseFloat(tax.value) / 100);
+                                        taxesTotal += taxAmount;
+                                        taxBreakdown.push({
+                                          name: tax.name,
+                                          amount: taxAmount,
+                                          description: `${tax.value}% of taxable amount ($${taxableBase.toFixed(2)})`
+                                        });
+                                      }
+                                    });
+
+                                    const grandTotal = subtotal + feesTotal + taxesTotal;
+
+                                    return (
+                                      <div className="space-y-3">
+                                        {/* Items breakdown */}
+                                        <div className="space-y-2 text-sm">
+                                          {selectedPackageData && activeDate.packageId && (
+                                            <div className="flex justify-between">
+                                              <span>{selectedPackageData.name}</span>
+                                              <span>
+                                                ${selectedPackageData.pricingModel === 'per_person' 
+                                                  ? ((activeDate.pricingOverrides?.packagePrice ?? parseFloat(selectedPackageData.price)) * (activeDate.guestCount || 1)).toFixed(2)
+                                                  : (activeDate.pricingOverrides?.packagePrice ?? parseFloat(selectedPackageData.price)).toFixed(2)}
+                                              </span>
+                                            </div>
+                                          )}
+                                          
+                                          {activeDate.selectedServices?.map(serviceId => {
+                                            const service = (services as any[]).find((s: any) => s.id === serviceId);
+                                            if (!service) return null;
+                                            
+                                            const basePrice = parseFloat(service.price || 0);
+                                            const overridePrice = activeDate.pricingOverrides?.servicePrices?.[serviceId];
+                                            const price = overridePrice ?? basePrice;
+                                            const quantity = activeDate.itemQuantities?.[serviceId] || 1;
+                                            const total = service.pricingModel === 'per_person' 
+                                              ? price * (activeDate.guestCount || 1)
+                                              : price * quantity;
+                                            
+                                            return (
+                                              <div key={serviceId} className="flex justify-between">
+                                                <span>{service.name}</span>
+                                                <span>${total.toFixed(2)}</span>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+
+                                        {/* Subtotal */}
+                                        <div className="border-t border-slate-200 pt-2">
+                                          <div className="flex justify-between text-sm font-medium">
+                                            <span>Subtotal:</span>
+                                            <span>${subtotal.toFixed(2)}</span>
+                                          </div>
+                                        </div>
+                                        
+                                        {/* Fees breakdown */}
+                                        {feeBreakdown.map((fee, idx) => (
+                                          <div key={`fee-${idx}`} className="space-y-1">
+                                            <div className="flex justify-between text-sm">
+                                              <span className="text-blue-600">{fee.name}:</span>
+                                              <span className="text-blue-600">${fee.amount.toFixed(2)}</span>
+                                            </div>
+                                            <div className="text-xs text-slate-500 ml-2">{fee.description}</div>
+                                          </div>
+                                        ))}
+                                        
+                                        {/* Tax breakdown */}
+                                        {taxBreakdown.map((tax, idx) => (
+                                          <div key={`tax-${idx}`} className="space-y-1">
+                                            <div className="flex justify-between text-sm">
+                                              <span className="text-purple-600">{tax.name}:</span>
+                                              <span className="text-purple-600">${tax.amount.toFixed(2)}</span>
+                                            </div>
+                                            <div className="text-xs text-slate-500 ml-2">{tax.description}</div>
+                                          </div>
+                                        ))}
+                                        
+                                        {/* Grand total */}
+                                        <div className="border-t-2 border-slate-300 pt-2">
+                                          <div className="flex justify-between font-semibold text-base">
+                                            <span>Date Total:</span>
+                                            <span className="text-green-600">${grandTotal.toFixed(2)}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             </Card>
@@ -1604,11 +1788,11 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                       <Label className="text-base font-medium">Taxes & Fees</Label>
                       <div className="mt-3 space-y-4">
                         {/* Available Taxes */}
-                        {taxSettings.filter((item: any) => item.type === 'tax' && item.isActive).length > 0 && (
+                        {(taxSettings as any[]).filter((item: any) => item.type === 'tax' && item.isActive).length > 0 && (
                           <div>
                             <Label className="text-sm font-medium text-slate-700 mb-2 block">Applied Taxes</Label>
                             <div className="space-y-2 max-h-32 overflow-y-auto border rounded-md p-3 bg-white">
-                              {taxSettings
+                              {(taxSettings as any[])
                                 .filter((item: any) => item.type === 'tax' && item.isActive)
                                 .map((tax: any) => (
                                   <div key={tax.id} className="flex items-center space-x-2">
@@ -1634,11 +1818,11 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                         )}
 
                         {/* Available Fees */}
-                        {taxSettings.filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive).length > 0 && (
+                        {(taxSettings as any[]).filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive).length > 0 && (
                           <div>
                             <Label className="text-sm font-medium text-slate-700 mb-2 block">Applied Fees</Label>
                             <div className="space-y-2 max-h-32 overflow-y-auto border rounded-md p-3 bg-white">
-                              {taxSettings
+                              {(taxSettings as any[])
                                 .filter((item: any) => (item.type === 'fee' || item.type === 'service_charge') && item.isActive)
                                 .map((fee: any) => (
                                   <div key={fee.id} className="flex items-center space-x-2">
