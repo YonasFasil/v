@@ -1352,10 +1352,12 @@ function StripePaymentSection() {
   const [testingPayment, setTestingPayment] = useState(false);
   
   // Query Stripe status
-  const { data: stripeStatus, isLoading: statusLoading } = useQuery({
+  const stripeStatusQuery = useQuery({
     queryKey: ["/api/stripe/status"],
     staleTime: 30000, // Cache for 30 seconds
   });
+  
+  const { data: stripeStatus, isLoading: statusLoading } = stripeStatusQuery;
 
   // Test payment intent creation
   const testPaymentMutation = useMutation({
@@ -1413,7 +1415,7 @@ function StripePaymentSection() {
           </Badge>
           <Button
             onClick={() => {
-              queryClient.invalidateQueries({ queryKey: ["/api/stripe/status"] });
+              stripeStatusQuery.refetch();
             }}
             variant="ghost"
             size="sm"
@@ -1486,7 +1488,7 @@ function StripePaymentSection() {
                       
                       // Refresh status after a delay
                       setTimeout(() => {
-                        queryClient.invalidateQueries({ queryKey: ["/api/stripe/status"] });
+                        stripeStatusQuery.refetch();
                       }, 2000);
                       
                       toast({
@@ -1544,7 +1546,7 @@ function StripePaymentSection() {
                   title: "Success",
                   description: "Stripe account disconnected successfully"
                 });
-                queryClient.invalidateQueries({ queryKey: ["/api/stripe/status"] });
+                stripeStatusQuery.refetch();
               } catch (error) {
                 toast({
                   title: "Error",
