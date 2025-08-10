@@ -177,27 +177,64 @@ export function registerSuperAdminRoutes(app: Express) {
   // Create feature package
   app.post('/api/superadmin/feature-packages', requireSuperAdmin, async (req: any, res) => {
     try {
+      console.log('Creating feature package with data:', req.body);
+      
       const packageData = {
         name: req.body.name,
-        slug: req.body.slug,
+        slug: req.body.slug || req.body.name.toLowerCase().replace(/\s+/g, '-'),
         description: req.body.description,
-        status: req.body.status || 'active',
-        limits: req.body.limits,
-        features: req.body.features,
-        priceMonthly: req.body.priceMonthly,
-        priceYearly: req.body.priceYearly,
-        billingModes: {
-          monthly: { amount: req.body.priceMonthly, currency: 'USD' },
-          yearly: { amount: req.body.priceYearly, currency: 'USD' }
-        }
+        status: 'active',
+        limits: JSON.stringify(req.body.limits || {}),
+        features: JSON.stringify(req.body.features || {}),
+        priceMonthly: parseFloat(req.body.priceMonthly) || 0,
+        priceYearly: parseFloat(req.body.priceYearly) || 0,
+        billingModes: JSON.stringify({
+          monthly: { 
+            amount: Math.round((parseFloat(req.body.priceMonthly) || 0) * 100), 
+            currency: 'USD' 
+          },
+          yearly: { 
+            amount: Math.round((parseFloat(req.body.priceYearly) || 0) * 100), 
+            currency: 'USD' 
+          }
+        }),
+        sortOrder: 0,
+        trialDays: 14
       };
       
-      const [newPackage] = await db.insert(featurePackages).values(packageData).returning();
+      console.log('Processed package data:', packageData);
+      
+      // Use direct SQL insert to avoid schema validation issues
+      const result = await db.execute(sql`
+        INSERT INTO feature_packages (
+          name, slug, description, status, limits, features, 
+          price_monthly, price_yearly, billing_modes, sort_order, trial_days
+        ) VALUES (
+          ${packageData.name},
+          ${packageData.slug},
+          ${packageData.description},
+          ${packageData.status},
+          ${packageData.limits},
+          ${packageData.features},
+          ${packageData.priceMonthly},
+          ${packageData.priceYearly},
+          ${packageData.billingModes},
+          ${packageData.sortOrder},
+          ${packageData.trialDays}
+        ) RETURNING *
+      `);
+
+      const newPackage = result.rows[0];
+      console.log('Created package:', newPackage);
 
       res.status(201).json(newPackage);
     } catch (error) {
       console.error('Error creating feature package:', error);
-      res.status(500).json({ message: 'Error creating feature package' });
+      console.error('Error details:', error.message, error.stack);
+      res.status(500).json({ 
+        message: 'Error creating feature package',
+        error: error.message 
+      });
     }
   });
 

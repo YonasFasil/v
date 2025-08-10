@@ -20,7 +20,8 @@ import {
   Settings,
   Smartphone,
   Mail,
-  Star
+  Star,
+  Building
 } from "lucide-react";
 
 export default function Features() {

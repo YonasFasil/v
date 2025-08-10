@@ -82,17 +82,22 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
 // Super admin middleware - checks if user is a super admin
 export const requireSuperAdmin = async (req: any, res: Response, next: NextFunction) => {
   try {
+    console.log('requireSuperAdmin: session check', req.session?.userId);
+    
     // Check session-based authentication first
     if (!req.session?.userId) {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
     const userId = req.session.userId;
+    console.log('requireSuperAdmin: checking userId:', userId);
 
     // Check if user is super admin using super_admins table
     const result = await db.execute(sql`
       SELECT user_id FROM super_admins WHERE user_id = ${userId}
     `);
+    
+    console.log('requireSuperAdmin: super admin query result:', result.rows);
 
     if (!result.rows.length) {
       return res.status(403).json({ 
@@ -100,8 +105,11 @@ export const requireSuperAdmin = async (req: any, res: Response, next: NextFunct
       });
     }
 
-    // Set req.user for consistency
-    req.user = req.session.user || { id: userId };
+    // Set req.user for consistency with audit logging
+    req.user = {
+      id: userId,
+      claims: { sub: userId }
+    };
 
     next();
   } catch (error) {
