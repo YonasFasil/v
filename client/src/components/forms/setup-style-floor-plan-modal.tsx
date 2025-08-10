@@ -1442,7 +1442,7 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
               </div>
               
               {/* Canvas Container with proper zoom containment */}
-              <div className="relative w-full h-96 border-2 border-dashed border-slate-300 overflow-auto bg-slate-100">
+              <div className="relative w-full h-[600px] border-2 border-dashed border-slate-300 overflow-auto bg-slate-100">
                 <div className="flex items-center justify-center min-h-full p-8">
                   <div
                     ref={canvasRef}
