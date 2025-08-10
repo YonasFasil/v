@@ -20,8 +20,6 @@ import {
   type LeadActivity, type InsertLeadActivity,
   type LeadTask, type InsertLeadTask,
   type Tour, type InsertTour,
-  type TenantUser, type InsertTenantUser,
-  type FeaturePackage,
 
 } from "@shared/schema";
 
@@ -37,25 +35,6 @@ interface Setting {
 interface InsertSetting {
   key: string;
   value: any;
-}
-
-interface Tenant {
-  id: string;
-  name: string;
-  contactEmail: string;
-  contactName?: string;
-  packageId: string;
-  status: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface InsertTenant {
-  name: string;
-  contactEmail: string;
-  contactName?: string;
-  packageId: string;
-  status?: string;
 }
 import { randomUUID } from "crypto";
 
@@ -218,52 +197,6 @@ export interface IStorage {
   deleteVenue(id: string): Promise<boolean>;
   deleteSpace(id: string): Promise<boolean>;
   deleteBooking(id: string): Promise<boolean>;
-
-  // Super Admin operations
-  getSuperAdminStats(): Promise<any>;
-  getTenants(): Promise<any[]>;
-  createTenant(tenant: InsertTenant): Promise<Tenant>;
-  updateTenant(id: string, updates: Partial<InsertTenant>): Promise<Tenant>;
-  deleteTenant(id: string): Promise<void>;
-  getFeaturePackages(): Promise<any[]>;
-  createFeaturePackage(pkg: any): Promise<any>;
-  updateFeaturePackage(id: string, updates: any): Promise<any>;
-  deleteFeaturePackage(id: string): Promise<void>;
-  togglePackageStatus(id: string): Promise<any>;
-  getTenantActivities(): Promise<any[]>;
-
-  // Tenant User Management
-  getTenantUsers(tenantId: string): Promise<TenantUser[]>;
-  getTenantUser(id: string): Promise<TenantUser | undefined>;
-  createTenantUser(user: InsertTenantUser): Promise<TenantUser>;
-  updateTenantUser(id: string, user: Partial<InsertTenantUser>): Promise<TenantUser | undefined>;
-  deleteTenantUser(id: string): Promise<boolean>;
-  getTenant(id: string): Promise<Tenant | undefined>;
-  getCurrentTenantPackageFeatures(tenantId: string): Promise<any>;
-  getTenantUserByEmailGlobal(email: string): TenantUser | undefined;
-
-  // Billing System Methods
-  getFeaturePackageBySlug(slug: string): Promise<FeaturePackage | undefined>;
-  countVenuesByTenant(tenantId: string): Promise<number>;
-  countSpacesByVenue(venueId: string): Promise<number>;
-  countUsersByTenant(tenantId: string): Promise<number>;
-  countMonthlyBookingsByTenant(tenantId: string): Promise<number>;
-  updateTenantBilling(tenantId: string, billing: {
-    status?: string;
-    stripeCustomerId?: string;
-    stripeSubscriptionId?: string;
-    planSlug?: string;
-    trialEnd?: Date;
-  }): Promise<Tenant | undefined>;
-  createAuditLog(log: {
-    actorUserId?: string;
-    tenantId?: string;
-    action: string;
-    entity: string;
-    meta?: any;
-    ip?: string;
-    userAgent?: string;
-  }): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -292,10 +225,6 @@ export class MemStorage implements IStorage {
   private leadTasks: Map<string, LeadTask>;
   private tours: Map<string, Tour>;
   private leadTags: Set<string>; // Store leadId:tagId combinations
-  private tenants: Map<string, Tenant>; // Store tenant data
-  private tenantUsers: Map<string, TenantUser>; // Store tenant user data
-  private superAdmins: Map<string, any>; // Store super admin data
-  private featurePackages: Map<string, FeaturePackage>; // Store feature packages
 
 
   constructor() {
@@ -324,102 +253,19 @@ export class MemStorage implements IStorage {
     this.leadTasks = new Map();
     this.tours = new Map();
     this.leadTags = new Set();
-    this.tenants = new Map();
-    this.tenantUsers = new Map();
-    this.superAdmins = new Map();
-    this.featurePackages = new Map();
 
 
     this.initializeData();
     this.initializeLeadManagementData();
   }
 
-  private initializeFeaturePackages() {
-    const packages: FeaturePackage[] = [
-      // Empty array - no default packages, allowing users to create their own
-    ];
-
-    packages.forEach(pkg => this.featurePackages.set(pkg.id, pkg));
-  }
-
-  private initializeTenantData() {
-    // Initialize the main account tenant
-    const mainTenant: Tenant = {
-      id: "main-account",
-      name: "Venuine Events",
-      contactEmail: "admin@venuine.com",
-      contactName: "Admin User",
-      contactPhone: "+1 (555) 123-4567",
-      packageId: "professional", // Default to professional package
-      status: "active",
-      subscriptionStatus: "active",
-      trialEndsAt: null,
-      billingEmail: "admin@venuine.com",
-      stripeCustomerId: null,
-      stripeSubscriptionId: null,
-      subdomain: null,
-      customDomain: null,
-      settings: {},
-      usage: {},
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
-    this.tenants.set(mainTenant.id, mainTenant);
-  }
-
-  private initializeTenantUsers() {
-    // Initialize sample users for the main tenant
-    const users: TenantUser[] = [
-      {
-        id: "user1",
-        tenantId: "main-account",
-        email: "john@venuineevents.com",
-        password: "demo123", // Demo password for tenant login
-        name: "John Doe",
-        role: "admin",
-        permissions: {},
-        isActive: true,
-        lastLoginAt: new Date(),
-        invitedBy: null,
-        invitedAt: new Date(),
-        acceptedAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: "user2",
-        tenantId: "main-account", 
-        email: "jane@venuineevents.com",
-        password: "demo123", // Demo password for tenant login
-        name: "Jane Smith",
-        role: "staff",
-        permissions: {},
-        isActive: true,
-        lastLoginAt: new Date(),
-        invitedBy: "user1",
-        invitedAt: new Date(),
-        acceptedAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    ];
-
-    users.forEach(user => this.tenantUsers.set(user.id, user));
-  }
-
   private initializeData() {
     this.initializeSamplePackagesAndServices();
     this.initializeSampleSetupStyles();
     this.initializeLeadManagementData();
-    this.initializeFeaturePackages();
-    this.initializeTenantData();
-    this.initializeTenantUsers();
-    // Initialize with some default venues for the main tenant
+    // Initialize with some default venues
     const defaultVenues: InsertVenue[] = [
       {
-        tenantId: "main-account",
         name: "Grand Ballroom",
         description: "Perfect for weddings and large corporate events",
         capacity: 200,
@@ -429,7 +275,6 @@ export class MemStorage implements IStorage {
         isActive: true
       },
       {
-        tenantId: "main-account",
         name: "Conference Center",
         description: "Ideal for business meetings and presentations",
         capacity: 50,
@@ -439,7 +284,6 @@ export class MemStorage implements IStorage {
         isActive: true
       },
       {
-        tenantId: "main-account",
         name: "Private Dining",
         description: "Intimate setting for special celebrations",
         capacity: 25,
@@ -464,7 +308,6 @@ export class MemStorage implements IStorage {
     if (venueIds[0]) {
       const grandBallroomSpaces: InsertSpace[] = [
         {
-          tenantId: "main-account",
           venueId: venueIds[0],
           name: "Main Ballroom",
           description: "Large elegant space for grand events",
@@ -475,7 +318,6 @@ export class MemStorage implements IStorage {
           isActive: true
         },
         {
-          tenantId: "main-account",
           venueId: venueIds[0],
           name: "VIP Lounge",
           description: "Exclusive private area within the ballroom",
@@ -493,7 +335,6 @@ export class MemStorage implements IStorage {
     if (venueIds[1]) {
       const conferenceSpaces: InsertSpace[] = [
         {
-          tenantId: "main-account",
           venueId: venueIds[1],
           name: "Boardroom A",
           description: "Executive boardroom for meetings",
@@ -504,7 +345,6 @@ export class MemStorage implements IStorage {
           isActive: true
         },
         {
-          tenantId: "main-account",
           venueId: venueIds[1],
           name: "Training Room",
           description: "Flexible training and presentation space",
@@ -522,7 +362,6 @@ export class MemStorage implements IStorage {
     if (venueIds[2]) {
       const diningSpaces: InsertSpace[] = [
         {
-          tenantId: "main-account",
           venueId: venueIds[2],
           name: "Garden Room",
           description: "Intimate dining with garden views",
@@ -555,7 +394,6 @@ export class MemStorage implements IStorage {
     if (customers.length === 0) {
       const sampleCustomers = [
         {
-          tenantId: "main-account",
           name: "Sarah Johnson",
           email: "sarah.johnson@email.com",
           phone: "555-0123",
@@ -564,7 +402,6 @@ export class MemStorage implements IStorage {
           leadScore: 85
         },
         {
-          tenantId: "main-account",
           name: "Michael Chen", 
           email: "michael.chen@techcorp.com",
           phone: "555-0456",
@@ -573,7 +410,6 @@ export class MemStorage implements IStorage {
           leadScore: 72
         },
         {
-          tenantId: "main-account",
           name: "Emily Rodriguez",
           email: "emily@creativestudio.com", 
           phone: "555-0789",
@@ -593,7 +429,6 @@ export class MemStorage implements IStorage {
     if (venues.length > 0 && spaces.length > 0 && updatedCustomers.length > 0) {
       const sampleBookings = [
         {
-          tenantId: "main-account",
           eventName: "Corporate Annual Gala",
           eventType: "corporate",
           eventDate: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000), // Next week
@@ -610,7 +445,6 @@ export class MemStorage implements IStorage {
           notes: "Premium catering and entertainment package"
         },
         {
-          tenantId: "main-account",
           eventName: "Wedding Reception",
           eventType: "wedding", 
           eventDate: new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000), // Two weeks
@@ -627,7 +461,6 @@ export class MemStorage implements IStorage {
           notes: "Garden ceremony with indoor reception"
         },
         {
-          tenantId: "main-account",
           eventName: "Product Launch Event",
           eventType: "corporate",
           eventDate: new Date(today.getTime() + 21 * 24 * 60 * 60 * 1000), // Three weeks
@@ -2026,745 +1859,6 @@ export class MemStorage implements IStorage {
     this.leadTags.delete(`${leadId}:${tagId}`);
   }
 
-  // Super Admin implementation
-  async getSuperAdminStats(): Promise<any> {
-    // Calculate real statistics from actual venue data
-    const bookings = Array.from(this.bookings.values());
-    const customers = Array.from(this.customers.values());
-    const venues = Array.from(this.venues.values());
-    const payments = Array.from(this.payments.values());
-    const settings = await this.getSettings();
-    
-    // Calculate revenue from bookings and payments
-    const totalRevenue = bookings.reduce((sum, booking) => {
-      const amount = parseFloat(booking.totalAmount || '0');
-      return sum + amount;
-    }, 0);
-    
-    const paymentRevenue = payments.reduce((sum, payment) => {
-      const amount = parseFloat(payment.amount || '0');
-      return sum + amount;
-    }, 0);
-    
-    const combinedRevenue = totalRevenue + paymentRevenue;
-    
-    // Calculate new customers this month
-    const thisMonth = new Date();
-    thisMonth.setDate(1);
-    const newCustomersThisMonth = customers.filter(customer => 
-      customer.createdAt && customer.createdAt >= thisMonth
-    ).length;
-    
-    // In a multi-tenant system, we would have multiple accounts
-    // For now, treat this as one account with multiple venues
-    return {
-      totalTenants: 1, // Single account managing multiple venues
-      newTenantsThisMonth: newCustomersThisMonth > 0 ? 1 : 0,
-      activeUsers: customers.length,
-      monthlyRevenue: Math.round(combinedRevenue),
-      platformHealth: 99.9
-    };
-  }
-
-  async getTenants(): Promise<any[]> {
-    const packages = await this.getPackages();
-    const tenantList = [];
-    
-    for (const [id, tenant] of this.tenants) {
-      // Filter data by tenant to ensure isolation
-      const tenantVenues = Array.from(this.venues.values()).filter(venue => venue.tenantId === tenant.id);
-      const tenantSpaces = Array.from(this.spaces.values()).filter(space => space.tenantId === tenant.id);
-      const tenantCustomers = Array.from(this.customers.values()).filter(customer => customer.tenantId === tenant.id);
-      const tenantBookings = Array.from(this.bookings.values()).filter(booking => booking.tenantId === tenant.id);
-      
-      // Get package information
-      const packageInfo = packages.find(pkg => pkg.id === tenant.packageId);
-      const packageName = packageInfo ? packageInfo.displayName : "Unknown";
-      
-      // Calculate recent activity for status
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const recentBookings = tenantBookings.filter(booking => booking.eventDate >= thirtyDaysAgo);
-      
-      // Calculate total revenue for this tenant only
-      const totalRevenue = tenantBookings.reduce((sum, booking) => {
-        const amount = parseFloat(booking.totalAmount || '0');
-        return sum + amount;
-      }, 0);
-      
-      tenantList.push({
-        id: tenant.id,
-        name: tenant.name,
-        contactEmail: tenant.contactEmail,
-        contactName: tenant.contactName,
-        packageId: tenant.packageId,
-        packageName,
-        status: tenant.status,
-        userCount: tenantCustomers.length,
-        venueCount: tenantVenues.length,
-        spaceCount: tenantSpaces.length,
-        monthlyRevenue: Math.round(totalRevenue),
-        createdAt: tenant.createdAt,
-        updatedAt: tenant.updatedAt,
-        venues: tenantVenues.map(venue => ({
-          id: venue.id,
-          name: venue.name,
-          description: venue.description,
-          spaces: tenantSpaces.filter(space => space.venueId === venue.id).length
-        }))
-      });
-    }
-    
-    return tenantList;
-  }
-
-  async createTenant(tenantData: InsertTenant): Promise<Tenant> {
-    const newTenant: Tenant = {
-      id: randomUUID(),
-      name: tenantData.name,
-      contactEmail: tenantData.contactEmail,
-      contactName: tenantData.contactName,
-      contactPhone: tenantData.contactPhone,
-      packageId: tenantData.packageId,
-      status: tenantData.status || "active",
-      subscriptionStatus: tenantData.subscriptionStatus || "trial",
-      trialEndsAt: tenantData.trialEndsAt || null,
-      billingEmail: tenantData.billingEmail,
-      stripeCustomerId: tenantData.stripeCustomerId || null,
-      stripeSubscriptionId: tenantData.stripeSubscriptionId || null,
-      subdomain: tenantData.subdomain || null,
-      customDomain: tenantData.customDomain || null,
-      settings: tenantData.settings || {},
-      usage: tenantData.usage || {},
-      isActive: tenantData.isActive !== false, // Default to true unless explicitly set to false
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
-    this.tenants.set(newTenant.id, newTenant);
-    
-    // Note: New tenants start with completely empty data (no venues, customers, bookings)
-    // This ensures proper multi-tenant data isolation
-    
-    return newTenant;
-  }
-
-  async updateTenant(id: string, updates: Partial<InsertTenant>): Promise<Tenant> {
-    const existingTenant = this.tenants.get(id);
-    if (!existingTenant) {
-      throw new Error(`Tenant with id ${id} not found`);
-    }
-    
-    const updatedTenant: Tenant = {
-      ...existingTenant,
-      ...updates,
-      id, // Ensure ID doesn't change
-      updatedAt: new Date()
-    };
-    
-    this.tenants.set(id, updatedTenant);
-    return updatedTenant;
-  }
-
-  async deleteTenant(id: string): Promise<void> {
-    // Mock implementation
-  }
-
-  async getFeaturePackages(): Promise<any[]> {
-    return [
-      {
-        id: "starter",
-        name: "starter",
-        displayName: "Starter",
-        description: "Perfect for small venues just getting started",
-        price: 29,
-        billingInterval: "monthly",
-        maxUsers: 2,
-        maxVenues: 1,
-        maxSpaces: 3,
-        maxBookingsPerMonth: 25,
-        storageLimit: 5,
-        isActive: true,
-        isCustom: false,
-        sortOrder: 1,
-        features: {
-          bookingManagement: true,
-          customerManagement: true,
-          basicReporting: true,
-          emailSupport: true,
-          mobileApp: false,
-          aiInsights: false,
-          customBranding: false,
-          apiAccess: false,
-          multiVenueManagement: false,
-          whiteLabel: false,
-          sso: false,
-          customIntegrations: false,
-          dedicatedSupport: false,
-          proposalSystem: true,
-          basicCalendar: true,
-          paymentProcessing: true
-        }
-      },
-      {
-        id: "professional",
-        name: "professional", 
-        displayName: "Professional",
-        description: "Ideal for growing venue businesses with multiple spaces",
-        price: 79,
-        billingInterval: "monthly",
-        maxUsers: 10,
-        maxVenues: 3,
-        maxSpaces: 15,
-        maxBookingsPerMonth: 100,
-        storageLimit: 25,
-        isActive: true,
-        isCustom: false,
-        sortOrder: 2,
-        features: {
-          bookingManagement: true,
-          customerManagement: true,
-          advancedReporting: true,
-          prioritySupport: true,
-          mobileApp: true,
-          aiInsights: true,
-          customBranding: true,
-          apiAccess: false,
-          multiVenueManagement: true,
-          whiteLabel: false,
-          sso: false,
-          customIntegrations: false,
-          dedicatedSupport: false,
-          proposalSystem: true,
-          advancedCalendar: true,
-          paymentProcessing: true,
-          contractManagement: true,
-          taskManagement: true,
-          emailAutomation: true,
-          leadScoring: true
-        }
-      },
-      {
-        id: "business",
-        name: "business",
-        displayName: "Business",
-        description: "Advanced features for established venue operators",
-        price: 149,
-        billingInterval: "monthly",
-        maxUsers: 25,
-        maxVenues: 10,
-        maxSpaces: 50,
-        maxBookingsPerMonth: 500,
-        storageLimit: 100,
-        isActive: true,
-        isCustom: false,
-        sortOrder: 3,
-        features: {
-          bookingManagement: true,
-          customerManagement: true,
-          enterpriseReporting: true,
-          prioritySupport: true,
-          mobileApp: true,
-          aiInsights: true,
-          customBranding: true,
-          apiAccess: true,
-          multiVenueManagement: true,
-          whiteLabel: true,
-          sso: true,
-          customIntegrations: true,
-          dedicatedSupport: false,
-          proposalSystem: true,
-          advancedCalendar: true,
-          paymentProcessing: true,
-          contractManagement: true,
-          taskManagement: true,
-          emailAutomation: true,
-          leadScoring: true,
-          floorPlanDesigner: true,
-          beoGeneration: true,
-          advancedAnalytics: true,
-          bulkOperations: true,
-          customFields: true
-        }
-      },
-      {
-        id: "enterprise",
-        name: "enterprise",
-        displayName: "Enterprise",
-        description: "Complete solution for large venue operations and chains",
-        price: 299,
-        billingInterval: "monthly",
-        maxUsers: null, // Unlimited
-        maxVenues: null, // Unlimited
-        maxSpaces: null, // Unlimited
-        maxBookingsPerMonth: null, // Unlimited
-        storageLimit: 500,
-        isActive: true,
-        isCustom: false,
-        sortOrder: 4,
-        features: {
-          bookingManagement: true,
-          customerManagement: true,
-          enterpriseReporting: true,
-          dedicatedSupport: true,
-          mobileApp: true,
-          aiInsights: true,
-          customBranding: true,
-          apiAccess: true,
-          multiVenueManagement: true,
-          whiteLabel: true,
-          sso: true,
-          customIntegrations: true,
-          proposalSystem: true,
-          advancedCalendar: true,
-          paymentProcessing: true,
-          contractManagement: true,
-          taskManagement: true,
-          emailAutomation: true,
-          leadScoring: true,
-          floorPlanDesigner: true,
-          beoGeneration: true,
-          advancedAnalytics: true,
-          bulkOperations: true,
-          customFields: true,
-          multiTenantManagement: true,
-          advancedPermissions: true,
-          dataExport: true,
-          customReports: true,
-          webhooks: true,
-          priorityOnboarding: true,
-          accountManager: true
-        }
-      }
-    ];
-  }
-
-  async createFeaturePackage(pkg: any): Promise<any> {
-    const newPackage = {
-      id: randomUUID(),
-      ...pkg,
-      isActive: true,
-      isCustom: true, // User-created packages are custom
-      sortOrder: 99, // Put at end
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    // In a real implementation, save to database
-    return newPackage;
-  }
-
-  async updateFeaturePackage(id: string, updates: any): Promise<any> {
-    const existingPackages = await this.getFeaturePackages();
-    const packageToUpdate = existingPackages.find(pkg => pkg.id === id);
-    
-    if (!packageToUpdate) {
-      throw new Error(`Package with id ${id} not found`);
-    }
-    
-    const updatedPackage = {
-      ...packageToUpdate,
-      ...updates,
-      updatedAt: new Date()
-    };
-    
-    // In a real implementation, save to database
-    return updatedPackage;
-  }
-
-  async deleteFeaturePackage(id: string): Promise<void> {
-    const existingPackages = await this.getFeaturePackages();
-    const packageToDelete = existingPackages.find(pkg => pkg.id === id);
-    
-    if (!packageToDelete) {
-      throw new Error(`Package with id ${id} not found`);
-    }
-    
-    if (!packageToDelete.isCustom) {
-      throw new Error("Cannot delete default system packages");
-    }
-    
-    // In a real implementation, delete from database
-  }
-
-  async togglePackageStatus(id: string): Promise<any> {
-    const existingPackages = await this.getFeaturePackages();
-    const packageToToggle = existingPackages.find(pkg => pkg.id === id);
-    
-    if (!packageToToggle) {
-      throw new Error(`Package with id ${id} not found`);
-    }
-    
-    const updatedPackage = {
-      ...packageToToggle,
-      isActive: !packageToToggle.isActive,
-      updatedAt: new Date()
-    };
-    
-    return updatedPackage;
-  }
-
-  async getTenantActivities(): Promise<any[]> {
-    // Generate real activity data from actual venue management data
-    const venues = Array.from(this.venues.values());
-    const bookings = Array.from(this.bookings.values());
-    const customers = Array.from(this.customers.values());
-    const payments = Array.from(this.payments.values());
-    const proposals = Array.from(this.proposals.values());
-    const settings = await this.getSettings();
-    
-    const activities: any[] = [];
-    const accountName = settings.business?.companyName || "Venuine Events";
-    
-    // Recent bookings as activities
-    bookings
-      .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0))
-      .slice(0, 3)
-      .forEach((booking, index) => {
-        const venue = venues.find(v => v.id === booking.venueId);
-        const customer = customers.find(c => c.id === booking.customerId);
-        
-        activities.push({
-          id: `booking-${index + 1}`,
-          tenantName: accountName,
-          action: "Booking created",
-          details: `New ${booking.eventType} booking "${booking.eventName}" at ${venue?.name || 'venue'} for ${customer?.name || 'customer'}`,
-          createdAt: booking.createdAt || new Date(Date.now() - (index * 3600000))
-        });
-      });
-    
-    // Recent payments as activities  
-    payments
-      .sort((a, b) => (b.processedAt?.getTime() || 0) - (a.processedAt?.getTime() || 0))
-      .slice(0, 2)
-      .forEach((payment, index) => {
-        activities.push({
-          id: `payment-${index + 1}`,
-          tenantName: accountName,
-          action: "Payment processed",
-          details: `$${payment.amount} ${payment.paymentType} payment received via ${payment.paymentMethod}`,
-          createdAt: payment.processedAt || new Date(Date.now() - ((index + 3) * 3600000))
-        });
-      });
-    
-    // Recent proposals as activities
-    proposals
-      .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0))
-      .slice(0, 2)
-      .forEach((proposal, index) => {
-        const customer = customers.find(c => c.id === proposal.customerId);
-        
-        activities.push({
-          id: `proposal-${index + 1}`,
-          tenantName: accountName,
-          action: "Proposal sent",
-          details: `Proposal "${proposal.title}" sent to ${customer?.name || 'customer'} for $${proposal.totalAmount}`,
-          createdAt: proposal.sentAt || proposal.createdAt || new Date(Date.now() - ((index + 5) * 3600000))
-        });
-      });
-    
-    // Account-level activities
-    if (venues.length > 0) {
-      activities.push({
-        id: "account-setup",
-        tenantName: accountName,
-        action: "Account configured",
-        details: `Account setup with ${venues.length} venues and ${customers.length} customers`,
-        createdAt: new Date(Date.now() - (7 * 24 * 3600000)) // 7 days ago
-      });
-    }
-    
-    // If no real activities, create a default one
-    if (activities.length === 0) {
-      activities.push({
-        id: "1",
-        tenantName: accountName,
-        action: "Account created",
-        details: "Venue management account initialized",
-        createdAt: new Date()
-      });
-    }
-    
-    return activities
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, 10); // Return most recent 10 activities
-  }
-
-  // Tenant User Management Methods
-  async getTenantUsers(tenantId: string): Promise<TenantUser[]> {
-    return Array.from(this.tenantUsers.values()).filter(user => user.tenantId === tenantId);
-  }
-
-  async getTenantUser(id: string): Promise<TenantUser | undefined> {
-    return this.tenantUsers.get(id);
-  }
-
-  async createTenantUser(user: InsertTenantUser): Promise<TenantUser> {
-    const id = randomUUID();
-    const newUser: TenantUser = {
-      ...user,
-      id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    this.tenantUsers.set(id, newUser);
-    return newUser;
-  }
-
-  async updateTenantUser(id: string, user: Partial<InsertTenantUser>): Promise<TenantUser | undefined> {
-    const existingUser = this.tenantUsers.get(id);
-    if (!existingUser) return undefined;
-
-    const updatedUser: TenantUser = {
-      ...existingUser,
-      ...user,
-      updatedAt: new Date(),
-    };
-    this.tenantUsers.set(id, updatedUser);
-    return updatedUser;
-  }
-
-  async deleteTenantUser(id: string): Promise<boolean> {
-    return this.tenantUsers.delete(id);
-  }
-
-  async getTenant(id: string): Promise<Tenant | undefined> {
-    return this.tenants.get(id);
-  }
-
-  async createTenantUser(userData: Omit<TenantUser, 'id' | 'createdAt' | 'updatedAt'>): Promise<TenantUser> {
-    const newUser: TenantUser = {
-      ...userData,
-      id: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    this.tenantUsers.set(newUser.id, newUser);
-    return newUser;
-  }
-
-  async getCurrentTenantPackageFeatures(tenantId: string): Promise<any> {
-    const tenant = await this.getTenant(tenantId);
-    if (!tenant) return null;
-    
-    // Get all packages (includes both default and custom packages)
-    const allPackages = await this.getFeaturePackages();
-    const featurePackage = allPackages.find(pkg => pkg.id === tenant.packageId);
-    
-    return featurePackage?.features || {};
-  }
-
-  // Tenant Authentication Methods
-  async getTenantByDomain(domain: string): Promise<any> {
-    // For now, return the main account since we don't have domain routing yet
-    // In production, this would search by subdomain or customDomain
-    return this.tenants.get("main-account");
-  }
-
-  async getTenantUserByEmail(tenantId: string, email: string): Promise<any> {
-    // Find tenant user by email within the specific tenant
-    for (const user of this.tenantUsers.values()) {
-      if (user.tenantId === tenantId && user.email === email) {
-        return user;
-      }
-    }
-    return null;
-  }
-
-  // Get tenant user by email across all tenants (for login)
-  getTenantUserByEmailGlobal(email: string): TenantUser | undefined {
-    for (const user of this.tenantUsers.values()) {
-      if (user.email === email) {
-        return user;
-      }
-    }
-    return undefined;
-  }
-
-  async updateTenantUserLastLogin(userId: string): Promise<void> {
-    const user = this.tenantUsers.get(userId);
-    if (user) {
-      user.lastLoginAt = new Date();
-      this.tenantUsers.set(userId, user);
-    }
-  }
-
-  async getSuperAdminByEmail(email: string): Promise<any> {
-    // For demo purposes, create a default super admin if it doesn't exist
-    for (const admin of this.superAdmins.values()) {
-      if (admin.email === email) {
-        return admin;
-      }
-    }
-    
-    // Create default super admin for demo
-    if (email === "superadmin@venuine.com") {
-      const defaultSuperAdmin = {
-        id: "super-admin-1",
-        email: "superadmin@venuine.com", 
-        password: "admin123", // In production, hash this
-        name: "Super Administrator",
-        role: "super_admin",
-        isActive: true,
-        createdAt: new Date()
-      };
-      this.superAdmins.set(defaultSuperAdmin.id, defaultSuperAdmin);
-      return defaultSuperAdmin;
-    }
-    
-    return null;
-  }
-
-  async updateSuperAdminLastLogin(adminId: string): Promise<void> {
-    const admin = this.superAdmins.get(adminId);
-    if (admin) {
-      admin.lastLoginAt = new Date();
-      this.superAdmins.set(adminId, admin);
-    }
-  }
-
-  // Feature Package Management
-  async getFeaturePackages(): Promise<any[]> {
-    return Array.from(this.featurePackages.values()).sort((a, b) => a.sortOrder - b.sortOrder);
-  }
-
-  async createFeaturePackage(packageData: any): Promise<any> {
-    const id = randomUUID();
-    const newPackage = {
-      id,
-      name: packageData.name,
-      displayName: packageData.displayName,
-      description: packageData.description,
-      price: packageData.price.toString(),
-      billingInterval: packageData.billingInterval,
-      features: packageData.features,
-      maxUsers: packageData.maxUsers,
-      maxVenues: packageData.maxVenues,
-      maxSpaces: packageData.maxSpaces,
-      maxBookingsPerMonth: packageData.maxBookingsPerMonth,
-      storageLimit: packageData.storageLimit,
-      isActive: true,
-      isCustom: true,
-      sortOrder: this.featurePackages.size + 1,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-
-    this.featurePackages.set(id, newPackage);
-    return newPackage;
-  }
-
-  async updateFeaturePackage(id: string, updates: any): Promise<any> {
-    const existingPackage = this.featurePackages.get(id);
-    if (!existingPackage) {
-      throw new Error("Package not found");
-    }
-
-    const updatedPackage = {
-      ...existingPackage,
-      ...updates,
-      id, // Ensure ID doesn't change
-      updatedAt: new Date()
-    };
-
-    this.featurePackages.set(id, updatedPackage);
-    return updatedPackage;
-  }
-
-  async deleteFeaturePackage(id: string): Promise<void> {
-    const existingPackage = this.featurePackages.get(id);
-    if (!existingPackage) {
-      throw new Error("Package not found");
-    }
-
-    // Only allow deleting custom packages
-    if (!existingPackage.isCustom) {
-      throw new Error("Cannot delete system packages");
-    }
-
-    this.featurePackages.delete(id);
-  }
-
-  async togglePackageStatus(id: string): Promise<any> {
-    const existingPackage = this.featurePackages.get(id);
-    if (!existingPackage) {
-      throw new Error("Package not found");
-    }
-
-    const updatedPackage = {
-      ...existingPackage,
-      isActive: !existingPackage.isActive,
-      updatedAt: new Date()
-    };
-
-    this.featurePackages.set(id, updatedPackage);
-    return updatedPackage;
-  }
-
-  // Billing System Methods Implementation
-  async getFeaturePackageBySlug(slug: string): Promise<FeaturePackage | undefined> {
-    const packages = Array.from(this.featurePackages.values());
-    return packages.find(pkg => pkg.slug === slug);
-  }
-
-  async countVenuesByTenant(tenantId: string): Promise<number> {
-    // For now, return a simple count - in real app this would query by tenantId
-    return this.venues.size;
-  }
-
-  async countSpacesByVenue(venueId: string): Promise<number> {
-    const spaces = Array.from(this.spaces.values());
-    return spaces.filter(space => space.venueId === venueId).length;
-  }
-
-  async countUsersByTenant(tenantId: string): Promise<number> {
-    const users = Array.from(this.tenantUsers.values());
-    return users.filter(user => user.tenantId === tenantId).length;
-  }
-
-  async countMonthlyBookingsByTenant(tenantId: string): Promise<number> {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const bookings = Array.from(this.bookings.values());
-    return bookings.filter(booking => 
-      booking.createdAt >= startOfMonth
-    ).length;
-  }
-
-  async updateTenantBilling(tenantId: string, billing: {
-    status?: string;
-    stripeCustomerId?: string;
-    stripeSubscriptionId?: string;
-    planSlug?: string;
-    trialEnd?: Date;
-  }): Promise<Tenant | undefined> {
-    const tenant = this.tenants.get(tenantId);
-    if (!tenant) return undefined;
-
-    const updatedTenant = {
-      ...tenant,
-      ...billing,
-      updatedAt: new Date()
-    };
-
-    this.tenants.set(tenantId, updatedTenant);
-    return updatedTenant;
-  }
-
-  async createAuditLog(log: {
-    actorUserId?: string;
-    tenantId?: string;
-    action: string;
-    entity: string;
-    meta?: any;
-    ip?: string;
-    userAgent?: string;
-  }): Promise<void> {
-    // In memory storage for audit logs - in real app this would persist to DB
-    console.log('Audit Log:', {
-      ...log,
-      timestamp: new Date().toISOString()
-    });
-  }
 
 }
 

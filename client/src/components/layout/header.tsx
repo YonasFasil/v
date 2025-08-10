@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
 import { GlobalSearch } from "@/components/search/global-search";
-import { FeatureCheck } from "@/components/FeatureGate";
 
 interface HeaderProps {
   title: string;
@@ -84,34 +83,30 @@ export function Header({ title, subtitle, action, onMobileMenuToggle, onNewBooki
 
           {/* Custom Action */}
           {action || (
-            <FeatureCheck feature="create_bookings">
-              <Button 
-                onClick={() => {
-                  console.log('Header New Booking button clicked');
-                  if (onNewBooking) {
-                    onNewBooking();
-                  } else {
-                    window.location.href = '/events';
-                  }
-                }}
-                className="bg-blue-600 text-white px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">New Booking</span>
-              </Button>
-            </FeatureCheck>
+            <Button 
+              onClick={() => {
+                console.log('Header New Booking button clicked');
+                if (onNewBooking) {
+                  onNewBooking();
+                } else {
+                  window.location.href = '/events';
+                }
+              }}
+              className="bg-blue-600 text-white px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">New Booking</span>
+            </Button>
           )}
 
           {/* Settings */}
-          <FeatureCheck feature="settings">
-            <button 
-              onClick={() => window.location.href = '/settings'}
-              className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
-              title="Settings"
-            >
-              <Settings className="w-5 h-5 sm:w-6 sm:h-6" />
-            </button>
-          </FeatureCheck>
+          <button 
+            onClick={() => window.location.href = '/settings'}
+            className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
+            title="Settings"
+          >
+            <Settings className="w-5 h-5 sm:w-6 sm:h-6" />
+          </button>
 
           {/* Notifications */}
           <button className="relative p-2 text-slate-400 hover:text-slate-600 transition-colors">

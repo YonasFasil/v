@@ -1,8 +1,4 @@
 import { Link, useLocation } from "wouter";
-import { useUserRole } from "@/hooks/useUserRole";
-import { useFeatureAccess } from "@/hooks/useFeatureAccess";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { 
   LayoutDashboard, 
   Calendar, 
@@ -21,10 +17,7 @@ import {
   Mic,
   ChevronLeft,
   ChevronRight,
-  Grid3X3,
-  LogOut,
-  Crown,
-  UserCheck
+  Grid3X3
 } from "lucide-react";
 
 const navigationItems = [
@@ -56,70 +49,12 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed = false }: SidebarProps) {
   const [location] = useLocation();
-  const { userRoleData, isSuperAdmin, isAdmin, isStaff, logout } = useUserRole();
-  const { canAccess } = useFeatureAccess();
 
   const isActive = (href: string) => {
     if (href === "/") {
       return location === "/";
     }
     return location.startsWith(href);
-  };
-
-  // Filter navigation items based on feature access
-  const getFilteredNavigation = () => {
-    return navigationItems.filter(item => {
-      switch (item.href) {
-        case "/":
-          return canAccess("dashboard");
-        case "/events":
-          return canAccess("view_bookings");
-        case "/customers":
-          return canAccess("view_customers");
-        case "/leads":
-          return canAccess("lead_management");
-        case "/proposals":
-          return canAccess("proposals");
-        case "/payments":
-          return canAccess("payments");
-        case "/tasks":
-          return canAccess("view_bookings"); // Tasks are related to bookings
-        case "/venues":
-          return canAccess("manage_venues");
-        case "/setup-styles":
-          return canAccess("floor_plans");
-        case "/packages":
-          return canAccess("manage_bookings"); // Package management requires booking access
-        default:
-          return true;
-      }
-    });
-  };
-
-  const getFilteredAIFeatures = () => {
-    return aiFeatures.filter(item => {
-      switch (item.href) {
-        case "/ai-analytics":
-          return canAccess("ai_insights");
-        case "/voice-booking":
-          return canAccess("ai_features") && canAccess("create_bookings");
-        default:
-          return canAccess("ai_features");
-      }
-    });
-  };
-
-  const getFilteredAnalytics = () => {
-    return analyticsItems.filter(item => {
-      switch (item.href) {
-        case "/reports":
-          return canAccess("reports");
-        case "/settings":
-          return canAccess("settings");
-        default:
-          return true;
-      }
-    });
   };
 
   return (
@@ -134,60 +69,11 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         </div>
       </div>
 
-      {/* User Role Display */}
-      {!collapsed && userRoleData && (
-        <div className="px-4 py-3 border-b border-slate-200">
-          <div className="flex items-center gap-2">
-            {isSuperAdmin ? (
-              <Crown className="w-4 h-4 text-pink-600" />
-            ) : isAdmin ? (
-              <Crown className="w-4 h-4 text-purple-600" />
-            ) : (
-              <UserCheck className="w-4 h-4 text-blue-600" />
-            )}
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-slate-900">{userRoleData.name}</span>
-                <Badge 
-                  variant={isSuperAdmin || isAdmin ? "default" : "secondary"} 
-                  className={`text-xs ${isSuperAdmin ? 'bg-gradient-to-r from-purple-600 to-pink-600' : ''}`}
-                >
-                  {userRoleData.name}
-                </Badge>
-              </div>
-              <p className="text-xs text-slate-600">{userRoleData.title}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Navigation Menu */}
       <nav className="flex-1 px-4 py-4 space-y-1 sidebar-scroll overflow-y-auto">
-        {/* Super Admin Quick Link */}
-        {isSuperAdmin && (
-          <div className="mb-4">
-            <Link href="/super-admin">
-              <div
-                className={`${collapsed ? 
-                  'flex items-center justify-center w-10 h-10 mx-auto rounded-lg text-sm font-medium transition-colors cursor-pointer' :
-                  'flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer'
-                } ${
-                  isActive("/super-admin")
-                    ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                }`}
-                title={collapsed ? "Super Admin" : undefined}
-              >
-                <Crown className={collapsed ? "w-5 h-5" : "w-5 h-5 mr-3"} />
-                {!collapsed && "Super Admin"}
-              </div>
-            </Link>
-          </div>
-        )}
-
         {/* Main Navigation */}
         <div className="space-y-1">
-          {getFilteredNavigation().map((item) => {
+          {navigationItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
             
@@ -225,7 +111,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
                 </div>
               </div>
             </div>
-            {getFilteredAIFeatures().map((item) => {
+            {aiFeatures.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
               
@@ -281,7 +167,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
                 Analytics
               </span>
             </div>
-            {getFilteredAnalytics().map((item) => {
+            {analyticsItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
               
@@ -306,7 +192,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         {/* Analytics Section - Collapsed */}
         {collapsed && (
           <div className="pt-4 space-y-1">
-            {getFilteredAnalytics().map((item) => {
+            {analyticsItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
               
@@ -329,27 +215,24 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         )}
       </nav>
 
-      {/* Logout Button */}
+      {/* User Profile */}
       <div className="border-t border-slate-200 p-4">
         {collapsed ? (
-          <Button
-            onClick={logout}
-            variant="ghost"
-            size="sm"
-            className="w-full flex justify-center p-2 text-red-600 hover:text-red-700 hover:bg-red-50"
-            title="Logout"
-          >
-            <LogOut className="w-5 h-5" />
-          </Button>
+          <div className="flex justify-center">
+            <div className="w-8 h-8 bg-slate-300 rounded-full flex items-center justify-center" title="John Doe - Venue Manager">
+              <span className="text-sm font-medium text-slate-700">JD</span>
+            </div>
+          </div>
         ) : (
-          <Button
-            onClick={logout}
-            variant="ghost"
-            className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Switch User
-          </Button>
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-slate-300 rounded-full flex items-center justify-center">
+              <span className="text-sm font-medium text-slate-700">JD</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-slate-900 truncate">John Doe</p>
+              <p className="text-xs text-slate-500 truncate">Venue Manager</p>
+            </div>
+          </div>
         )}
       </div>
     </div>

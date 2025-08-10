@@ -18,7 +18,6 @@ import { apiRequest } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { TaxesAndFeesSettings } from "@/components/taxes-and-fees-settings";
 import { NotificationTestPanel } from "@/components/NotificationTestPanel";
-import { UserManagementSection } from "@/components/UserManagement";
 import { 
   Building2, 
   Mail, 
@@ -251,14 +250,10 @@ export default function Settings() {
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-1 h-auto p-1 bg-slate-100">
+              <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-1 h-auto p-1 bg-slate-100">
                 <TabsTrigger value="general" className="data-[state=active]:bg-white flex flex-col gap-1 py-3 px-2">
                   <Building2 className="w-4 h-4" />
                   <span className="text-xs">General</span>
-                </TabsTrigger>
-                <TabsTrigger value="users" className="data-[state=active]:bg-white flex flex-col gap-1 py-3 px-2">
-                  <Users className="w-4 h-4" />
-                  <span className="text-xs">Users</span>
                 </TabsTrigger>
                 <TabsTrigger value="notifications" className="data-[state=active]:bg-white flex flex-col gap-1 py-3 px-2">
                   <Bell className="w-4 h-4" />
@@ -438,11 +433,6 @@ export default function Settings() {
                     </div>
                   </CardContent>
                 </Card>
-              </TabsContent>
-
-              {/* Users Management */}
-              <TabsContent value="users" className="space-y-6">
-                <UserManagementSection />
               </TabsContent>
 
               {/* Notifications Settings */}

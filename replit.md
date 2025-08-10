@@ -40,12 +40,10 @@ Preferred communication style: Simple, everyday language.
 
 ### Authentication & Authorization
 - **Session Management**: Express sessions with PostgreSQL session store.
-- **User System**: Multi-tenant authentication with role-based access control (Super Admin, Admin, Staff).
-- **Tenant Authentication**: Isolated authentication system for tenant accounts with proper session management.
-- **Security**: Secure session handling with tenant data isolation.
+- **User System**: Role-based access (manager role by default).
+- **Security**: Secure session handling.
 
 ### Core Technical Implementations & Feature Specifications
-- **Multi-Tenant Authentication System**: Complete tenant authentication with isolated data access, session management, and role-based access control supporting Super Admin, Admin, and Staff roles with demo credentials (john@venuineevents.com / demo123, jane@venuineevents.com / demo123). Users can register new tenant accounts through /tenant/register with company information and admin credentials.
 - **Dedicated Floor Plans & Setup Section**: Centralized management and design of venue floor plans, independent of venue editing, with interactive 2D designer (drag-and-drop, resizable objects, multiple setup styles, capacity tracking).
 - **Modern Settings**: Comprehensive configuration for General, Notifications, Appearance, Integrations, BEO, Taxes, Security.
 - **BEO (Banquet Event Orders) System**: Template-based professional BEO generation from event summaries with customizable sections and print/download capabilities.
@@ -57,8 +55,6 @@ Preferred communication style: Simple, everyday language.
 - **Contract System**: Multi-date contract system grouping events, with UI integration and highlighting.
 - **Reports & Analytics**: Comprehensive dashboard with real-time data, interactive charts, and AI-powered insights.
 - **Tax and Fees System**: Configurable percentage and fixed-rate options.
-- **User Management System**: Fully functional tenant user management with role-based access control (Admin, Staff, Viewer), feature-based permissions tied to subscription packages, and complete CRUD operations through Settings → Users tab.
-- **Super Admin Panel**: Complete platform administration with tenant account management, custom package creation, real-time updates, and activity monitoring. Account management includes proper edit modal functionality for existing accounts.
 
 ### AI Integration
 - **Provider**: Google Gemini API.
