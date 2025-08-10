@@ -75,17 +75,18 @@ export function registerAuthRoutes(app: Express) {
         return res.status(400).json({ message: 'Email and password are required' });
       }
 
-      // Find user using direct SQL to avoid schema mismatch
-      const result = await db.execute(sql`
-        SELECT * FROM users WHERE email = ${email} LIMIT 1
-      `);
-      const user = result.rows;
+      // Find user using Drizzle ORM for proper type safety
+      const userResult = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
 
-      if (user.length === 0) {
+      if (userResult.length === 0) {
         return res.status(401).json({ message: 'Invalid credentials' });
       }
 
-      const foundUser = user[0];
+      const foundUser = userResult[0];
 
       // Check password
       const isValidPassword = await bcrypt.compare(password, foundUser.password);
@@ -93,8 +94,8 @@ export function registerAuthRoutes(app: Express) {
         return res.status(401).json({ message: 'Invalid credentials' });
       }
 
-      // Check if email is verified (using snake_case from database)
-      if (!foundUser.email_verified) {
+      // Check if email is verified
+      if (!foundUser.emailVerified) {
         return res.status(403).json({ 
           message: 'Please verify your email address before signing in',
           emailVerificationRequired: true
@@ -102,12 +103,12 @@ export function registerAuthRoutes(app: Express) {
       }
 
       // Create session
-      req.session.userId = foundUser.id;
-      req.session.user = {
+      (req.session as any).userId = foundUser.id;
+      (req.session as any).user = {
         id: foundUser.id,
         email: foundUser.email,
-        firstName: foundUser.first_name || '',
-        lastName: foundUser.last_name || '',
+        firstName: foundUser.firstName || '',
+        lastName: foundUser.lastName || '',
       };
 
       // Check if user has a tenant using raw SQL for reliability
@@ -126,8 +127,8 @@ export function registerAuthRoutes(app: Express) {
         user: {
           id: foundUser.id,
           email: foundUser.email,
-          firstName: foundUser.first_name,
-          lastName: foundUser.last_name,
+          firstName: foundUser.firstName,
+          lastName: foundUser.lastName,
         },
         hasTenant: tenantResult.rows.length > 0,
         tenant: tenantResult.rows.length > 0 ? {
@@ -157,12 +158,12 @@ export function registerAuthRoutes(app: Express) {
 
   // GET /api/auth/me - Get current user
   app.get('/api/auth/me', (req, res) => {
-    if (!req.session.userId) {
+    if (!(req.session as any).userId) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
 
     res.json({
-      user: req.session.user,
+      user: (req.session as any).user,
     });
   });
 
