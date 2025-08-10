@@ -60,6 +60,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
   // New service creation
   const [showNewServiceForm, setShowNewServiceForm] = useState(false);
   const [showPackageSelection, setShowPackageSelection] = useState(false);
+  const [showServiceSelection, setShowServiceSelection] = useState(false);
   const [newService, setNewService] = useState({
     name: "",
     description: "",
@@ -1424,20 +1425,33 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                               <div>
                                 <div className="flex items-center justify-between mb-3">
                                   <Label className="text-base font-medium">Additional Services</Label>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setShowNewServiceForm(!showNewServiceForm)}
-                                    className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                                  >
-                                    <Plus className="w-4 h-4 mr-1" />
-                                    {showNewServiceForm ? "Cancel" : "New Service"}
-                                  </Button>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setShowServiceSelection(!showServiceSelection)}
+                                      className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                                    >
+                                      {showServiceSelection ? "Hide Services" : "Show Services"}
+                                    </Button>
+                                    {showServiceSelection && (
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setShowNewServiceForm(!showNewServiceForm)}
+                                        className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                                      >
+                                        <Plus className="w-4 h-4 mr-1" />
+                                        {showNewServiceForm ? "Cancel" : "New Service"}
+                                      </Button>
+                                    )}
+                                  </div>
                                 </div>
 
                                 {/* New Service Form */}
-                                {showNewServiceForm && (
+                                {showServiceSelection && showNewServiceForm && (
                                   <Card className="p-4 mb-4 border-blue-200 bg-blue-50">
                                     <h5 className="font-medium mb-3">Create New Service</h5>
                                     <div className="grid grid-cols-2 gap-3">
@@ -1493,8 +1507,9 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                   </Card>
                                 )}
 
-                                <div className="mt-3 space-y-3 max-h-80 overflow-y-auto">
-                                  {(services as any[]).map((service: any) => {
+                                {showServiceSelection && (
+                                  <div className="mt-3 space-y-3 max-h-80 overflow-y-auto">
+                                    {(services as any[]).map((service: any) => {
                                     const isSelected = activeDate.selectedServices?.includes(service.id) || false;
                                     const basePrice = parseFloat(service.price || 0);
                                     const overridePrice = activeDate.pricingOverrides?.servicePrices?.[service.id];
@@ -1575,9 +1590,10 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                           )}
                                         </div>
                                       </label>
-                                    );
-                                  })}
-                                </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
                               </div>
                             </div>
 
