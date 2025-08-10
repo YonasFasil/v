@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -273,17 +273,7 @@ export default function SuperAdmin() {
                           </span>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" className="text-red-600">
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          <TenantActions tenant={tenant} />
                         </TableCell>
                       </TableRow>
                     )) || (
@@ -319,10 +309,347 @@ export default function SuperAdmin() {
   );
 }
 
+// Tenant Actions Component
+function TenantActions({ tenant }: { tenant: any }) {
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showViewDialog, setShowViewDialog] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const deleteTenantMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/super-admin/tenants/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/super-admin/tenants"] });
+      toast({
+        title: "Success",
+        description: "Account deleted successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete account",
+        variant: "destructive",
+      });
+    },
+  });
+
+  return (
+    <>
+      <div className="flex items-center gap-2">
+        <Button 
+          variant="ghost" 
+          size="sm"
+          onClick={() => setShowViewDialog(true)}
+        >
+          <Eye className="w-4 h-4" />
+        </Button>
+        <Button 
+          variant="ghost" 
+          size="sm"
+          onClick={() => setShowEditDialog(true)}
+        >
+          <Edit className="w-4 h-4" />
+        </Button>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="text-red-600"
+          onClick={() => {
+            if (confirm(`Are you sure you want to delete the account "${tenant.name}"? This action cannot be undone.`)) {
+              deleteTenantMutation.mutate(tenant.id);
+            }
+          }}
+          disabled={deleteTenantMutation.isPending}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {/* Edit Tenant Dialog */}
+      <EditTenantDialog 
+        isOpen={showEditDialog}
+        onClose={() => setShowEditDialog(false)}
+        tenant={tenant}
+      />
+
+      {/* View Tenant Dialog */}
+      <ViewTenantDialog 
+        isOpen={showViewDialog}
+        onClose={() => setShowViewDialog(false)}
+        tenant={tenant}
+      />
+    </>
+  );
+}
+
+// View Tenant Dialog Component
+function ViewTenantDialog({ isOpen, onClose, tenant }: {
+  isOpen: boolean;
+  onClose: () => void;
+  tenant: any;
+}) {
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Account Details - {tenant.name}</DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-6">
+          {/* Basic Information */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="text-sm font-medium text-slate-700">Business Name</Label>
+              <div className="mt-1 text-sm">{tenant.name}</div>
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-slate-700">Status</Label>
+              <div className="mt-1">
+                <Badge variant={tenant.status === 'active' ? 'default' : 'secondary'}>
+                  {tenant.status}
+                </Badge>
+              </div>
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-slate-700">Admin Email</Label>
+              <div className="mt-1 text-sm">{tenant.contactEmail}</div>
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-slate-700">Package</Label>
+              <div className="mt-1">
+                <Badge variant="outline">{tenant.packageName}</Badge>
+              </div>
+            </div>
+          </div>
+
+          {/* Usage Statistics */}
+          <div className="border-t pt-4">
+            <h4 className="font-medium mb-3">Usage Statistics</h4>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center p-3 bg-slate-50 dark:bg-slate-800 rounded">
+                <div className="text-2xl font-bold">{tenant.userCount}</div>
+                <div className="text-sm text-slate-600">Users</div>
+              </div>
+              <div className="text-center p-3 bg-slate-50 dark:bg-slate-800 rounded">
+                <div className="text-2xl font-bold">{tenant.venueCount}</div>
+                <div className="text-sm text-slate-600">Venues</div>
+              </div>
+              <div className="text-center p-3 bg-slate-50 dark:bg-slate-800 rounded">
+                <div className="text-2xl font-bold">{tenant.spaceCount}</div>
+                <div className="text-sm text-slate-600">Spaces</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Venues List */}
+          {tenant.venues && tenant.venues.length > 0 && (
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-3">Venues</h4>
+              <div className="space-y-2">
+                {tenant.venues.map((venue: any) => (
+                  <div key={venue.id} className="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-800 rounded">
+                    <span className="font-medium">{venue.name}</span>
+                    <span className="text-sm text-slate-600">{venue.spaces} spaces</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Revenue Information */}
+          <div className="border-t pt-4">
+            <h4 className="font-medium mb-3">Financial Information</h4>
+            <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded">
+              <div className="text-3xl font-bold text-green-600">
+                ${tenant.monthlyRevenue?.toLocaleString() || 0}
+              </div>
+              <div className="text-sm text-slate-600">Monthly Revenue</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end pt-4 border-t">
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Edit Tenant Dialog Component
+function EditTenantDialog({ isOpen, onClose, tenant }: {
+  isOpen: boolean;
+  onClose: () => void;
+  tenant: any;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [formData, setFormData] = useState({
+    name: "",
+    contactEmail: "",
+    contactName: "",
+    packageId: "",
+    status: "active"
+  });
+
+  // Get packages for dropdown
+  const { data: packages } = useQuery({
+    queryKey: ["/api/super-admin/packages"],
+  });
+
+  // Initialize form data when dialog opens
+  React.useEffect(() => {
+    if (isOpen && tenant) {
+      setFormData({
+        name: tenant.name || "",
+        contactEmail: tenant.contactEmail || "",
+        contactName: tenant.contactName || "",
+        packageId: tenant.packageId || "",
+        status: tenant.status || "active"
+      });
+    }
+  }, [isOpen, tenant]);
+
+  const updateTenantMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("PUT", `/api/super-admin/tenants/${tenant.id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/super-admin/tenants"] });
+      toast({
+        title: "Success",
+        description: "Account updated successfully",
+      });
+      onClose();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update account",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateTenantMutation.mutate(formData);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit Account - {tenant?.name}</DialogTitle>
+        </DialogHeader>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="edit-name">Business Name</Label>
+            <Input 
+              id="edit-name" 
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="Acme Events Inc."
+              required
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="edit-contactEmail">Admin Email</Label>
+            <Input 
+              id="edit-contactEmail" 
+              type="email" 
+              value={formData.contactEmail}
+              onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+              placeholder="admin@acme.com"
+              required
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="edit-contactName">Admin Name</Label>
+            <Input 
+              id="edit-contactName" 
+              value={formData.contactName}
+              onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
+              placeholder="John Doe"
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="edit-package">Package</Label>
+            <Select 
+              value={formData.packageId} 
+              onValueChange={(value) => setFormData({ ...formData, packageId: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select package" />
+              </SelectTrigger>
+              <SelectContent>
+                {((packages as any[]) || []).map((pkg: any) => (
+                  <SelectItem key={pkg.id} value={pkg.id}>
+                    {pkg.displayName} - ${pkg.price}/{pkg.billingInterval}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="edit-status">Status</Label>
+            <Select 
+              value={formData.status} 
+              onValueChange={(value) => setFormData({ ...formData, status: value })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="suspended">Suspended</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={updateTenantMutation.isPending}>
+              {updateTenantMutation.isPending ? "Updating..." : "Update Account"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // Create Tenant Dialog Component
 function CreateTenantDialog() {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Get packages for dropdown
+  const { data: packages } = useQuery({
+    queryKey: ["/api/super-admin/packages"],
+  });
+
+  const [formData, setFormData] = useState({
+    name: "",
+    contactEmail: "",
+    contactName: "",
+    packageId: ""
+  });
 
   const createTenantMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -330,13 +657,27 @@ function CreateTenantDialog() {
       return response.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/super-admin/tenants"] });
       toast({
         title: "Success",
-        description: "Tenant created successfully",
+        description: "Account created successfully",
       });
       setOpen(false);
+      setFormData({ name: "", contactEmail: "", contactName: "", packageId: "" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create account",
+        variant: "destructive",
+      });
     },
   });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    createTenantMutation.mutate(formData);
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -353,36 +694,64 @@ function CreateTenantDialog() {
             Create an account that can manage multiple venues and spaces.
           </p>
         </DialogHeader>
-        <div className="space-y-4">
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="name">Business Name</Label>
-            <Input id="name" placeholder="Acme Events Inc." />
+            <Input 
+              id="name" 
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="Acme Events Inc." 
+              required
+            />
           </div>
+          
           <div>
             <Label htmlFor="contactEmail">Admin Email</Label>
-            <Input id="contactEmail" type="email" placeholder="admin@acme.com" />
+            <Input 
+              id="contactEmail" 
+              type="email" 
+              value={formData.contactEmail}
+              onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+              placeholder="admin@acme.com" 
+              required
+            />
           </div>
+          
           <div>
             <Label htmlFor="contactName">Admin Name</Label>
-            <Input id="contactName" placeholder="John Doe" />
+            <Input 
+              id="contactName" 
+              value={formData.contactName}
+              onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
+              placeholder="John Doe" 
+            />
           </div>
+          
           <div>
             <Label htmlFor="package">Package</Label>
-            <Select>
+            <Select 
+              value={formData.packageId} 
+              onValueChange={(value) => setFormData({ ...formData, packageId: value })}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select package" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="basic">Basic</SelectItem>
-                <SelectItem value="professional">Professional</SelectItem>
-                <SelectItem value="enterprise">Enterprise</SelectItem>
+                {((packages as any[]) || []).map((pkg: any) => (
+                  <SelectItem key={pkg.id} value={pkg.id}>
+                    {pkg.displayName} - ${pkg.price}/{pkg.billingInterval}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
-          <Button className="w-full" disabled={createTenantMutation.isPending}>
+          
+          <Button type="submit" className="w-full" disabled={createTenantMutation.isPending}>
             {createTenantMutation.isPending ? "Creating..." : "Create Account"}
           </Button>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
