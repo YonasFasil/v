@@ -25,7 +25,7 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
     // Check if user is superadmin - superadmins should not have tenant access
     try {
       const superAdminCheck = await db.execute(sql`
-        SELECT role FROM users WHERE id = ${req.session.userId} AND role = 'superadmin'
+        SELECT user_id FROM super_admins WHERE user_id = ${req.session.userId}
       `);
       
       if (superAdminCheck.rows.length > 0) {
