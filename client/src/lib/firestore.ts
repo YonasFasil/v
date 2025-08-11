@@ -18,8 +18,8 @@ export interface FirestoreUser {
   displayName?: string | null;
   photoURL?: string | null;
   isSuperAdmin: boolean;
-  createdAt?: Date;
-  updatedAt?: Date;
+  createdAt?: any;
+  updatedAt?: any;
   currentTenant?: {
     id: string;
     slug: string;
@@ -58,8 +58,8 @@ export async function createOrUpdateUser(firebaseUser: User): Promise<FirestoreU
       displayName: firebaseUser.displayName || undefined,
       photoURL: firebaseUser.photoURL || undefined,
       isSuperAdmin,
-      createdAt: serverTimestamp() as Date,
-      updatedAt: serverTimestamp() as Date,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     };
     
     await setDoc(userRef, newUser);
