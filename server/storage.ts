@@ -263,13 +263,14 @@ export class MemStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.username === username);
+    return Array.from(this.users.values()).find(user => user.email === username);
   }
 
   async createUser(user: InsertUser): Promise<User> {
     const newUser: User = {
       id: randomUUID(),
       ...user,
+      updatedAt: new Date(),
       createdAt: new Date(),
     };
     this.users.set(newUser.id, newUser);
@@ -298,7 +299,6 @@ export class MemStorage implements IStorage {
     const newVenue: Venue = {
       id: randomUUID(),
       ...venue,
-      createdAt: new Date(),
     };
     this.venues.set(newVenue.id, newVenue);
     return newVenue;
@@ -334,7 +334,6 @@ export class MemStorage implements IStorage {
     const newSpace: Space = {
       id: randomUUID(),
       ...space,
-      createdAt: new Date(),
     };
     this.spaces.set(newSpace.id, newSpace);
     return newSpace;
@@ -366,7 +365,6 @@ export class MemStorage implements IStorage {
     const newSetupStyle: SetupStyle = {
       id: randomUUID(),
       ...setupStyle,
-      createdAt: new Date(),
     };
     this.setupStyles.set(newSetupStyle.id, newSetupStyle);
     return newSetupStyle;
@@ -449,6 +447,7 @@ export class MemStorage implements IStorage {
       id: randomUUID(),
       ...contract,
       createdAt: new Date(),
+      updatedAt: new Date(),
     };
     this.contracts.set(newContract.id, newContract);
     return newContract;
@@ -488,7 +487,7 @@ export class MemStorage implements IStorage {
     const newBooking: Booking = {
       id: randomUUID(),
       ...booking,
-      createdAt: new Date(),
+      status: booking.status || "inquiry",
     };
     this.bookings.set(newBooking.id, newBooking);
     return newBooking;
@@ -518,7 +517,9 @@ export class MemStorage implements IStorage {
 
   // Proposals implementation
   async getProposals(): Promise<Proposal[]> {
-    return Array.from(this.proposals.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return Array.from(this.proposals.values()).sort((a, b) => 
+      (b.createdAt || new Date(0)).getTime() - (a.createdAt || new Date(0)).getTime()
+    );
   }
 
   async getProposal(id: string): Promise<Proposal | undefined> {
@@ -533,8 +534,6 @@ export class MemStorage implements IStorage {
     const newProposal: Proposal = {
       id: randomUUID(),
       ...proposal,
-      createdAt: new Date(),
-      updatedAt: new Date(),
     };
     this.proposals.set(newProposal.id, newProposal);
     return newProposal;
@@ -544,7 +543,7 @@ export class MemStorage implements IStorage {
     const existing = this.proposals.get(id);
     if (!existing) return undefined;
     
-    const updated = { ...existing, ...proposal, updatedAt: new Date() };
+    const updated = { ...existing, ...proposal };
     this.proposals.set(id, updated);
     return updated;
   }
@@ -559,7 +558,9 @@ export class MemStorage implements IStorage {
     if (bookingId) {
       communications = communications.filter(comm => comm.bookingId === bookingId);
     }
-    return communications.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return communications.sort((a, b) => 
+      (b.sentAt || new Date(0)).getTime() - (a.sentAt || new Date(0)).getTime()
+    );
   }
 
   async getCommunication(id: string): Promise<Communication | undefined> {
@@ -568,21 +569,20 @@ export class MemStorage implements IStorage {
 
   async getCommunicationsByProposal(proposalId: string): Promise<Communication[]> {
     return Array.from(this.communications.values())
-      .filter(comm => comm.proposalId === proposalId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      .filter(comm => comm.bookingId === proposalId) // Using bookingId since proposalId doesn't exist in schema
+      .sort((a, b) => (b.sentAt || new Date(0)).getTime() - (a.sentAt || new Date(0)).getTime());
   }
 
   async getCommunicationsByCustomer(customerId: string): Promise<Communication[]> {
     return Array.from(this.communications.values())
       .filter(comm => comm.customerId === customerId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      .sort((a, b) => (b.sentAt || new Date(0)).getTime() - (a.sentAt || new Date(0)).getTime());
   }
 
   async createCommunication(communication: InsertCommunication): Promise<Communication> {
     const newCommunication: Communication = {
       id: randomUUID(),
       ...communication,
-      createdAt: new Date(),
     };
     this.communications.set(newCommunication.id, newCommunication);
     return newCommunication;
@@ -630,7 +630,9 @@ export class MemStorage implements IStorage {
 
   // Payments implementation
   async getPayments(): Promise<Payment[]> {
-    return Array.from(this.payments.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return Array.from(this.payments.values()).sort((a, b) => 
+      (b.createdAt || new Date(0)).getTime() - (a.createdAt || new Date(0)).getTime()
+    );
   }
 
   async getPayment(id: string): Promise<Payment | undefined> {
@@ -668,7 +670,7 @@ export class MemStorage implements IStorage {
       }
       if (a.dueDate) return -1;
       if (b.dueDate) return 1;
-      return b.createdAt.getTime() - a.createdAt.getTime();
+      return (b.createdAt || new Date(0)).getTime() - (a.createdAt || new Date(0)).getTime();
     });
   }
 
@@ -677,14 +679,13 @@ export class MemStorage implements IStorage {
   }
 
   async getTasksByUser(userId: string): Promise<Task[]> {
-    return Array.from(this.tasks.values()).filter(task => task.assigneeId === userId);
+    return Array.from(this.tasks.values()).filter(task => task.assignedTo === userId);
   }
 
   async createTask(task: InsertTask): Promise<Task> {
     const newTask: Task = {
       id: randomUUID(),
       ...task,
-      createdAt: new Date(),
     };
     this.tasks.set(newTask.id, newTask);
     return newTask;
@@ -701,20 +702,21 @@ export class MemStorage implements IStorage {
 
   // AI Insights implementation
   async getAiInsights(): Promise<AiInsight[]> {
-    return Array.from(this.aiInsights.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return Array.from(this.aiInsights.values()).sort((a, b) => 
+      (b.createdAt || new Date(0)).getTime() - (a.createdAt || new Date(0)).getTime()
+    );
   }
 
   async getActiveAiInsights(): Promise<AiInsight[]> {
     return Array.from(this.aiInsights.values())
       .filter(insight => insight.isActive)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      .sort((a, b) => (b.createdAt || new Date(0)).getTime() - (a.createdAt || new Date(0)).getTime());
   }
 
   async createAiInsight(insight: InsertAiInsight): Promise<AiInsight> {
     const newInsight: AiInsight = {
       id: randomUUID(),
       ...insight,
-      createdAt: new Date(),
     };
     this.aiInsights.set(newInsight.id, newInsight);
     return newInsight;
@@ -733,7 +735,6 @@ export class MemStorage implements IStorage {
     const newPackage: Package = {
       id: randomUUID(),
       ...pkg,
-      createdAt: new Date(),
     };
     this.packages.set(newPackage.id, newPackage);
     return newPackage;
@@ -765,7 +766,6 @@ export class MemStorage implements IStorage {
     const newService: Service = {
       id: randomUUID(),
       ...service,
-      createdAt: new Date(),
     };
     this.services.set(newService.id, newService);
     return newService;
@@ -797,7 +797,6 @@ export class MemStorage implements IStorage {
     const newTaxSetting: TaxSetting = {
       id: randomUUID(),
       ...taxSetting,
-      createdAt: new Date(),
     };
     this.taxSettings.set(newTaxSetting.id, newTaxSetting);
     return newTaxSetting;
