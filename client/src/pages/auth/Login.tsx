@@ -22,16 +22,8 @@ export default function Login() {
             description: `Signed in as ${result.user.displayName || result.user.email}`,
           });
           
-          // Check if user is super admin by email
-          const userEmail = result.user.email;
-          console.log('Checking user email:', userEmail);
-          if (userEmail === 'yonasfasil.sl@gmail.com') {
-            console.log('Super admin login detected, redirecting to /admin/dashboard');
-            setLocation('/admin/dashboard');
-          } else {
-            console.log('Regular user login, redirecting to /onboarding');
-            setLocation('/onboarding');
-          }
+          // The redirect will be handled by the useEffect above once Firestore user data is loaded
+          console.log('Login successful, waiting for Firestore data sync...');
         }
       })
       .catch((error) => {
@@ -48,12 +40,14 @@ export default function Login() {
   useEffect(() => {
     if (!isLoading && user) {
       console.log('User authenticated via Firebase:', user);
-      const userEmail = user.email;
-      if (userEmail === 'yonasfasil.sl@gmail.com') {
+      if (user.isSuperAdmin) {
         console.log('Super admin detected, redirecting to /admin/dashboard');
         setLocation('/admin/dashboard');
+      } else if (user.currentTenant) {
+        console.log('User has tenant, redirecting to tenant dashboard');
+        setLocation(`/t/${user.currentTenant.slug}/app`);
       } else {
-        console.log('Regular user, redirecting to /onboarding');
+        console.log('New user, redirecting to /onboarding');
         setLocation('/onboarding');
       }
     }
