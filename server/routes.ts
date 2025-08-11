@@ -457,7 +457,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      const validatedData = insertBookingSchema.parse(bookingData);
+      // Add tenant ID from authenticated request or default
+      const bookingDataWithTenant = {
+        ...bookingData,
+        tenantId: req.user?.tenantId || 'default-tenant'
+      };
+      
+      const validatedData = insertBookingSchema.parse(bookingDataWithTenant);
       
       // Check for time conflicts with existing bookings
       const existingBookings = await storage.getBookings();
@@ -905,7 +911,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalAmount: proposal.totalAmount,
         depositAmount: proposal.totalAmount ? String(Number(proposal.totalAmount) * 0.3) : null,
         depositPaid: false,
-        notes: `Converted from proposal "${proposal.title}" on ${new Date().toDateString()}`
+        notes: `Converted from proposal "${proposal.title}" on ${new Date().toDateString()}`,
+        tenantId: proposal.tenantId || 'default-tenant'
       });
 
       // Update proposal status to indicate it's been converted
@@ -934,7 +941,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/proposals", async (req, res) => {
     try {
       console.log('Creating proposal with data:', req.body);
-      const validatedData = insertProposalSchema.parse(req.body);
+      
+      // Add tenant ID from authenticated request or default
+      const proposalDataWithTenant = {
+        ...req.body,
+        tenantId: req.user?.tenantId || 'default-tenant'
+      };
+      
+      const validatedData = insertProposalSchema.parse(proposalDataWithTenant);
       const proposal = await storage.createProposal(validatedData);
       res.json(proposal);
     } catch (error: any) {

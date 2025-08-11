@@ -10,7 +10,7 @@ Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-VENUIN is built with a modern, scalable architecture designed for high performance and maintainability.
+VENUIN is built with a modern, scalable multi-tenant architecture designed for high performance and maintainability.
 
 **Frontend Architecture:**
 - **Framework**: React 18 with TypeScript, using Vite for build tooling.
@@ -45,9 +45,18 @@ VENUIN is built with a modern, scalable architecture designed for high performan
 - **Mobile Responsiveness**: Fully responsive layout, mobile-optimized navigation, and touch-friendly elements.
 
 **Security & Role Management:**
+- Comprehensive 5-tier RBAC system (Super Admin → Tenant Admin → Manager → Staff → Customer).
+- Multi-tenant data isolation with tenant ID validation on all operations.
 - Session-based authentication with PostgreSQL session store.
-- Role-based access control with an initial "manager" role and future extensibility for multi-role systems.
+- Permission-based access control with middleware enforcement.
 - Secure session handling with HTTP-only cookies and environment-based secret management.
+- Admin development interface for role testing and tenant management.
+
+**Recent Fixes (August 11, 2025):**
+- Resolved booking and proposal creation validation errors by implementing proper tenant ID injection.
+- Fixed multi-tenant data isolation issues in booking and proposal systems.
+- Enhanced subscription package management with complete CRUD operations and professional UI.
+- Implemented comprehensive admin interfaces for tenant management and subscription packages.
 
 ## External Dependencies
 
