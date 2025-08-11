@@ -208,8 +208,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Convert string dates to Date objects for schema validation
+      const requestData = { ...req.body };
+      if (requestData.eventDate && typeof requestData.eventDate === 'string') {
+        requestData.eventDate = new Date(requestData.eventDate);
+      }
+      
       const bookingData = insertBookingSchema.parse({
-        ...req.body,
+        ...requestData,
         tenantId: req.user.currentTenant.id,
       });
       const booking = await storage.createBooking(bookingData);
