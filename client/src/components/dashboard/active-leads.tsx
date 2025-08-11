@@ -1,13 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useDashboardData } from "@/contexts/dashboard-context";
+import { useLeads } from "@/hooks/use-leads";
 import { MessageCircle, Star, Building } from "lucide-react";
 
 export function ActiveLeads() {
-  const { activeLeads, isLoading } = useDashboardData();
-  
-  const leads = activeLeads;
+  const { data: leads, isLoading } = useLeads();
 
   const getPriorityColor = (score: number) => {
     if (score >= 80) return "bg-red-100 text-red-800";

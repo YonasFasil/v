@@ -1,8 +1,4 @@
 import { Link, useLocation } from "wouter";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { useTenantFeatures } from "@/hooks/useTenantFeatures";
 import { 
   LayoutDashboard, 
   Calendar, 
@@ -15,53 +11,23 @@ import {
   Package,
   Settings,
   BarChart3,
-  X,
-  LogOut
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// Dynamic navigation based on tenant features - with demo account override
-const getDynamicNavigationItems = (hasFeature: (feature: string) => boolean, isLoading: boolean, tenantInfo?: any) => {
-  const items = [];
-  const isDemoAccount = tenantInfo?.contactEmail === 'demo@venuin.com';
-  
-  // Always show Dashboard
-  items.push({ name: "Dashboard", href: "/", icon: LayoutDashboard });
-  
-  // Core features with demo account override
-  if (isLoading || isDemoAccount || hasFeature("booking_management")) {
-    items.push({ name: "Events & Bookings", href: "/events", icon: Calendar });
-  }
-  if (isLoading || isDemoAccount || hasFeature("customer_management")) {
-    items.push({ name: "Customers", href: "/customers", icon: Users });
-  }
-  if (isLoading || isDemoAccount || hasFeature("customer_management")) {
-    items.push({ name: "Leads", href: "/leads", icon: UserPlus });
-  }
-  if (isLoading || isDemoAccount || hasFeature("basic_proposals") || hasFeature("advanced_proposals")) {
-    items.push({ name: "Proposals", href: "/proposals", icon: FileText });
-  }
-  if (isLoading || isDemoAccount || hasFeature("stripe_payments")) {
-    items.push({ name: "Payments", href: "/payments", icon: CreditCard });
-  }
-  if (isLoading || isDemoAccount || hasFeature("team_management")) {
-    items.push({ name: "Tasks & Team", href: "/tasks", icon: CheckSquare });
-  }
-  if (isLoading || isDemoAccount || hasFeature("multi_venues")) {
-    items.push({ name: "Venues", href: "/venues", icon: Building });
-  }
-  if (isLoading || isDemoAccount || hasFeature("booking_management")) {
-    items.push({ name: "Packages & Services", href: "/packages", icon: Package });
-  }
-  if (isLoading || isDemoAccount || hasFeature("ai_features") || hasFeature("advanced_analytics")) {
-    items.push({ name: "Reports & Insights", href: "/reports", icon: BarChart3 });
-  }
-  
-  // Always show Settings
-  items.push({ name: "Settings", href: "/settings", icon: Settings });
-  
-  return items;
-};
+const navigationItems = [
+  { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Events & Bookings", href: "/events", icon: Calendar },
+  { name: "Customers", href: "/customers", icon: Users },
+  { name: "Leads", href: "/leads", icon: UserPlus },
+  { name: "Proposals & Contracts", href: "/proposals", icon: FileText },
+  { name: "Payments", href: "/payments", icon: CreditCard },
+  { name: "Tasks & Team", href: "/tasks", icon: CheckSquare },
+  { name: "Venues", href: "/venues", icon: Building },
+  { name: "Packages & Services", href: "/packages", icon: Package },
+  { name: "Reports & Insights", href: "/reports", icon: BarChart3 },
+  { name: "Settings", href: "/settings", icon: Settings },
+];
 
 interface MobileNavProps {
   isOpen: boolean;
@@ -70,44 +36,6 @@ interface MobileNavProps {
 
 export function MobileNav({ isOpen, onClose }: MobileNavProps) {
   const [location] = useLocation();
-  const { toast } = useToast();
-  const { hasFeature, isLoading, tenantInfo } = useTenantFeatures();
-  
-  // Show all navigation items with tenant-specific URLs
-  const tenantSlug = tenantInfo?.slug || 'demo-venue-company';
-  const navigationItems = [
-    { name: "Dashboard", href: `/t/${tenantSlug}/app`, icon: LayoutDashboard },
-    { name: "Events & Bookings", href: `/t/${tenantSlug}/app/events`, icon: Calendar },
-    { name: "Customers", href: `/t/${tenantSlug}/app/customers`, icon: Users },
-    { name: "Leads", href: `/t/${tenantSlug}/app/leads`, icon: UserPlus },
-    { name: "Proposals", href: `/t/${tenantSlug}/app/proposals`, icon: FileText },
-    { name: "Payments", href: `/t/${tenantSlug}/app/payments`, icon: CreditCard },
-    { name: "Tasks & Team", href: `/t/${tenantSlug}/app/tasks`, icon: CheckSquare },
-    { name: "Venues", href: `/t/${tenantSlug}/app/venues`, icon: Building },
-    { name: "Packages & Services", href: `/t/${tenantSlug}/app/packages`, icon: Package },
-    { name: "Reports & Insights", href: `/t/${tenantSlug}/app/reports`, icon: BarChart3 },
-    { name: "Settings", href: `/t/${tenantSlug}/app/settings`, icon: Settings },
-  ];
-  
-  // Logout mutation
-  const logoutMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/auth/logout"),
-    onSuccess: () => {
-      toast({
-        title: "Logged out successfully",
-        description: "You have been logged out.",
-      });
-      // Redirect to home page
-      window.location.href = "/";
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Logout failed", 
-        description: error.message || "Failed to logout",
-        variant: "destructive",
-      });
-    }
-  });
 
   const isActive = (href: string) => {
     if (href === "/") {
@@ -165,21 +93,9 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
           })}
         </nav>
 
-        {/* User Actions */}
+        {/* Quick Actions */}
         <div className="px-4 py-4 border-t border-slate-200 mt-4">
-          <div className="space-y-3">
-            {/* User Info */}
-            <div className="flex items-center space-x-3 px-3 py-2 bg-slate-50 rounded-lg">
-              <div className="w-8 h-8 bg-slate-300 rounded-full flex items-center justify-center">
-                <span className="text-slate-600 font-medium text-sm">JD</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-900 truncate">John Doe</p>
-                <p className="text-xs text-slate-500 truncate">Venue Manager</p>
-              </div>
-            </div>
-            
-            {/* Quick Actions */}
+          <div className="space-y-2">
             <Button 
               onClick={() => {
                 console.log('Mobile nav: New Event clicked');
@@ -190,18 +106,6 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
             >
               <Calendar className="w-4 h-4 mr-2" />
               New Event
-            </Button>
-            
-            {/* Logout Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => logoutMutation.mutate()}
-              disabled={logoutMutation.isPending}
-              className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              {logoutMutation.isPending ? "Logging out..." : "Logout"}
             </Button>
           </div>
         </div>
