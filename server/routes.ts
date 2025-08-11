@@ -4740,7 +4740,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
       // Create transporter with nodemailer
       
       // Create transporter with the email settings
-      const transporter = nodemailer.createTransporter({
+      const transporter = nodemailer.createTransport({
         host: setting.smtpHost,
         port: setting.smtpPort,
         secure: setting.smtpSecure, // true for 465, false for other ports
