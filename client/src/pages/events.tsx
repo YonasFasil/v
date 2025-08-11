@@ -25,7 +25,7 @@ export default function Events() {
   const { data: bookings, isLoading } = useBookings();
   
   // Fetch proposals to check which events have proposals
-  const { data: proposals = [] } = useQuery({ queryKey: ["/api/proposals"] });
+  const { data: proposals = [] } = useQuery({ queryKey: ["/api/proposals"] }) as { data: any[] };
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -257,17 +257,46 @@ export default function Events() {
                             )}
                             {/* Show proposal button if proposal exists */}
                             {(() => {
+                              // Check multiple criteria to find a matching proposal
                               const hasProposal = booking.proposalStatus === 'sent' || 
-                                                 proposals.some((p: any) => p.customerId === booking.customerId && p.eventName === booking.eventName);
+                                                 proposals.some((p: any) => 
+                                                   p.customerId === booking.customerId && 
+                                                   (p.eventName === booking.eventName || 
+                                                    p.eventDate === booking.eventDate ||
+                                                    (p.guestCount === booking.guestCount && p.venueId === booking.venueId))
+                                                 );
                               
                               if (hasProposal) {
-                                const proposal = proposals.find((p: any) => p.customerId === booking.customerId && p.eventName === booking.eventName);
+                                // For bookings with proposalStatus = 'sent', try to find the matching proposal
+                                // If not found, create a placeholder proposal for the tracking modal
+                                let proposal = proposals.find((p: any) => 
+                                  p.customerId === booking.customerId && 
+                                  (p.eventName === booking.eventName || 
+                                   p.eventDate === booking.eventDate ||
+                                   (p.guestCount === booking.guestCount && p.venueId === booking.venueId))
+                                );
+
+                                // If no proposal found but booking has proposalStatus = 'sent', create a placeholder
+                                if (!proposal && booking.proposalStatus === 'sent') {
+                                  proposal = {
+                                    id: `booking-${booking.id}`, // Use booking ID as proposal ID
+                                    customerId: booking.customerId,
+                                    eventName: booking.eventName,
+                                    eventDate: booking.eventDate,
+                                    guestCount: booking.guestCount,
+                                    totalAmount: booking.totalAmount,
+                                    status: 'sent',
+                                    sentAt: booking.proposalSentAt,
+                                    emailOpened: false,
+                                    openCount: 0
+                                  };
+                                }
                                 return (
-                                  <div className="mt-3 pt-2 border-t">
+                                  <div className="mt-3 pt-2 border-t border-gray-100">
                                     <Button
-                                      variant="outline"
+                                      variant="ghost"
                                       size="sm"
-                                      className="w-full text-xs"
+                                      className="w-full h-8 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors duration-200 border border-blue-200 hover:border-blue-300 rounded-md"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         if (proposal) {
@@ -276,7 +305,7 @@ export default function Events() {
                                         }
                                       }}
                                     >
-                                      <Eye className="h-3 w-3 mr-1" />
+                                      <Eye className="h-3 w-3 mr-1.5" />
                                       View Proposal Status
                                     </Button>
                                   </div>

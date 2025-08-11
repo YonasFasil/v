@@ -43,8 +43,20 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
   // Fetch proposal details
   const { data: proposal, isLoading } = useQuery({
     queryKey: [`/api/proposals/${proposalId}`],
-    enabled: !!proposalId && open
+    enabled: !!proposalId && open && !proposalId?.startsWith('booking-')
   });
+
+  // Handle placeholder proposals (created from bookings with sent status)
+  const isPlaceholderProposal = proposalId?.startsWith('booking-');
+  const placeholderProposal = isPlaceholderProposal ? {
+    id: proposalId,
+    eventName: "Event Proposal",
+    status: "sent",
+    sentAt: new Date().toISOString(),
+    emailOpened: false,
+    openCount: 0,
+    totalAmount: "0"
+  } : null;
 
   // Fetch communications
   const { data: communications = [] } = useQuery({
@@ -156,7 +168,9 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     }
   };
 
-  if (isLoading) {
+  const currentProposal = proposal || placeholderProposal;
+
+  if (isLoading && !isPlaceholderProposal) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-4xl">
@@ -168,7 +182,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     );
   }
 
-  if (!proposal) return null;
+  if (!currentProposal) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -176,7 +190,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Proposal Tracking: {proposal.title}
+            Proposal Tracking: {currentProposal.eventName || currentProposal.title}
           </DialogTitle>
         </DialogHeader>
 
@@ -196,18 +210,18 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                     </div>
                     <div className="text-sm font-medium">Sent</div>
                     <div className="text-xs text-gray-500">
-                      {proposal.sentAt ? format(new Date(proposal.sentAt), "MMM d") : "Not sent"}
+                      {currentProposal.sentAt ? format(new Date(currentProposal.sentAt), "MMM d") : "Not sent"}
                     </div>
                   </div>
                   <div className="text-center">
                     <div className={`rounded-full p-3 w-12 h-12 mx-auto mb-2 flex items-center justify-center ${
-                      proposal.emailOpened ? 'bg-purple-100' : 'bg-gray-100'
+                      currentProposal.emailOpened ? 'bg-purple-100' : 'bg-gray-100'
                     }`}>
-                      <Eye className={`h-6 w-6 ${proposal.emailOpened ? 'text-purple-600' : 'text-gray-400'}`} />
+                      <Eye className={`h-6 w-6 ${currentProposal.emailOpened ? 'text-purple-600' : 'text-gray-400'}`} />
                     </div>
                     <div className="text-sm font-medium">Opened</div>
                     <div className="text-xs text-gray-500">
-                      {proposal.emailOpenedAt ? format(new Date(proposal.emailOpenedAt), "MMM d") : "Not opened"}
+                      {currentProposal.emailOpenedAt ? format(new Date(currentProposal.emailOpenedAt), "MMM d") : "Not opened"}
                     </div>
                   </div>
                   <div className="text-center">
