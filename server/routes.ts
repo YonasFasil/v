@@ -2698,21 +2698,35 @@ This is a test email from your Venuine venue management system.
         return res.status(404).json({ message: "Proposal not found" });
       }
 
+      // Get customer and venue data for the proposal
+      const customer = await storage.getCustomer(proposal.customerId || '');
+      const venues = await storage.getVenues();
+      const venue = venues.find(v => v.id === proposal.venueId);
+
       // Return proposal data formatted for client viewing
       res.json({
         id: proposal.id,
-        eventName: proposal.eventName,
+        title: proposal.title,
+        content: proposal.content,
+        eventType: proposal.eventType,
         eventDate: proposal.eventDate,
-        eventTime: proposal.eventTime,
-        venue: proposal.venue,
-        space: proposal.space,
+        startTime: proposal.startTime,
+        endTime: proposal.endTime,
         guestCount: proposal.guestCount,
         totalAmount: proposal.totalAmount,
+        depositAmount: proposal.depositAmount,
         status: proposal.status,
-        expiryDate: proposal.expiryDate,
+        validUntil: proposal.validUntil,
         acceptedAt: proposal.acceptedAt,
         declinedAt: proposal.declinedAt,
-        signature: proposal.signature,
+        customer: customer ? {
+          name: customer.name,
+          email: customer.email
+        } : null,
+        venue: venue ? {
+          name: venue.name,
+          description: venue.description
+        } : null,
         // Sample event dates and company info for display
         eventDates: [
           {

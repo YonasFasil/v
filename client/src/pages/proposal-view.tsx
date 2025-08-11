@@ -44,27 +44,23 @@ interface ProposalData {
 }
 
 export default function ProposalView() {
-  const { customerId } = useParams();
   const [location] = useLocation();
   const [isAccepting, setIsAccepting] = useState(false);
+  const proposalId = location.split('/').pop();
   
   // Track proposal view automatically when page loads
   useEffect(() => {
-    const proposalId = location.split('/').pop();
     if (proposalId) {
       // Track that this proposal was viewed
       apiRequest("POST", `/api/proposals/${proposalId}/track-view`, {})
         .catch(error => console.log("View tracking failed:", error));
     }
-  }, [location]);
+  }, [proposalId]);
 
   const { data: proposal, isLoading, error } = useQuery({
-    queryKey: ["/api/proposals/view", customerId],
-    queryFn: () => {
-      const proposalId = location.split('/').pop();
-      return apiRequest("GET", `/api/proposals/view/${proposalId}`);
-    },
-    enabled: !!customerId,
+    queryKey: ["/api/proposals/view", proposalId],
+    queryFn: () => apiRequest("GET", `/api/proposals/view/${proposalId}`),
+    enabled: !!proposalId,
   });
 
   const acceptProposalMutation = useMutation({
@@ -73,9 +69,9 @@ export default function ProposalView() {
       return apiRequest("POST", `/api/proposals/${proposal.id}/accept`, {});
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/proposals/view", customerId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/proposals/view", proposalId] });
       // Redirect to payment page (we'll implement this later)
-      window.location.href = `/proposal/${customerId}/payment`;
+      window.location.href = `/proposal/${proposalId}/payment`;
     }
   });
 
