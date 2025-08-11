@@ -143,7 +143,19 @@ export class UserService {
   }
 
   static async getUserTenant(userId: string): Promise<{tenantId: string, tenantSlug: string, tenantName: string, role: string} | null> {
-    // Get the user's tenant relationship
+    // First, check if user document has tenant info directly (onboarding flow)
+    const userDoc = await FirestoreService.get<any>(COLLECTIONS.USERS, userId);
+    
+    if (userDoc?.tenantId && userDoc?.tenantSlug && userDoc?.role) {
+      return {
+        tenantId: userDoc.tenantId,
+        tenantSlug: userDoc.tenantSlug,
+        tenantName: userDoc.tenantSlug, // Use slug as name fallback
+        role: userDoc.role,
+      };
+    }
+    
+    // Fallback: check tenant_users collection (signup flow)
     const tenantUsers = await FirestoreService.list<TenantUserDoc>(
       COLLECTIONS.TENANT_USERS,
       [where('userId', '==', userId), limit(1)]
