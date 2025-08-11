@@ -3,13 +3,19 @@ import { getAuth, signInWithRedirect, GoogleAuthProvider, getRedirectResult, sig
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyA543_XOxgTQTb50BDKGGR4gV0SQYIxwRE",
-  authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID || "venuine-519d3"}.firebaseapp.com`,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "venuine-519d3",
-  storageBucket: `${import.meta.env.VITE_FIREBASE_PROJECT_ID || "venuine-519d3"}.firebasestorage.app`,
+  apiKey: "AIzaSyA543_XOxgTQTb50BDKGGR4gV0SQYIxwRE",
+  authDomain: "venuine-519d3.firebaseapp.com",
+  projectId: "venuine-519d3",
+  storageBucket: "venuine-519d3.firebasestorage.app",
   messagingSenderId: "948784074321",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:948784074321:web:f1351c2b98de55b5e7b270",
+  appId: "1:948784074321:web:f1351c2b98de55b5e7b270",
 };
+
+// Debug configuration
+console.log('Firebase Config:', {
+  ...firebaseConfig,
+  apiKey: firebaseConfig.apiKey.substring(0, 10) + '...'
+});
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
