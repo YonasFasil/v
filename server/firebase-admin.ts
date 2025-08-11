@@ -1,20 +1,63 @@
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { initializeApp, getApps, cert, applicationDefault } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Initialize Firebase Admin SDK
 let app;
+
+// Create temporary service account file for Firebase Admin
+function createTempServiceAccountFile() {
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set');
+  }
+
+  const serviceAccountData = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+  
+  // Write to temporary file
+  const tempFilePath = path.join(process.cwd(), 'temp-service-account.json');
+  fs.writeFileSync(tempFilePath, JSON.stringify(serviceAccountData, null, 2));
+  
+  return { serviceAccountData, tempFilePath };
+}
+
 if (getApps().length === 0) {
-  // In development, we'll use the service account key
-  // In production, this will use the default credentials
   try {
-    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-      console.log('Service account key found, attempting to initialize Firebase Admin...');
+    console.log('Initializing Firebase Admin with service account file...');
+    const { serviceAccountData, tempFilePath } = createTempServiceAccountFile();
+    console.log('Service account file created, project_id:', serviceAccountData.project_id);
+    
+    // Set environment variable for Firebase Admin to find the service account
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = tempFilePath;
+    
+    app = initializeApp({
+      credential: applicationDefault(),
+      projectId: serviceAccountData.project_id,
+    });
+    
+    console.log('Firebase Admin initialized successfully with service account file');
+    
+    // Clean up temp file after successful initialization
+    setTimeout(() => {
+      try {
+        fs.unlinkSync(tempFilePath);
+        console.log('Temporary service account file cleaned up');
+      } catch (e) {
+        console.warn('Could not clean up temporary service account file:', e.message);
+      }
+    }, 1000);
+    
+  } catch (error) {
+    console.error('Failed to initialize Firebase Admin:', error);
+    
+    // Fallback: try with cert() method 
+    try {
+      console.log('Trying fallback cert() method...');
       const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-      console.log('Service account parsed, project_id:', serviceAccount.project_id);
       
-      // Fix private key formatting - replace escaped newlines with actual newlines
-      if (serviceAccount.private_key) {
+      // Ensure private key formatting
+      if (serviceAccount.private_key && !serviceAccount.private_key.includes('\n')) {
         serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
       }
       
@@ -22,26 +65,16 @@ if (getApps().length === 0) {
         credential: cert(serviceAccount),
         projectId: serviceAccount.project_id,
       });
-      console.log('Firebase Admin initialized successfully with service account');
-    } else {
-      console.log('No service account key found, using default credentials');
-      // Use default credentials (works in production)
-      app = initializeApp({
-        projectId: process.env.VITE_FIREBASE_PROJECT_ID,
-      });
+      
+      console.log('Firebase Admin initialized with fallback cert method');
+    } catch (fallbackError) {
+      console.error('Fallback also failed:', fallbackError);
+      throw fallbackError;
     }
-  } catch (error) {
-    console.error('Failed to initialize Firebase Admin:', error);
-    console.error('Error details:', JSON.stringify(error, null, 2));
-    
-    // Fallback to basic Firebase initialization for now
-    console.log('Falling back to basic Firebase initialization...');
-    app = initializeApp({
-      projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'venuine-519d3',
-    });
   }
 } else {
   app = getApps()[0];
+  console.log('Using existing Firebase Admin app');
 }
 
 export const adminDb = getFirestore(app);
