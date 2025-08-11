@@ -90,8 +90,8 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
   });
 
   // Find the events/bookings associated with this specific proposal
-  // For now, we'll match by customer ID and create timestamp to prevent mixing different proposals
   const relatedEvents = proposal ? bookings.filter((booking: any) => {
+    // First, check if this booking is for the same customer
     if (booking.customerId !== proposal.customerId) return false;
     
     // If booking has a proposalId, use exact match
@@ -99,14 +99,26 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
       return booking.proposalId === proposal.id;
     }
     
-    // Fallback: match by exact event name and similar timestamps (within 1 minute)
-    const proposalTime = new Date(proposal.createdAt).getTime();
-    const bookingTime = new Date(booking.createdAt).getTime();
-    const timeDiff = Math.abs(proposalTime - bookingTime);
+    // For proposals created from booking flow, match by proposal status and timing
+    if (booking.proposalStatus === 'sent' && booking.proposalSentAt) {
+      const proposalTime = proposal.sentAt ? new Date(proposal.sentAt).getTime() : new Date(proposal.createdAt).getTime();
+      const bookingProposalTime = new Date(booking.proposalSentAt).getTime();
+      const timeDiff = Math.abs(proposalTime - bookingProposalTime);
+      
+      // Match if sent within 2 minutes of each other
+      if (timeDiff < 120000) {
+        return true;
+      }
+    }
     
-    return booking.eventName === proposal.title && 
-           booking.proposalStatus === 'sent' && 
-           timeDiff < 60000; // Within 1 minute
+    return false;
+  }).flatMap((booking: any) => {
+    // Handle contract events (multiple events under one booking)
+    if (booking.contractEvents && booking.contractEvents.length > 0) {
+      return booking.contractEvents;
+    }
+    // Handle regular single events
+    return [booking];
   }) : [];
 
   // Get customer information
