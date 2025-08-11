@@ -1,142 +1,93 @@
 import type { Express } from "express";
-import { adminDb } from "../firebase-admin";
-import { z } from "zod";
-import { authenticateFirebase, type AuthenticatedRequest } from "../middleware/firebase-auth";
-import { randomUUID } from 'crypto';
-
-const createTenantSchema = z.object({
-  tenantName: z.string().min(2, "Business name must be at least 2 characters"),
-  tenantSlug: z.string()
-    .min(3, "Slug must be at least 3 characters")
-    .max(30, "Slug must be less than 30 characters")
-    .regex(/^[a-z0-9-]+$/, "Slug can only contain lowercase letters, numbers, and hyphens"),
-  industry: z.string().min(1, "Please select an industry"),
-  contactName: z.string().min(2, "Contact name must be at least 2 characters"),
-  contactEmail: z.string().email("Please enter a valid email address"),
-  businessPhone: z.string().min(10, "Please enter a valid phone number"),
-  businessAddress: z.string().min(10, "Please enter your business address"),
-  businessDescription: z.string().min(10, "Please describe your business in at least 10 characters"),
-  featurePackageSlug: z.string().min(1, "Please select a plan"),
-});
+import { storage } from "../storage";
+import { requireAuth } from "../middleware/auth";
+import { insertTenantSchema, insertTenantUserSchema } from "@shared/schema";
+import { randomUUID } from "crypto";
 
 export function registerOnboardingRoutes(app: Express) {
-  // POST /api/onboarding/create-tenant - Create a new tenant for the user
-  app.post('/api/onboarding/create-tenant', authenticateFirebase, async (req: AuthenticatedRequest, res) => {
+  // Create tenant during onboarding
+  app.post("/api/onboarding/create-tenant", requireAuth, async (req, res) => {
     try {
-      console.log('Received onboarding data:', JSON.stringify(req.body, null, 2));
-      console.log('User from request:', req.user);
-      
-      const validationResult = createTenantSchema.safeParse(req.body);
-      
-      if (!validationResult.success) {
-        console.log('Validation failed:', validationResult.error.errors);
+      const {
+        tenantName,
+        tenantSlug,
+        industry,
+        planId,
+        contactName,
+        contactEmail,
+        businessPhone,
+        businessAddress,
+        businessDescription,
+      } = req.body;
+
+      // Validate required fields
+      if (!tenantName || !tenantSlug || !planId) {
         return res.status(400).json({ 
-          message: 'Validation error',
-          errors: validationResult.error.errors 
+          message: 'Tenant name, slug, and plan are required.' 
         });
-      }
-
-      const { tenantName, tenantSlug, industry, contactName, contactEmail, businessPhone, businessAddress, businessDescription, featurePackageSlug } = validationResult.data;
-      const userUid = req.user?.uid;
-
-      if (!userUid) {
-        return res.status(401).json({ message: 'User authentication failed' });
-      }
-
-      // Check if user already has a tenant in Firestore
-      const existingUserDoc = await adminDb.collection('users').doc(userUid).get();
-      if (existingUserDoc.exists && existingUserDoc.data()?.tenantId) {
-        const tenantDoc = await adminDb.collection('tenants').doc(existingUserDoc.data()?.tenantId).get();
-        if (tenantDoc.exists) {
-          return res.status(409).json({ 
-            message: 'User already has a tenant',
-            tenantSlug: tenantDoc.data()?.slug 
-          });
-        }
       }
 
       // Check if slug is already taken
-      const tenantsSnapshot = await adminDb.collection('tenants').where('slug', '==', tenantSlug).get();
-      if (!tenantsSnapshot.empty) {
-        return res.status(409).json({ 
-          message: 'This URL is already taken. Please choose a different one.' 
+      const existingTenant = await storage.getTenantBySlug(tenantSlug);
+      if (existingTenant) {
+        return res.status(400).json({ 
+          message: 'Tenant slug is already taken. Please choose a different one.' 
         });
       }
 
-      // Get selected feature package
-      let selectedPlan;
-      if (featurePackageSlug) {
-        const packageSnapshot = await adminDb.collection('featurePackages').where('slug', '==', featurePackageSlug).get();
-        if (!packageSnapshot.empty) {
-          selectedPlan = packageSnapshot.docs[0].data();
-        }
-      }
-      
+      // Get the selected plan
+      const selectedPlan = await storage.getFeaturePackage(planId);
       if (!selectedPlan) {
         return res.status(400).json({ 
           message: 'Selected plan not found. Please choose a valid plan.' 
         });
       }
 
-      // Create tenant with clean environment
-      const tenantId = randomUUID();
-      const tenantData = {
-        id: tenantId,
+      // Create tenant
+      const tenantData = insertTenantSchema.parse({
         name: tenantName,
         slug: tenantSlug,
         industry: industry,
         planId: selectedPlan.id,
-        features: selectedPlan.features || {},
-        limits: selectedPlan.limits || { maxUsers: 3, maxVenues: 1, maxSpacesPerVenue: 5 },
         status: 'active',
         contactName: contactName,
         contactEmail: contactEmail,
         businessPhone: businessPhone,
         businessAddress: businessAddress,
         businessDescription: businessDescription,
-        ownerId: userUid,
-        userIds: [userUid],
-        stripeCustomerId: null, // Will be set when they upgrade
+        ownerId: req.user!.id,
+        stripeCustomerId: null,
         stripeSubscriptionId: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      });
 
-      await adminDb.collection('tenants').doc(tenantId).set(tenantData);
+      const tenant = await storage.createTenant(tenantData);
 
-      // Ensure user document exists, then update with tenant information
-      const userDocRef = adminDb.collection('users').doc(userUid);
-      const userDoc = await userDocRef.get();
-      
-      const userData = {
-        tenantId: tenantId,
-        tenantSlug: tenantSlug,
+      // Add user to tenant as owner
+      await storage.addUserToTenant(insertTenantUserSchema.parse({
+        tenantId: tenant.id,
+        userId: req.user!.id,
         role: 'owner',
-        updatedAt: new Date(),
-      };
-
-      if (userDoc.exists) {
-        // Update existing user document
-        await userDocRef.update(userData);
-      } else {
-        // Create user document if it doesn't exist
-        await userDocRef.set({
-          uid: userUid,
-          email: req.user?.email || '',
-          isSuperAdmin: false,
-          createdAt: new Date(),
-          ...userData,
-        });
-      }
+        permissions: {},
+      }));
 
       res.status(201).json({
         message: 'Tenant created successfully',
-        tenant: tenantData,
-        tenantSlug: tenantSlug,
+        tenant: {
+          id: tenant.id,
+          name: tenant.name,
+          slug: tenant.slug,
+          planId: tenant.planId,
+        },
       });
 
     } catch (error) {
       console.error('Error creating tenant:', error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
       res.status(500).json({ 
         message: 'Failed to create tenant. Please try again.' 
       });

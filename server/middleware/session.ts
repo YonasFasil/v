@@ -1,42 +1,21 @@
-import session from 'express-session';
-import connectPgSimple from 'connect-pg-simple';
-import { db } from '../db';
+import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import { pool } from "../db";
 
-if (!process.env.SESSION_SECRET) {
-  throw new Error('SESSION_SECRET environment variable must be set');
-}
-
-const pgSession = connectPgSimple(session);
+const PgSession = connectPgSimple(session);
 
 export const sessionMiddleware = session({
-  store: new pgSession({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: true,
-    tableName: 'sessions'
+  store: new PgSession({
+    pool: pool,
+    tableName: 'sessions',
+    createTableIfMissing: false,
   }),
-  secret: process.env.SESSION_SECRET,
+  secret: process.env.SESSION_SECRET || 'your-session-secret-change-in-production',
   resave: false,
   saveUninitialized: false,
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   },
 });
-
-// Extend Express Request type to include session with user data
-declare global {
-  namespace Express {
-    interface Request {
-      session: session.Session & {
-        userId?: string;
-        user?: {
-          id: string;
-          email: string;
-          firstName: string;
-          lastName: string;
-        };
-      };
-    }
-  }
-}

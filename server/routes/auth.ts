@@ -1,346 +1,237 @@
 import type { Express } from "express";
-import bcrypt from "bcrypt";
+import { storage } from "../storage";
+import { requireAuth, generateToken } from "../middleware/auth";
+import { insertUserSchema } from "@shared/schema";
 import crypto from "crypto";
-import { db } from "../db";
-import { users, tenants, tenantUsers } from "@shared/schema";
-import { eq, sql, and } from "drizzle-orm";
-import { EmailService } from "../services/email";
 
 export function registerAuthRoutes(app: Express) {
-  // POST /api/auth/signup - User registration
-  app.post('/api/auth/signup', async (req, res) => {
+  // Register endpoint
+  app.post("/api/auth/register", async (req, res) => {
     try {
-      const { firstName, lastName, email, password, companyName, planSlug } = req.body;
-
-      if (!firstName || !lastName || !email || !password || !companyName || !planSlug) {
-        return res.status(400).json({ message: 'All fields are required' });
-      }
+      const userData = insertUserSchema.parse({
+        ...req.body,
+        passwordHash: req.body.password, // Will be hashed in storage
+      });
 
       // Check if user already exists
-      const existingUser = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, email))
-        .limit(1);
-
-      if (existingUser.length > 0) {
-        return res.status(409).json({ message: 'User already exists' });
+      const existingUser = await storage.getUserByEmail(userData.email);
+      if (existingUser) {
+        return res.status(400).json({ message: "User already exists" });
       }
 
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 12);
-      
       // Generate email verification token
-      const verificationToken = crypto.randomBytes(32).toString('hex');
+      const emailVerificationToken = crypto.randomBytes(32).toString('hex');
 
       // Create user
-      const newUser = await db
-        .insert(users)
-        .values({
-          email,
-          password: hashedPassword,
-          firstName,
-          lastName,
-          emailVerified: false,
-          emailVerificationToken: verificationToken,
-        })
-        .returning();
+      const user = await storage.createUser({
+        ...userData,
+        emailVerificationToken,
+        emailVerified: false,
+      });
 
-      // Send verification email
-      try {
-        console.log('Attempting to send verification email to:', email);
-        await EmailService.sendVerificationEmail(email, verificationToken, firstName);
-        console.log('Verification email sent successfully to:', email);
-      } catch (emailError) {
-        console.error('Failed to send verification email:', emailError);
-        // Continue with signup even if email fails
-      }
+      // Generate token
+      const token = generateToken(user);
+
+      // Store user in session
+      req.session.user = {
+        id: user.id,
+        email: user.email,
+        isSuperAdmin: user.isSuperAdmin || false,
+      };
+
+      // Remove sensitive data from response
+      const { passwordHash, emailVerificationToken: _, ...userResponse } = user;
 
       res.status(201).json({
-        message: 'Account created successfully',
-        userId: newUser[0].id,
+        message: "User created successfully",
+        user: userResponse,
+        token,
       });
     } catch (error) {
-      console.error('Signup error:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      console.error("Register error:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to create user" });
     }
   });
 
-  // POST /api/auth/login - User authentication
-  app.post('/api/auth/login', async (req, res) => {
+  // Login endpoint
+  app.post("/api/auth/login", async (req, res) => {
     try {
       const { email, password } = req.body;
 
       if (!email || !password) {
-        return res.status(400).json({ message: 'Email and password are required' });
+        return res.status(400).json({ message: "Email and password are required" });
       }
 
-      // Find user using Drizzle ORM for proper type safety
-      const userResult = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, email))
-        .limit(1);
-
-      if (userResult.length === 0) {
-        return res.status(401).json({ message: 'Invalid credentials' });
+      // Verify user credentials
+      const user = await storage.verifyPassword(email, password);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      const foundUser = userResult[0];
+      // Generate token
+      const token = generateToken(user);
 
-      // Check password
-      const isValidPassword = await bcrypt.compare(password, foundUser.password || '');
-      if (!isValidPassword) {
-        return res.status(401).json({ message: 'Invalid credentials' });
-      }
-
-      // Check if email is verified
-      if (!foundUser.emailVerified) {
-        return res.status(403).json({ 
-          message: 'Please verify your email address before signing in',
-          emailVerificationRequired: true
-        });
-      }
-
-      // Check if user is super admin first
-      const superAdminCheck = await db.execute(sql`
-        SELECT user_id FROM super_admins WHERE user_id = ${foundUser.id}
-      `);
-      
-      const isSuperAdmin = superAdminCheck.rows.length > 0;
-      
-      // Create session with role information
-      (req.session as any).userId = foundUser.id;
-      (req.session as any).isSuperAdmin = isSuperAdmin;
-      (req.session as any).user = {
-        id: foundUser.id,
-        email: foundUser.email,
-        firstName: foundUser.firstName || '',
-        lastName: foundUser.lastName || '',
-        isSuperAdmin: isSuperAdmin,
+      // Store user in session
+      req.session.user = {
+        id: user.id,
+        email: user.email,
+        isSuperAdmin: user.isSuperAdmin || false,
       };
 
-      let tenantResult: { rows: any[] } = { rows: [] };
-      
-      // Only check for tenant if NOT a super admin
-      if (!isSuperAdmin) {
-        tenantResult = await db.execute(sql`
-          SELECT 
-            t.id, t.name, t.slug, t.status,
-            tu.role
-          FROM tenant_users tu
-          JOIN tenants t ON t.id = tu.tenant_id
-          WHERE tu.user_id = ${foundUser.id} AND t.status = 'active'
-          LIMIT 1
-        `);
-      }
+      // Remove sensitive data from response
+      const { passwordHash, ...userResponse } = user;
 
       res.json({
-        message: 'Login successful',
-        user: {
-          id: foundUser.id,
-          email: foundUser.email,
-          firstName: foundUser.firstName,
-          lastName: foundUser.lastName,
-          isSuperAdmin: isSuperAdmin,
-          // Super admins don't have tenant associations
-          currentTenant: !isSuperAdmin && tenantResult.rows.length > 0 ? {
-            id: tenantResult.rows[0].id,
-            name: tenantResult.rows[0].name,
-            slug: tenantResult.rows[0].slug,
-            status: tenantResult.rows[0].status,
-            role: tenantResult.rows[0].role,
-          } : null,
-        },
-        isSuperAdmin: isSuperAdmin,
-        hasTenant: !isSuperAdmin && tenantResult.rows.length > 0,
-        tenant: !isSuperAdmin && tenantResult.rows.length > 0 ? {
-          id: tenantResult.rows[0].id,
-          name: tenantResult.rows[0].name,
-          slug: tenantResult.rows[0].slug,
-          status: tenantResult.rows[0].status,
+        message: "Login successful",
+        user: userResponse,
+        token,
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  // Get current user endpoint
+  app.get("/api/auth/user", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Get user's primary tenant
+      const primaryTenant = await storage.getUserPrimaryTenant(user.id);
+
+      // Remove sensitive data from response
+      const { passwordHash, ...userResponse } = user;
+
+      res.json({
+        ...userResponse,
+        currentTenant: primaryTenant ? {
+          id: primaryTenant.tenant.id,
+          slug: primaryTenant.tenant.slug,
+          name: primaryTenant.tenant.name,
+          role: primaryTenant.role,
         } : null,
       });
     } catch (error) {
-      console.error('Login error:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      console.error("Get user error:", error);
+      res.status(500).json({ message: "Failed to get user" });
     }
   });
 
-  // POST /api/auth/logout - User logout
-  app.post('/api/auth/logout', (req, res) => {
+  // Logout endpoint
+  app.post("/api/auth/logout", (req, res) => {
     req.session.destroy((err) => {
       if (err) {
-        console.error('Logout error:', err);
-        return res.status(500).json({ message: 'Error logging out' });
+        return res.status(500).json({ message: "Logout failed" });
       }
-      res.clearCookie('connect.sid');
-      console.log('User logout request from:', (req.session as any)?.userId);
-      res.json({ message: 'Logged out successfully' });
+      res.json({ message: "Logout successful" });
     });
   });
 
-  // GET /api/auth/me - Get current user with unified session structure
-  app.get('/api/auth/me', async (req, res) => {
-    if (!(req.session as any).userId) {
-      return res.status(401).json({ message: 'Not authenticated' });
-    }
-
+  // Email verification endpoint
+  app.post("/api/auth/verify-email", async (req, res) => {
     try {
-      const userId = (req.session as any).userId;
-      
-      // Get user data
-      const userResult = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, userId))
-        .limit(1);
-
-      if (userResult.length === 0) {
-        req.session.destroy(() => {});
-        return res.status(401).json({ message: 'User no longer exists' });
-      }
-
-      const user = userResult[0];
-
-      // Check super admin status
-      const superAdminCheck = await db.execute(sql`
-        SELECT user_id FROM super_admins WHERE user_id = ${(req.session as any).userId}
-      `);
-      
-      const isSuperAdmin = superAdminCheck.rows.length > 0;
-      
-      // Update session with current super admin status
-      (req.session as any).isSuperAdmin = isSuperAdmin;
-      (req.session as any).user.isSuperAdmin = isSuperAdmin;
-
-      // Get tenant information for regular users only
-      let currentTenant = null;
-      if (!isSuperAdmin) {
-        const tenantResult = await db.execute(sql`
-          SELECT 
-            t.id, t.name, t.slug, t.status,
-            tu.role
-          FROM tenant_users tu
-          JOIN tenants t ON t.id = tu.tenant_id
-          WHERE tu.user_id = ${userId} AND t.status = 'active'
-          LIMIT 1
-        `);
-
-        if (tenantResult.rows.length > 0) {
-          currentTenant = {
-            id: tenantResult.rows[0].id,
-            name: tenantResult.rows[0].name,
-            slug: tenantResult.rows[0].slug,
-            status: tenantResult.rows[0].status,
-            role: tenantResult.rows[0].role,
-          };
-        }
-      }
-
-      res.json({
-        user: {
-          ...(req.session as any).user,
-          isSuperAdmin: isSuperAdmin,
-          currentTenant: currentTenant,
-        },
-      });
-    } catch (error) {
-      console.error('Error checking user status:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  });
-
-  // GET /api/auth/verify-email - Email verification
-  app.get('/api/auth/verify-email', async (req, res) => {
-    try {
-      const { token } = req.query;
+      const { token } = req.body;
 
       if (!token) {
-        return res.status(400).json({ message: 'Verification token is required' });
+        return res.status(400).json({ message: "Verification token is required" });
       }
 
-      // Find user with token
-      const user = await db
-        .select()
-        .from(users)
-        .where(eq(users.emailVerificationToken, token as string))
-        .limit(1);
+      // Find user by verification token
+      const users = await storage.getUsers(); // We need to implement this
+      const user = users.find(u => u.emailVerificationToken === token);
 
-      if (user.length === 0) {
-        return res.status(400).json({ message: 'Invalid or expired verification token' });
+      if (!user) {
+        return res.status(400).json({ message: "Invalid or expired verification token" });
       }
 
       // Update user as verified
-      await db
-        .update(users)
-        .set({
-          emailVerified: true,
-          emailVerificationToken: null,
-          updatedAt: new Date(),
-        })
-        .where(eq(users.id, user[0].id));
+      await storage.updateUser(user.id, {
+        emailVerified: true,
+        emailVerificationToken: null,
+      });
 
-      res.json({ message: 'Email verified successfully' });
+      res.json({ message: "Email verified successfully" });
     } catch (error) {
-      console.error('Email verification error:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      console.error("Email verification error:", error);
+      res.status(500).json({ message: "Email verification failed" });
     }
   });
 
-  // POST /api/auth/resend-verification - Resend verification email
-  app.post('/api/auth/resend-verification', async (req, res) => {
+  // Password reset request endpoint
+  app.post("/api/auth/forgot-password", async (req, res) => {
     try {
       const { email } = req.body;
 
       if (!email) {
-        return res.status(400).json({ message: 'Email is required' });
+        return res.status(400).json({ message: "Email is required" });
       }
 
-      // Find user with this email
-      const user = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, email))
-        .limit(1);
-
-      if (user.length === 0) {
-        return res.status(404).json({ message: 'User not found' });
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        // Don't reveal if email exists for security
+        return res.json({ message: "If an account with that email exists, you will receive a password reset email." });
       }
 
-      const foundUser = user[0];
+      // Generate reset token
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-      // Check if user is already verified
-      if (foundUser.emailVerified) {
-        return res.status(400).json({ message: 'Email is already verified' });
-      }
+      await storage.updateUser(user.id, {
+        passwordResetToken: resetToken,
+        passwordResetExpires: resetExpires,
+      });
 
-      // Generate new verification token
-      const verificationToken = crypto.randomBytes(32).toString('hex');
-
-      // Update user with new token
-      await db
-        .update(users)
-        .set({
-          emailVerificationToken: verificationToken,
-          updatedAt: new Date(),
-        })
-        .where(eq(users.id, foundUser.id));
-
-      // Send verification email
-      try {
-        console.log('Resending verification email to:', email);
-        await EmailService.sendVerificationEmail(email, verificationToken, foundUser.firstName || '');
-        console.log('Verification email resent successfully to:', email);
-      } catch (emailError) {
-        console.error('Failed to resend verification email:', emailError);
-        return res.status(500).json({ message: 'Failed to send verification email' });
-      }
-
-      res.json({ message: 'Verification email sent successfully' });
+      // TODO: Send email with reset token
+      
+      res.json({ message: "If an account with that email exists, you will receive a password reset email." });
     } catch (error) {
-      console.error('Resend verification error:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      console.error("Password reset request error:", error);
+      res.status(500).json({ message: "Failed to process password reset request" });
+    }
+  });
+
+  // Password reset endpoint
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { token, password } = req.body;
+
+      if (!token || !password) {
+        return res.status(400).json({ message: "Token and password are required" });
+      }
+
+      // Find user by reset token
+      const users = await storage.getUsers(); // We need to implement this
+      const user = users.find(u => 
+        u.passwordResetToken === token && 
+        u.passwordResetExpires && 
+        u.passwordResetExpires > new Date()
+      );
+
+      if (!user) {
+        return res.status(400).json({ message: "Invalid or expired reset token" });
+      }
+
+      // Update password and clear reset token
+      await storage.updateUser(user.id, {
+        passwordHash: password, // Will be hashed in storage
+        passwordResetToken: null,
+        passwordResetExpires: null,
+      });
+
+      res.json({ message: "Password reset successfully" });
+    } catch (error) {
+      console.error("Password reset error:", error);
+      res.status(500).json({ message: "Password reset failed" });
     }
   });
 }
