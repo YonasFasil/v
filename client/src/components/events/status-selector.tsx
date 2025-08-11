@@ -40,16 +40,8 @@ export function StatusSelector({
     );
   }
 
-  // Determine available statuses
-  const availableStatuses = showAllStatuses 
-    ? getAllStatuses()
-    : [
-        { value: currentStatus as EventStatus, label: statusConfig.label, description: statusConfig.description },
-        ...getNextStatuses(currentStatus as EventStatus).map(status => {
-          const config = getStatusConfig(status);
-          return { value: status, label: config.label, description: config.description };
-        })
-      ];
+  // Determine available statuses - show all statuses for easy selection in modal
+  const availableStatuses = getAllStatuses();
 
   return (
     <Select
