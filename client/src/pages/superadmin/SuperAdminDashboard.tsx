@@ -71,6 +71,7 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
   const [isCreatePackageOpen, setIsCreatePackageOpen] = useState(false);
   const [isEditPackageOpen, setIsEditPackageOpen] = useState(false);
   const [editingPackage, setEditingPackage] = useState<any>(null);
+  const [, setLocation] = useLocation();
   
   const generateSlug = (name: string) => {
     return name
@@ -94,7 +95,7 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
         title: "Logged out successfully",
         description: "You have been logged out of the superadmin console.",
       });
-      window.location.href = "/login";
+      setLocation("/auth/login");
     } catch (error: any) {
       toast({
         title: "Logout failed", 
@@ -238,6 +239,8 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
       deletePackageMutation.mutate(pkg.id);
     }
   };
+
+
 
   const getStatusBadge = (status: string) => {
     const variants = {

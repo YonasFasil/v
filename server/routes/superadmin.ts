@@ -1,11 +1,11 @@
 import type { Express } from "express";
 import { storage } from "../storage";
-import { requireSuperAdmin } from "../middleware/auth";
+import { requireAuth, requireSuperAdmin } from "../middleware/auth";
 import { insertFeaturePackageSchema } from "@shared/schema";
 
 export function registerSuperAdminRoutes(app: Express) {
   // Get all users with tenant information
-  app.get("/api/admin/users", requireSuperAdmin, async (req, res) => {
+  app.get("/api/admin/users", requireAuth, requireSuperAdmin, async (req, res) => {
     try {
       const users = await storage.getUsers();
       const usersWithTenants = await Promise.all(
@@ -35,7 +35,7 @@ export function registerSuperAdminRoutes(app: Express) {
   });
 
   // Delete user
-  app.delete("/api/admin/users/:userId", requireSuperAdmin, async (req, res) => {
+  app.delete("/api/admin/users/:userId", requireAuth, requireSuperAdmin, async (req, res) => {
     try {
       const { userId } = req.params;
       
@@ -58,7 +58,7 @@ export function registerSuperAdminRoutes(app: Express) {
   });
 
   // Get all tenants with owner information
-  app.get("/api/admin/tenants", requireSuperAdmin, async (req, res) => {
+  app.get("/api/admin/tenants", requireAuth, requireSuperAdmin, async (req, res) => {
     try {
       // This would need to be implemented in storage
       const tenants = await storage.getAllTenantsWithOwners();
@@ -70,7 +70,7 @@ export function registerSuperAdminRoutes(app: Express) {
   });
 
   // Delete tenant
-  app.delete("/api/admin/tenants/:tenantId", requireSuperAdmin, async (req, res) => {
+  app.delete("/api/admin/tenants/:tenantId", requireAuth, requireSuperAdmin, async (req, res) => {
     try {
       const { tenantId } = req.params;
       await storage.deleteTenant(tenantId);
@@ -82,7 +82,7 @@ export function registerSuperAdminRoutes(app: Express) {
   });
 
   // Get feature packages
-  app.get("/api/admin/packages", requireSuperAdmin, async (req, res) => {
+  app.get("/api/admin/packages", requireAuth, requireSuperAdmin, async (req, res) => {
     try {
       const packages = await storage.getFeaturePackages();
       res.json(packages);
@@ -93,7 +93,7 @@ export function registerSuperAdminRoutes(app: Express) {
   });
 
   // Create feature package
-  app.post("/api/admin/packages", requireSuperAdmin, async (req, res) => {
+  app.post("/api/admin/packages", requireAuth, requireSuperAdmin, async (req, res) => {
     try {
       const packageData = insertFeaturePackageSchema.parse(req.body);
       const newPackage = await storage.createFeaturePackage(packageData);
@@ -111,7 +111,7 @@ export function registerSuperAdminRoutes(app: Express) {
   });
 
   // Update feature package
-  app.patch("/api/admin/packages/:packageId", requireSuperAdmin, async (req, res) => {
+  app.patch("/api/admin/packages/:packageId", requireAuth, requireSuperAdmin, async (req, res) => {
     try {
       const { packageId } = req.params;
       const updates = req.body;
