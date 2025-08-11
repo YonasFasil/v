@@ -140,18 +140,45 @@ export function getStatusColor(status: EventStatus | string): string {
 }
 
 // Get status label
-export function getStatusLabel(status: EventStatus): string {
-  return STATUS_CONFIGS[status].label;
+export function getStatusLabel(status: EventStatus | string): string {
+  // Handle legacy statuses by mapping them to new ones
+  const statusMap: Record<string, EventStatus> = {
+    'confirmed': 'tentative',
+    'pending': 'inquiry',
+    'completed': 'completed',
+    'cancelled': 'cancelled_refunded'
+  };
+  
+  const mappedStatus = statusMap[status] || status as EventStatus;
+  return STATUS_CONFIGS[mappedStatus]?.label || status.toString();
 }
 
 // Get next possible statuses
-export function getNextStatuses(currentStatus: EventStatus): EventStatus[] {
-  return STATUS_CONFIGS[currentStatus].nextStatuses;
+export function getNextStatuses(currentStatus: EventStatus | string): EventStatus[] {
+  // Handle legacy statuses by mapping them to new ones
+  const statusMap: Record<string, EventStatus> = {
+    'confirmed': 'tentative',
+    'pending': 'inquiry',
+    'completed': 'completed',
+    'cancelled': 'cancelled_refunded'
+  };
+  
+  const mappedStatus = statusMap[currentStatus] || currentStatus as EventStatus;
+  return STATUS_CONFIGS[mappedStatus]?.nextStatuses || [];
 }
 
 // Check if status can be edited
-export function canEditStatus(status: EventStatus): boolean {
-  return STATUS_CONFIGS[status].canEdit;
+export function canEditStatus(status: EventStatus | string): boolean {
+  // Handle legacy statuses by mapping them to new ones
+  const statusMap: Record<string, EventStatus> = {
+    'confirmed': 'tentative',
+    'pending': 'inquiry',
+    'completed': 'completed',
+    'cancelled': 'cancelled_refunded'
+  };
+  
+  const mappedStatus = statusMap[status] || status as EventStatus;
+  return STATUS_CONFIGS[mappedStatus]?.canEdit ?? true; // Default to true if status not found
 }
 
 // Check if event is completed
