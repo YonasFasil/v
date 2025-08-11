@@ -33,7 +33,7 @@ export function StatusSelector({
   if (readonly || !canEditStatus(currentStatus as EventStatus)) {
     return (
       <Badge 
-        className={`${statusConfig.bgColor} ${statusConfig.textColor} ${statusConfig.borderColor} border`}
+        className={`${statusConfig.bgColor} ${statusConfig.textColor} ${statusConfig.borderColor} border text-sm px-3 py-1`}
       >
         {statusConfig.label}
       </Badge>
@@ -56,10 +56,10 @@ export function StatusSelector({
       value={currentStatus}
       onValueChange={(value) => onStatusChange?.(value as EventStatus)}
     >
-      <SelectTrigger className="w-fit">
+      <SelectTrigger className="w-fit min-w-32 h-9">
         <SelectValue>
           <Badge 
-            className={`${statusConfig.bgColor} ${statusConfig.textColor} ${statusConfig.borderColor} border`}
+            className={`${statusConfig.bgColor} ${statusConfig.textColor} ${statusConfig.borderColor} border text-sm px-3 py-1`}
           >
             {statusConfig.label}
           </Badge>
