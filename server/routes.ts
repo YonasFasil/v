@@ -4415,6 +4415,246 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     }
   });
 
+  // Authentication Routes for Tenants
+  app.post("/api/auth/tenant-login", async (req, res) => {
+    try {
+      const { email, password, subdomain } = req.body;
+      
+      // Find user by email
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      
+      // Verify password (in production, this should be hashed)
+      if (user.password !== password) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      
+      // Check if user belongs to a tenant
+      if (!user.tenantId) {
+        return res.status(401).json({ message: "User is not associated with a tenant account" });
+      }
+      
+      // Get tenant information
+      const tenant = await storage.getTenant(user.tenantId);
+      if (!tenant || !tenant.isActive) {
+        return res.status(401).json({ message: "Tenant account is inactive or not found" });
+      }
+      
+      // If subdomain is provided, verify it matches
+      if (subdomain && tenant.subdomain !== subdomain) {
+        return res.status(401).json({ message: "Invalid subdomain for this account" });
+      }
+      
+      // Update last login
+      await storage.updateUser(user.id, { lastLoginAt: new Date() });
+      
+      // Store user session
+      (req.session as any).user = {
+        id: user.id,
+        tenantId: user.tenantId,
+        role: user.role,
+        name: user.name,
+        email: user.email
+      };
+      
+      res.json({
+        message: "Login successful",
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          tenantId: user.tenantId
+        },
+        tenant: {
+          id: tenant.id,
+          name: tenant.name,
+          subdomain: tenant.subdomain
+        },
+        tenantName: tenant.name
+      });
+    } catch (error) {
+      console.error("Tenant login error:", error);
+      res.status(500).json({ message: "Server error during login" });
+    }
+  });
+
+  app.post("/api/auth/tenant-register", async (req, res) => {
+    try {
+      const {
+        companyName,
+        subdomain,
+        businessEmail,
+        businessPhone,
+        address,
+        adminName,
+        adminEmail,
+        adminPassword,
+        packageId
+      } = req.body;
+      
+      // Check if subdomain is already taken
+      const existingTenant = await storage.getTenantBySubdomain(subdomain);
+      if (existingTenant) {
+        return res.status(400).json({ message: "Subdomain is already taken" });
+      }
+      
+      // Check if admin email is already taken
+      const existingUser = await storage.getUserByEmail(adminEmail);
+      if (existingUser) {
+        return res.status(400).json({ message: "Admin email is already registered" });
+      }
+      
+      // Verify package exists
+      const packageData = await storage.getSubscriptionPackage(packageId);
+      if (!packageData) {
+        return res.status(400).json({ message: "Invalid subscription package" });
+      }
+      
+      // Create tenant
+      const tenant = await storage.createTenant({
+        name: companyName,
+        subdomain,
+        businessEmail,
+        businessPhone,
+        address,
+        packageId,
+        plan: packageData.name.toLowerCase(),
+        isActive: false, // Requires approval
+      });
+      
+      // Create admin user
+      const adminUser = await storage.createUser({
+        tenantId: tenant.id,
+        username: adminEmail, // Use email as username
+        password: adminPassword, // In production, this should be hashed
+        name: adminName,
+        email: adminEmail,
+        role: "tenant_admin",
+        isActive: true,
+      });
+      
+      // Log the registration for approval workflow
+      await storage.createAuditLog({
+        userId: null,
+        tenantId: tenant.id,
+        action: "tenant_registration",
+        entityType: "tenant",
+        entityId: tenant.id,
+        details: JSON.stringify({
+          companyName,
+          subdomain,
+          packageId,
+          adminEmail
+        }),
+        ipAddress: req.ip || 'unknown'
+      });
+      
+      res.json({
+        message: "Registration successful! Your account is pending approval.",
+        tenant: {
+          id: tenant.id,
+          name: tenant.name,
+          subdomain: tenant.subdomain
+        }
+      });
+    } catch (error) {
+      console.error("Tenant registration error:", error);
+      res.status(500).json({ message: "Server error during registration" });
+    }
+  });
+
+  app.get("/api/subscription-packages/public", async (req, res) => {
+    try {
+      const packages = await storage.getSubscriptionPackages();
+      // Return only active packages for public registration
+      const publicPackages = packages
+        .filter(pkg => pkg.isActive)
+        .map(pkg => ({
+          id: pkg.id,
+          name: pkg.name,
+          description: pkg.description,
+          price: pkg.price,
+          billingInterval: pkg.billingInterval,
+          isPopular: pkg.isPopular,
+          features: pkg.features
+        }));
+      res.json(publicPackages);
+    } catch (error) {
+      console.error("Failed to fetch public packages:", error);
+      res.status(500).json({ message: "Failed to fetch packages" });
+    }
+  });
+
+  app.post("/api/auth/logout", async (req, res) => {
+    try {
+      req.session.destroy((err) => {
+        if (err) {
+          console.error("Session destruction error:", err);
+          return res.status(500).json({ message: "Logout failed" });
+        }
+        res.clearCookie('connect.sid');
+        res.json({ message: "Logout successful" });
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+      res.status(500).json({ message: "Server error during logout" });
+    }
+  });
+
+  app.get("/api/auth/session", async (req, res) => {
+    try {
+      const user = (req.session as any)?.user;
+      if (!user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      // Get fresh tenant data
+      const tenant = await storage.getTenant(user.tenantId);
+      
+      res.json({
+        user,
+        tenant: tenant ? {
+          id: tenant.id,
+          name: tenant.name,
+          subdomain: tenant.subdomain,
+          isActive: tenant.isActive
+        } : null
+      });
+    } catch (error) {
+      console.error("Session check error:", error);
+      res.status(500).json({ message: "Server error checking session" });
+    }
+  });
+
+  // Development endpoint to activate tenants for testing  
+  app.patch("/api/dev/activate-tenant/:tenantId", async (req, res) => {
+    try {
+      const { tenantId } = req.params;
+      console.log(`Attempting to activate tenant: ${tenantId}`);
+      
+      const existingTenant = await storage.getTenant(tenantId);
+      if (!existingTenant) {
+        console.log(`Tenant not found: ${tenantId}`);
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+      
+      console.log(`Current tenant status: ${existingTenant.isActive}`);
+      const updatedTenant = await storage.updateTenant(tenantId, { isActive: true });
+      console.log(`Updated tenant status: ${updatedTenant?.isActive}`);
+      
+      res.json({ 
+        message: "Tenant activated successfully", 
+        tenant: updatedTenant 
+      });
+    } catch (error) {
+      console.error("Error activating tenant:", error);
+      res.status(500).json({ message: "Failed to activate tenant" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

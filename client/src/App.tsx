@@ -25,6 +25,9 @@ import ApprovalCenter from "@/pages/admin/approval-center";
 import AuditLogs from "@/pages/admin/audit-logs";
 import SubscriptionPackages from "@/pages/admin/subscription-packages";
 import DevAdmin from "@/pages/dev-admin";
+import TenantLogin from "@/pages/tenant-login";
+import TenantRegister from "@/pages/tenant-register";
+import TenantRegistrationSuccess from "@/pages/tenant-registration-success";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -51,6 +54,9 @@ function Router() {
       <Route path="/admin/audit" component={AuditLogs} />
       <Route path="/admin/packages" component={SubscriptionPackages} />
       <Route path="/dev-admin" component={DevAdmin} />
+      <Route path="/tenant-login" component={TenantLogin} />
+      <Route path="/tenant-register" component={TenantRegister} />
+      <Route path="/tenant-registration-success" component={TenantRegistrationSuccess} />
       <Route component={NotFound} />
     </Switch>
   );
