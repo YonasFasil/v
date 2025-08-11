@@ -135,8 +135,11 @@ export default function Onboarding() {
 
   const createTenantMutation = useMutation({
     mutationFn: async (data: TenantSetupData) => {
+      console.log('Sending tenant creation data:', data);
       const response = await apiRequest("POST", "/api/onboarding/create-tenant", data);
-      return response.json();
+      const result = await response.json();
+      console.log('Server response:', result);
+      return result;
     },
     onSuccess: async (data) => {
       // Update user's Firestore record with tenant information

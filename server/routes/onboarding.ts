@@ -23,9 +23,13 @@ export function registerOnboardingRoutes(app: Express) {
   // POST /api/onboarding/create-tenant - Create a new tenant for the user
   app.post('/api/onboarding/create-tenant', authenticateFirebase, async (req: AuthenticatedRequest, res) => {
     try {
+      console.log('Received onboarding data:', JSON.stringify(req.body, null, 2));
+      console.log('User from request:', req.user);
+      
       const validationResult = createTenantSchema.safeParse(req.body);
       
       if (!validationResult.success) {
+        console.log('Validation failed:', validationResult.error.errors);
         return res.status(400).json({ 
           message: 'Validation error',
           errors: validationResult.error.errors 
