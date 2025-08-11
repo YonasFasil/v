@@ -53,6 +53,7 @@ const adminItems = [
   { name: "Role Permissions", href: "/admin/roles", icon: Shield },
   { name: "Approval Center", href: "/admin/approvals", icon: UserCheck },
   { name: "Audit Logs", href: "/admin/audit", icon: Activity },
+  { name: "Email Settings", href: "/admin/email-settings", icon: Mail },
 ];
 
 interface SidebarProps {

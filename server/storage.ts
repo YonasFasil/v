@@ -27,6 +27,7 @@ import {
   type ApprovalRequest, type InsertApprovalRequest,
   type UserSession, type InsertUserSession,
   type SubscriptionPackage, type InsertSubscriptionPackage,
+  type EmailSetting, type InsertEmailSetting,
   type RoleType
 } from "@shared/schema";
 
@@ -245,6 +246,15 @@ export interface IStorage {
   updateSubscriptionPackage(id: string, packageData: Partial<InsertSubscriptionPackage>): Promise<SubscriptionPackage | undefined>;
   deleteSubscriptionPackage(id: string): Promise<boolean>;
 
+  // Email Settings (Super Admin only)
+  getEmailSettings(): Promise<EmailSetting[]>;
+  getEmailSetting(id: string): Promise<EmailSetting | undefined>;
+  getDefaultEmailSetting(): Promise<EmailSetting | undefined>;
+  createEmailSetting(setting: InsertEmailSetting): Promise<EmailSetting>;
+  updateEmailSetting(id: string, setting: Partial<InsertEmailSetting>): Promise<EmailSetting | undefined>;
+  deleteEmailSetting(id: string): Promise<boolean>;
+  setDefaultEmailSetting(id: string): Promise<void>;
+
   // Additional CRUD operations  
   deleteCustomer(id: string): Promise<boolean>;
   updateVenue(id: string, venueData: Partial<Venue>): Promise<Venue | null>;
@@ -277,6 +287,7 @@ export class MemStorage implements IStorage {
   private approvalRequests: Map<string, ApprovalRequest>;
   private userSessions: Map<string, UserSession>;
   private subscriptionPackages: Map<string, SubscriptionPackage>;
+  private emailSettings: Map<string, EmailSetting>;
   
   // Lead Management Maps
   private campaignSources: Map<string, CampaignSource>;
@@ -313,6 +324,7 @@ export class MemStorage implements IStorage {
     this.approvalRequests = new Map();
     this.userSessions = new Map();
     this.subscriptionPackages = new Map();
+    this.emailSettings = new Map();
     
     // Lead Management initialization
     this.campaignSources = new Map();
@@ -2056,6 +2068,78 @@ export class MemStorage implements IStorage {
 
   async deleteSubscriptionPackage(id: string): Promise<boolean> {
     return this.subscriptionPackages.delete(id);
+  }
+
+  // Email Settings Implementation
+  async getEmailSettings(): Promise<EmailSetting[]> {
+    return Array.from(this.emailSettings.values());
+  }
+
+  async getEmailSetting(id: string): Promise<EmailSetting | undefined> {
+    return this.emailSettings.get(id);
+  }
+
+  async getDefaultEmailSetting(): Promise<EmailSetting | undefined> {
+    return Array.from(this.emailSettings.values()).find(setting => setting.isDefault);
+  }
+
+  async createEmailSetting(settingData: InsertEmailSetting): Promise<EmailSetting> {
+    const newSetting: EmailSetting = {
+      id: randomUUID(),
+      ...settingData,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    // If this is set as default, unset all other defaults
+    if (newSetting.isDefault) {
+      for (const [id, existing] of this.emailSettings) {
+        if (existing.isDefault) {
+          this.emailSettings.set(id, { ...existing, isDefault: false, updatedAt: new Date() });
+        }
+      }
+    }
+    
+    this.emailSettings.set(newSetting.id, newSetting);
+    return newSetting;
+  }
+
+  async updateEmailSetting(id: string, settingData: Partial<InsertEmailSetting>): Promise<EmailSetting | undefined> {
+    const existing = this.emailSettings.get(id);
+    if (!existing) return undefined;
+    
+    const updated = { ...existing, ...settingData, updatedAt: new Date() };
+    
+    // If this is being set as default, unset all other defaults
+    if (settingData.isDefault) {
+      for (const [existingId, existingSetting] of this.emailSettings) {
+        if (existingId !== id && existingSetting.isDefault) {
+          this.emailSettings.set(existingId, { ...existingSetting, isDefault: false, updatedAt: new Date() });
+        }
+      }
+    }
+    
+    this.emailSettings.set(id, updated);
+    return updated;
+  }
+
+  async deleteEmailSetting(id: string): Promise<boolean> {
+    return this.emailSettings.delete(id);
+  }
+
+  async setDefaultEmailSetting(id: string): Promise<void> {
+    // Unset all defaults
+    for (const [existingId, existing] of this.emailSettings) {
+      if (existing.isDefault) {
+        this.emailSettings.set(existingId, { ...existing, isDefault: false, updatedAt: new Date() });
+      }
+    }
+    
+    // Set the specified one as default
+    const setting = this.emailSettings.get(id);
+    if (setting) {
+      this.emailSettings.set(id, { ...setting, isDefault: true, updatedAt: new Date() });
+    }
   }
 
   // Multi-tenant and Role-based Method Implementations

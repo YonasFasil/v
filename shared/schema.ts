@@ -466,6 +466,26 @@ export const userSessions = pgTable("user_sessions", {
   lastAccessedAt: timestamp("last_accessed_at").defaultNow(),
 });
 
+// Email configuration for system notifications
+export const emailSettings = pgTable("email_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  provider: text("provider").notNull().default("gmail"), // gmail, smtp, sendgrid
+  smtpHost: text("smtp_host"),
+  smtpPort: integer("smtp_port"),
+  smtpSecure: boolean("smtp_secure").default(true),
+  username: text("username").notNull(), // Gmail email address
+  password: text("password").notNull(), // App password or encrypted password
+  fromName: text("from_name").notNull().default("VENUIN Platform"),
+  fromEmail: text("from_email").notNull(),
+  replyToEmail: text("reply_to_email"),
+  isActive: boolean("is_active").default(true),
+  isDefault: boolean("is_default").default(true),
+  testEmailSent: boolean("test_email_sent").default(false),
+  lastTestAt: timestamp("last_test_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertTenantSchema = createInsertSchema(tenants).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true, lastLoginAt: true });
@@ -479,6 +499,7 @@ export const insertAuditLogSchema = createInsertSchema(auditLog).omit({ id: true
 export const insertApprovalRequestSchema = createInsertSchema(approvalRequests).omit({ id: true, createdAt: true, approvedAt: true, rejectedAt: true });
 export const insertUserSessionSchema = createInsertSchema(userSessions).omit({ id: true, createdAt: true, lastAccessedAt: true });
 export const insertSubscriptionPackageSchema = createInsertSchema(subscriptionPackages).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertEmailSettingSchema = createInsertSchema(emailSettings).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertBookingSchema = createInsertSchema(bookings, {
   eventDate: z.union([z.string(), z.date()]).transform((val) => 
     typeof val === 'string' ? new Date(val) : val
@@ -541,6 +562,8 @@ export type UserSession = typeof userSessions.$inferSelect;
 export type InsertUserSession = z.infer<typeof insertUserSessionSchema>;
 export type SubscriptionPackage = typeof subscriptionPackages.$inferSelect;
 export type InsertSubscriptionPackage = z.infer<typeof insertSubscriptionPackageSchema>;
+export type EmailSetting = typeof emailSettings.$inferSelect;
+export type InsertEmailSetting = z.infer<typeof insertEmailSettingSchema>;
 
 // Core Business Types
 export type Venue = typeof venues.$inferSelect;

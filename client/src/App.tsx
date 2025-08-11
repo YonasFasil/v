@@ -24,6 +24,7 @@ import RolePermissions from "@/pages/admin/role-permissions";
 import ApprovalCenter from "@/pages/admin/approval-center";
 import AuditLogs from "@/pages/admin/audit-logs";
 import SubscriptionPackages from "@/pages/admin/subscription-packages";
+import EmailSettings from "@/pages/admin/email-settings";
 import DevAdmin from "@/pages/dev-admin";
 import TenantLogin from "@/pages/tenant-login";
 import TenantRegister from "@/pages/tenant-register";
@@ -53,6 +54,7 @@ function Router() {
       <Route path="/admin/approvals" component={ApprovalCenter} />
       <Route path="/admin/audit" component={AuditLogs} />
       <Route path="/admin/packages" component={SubscriptionPackages} />
+      <Route path="/admin/email-settings" component={EmailSettings} />
       <Route path="/dev-admin" component={DevAdmin} />
       <Route path="/tenant-login" component={TenantLogin} />
       <Route path="/tenant-register" component={TenantRegister} />

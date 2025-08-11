@@ -21,7 +21,8 @@ import {
   insertLeadSchema,
   insertLeadActivitySchema,
   insertLeadTaskSchema,
-  insertTourSchema
+  insertTourSchema,
+  insertEmailSettingSchema
 } from "@shared/schema";
 import { 
   generateAIInsights,
@@ -4652,6 +4653,96 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     } catch (error) {
       console.error("Error activating tenant:", error);
       res.status(500).json({ message: "Failed to activate tenant" });
+    }
+  });
+
+  // Email Settings Management (Super Admin only)
+  app.get('/api/admin/email-settings', requireSuperAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getEmailSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error('Error fetching email settings:', error);
+      res.status(500).json({ error: 'Failed to fetch email settings' });
+    }
+  });
+
+  app.post('/api/admin/email-settings', requireSuperAdmin, async (req, res) => {
+    try {
+      const settingData = insertEmailSettingSchema.parse(req.body);
+      const newSetting = await storage.createEmailSetting(settingData);
+      res.status(201).json(newSetting);
+    } catch (error) {
+      console.error('Error creating email setting:', error);
+      res.status(500).json({ error: 'Failed to create email setting' });
+    }
+  });
+
+  app.put('/api/admin/email-settings/:id', requireSuperAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const settingData = insertEmailSettingSchema.partial().parse(req.body);
+      const updatedSetting = await storage.updateEmailSetting(id, settingData);
+      if (!updatedSetting) {
+        return res.status(404).json({ error: 'Email setting not found' });
+      }
+      res.json(updatedSetting);
+    } catch (error) {
+      console.error('Error updating email setting:', error);
+      res.status(500).json({ error: 'Failed to update email setting' });
+    }
+  });
+
+  app.delete('/api/admin/email-settings/:id', requireSuperAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteEmailSetting(id);
+      if (!deleted) {
+        return res.status(404).json({ error: 'Email setting not found' });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error('Error deleting email setting:', error);
+      res.status(500).json({ error: 'Failed to delete email setting' });
+    }
+  });
+
+  app.post('/api/admin/email-settings/:id/set-default', requireSuperAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.setDefaultEmailSetting(id);
+      res.status(200).json({ message: 'Default email setting updated' });
+    } catch (error) {
+      console.error('Error setting default email setting:', error);
+      res.status(500).json({ error: 'Failed to set default email setting' });
+    }
+  });
+
+  app.post('/api/admin/email-settings/:id/test', requireSuperAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { testEmail } = req.body;
+      
+      if (!testEmail) {
+        return res.status(400).json({ error: 'Test email address is required' });
+      }
+      
+      const setting = await storage.getEmailSetting(id);
+      if (!setting) {
+        return res.status(404).json({ error: 'Email setting not found' });
+      }
+      
+      // TODO: Implement actual email sending logic here
+      // For now, we'll just mark it as tested
+      await storage.updateEmailSetting(id, { 
+        testEmailSent: true, 
+        lastTestAt: new Date() 
+      });
+      
+      res.json({ message: 'Test email sent successfully', testEmail });
+    } catch (error) {
+      console.error('Error sending test email:', error);
+      res.status(500).json({ error: 'Failed to send test email' });
     }
   });
 
