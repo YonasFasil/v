@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { DevTools } from "@/components/DevTools";
+import { SuperAdminNavigation } from "@/components/SuperAdminNavigation";
 // Using PostgreSQL-based authentication
 
 // Public pages
@@ -38,6 +39,7 @@ import AIAnalytics from "@/pages/ai-analytics";
 import SuperAdminDashboard from "@/pages/superadmin/SuperAdminDashboard";
 import SuperAdminLogin from "@/pages/superadmin/SuperAdminLogin";
 import SuperAdmin from "@/pages/SuperAdmin";
+import SuperAdminDirectAccess from "@/pages/SuperAdminDirectAccess";
 import Reports from "@/pages/reports";
 import VoiceBooking from "@/pages/voice-booking";
 import ProposalView from "@/pages/proposal-view";
@@ -91,6 +93,7 @@ function Router() {
       <Route path="/admin/users" component={SuperAdminDashboard} />
       <Route path="/admin/analytics" component={SuperAdminDashboard} />
       <Route path="/super-admin" component={SuperAdmin} />
+      <Route path="/admin/access" component={SuperAdminDirectAccess} />
       
       {/* Removed deprecated Firebase routes - use /login and /signup instead */}
       
@@ -107,6 +110,7 @@ function App() {
       <TooltipProvider>
         <Toaster />
         <Router />
+        <SuperAdminNavigation />
         <QuickActions />
         <DevTools />
       </TooltipProvider>
