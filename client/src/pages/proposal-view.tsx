@@ -48,18 +48,11 @@ export default function ProposalView() {
   const [isAccepting, setIsAccepting] = useState(false);
   const proposalId = location.split('/').pop();
   
-  // Track proposal view automatically when page loads
-  useEffect(() => {
-    if (proposalId) {
-      // Track that this proposal was viewed
-      apiRequest("POST", `/api/proposals/${proposalId}/track-view`, {})
-        .catch(error => console.log("View tracking failed:", error));
-    }
-  }, [proposalId]);
+  // View tracking is now automatic in the API endpoint
 
   const { data: proposal, isLoading, error } = useQuery({
-    queryKey: ["/api/proposals/view", proposalId],
-    queryFn: () => apiRequest("GET", `/api/proposals/view/${proposalId}`),
+    queryKey: ["/api/proposals/public", proposalId],
+    queryFn: () => apiRequest("GET", `/api/proposals/public/${proposalId}`),
     enabled: !!proposalId,
   });
 

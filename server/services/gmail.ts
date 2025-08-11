@@ -134,7 +134,7 @@ export class GmailService {
           <p>We believe this proposal offers exceptional value and will create an unforgettable experience for your event. Our team is committed to delivering excellence in every detail.</p>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${baseUrl}/api/proposals/${proposalId}/track-click" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-bottom: 10px;">
+            <a href="${baseUrl}/proposal/${proposalId}" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-bottom: 10px;">
               View Your Complete Proposal
             </a>
             <br/>

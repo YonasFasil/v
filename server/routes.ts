@@ -2690,18 +2690,28 @@ This is a test email from your Venuine venue management system.
     }
   });
 
-  // Get proposal for public viewing (client-facing)
-  app.get("/api/proposals/view/:proposalId", async (req, res) => {
+  // Public proposal access endpoint - no authentication required
+  app.get("/api/proposals/public/:proposalId", async (req, res) => {
     try {
       const proposal = await storage.getProposal(req.params.proposalId);
       if (!proposal) {
         return res.status(404).json({ message: "Proposal not found" });
       }
 
+      // Check if proposal has expired
+      if (proposal.validUntil && new Date() > new Date(proposal.validUntil)) {
+        return res.status(410).json({ message: "Proposal has expired" });
+      }
+
       // Get customer and venue data for the proposal
       const customer = await storage.getCustomer(proposal.customerId || '');
       const venues = await storage.getVenues();
       const venue = venues.find(v => v.id === proposal.venueId);
+
+      // Auto-track view when accessed
+      await storage.updateProposal(req.params.proposalId, {
+        status: proposal.status === 'sent' ? 'viewed' : proposal.status
+      });
 
       // Return proposal data formatted for client viewing
       res.json({
