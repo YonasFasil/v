@@ -19,6 +19,7 @@ import EmailVerification from "@/pages/auth/EmailVerification";
 
 // App pages
 import Dashboard from "@/pages/dashboard";
+import OptimizedDashboard from "@/pages/optimized-dashboard";
 import Events from "@/pages/events";
 import Customers from "@/pages/customers";
 import Payments from "@/pages/payments";
@@ -55,7 +56,8 @@ function Router() {
       <Route path="/onboarding" component={Onboarding} />
       
       {/* Tenant app routes */}
-      <Route path="/t/:slug/app" component={Dashboard} />
+      <Route path="/t/:slug/app" component={OptimizedDashboard} />
+      <Route path="/t/:slug/app/dashboard-old" component={Dashboard} />
       <Route path="/t/:slug/app/events" component={Events} />
       <Route path="/t/:slug/app/customers" component={Customers} />
       <Route path="/t/:slug/app/leads" component={Leads} />
