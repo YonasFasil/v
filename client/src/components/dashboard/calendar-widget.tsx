@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
+import { getStatusConfig, getAllStatuses, type EventStatus } from "@shared/status-utils";
 
 export function CalendarWidget() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -160,23 +161,23 @@ export function CalendarWidget() {
           </div>
         </div>
         
-        {/* Event Legend */}
-        <div className="flex flex-wrap gap-4 pt-4 border-t border-slate-200">
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-            <span className="text-sm text-slate-600">Corporate Events</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-            <span className="text-sm text-slate-600">Weddings</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-            <span className="text-sm text-slate-600">Social Events</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-            <span className="text-sm text-slate-600">Private Dining</span>
+        {/* Status Legend */}
+        <div className="pt-4 border-t border-slate-200">
+          <div className="grid grid-cols-2 gap-2">
+            {getAllStatuses().slice(0, 4).map((status) => {
+              const config = getStatusConfig(status.value);
+              return (
+                <div key={status.value} className="flex items-center gap-2">
+                  <div 
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: config.color }}
+                  />
+                  <span className="text-xs text-slate-600 truncate">
+                    {config.label}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </CardContent>

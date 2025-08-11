@@ -31,6 +31,7 @@ import {
   generateProposal,
   parseVoiceToBooking
 } from "./services/gemini";
+import { getStatusColor, type EventStatus } from "@shared/status-utils";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -1712,8 +1713,7 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
               totalAmount: booking.totalAmount || '0',
               startTime: booking.startTime || '',
               endTime: booking.endTime || '',
-              color: booking.status === 'confirmed' ? '#22c55e' : 
-                     booking.status === 'pending' ? '#f59e0b' : '#ef4444',
+              color: getStatusColor((booking.status || 'inquiry') as EventStatus),
               
               // Complete booking data for modals (same structure as /api/bookings)
               ...booking,
@@ -1731,7 +1731,8 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
         res.json({ mode: 'events', data: eventsWithDetails });
       }
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch calendar data" });
+      console.error("Calendar API error:", error);
+      res.status(500).json({ message: "Failed to fetch calendar data", error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 

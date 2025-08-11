@@ -16,6 +16,7 @@ import {
   Plus
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
+import { getStatusConfig, getAllStatuses, type EventStatus } from "@shared/status-utils";
 
 interface CalendarEvent {
   id: string;
@@ -183,19 +184,14 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
                   
                   <div className="space-y-2">
                     {dayEvents.map((event, eventIndex) => {
-                      const colors = [
-                        'bg-blue-50 text-blue-700 border-blue-200',
-                        'bg-green-50 text-green-700 border-green-200', 
-                        'bg-purple-50 text-purple-700 border-purple-200',
-                        'bg-orange-50 text-orange-700 border-orange-200'
-                      ];
-                      const colorClass = colors[eventIndex % colors.length];
+                      const statusConfig = getStatusConfig(event.status as EventStatus);
+                      const statusClasses = `${statusConfig.bgColor} ${statusConfig.textColor} ${statusConfig.borderColor} hover:opacity-90`;
                       
                       return (
                         <div
                           key={event.id}
                           onClick={() => onEventClick?.(event)}
-                          className={`p-3 rounded-md cursor-pointer transition-all hover:shadow-sm border ${colorClass}`}
+                          className={`p-3 rounded-md cursor-pointer transition-all hover:shadow-sm border ${statusClasses}`}
                         >
                           <div className="font-semibold text-sm mb-2">{event.title}</div>
                           <div className="text-xs space-y-1">
@@ -261,19 +257,14 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
                     {/* Enhanced Event Cards */}
                     <div className="space-y-2">
                       {dayEvents.slice(0, 3).map((event, eventIndex) => {
-                        const colors = [
-                          'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100',
-                          'bg-green-50 text-green-700 border-green-200 hover:bg-green-100', 
-                          'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100',
-                          'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100'
-                        ];
-                        const colorClass = colors[eventIndex % colors.length];
+                        const statusConfig = getStatusConfig(event.status as EventStatus);
+                        const statusClasses = `${statusConfig.bgColor} ${statusConfig.textColor} ${statusConfig.borderColor} hover:opacity-90`;
                         
                         return (
                           <div
                             key={event.id}
                             onClick={() => onEventClick?.(event)}
-                            className={`text-xs p-2.5 rounded-md cursor-pointer transition-all hover:shadow-md border ${colorClass}`}
+                            className={`text-xs p-2.5 rounded-md cursor-pointer transition-all hover:shadow-md border ${statusClasses}`}
                             title={`${event.title} - ${event.customerName} - ${event.startTime}`}
                           >
                             <div className="font-semibold leading-tight mb-1.5 line-clamp-2 text-xs">
@@ -297,6 +288,26 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
                         </div>
                       )}
                     </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          {/* Status Legend */}
+          <div className="mt-8 pt-6 border-t border-slate-200">
+            <h4 className="text-sm font-semibold text-slate-900 mb-4">Event Status Legend</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+              {getAllStatuses().map((status) => {
+                const config = getStatusConfig(status.value);
+                return (
+                  <div key={status.value} className="flex items-center gap-2">
+                    <div 
+                      className={`w-3 h-3 rounded-full border`}
+                      style={{ backgroundColor: config.color }}
+                    />
+                    <span className="text-xs text-slate-600 leading-tight">
+                      {config.label}
+                    </span>
                   </div>
                 );
               })}
