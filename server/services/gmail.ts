@@ -134,7 +134,11 @@ export class GmailService {
           <p>We believe this proposal offers exceptional value and will create an unforgettable experience for your event. Our team is committed to delivering excellence in every detail.</p>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="mailto:${this.config.email}?subject=Re: Event Proposal - ${customerName}" class="btn">
+            <a href="${baseUrl}/api/proposals/${proposalId}/track-click" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-bottom: 10px;">
+              View Your Complete Proposal
+            </a>
+            <br/>
+            <a href="mailto:${this.config.email}?subject=Re: Event Proposal - ${customerName}" style="color: #3b82f6; text-decoration: none;">
               Reply to Accept Proposal
             </a>
           </div>
@@ -149,7 +153,7 @@ export class GmailService {
             <a href="mailto:${this.config.email}">${this.config.email}</a>
           </p>
         </div>
-        ${proposalId && baseUrl ? `<img src="${baseUrl}/api/proposals/${proposalId}/track-open" alt="" style="width:1px;height:1px;border:0;" />` : ''}
+
       </body>
       </html>
     `;
@@ -167,7 +171,7 @@ Dear ${customerName},
 
 We're excited to present you with a customized proposal for your event.
 
-${proposalContent.replace(/<[^>]*>/g, '')} // Strip HTML tags for plain text
+${proposalContent ? proposalContent.replace(/<[^>]*>/g, '') : 'Customized event proposal'} 
 
 Total Investment: $${totalAmount}
 

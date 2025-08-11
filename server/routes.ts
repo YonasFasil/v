@@ -2622,11 +2622,48 @@ This is a test email from your Venuine venue management system.
       console.error("Error tracking email open:", error);
       // Still return the pixel even if tracking fails
       const pixel = Buffer.from(
-        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYChwGA60e6kgAAAABJRU5ErkJggg==',
         'base64'
       );
       res.set('Content-Type', 'image/png');
       res.end(pixel);
+    }
+  });
+
+  // Redirect-based tracking endpoint - tracks when customers click proposal links
+  app.get("/api/proposals/:id/track-click", async (req, res) => {
+    try {
+      const proposalId = req.params.id;
+      const proposal = await storage.getProposal(proposalId);
+      
+      if (!proposal) {
+        return res.status(404).send("Proposal not found");
+      }
+
+      // Update proposal with click tracking (implies email was opened)
+      await storage.updateProposal(proposalId, {
+        emailOpened: true,
+        emailOpenedAt: new Date(),
+        openCount: (proposal.openCount || 0) + 1
+      });
+
+      console.log(`Proposal ${proposalId} clicked - tracking updated`);
+
+      // Get customer data to redirect to the right proposal view
+      const customers = await storage.getCustomers();
+      const customer = customers.find(c => c.id === proposal.customerId);
+      
+      if (customer) {
+        // Redirect to the customer-facing proposal view
+        return res.redirect(`/proposal/view/${customer.id}`);
+      } else {
+        // Fallback redirect
+        return res.redirect('/');
+      }
+    } catch (error) {
+      console.error("Error tracking proposal click:", error);
+      // Redirect to home page on error
+      return res.redirect('/');
     }
   });
 
