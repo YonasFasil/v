@@ -38,7 +38,7 @@ export default function UserManagement() {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      await apiRequest(`/api/admin/users/${userId}`, 'DELETE');
+      await apiRequest('DELETE', `/api/admin/users/${userId}`);
     },
     onSuccess: () => {
       toast({
@@ -59,7 +59,7 @@ export default function UserManagement() {
 
   const impersonateUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      await apiRequest(`/api/admin/impersonate/${userId}`, 'POST');
+      await apiRequest('POST', `/api/admin/impersonate/${userId}`);
     },
     onSuccess: () => {
       toast({

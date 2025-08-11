@@ -63,7 +63,7 @@ export default function SetupStyles() {
 
   // Create setup style mutation
   const createMutation = useMutation({
-    mutationFn: (data: SetupStyleFormData) => apiRequest("/api/setup-styles", "POST", data),
+    mutationFn: (data: SetupStyleFormData) => apiRequest("POST", "/api/setup-styles", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/setup-styles"] });
       setShowCreateModal(false);
@@ -85,7 +85,7 @@ export default function SetupStyles() {
   // Update setup style mutation
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string, data: Partial<SetupStyleFormData> }) => 
-      apiRequest(`/api/setup-styles/${id}`, "PATCH", data),
+      apiRequest("PATCH", `/api/setup-styles/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/setup-styles"] });
       setEditingStyle(null);
@@ -106,7 +106,7 @@ export default function SetupStyles() {
 
   // Delete setup style mutation
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/setup-styles/${id}`, "DELETE"),
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/setup-styles/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/setup-styles"] });
       toast({
@@ -126,7 +126,7 @@ export default function SetupStyles() {
   // Update floor plan mutation
   const updateFloorPlanMutation = useMutation({
     mutationFn: ({ id, floorPlan }: { id: string, floorPlan: any }) => 
-      apiRequest(`/api/setup-styles/${id}`, "PATCH", { floorPlan }),
+      apiRequest("PATCH", `/api/setup-styles/${id}`, { floorPlan }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/setup-styles"] });
       toast({
