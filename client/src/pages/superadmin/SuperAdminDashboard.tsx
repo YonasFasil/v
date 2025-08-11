@@ -996,7 +996,7 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
                       <SelectItem value="no-package">No Package</SelectItem>
                       {featurePackages?.map((pkg: any) => (
                         <SelectItem key={pkg.id} value={pkg.id}>
-                          {pkg.name} - ${pkg.price_monthly || pkg.priceMonthly}/month
+                          {pkg.name} - ${pkg.price}/month
                         </SelectItem>
                       ))}
                     </SelectContent>

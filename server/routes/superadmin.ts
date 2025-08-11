@@ -69,6 +69,19 @@ export function registerSuperAdminRoutes(app: Express) {
     }
   });
 
+  // Update tenant
+  app.put("/api/admin/tenants/:tenantId", requireAuth, requireSuperAdmin, async (req, res) => {
+    try {
+      const { tenantId } = req.params;
+      const updates = req.body;
+      const updatedTenant = await storage.updateTenant(tenantId, updates);
+      res.json(updatedTenant);
+    } catch (error) {
+      console.error("Error updating tenant:", error);
+      res.status(500).json({ message: "Failed to update tenant" });
+    }
+  });
+
   // Delete tenant
   app.delete("/api/admin/tenants/:tenantId", requireAuth, requireSuperAdmin, async (req, res) => {
     try {
