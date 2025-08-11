@@ -18,6 +18,7 @@ import Login from "@/pages/auth/Login";
 import Signup from "@/pages/auth/Signup";
 import VerifyEmailSent from "@/pages/auth/VerifyEmailSent";
 import EmailVerification from "@/pages/auth/EmailVerification";
+import LogoutPage from "@/pages/LogoutPage";
 
 // App pages
 import Dashboard from "@/pages/dashboard";
@@ -56,6 +57,7 @@ function Router() {
       {/* Auth routes */}
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
+      <Route path="/logout" component={LogoutPage} />
       <Route path="/verify-email-sent" component={VerifyEmailSent} />
       <Route path="/verify-email" component={EmailVerification} />
       <Route path="/onboarding" component={Onboarding} />
