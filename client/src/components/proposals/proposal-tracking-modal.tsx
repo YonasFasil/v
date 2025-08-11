@@ -90,36 +90,50 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
   });
 
   // Find the events/bookings associated with this specific proposal
-  const relatedEvents = proposal ? bookings.filter((booking: any) => {
-    // First, check if this booking is for the same customer
-    if (booking.customerId !== proposal.customerId) return false;
+  const relatedEvents = proposal ? (() => {
+    console.log('Proposal:', proposal);
+    console.log('All bookings:', bookings);
     
-    // If booking has a proposalId, use exact match
-    if (booking.proposalId) {
-      return booking.proposalId === proposal.id;
-    }
-    
-    // For proposals created from booking flow, match by proposal status and timing
-    if (booking.proposalStatus === 'sent' && booking.proposalSentAt) {
-      const proposalTime = proposal.sentAt ? new Date(proposal.sentAt).getTime() : new Date(proposal.createdAt).getTime();
-      const bookingProposalTime = new Date(booking.proposalSentAt).getTime();
-      const timeDiff = Math.abs(proposalTime - bookingProposalTime);
+    const filtered = bookings.filter((booking: any) => {
+      // First, check if this booking is for the same customer
+      if (booking.customerId !== proposal.customerId) return false;
       
-      // Match if sent within 2 minutes of each other
-      if (timeDiff < 120000) {
-        return true;
+      // If booking has a proposalId, use exact match
+      if (booking.proposalId) {
+        return booking.proposalId === proposal.id;
       }
-    }
+      
+      // For proposals created from booking flow, match by proposal status and timing
+      if (booking.proposalStatus === 'sent' && booking.proposalSentAt) {
+        const proposalTime = proposal.sentAt ? new Date(proposal.sentAt).getTime() : new Date(proposal.createdAt).getTime();
+        const bookingProposalTime = new Date(booking.proposalSentAt).getTime();
+        const timeDiff = Math.abs(proposalTime - bookingProposalTime);
+        
+        console.log(`Checking booking ${booking.id}: proposalTime=${new Date(proposalTime)}, bookingProposalTime=${new Date(bookingProposalTime)}, timeDiff=${timeDiff}ms`);
+        
+        // Match if sent within 5 minutes of each other (increased from 2 minutes)
+        if (timeDiff < 300000) {
+          return true;
+        }
+      }
+      
+      return false;
+    });
     
-    return false;
-  }).flatMap((booking: any) => {
-    // Handle contract events (multiple events under one booking)
-    if (booking.contractEvents && booking.contractEvents.length > 0) {
-      return booking.contractEvents;
-    }
-    // Handle regular single events
-    return [booking];
-  }) : [];
+    console.log('Filtered bookings:', filtered);
+    
+    const events = filtered.flatMap((booking: any) => {
+      // Handle contract events (multiple events under one booking)
+      if (booking.contractEvents && booking.contractEvents.length > 0) {
+        return booking.contractEvents;
+      }
+      // Handle regular single events
+      return [booking];
+    });
+    
+    console.log('Final events:', events);
+    return events;
+  })() : [];
 
   // Get customer information
   const customer = proposal ? customers.find((c: any) => c.id === proposal.customerId) : null;
