@@ -24,7 +24,7 @@ export default function SuperAdminLogin() {
   // Redirect if already super admin
   React.useEffect(() => {
     if (authUser && (authUser as any)?.isSuperAdmin) {
-      navigate('/sys-admin-x7k9p2w4');
+      navigate('/admin/dashboard');
     }
   }, [authUser, navigate]);
 
@@ -37,7 +37,7 @@ export default function SuperAdminLogin() {
         title: "Login successful",
         description: "Welcome to the superadmin console.",
       });
-      navigate('/sys-admin-x7k9p2w4');
+      navigate('/admin/dashboard');
     },
     onError: (error: any) => {
       toast({
@@ -63,7 +63,7 @@ export default function SuperAdminLogin() {
 
   // Redirect if already authenticated
   if (authUser && !authLoading) {
-    navigate('/sys-admin-x7k9p2w4');
+    navigate('/admin/dashboard');
     return null;
   }
 

@@ -80,6 +80,7 @@ function Router() {
       <Route path="/t/:slug/app/plan" component={PlanManagement} />
       
       {/* Platform admin routes - clean professional URLs */}
+      <Route path="/admin/login" component={SuperAdminLogin} />
       <Route path="/admin" component={SuperAdminDashboard} />
       <Route path="/admin/dashboard" component={SuperAdminDashboard} />
       <Route path="/admin/tenants" component={SuperAdminDashboard} />
