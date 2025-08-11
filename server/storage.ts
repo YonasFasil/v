@@ -411,7 +411,15 @@ export class DatabaseStorage implements IStorage {
 
   // Service operations  
   async getServices(tenantId: string): Promise<Service[]> {
-    return await db.select().from(services).where(eq(services.tenantId, tenantId));
+    try {
+      console.log('Fetching services for tenant:', tenantId);
+      const result = await db.select().from(services).where(eq(services.tenantId, tenantId));
+      console.log('Services query result:', result);
+      return result;
+    } catch (error) {
+      console.error('Services database error:', error);
+      throw error;
+    }
   }
 
   async createService(insertService: InsertService): Promise<Service> {
@@ -424,7 +432,15 @@ export class DatabaseStorage implements IStorage {
   
   // Package operations (service packages)
   async getPackages(tenantId: string): Promise<Package[]> {
-    return await db.select().from(packages).where(eq(packages.tenantId, tenantId));
+    try {
+      console.log('Fetching packages for tenant:', tenantId);
+      const result = await db.select().from(packages).where(eq(packages.tenantId, tenantId));
+      console.log('Packages query result:', result);
+      return result;
+    } catch (error) {
+      console.error('Packages database error:', error);
+      throw error;
+    }
   }
 
   async createPackage(insertPackage: InsertPackage): Promise<Package> {
@@ -437,7 +453,15 @@ export class DatabaseStorage implements IStorage {
   
   // Tax settings operations
   async getTaxSettings(tenantId: string): Promise<TaxSetting[]> {
-    return await db.select().from(taxSettings).where(eq(taxSettings.tenantId, tenantId));
+    try {
+      console.log('Fetching tax settings for tenant:', tenantId);
+      const result = await db.select().from(taxSettings).where(eq(taxSettings.tenantId, tenantId));
+      console.log('Tax settings query result:', result);
+      return result;
+    } catch (error) {
+      console.error('Tax settings database error:', error);
+      throw error;
+    }
   }
 
   async createTaxSettings(insertTaxSettings: InsertTaxSetting): Promise<TaxSetting> {

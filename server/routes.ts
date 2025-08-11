@@ -287,6 +287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const services = await storage.getServices(req.user.currentTenant.id);
       res.json(services);
     } catch (error) {
+      console.error('Services fetch error:', error);
       res.status(500).json({ message: "Failed to fetch services" });
     }
   });
@@ -311,6 +312,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const packages = await storage.getPackages(req.user.currentTenant.id);
       res.json(packages);
     } catch (error) {
+      console.error('Packages fetch error:', error);
       res.status(500).json({ message: "Failed to fetch packages" });
     }
   });
@@ -335,6 +337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const taxSettings = await storage.getTaxSettings(req.user.currentTenant.id);
       res.json(taxSettings);
     } catch (error) {
+      console.error('Tax settings fetch error:', error);
       res.status(500).json({ message: "Failed to fetch tax settings" });
     }
   });
