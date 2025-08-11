@@ -89,8 +89,9 @@ export const auditLogs = pgTable("audit_logs", {
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  firebaseUid: varchar("firebase_uid").unique(), // Firebase authentication
   email: varchar("email").unique().notNull(),
-  password: varchar("password").notNull(), // bcrypt hash
+  password: varchar("password"), // bcrypt hash - optional for Firebase auth
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),

@@ -3,6 +3,7 @@ import { db } from "../db";
 import { tenants, users, featurePackages, tenantUsers } from "../../shared/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
+import { authenticateFirebase, type AuthenticatedRequest } from "../middleware/firebase-auth";
 
 const createTenantSchema = z.object({
   tenantName: z.string().min(2, "Business name must be at least 2 characters"),
@@ -13,16 +14,9 @@ const createTenantSchema = z.object({
   industry: z.string().min(1, "Please select an industry"),
 });
 
-function requireAuth(req: any, res: any, next: any) {
-  if (!(req.session as any)?.userId) {
-    return res.status(401).json({ message: 'Authentication required' });
-  }
-  next();
-}
-
 export function registerOnboardingRoutes(app: Express) {
   // POST /api/onboarding/create-tenant - Create a new tenant for the user
-  app.post('/api/onboarding/create-tenant', requireAuth, async (req, res) => {
+  app.post('/api/onboarding/create-tenant', authenticateFirebase, async (req: AuthenticatedRequest, res) => {
     try {
       const validationResult = createTenantSchema.safeParse(req.body);
       
@@ -34,11 +28,34 @@ export function registerOnboardingRoutes(app: Express) {
       }
 
       const { tenantName, tenantSlug, industry } = validationResult.data;
-      const userId = (req.session as any)?.userId;
+      const userUid = req.user?.uid;
 
-      if (!userId) {
-        return res.status(401).json({ message: 'User session not found' });
+      if (!userUid) {
+        return res.status(401).json({ message: 'User authentication failed' });
       }
+
+      // First, find or create the user in our database based on Firebase UID
+      let user = await db
+        .select()
+        .from(users)
+        .where(eq(users.firebaseUid, userUid))
+        .limit(1);
+
+      if (user.length === 0) {
+        // Create the user if they don't exist
+        user = await db
+          .insert(users)
+          .values({
+            firebaseUid: userUid,
+            email: req.user?.email || '',
+            firstName: '',
+            lastName: '',
+            emailVerified: true, // Firebase handles verification
+          })
+          .returning();
+      }
+
+      const userId = user[0].id;
 
       // Check if user already has a tenant by checking tenant_users relationship
       const existingTenantUser = await db
@@ -97,8 +114,8 @@ export function registerOnboardingRoutes(app: Express) {
           planSlug: starterPlan[0].slug,
           featurePackageId: starterPlan[0].id,
           status: 'active',
-          contactName: ((req.session as any).user?.firstName || '') + ' ' + (((req.session as any).user?.lastName) || ''),
-          contactEmail: (req.session as any).user?.email || '',
+          contactName: req.user?.email?.split('@')[0] || '',
+          contactEmail: req.user?.email || '',
           stripeCustomerId: null, // Will be set when they upgrade
           stripeSubscriptionId: null,
         })
@@ -112,12 +129,9 @@ export function registerOnboardingRoutes(app: Express) {
         .insert(tenantUsers)
         .values({
           tenantId: newTenant[0].id,
-          userId: (req.session as any).userId,
+          userId: userId,
           role: 'owner',
         });
-
-      // Store tenant ID in session for future requests
-      (req.session as any).currentTenantId = newTenant[0].id;
 
       res.status(201).json({
         message: 'Tenant created successfully',
