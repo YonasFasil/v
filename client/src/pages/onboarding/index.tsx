@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { CheckCircle2, Building2, Globe, ArrowRight, Sparkles, LogOut } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
 
 interface AuthUser {
   id: string;
@@ -86,13 +87,8 @@ export default function Onboarding() {
     logoutMutation.mutate();
   };
 
-  // Check user info
-  const { data: authResponse, isLoading: userLoading } = useQuery<{user: AuthUser}>({
-    queryKey: ["/api/auth/me"],
-    retry: false,
-  });
-
-  const user = authResponse?.user;
+  // Use Firebase auth hook directly instead of API call to avoid state confusion
+  const { user, isLoading: userLoading } = useFirebaseAuth();
 
   // Fetch available feature packages (public endpoint)
   const { data: featurePackages, isLoading: packagesLoading } = useQuery<any[]>({
