@@ -393,9 +393,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const taxData = {
         ...req.body,
-        rate: req.body.rate ? parseFloat(req.body.rate).toString() : req.body.rate,
+        rate: req.body.value ? parseFloat(req.body.value).toString() : req.body.value, // Map 'value' field to 'rate'
         tenantId: req.user.currentTenant.id,
       };
+      // Remove 'value' field since it's mapped to 'rate'
+      delete taxData.value;
+      
       const taxSettings = await storage.createTaxSettings(taxData);
       res.status(201).json(taxSettings);
     } catch (error: any) {
