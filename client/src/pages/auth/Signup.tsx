@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -42,18 +42,21 @@ export default function Signup() {
   });
 
   // Redirect authenticated users
-  if (!isLoading && user) {
-    if (user.isSuperAdmin) {
-      setLocation('/admin/dashboard');
-      return null;
-    } else if (user.currentTenant) {
-      setLocation(`/t/${user.currentTenant.slug}/app`);
-      return null;
-    } else {
-      setLocation('/onboarding');
-      return null;
+  useEffect(() => {
+    if (!isLoading && user) {
+      console.log('User authenticated on signup, redirecting...', { user, isSuperAdmin: user.isSuperAdmin });
+      if (user.isSuperAdmin) {
+        console.log('Redirecting super admin to /admin/dashboard');
+        setLocation('/admin/dashboard');
+      } else if (user.currentTenant) {
+        console.log('Redirecting to tenant dashboard');
+        setLocation(`/t/${user.currentTenant.slug}/app`);
+      } else {
+        console.log('Redirecting new user to onboarding');
+        setLocation('/onboarding');
+      }
     }
-  }
+  }, [user, isLoading, setLocation]);
 
   const onSubmit = async (data: SignupData) => {
     setIsSubmitting(true);

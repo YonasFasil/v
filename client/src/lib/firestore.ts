@@ -70,9 +70,15 @@ export async function createOrUpdateUser(firebaseUser: User): Promise<FirestoreU
       updatedAt: serverTimestamp(),
     };
     
-    await setDoc(userRef, newUser);
-    console.log('New user created in Firestore:', newUser);
-    return newUser;
+    try {
+      await setDoc(userRef, newUser);
+      console.log('New user created in Firestore:', newUser);
+      return newUser;
+    } catch (error) {
+      console.error('Error creating user in Firestore:', error);
+      // Return user data even if Firestore write fails
+      return newUser;
+    }
   }
 }
 
