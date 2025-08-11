@@ -88,11 +88,10 @@ function Router() {
       {/* Platform admin routes - clean professional URLs */}
       <Route path="/admin/login" component={SuperAdminLogin} />
       <Route path="/admin" component={SuperAdminDashboard} />
-      <Route path="/admin/dashboard" component={SuperAdminDashboard} />
       <Route path="/admin/tenants" component={SuperAdminDashboard} />
       <Route path="/admin/users" component={SuperAdminDashboard} />
       <Route path="/admin/analytics" component={SuperAdminDashboard} />
-      <Route path="/super-admin" component={SuperAdmin} />
+      <Route path="/super-admin" component={SuperAdminDashboard} />
       <Route path="/admin/access" component={SuperAdminDirectAccess} />
       
       {/* Removed deprecated Firebase routes - use /login and /signup instead */}

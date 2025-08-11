@@ -91,6 +91,7 @@ VENUIN is built with a modern, scalable architecture designed for high performan
 - **Frontend Security Fix**: Fixed critical security vulnerability where regular users could access super admin interface - added proper authentication checks and automatic redirects
 - **Authentication Architecture Reform**: Implemented clean, manageable authentication structure with unified login system, professional admin URLs (/admin/*), and smart role-based routing eliminating confusing multiple authentication flows
 - **Direct Tenant Access**: Removed onboarding step for streamlined user experience - new users with selected packages go directly to their tenant dashboard
+- **Super Admin Route Update**: Fixed `/super-admin` route to use working SuperAdminDashboard component with proper logout functionality, removed deprecated `/admin/dashboard` route for cleaner URL structure
 
 ### Performance & Optimization Improvements (August 2025)
 - **Dashboard Performance Optimization**: Reduced API calls from 12+ to 3-4 essential calls using optimized endpoints

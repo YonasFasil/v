@@ -107,7 +107,7 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
 
   // Analytics query
   const { data: analytics, isLoading: analyticsLoading } = useQuery<Analytics>({
-    queryKey: ['/api/superadmin/analytics'],
+    queryKey: ['/api/admin/analytics'],
   });
 
   // Tenants query with search and filter
@@ -115,22 +115,22 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
     data: Tenant[];
     pagination: any;
   }>({
-    queryKey: ['/api/superadmin/tenants', searchTerm, statusFilter],
+    queryKey: ['/api/admin/tenants', searchTerm, statusFilter],
   });
 
   // Feature packages query
   const { data: featurePackages = [], isLoading: packagesLoading } = useQuery<FeaturePackage[]>({
-    queryKey: ['/api/superadmin/feature-packages'],
+    queryKey: ['/api/admin/packages'],
   });
 
   // Create tenant mutation
   const createTenantMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest('POST', '/api/superadmin/tenants', data);
+      return await apiRequest('POST', '/api/admin/tenants', data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/tenants'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/analytics'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/tenants'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/analytics'] });
       setIsCreateTenantOpen(false);
       toast({ title: "Success", description: "Tenant created successfully" });
     },
@@ -142,10 +142,10 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
   // Create feature package mutation
   const createPackageMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest('POST', '/api/superadmin/feature-packages', data);
+      return await apiRequest('POST', '/api/admin/packages', data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/feature-packages'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/packages'] });
       setIsCreatePackageOpen(false);
       toast({ title: "Success", description: "Feature package created successfully" });
     },
@@ -157,10 +157,10 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
   // Update feature package mutation
   const updatePackageMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      return await apiRequest('PUT', `/api/superadmin/feature-packages/${id}`, data);
+      return await apiRequest('PATCH', `/api/admin/packages/${id}`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/feature-packages'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/packages'] });
       setIsEditPackageOpen(false);
       setEditingPackage(null);
       toast({ title: "Success", description: "Feature package updated successfully" });
@@ -177,10 +177,10 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
   // Delete feature package mutation
   const deletePackageMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest('DELETE', `/api/superadmin/feature-packages/${id}`);
+      return await apiRequest('DELETE', `/api/admin/packages/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/feature-packages'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/packages'] });
       toast({ title: "Success", description: "Feature package deleted successfully" });
     },
     onError: (error: any) => {
@@ -675,7 +675,7 @@ export default function SuperAdminDashboard() {
   useEffect(() => {
     if (!isLoading && (!user || !user.isSuperAdmin)) {
       console.log('User not authorized for super admin, redirecting to login');
-      setLocation('/login');
+      setLocation('/auth/login');
     }
   }, [user, isLoading, setLocation]);
 
