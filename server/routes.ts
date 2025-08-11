@@ -31,6 +31,18 @@ import {
   generateProposal,
   parseVoiceToBooking
 } from "./services/gemini";
+// Import RBAC middleware and approval service
+import { 
+  requirePermission, 
+  requireSuperAdmin, 
+  requireTenantAdmin, 
+  requireManager,
+  requireTenant,
+  auditLog,
+  type AuthenticatedRequest 
+} from "./middleware/rbac";
+import { approvalService } from "./services/approvalService";
+import { RESOURCES, ACTIONS } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -3968,6 +3980,327 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
       res.status(500).json({ message: "Failed to get notification stats" });
     }
   });
+
+  // ===========================
+  // MULTI-TENANT RBAC API ROUTES
+  // ===========================
+
+  // Super Admin Routes - Platform Management
+  app.get("/api/admin/tenants", 
+    requireSuperAdmin, 
+    auditLog('admin', 'read', 'tenants'), 
+    async (req, res) => {
+      try {
+        const tenants = await storage.getTenants();
+        res.json(tenants);
+      } catch (error: any) {
+        res.status(500).json({ message: error.message });
+      }
+    }
+  );
+
+  app.post("/api/admin/tenants", 
+    requireSuperAdmin,
+    auditLog('admin', 'create', 'tenants'), 
+    async (req, res) => {
+      try {
+        const tenant = await storage.createTenant(req.body);
+        res.status(201).json(tenant);
+      } catch (error: any) {
+        res.status(400).json({ message: error.message });
+      }
+    }
+  );
+
+  app.put("/api/admin/tenants/:id",
+    requireSuperAdmin,
+    auditLog('admin', 'update', 'tenants'), 
+    async (req, res) => {
+      try {
+        const tenant = await storage.updateTenant(req.params.id, req.body);
+        if (!tenant) {
+          return res.status(404).json({ message: "Tenant not found" });
+        }
+        res.json(tenant);
+      } catch (error: any) {
+        res.status(400).json({ message: error.message });
+      }
+    }
+  );
+
+  // Tenant Admin Routes - Business Management
+  app.get("/api/tenant/users", 
+    requireTenantAdmin,
+    requireTenant,
+    auditLog('tenant', 'read', 'users'),
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const tenantId = req.user?.tenantId;
+        const users = await storage.getTenantUsers(tenantId!);
+        res.json(users);
+      } catch (error: any) {
+        res.status(500).json({ message: error.message });
+      }
+    }
+  );
+
+  app.post("/api/tenant/users", 
+    requireTenantAdmin,
+    requireTenant,
+    auditLog('tenant', 'create', 'users'),
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const tenantId = req.user?.tenantId;
+        const userData = { ...req.body, tenantId };
+        const user = await storage.createUser(userData);
+        res.status(201).json(user);
+      } catch (error: any) {
+        res.status(400).json({ message: error.message });
+      }
+    }
+  );
+
+  // Role Permission Management
+  app.get("/api/tenant/role-permissions", 
+    requireTenantAdmin,
+    requireTenant,
+    auditLog('tenant', 'read', 'permissions'),
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const tenantId = req.user?.tenantId;
+        const { role } = req.query;
+        const permissions = await storage.getRolePermissions(
+          tenantId!, 
+          role as any
+        );
+        res.json(permissions);
+      } catch (error: any) {
+        res.status(500).json({ message: error.message });
+      }
+    }
+  );
+
+  app.put("/api/tenant/role-permissions/:id",
+    requireTenantAdmin,
+    requireTenant,
+    auditLog('tenant', 'update', 'permissions'),
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const permission = await storage.updateRolePermission(req.params.id, req.body);
+        if (!permission) {
+          return res.status(404).json({ message: "Permission not found" });
+        }
+        res.json(permission);
+      } catch (error: any) {
+        res.status(400).json({ message: error.message });
+      }
+    }
+  );
+
+  // Approval Management Routes
+  app.get("/api/approvals/pending", 
+    requireManager,
+    requireTenant,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const userId = req.user?.id;
+        const tenantId = req.user?.tenantId;
+        const pendingApprovals = await storage.getPendingApprovalRequests(userId!, tenantId);
+        res.json(pendingApprovals);
+      } catch (error: any) {
+        res.status(500).json({ message: error.message });
+      }
+    }
+  );
+
+  app.post("/api/approvals/:id/approve", 
+    requireManager,
+    requireTenant,
+    auditLog('approval', 'approve', 'approval-requests'),
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const { id } = req.params;
+        const { comments } = req.body;
+        const userId = req.user?.id;
+        
+        const approval = await approvalService.approveRequest(id, userId!, comments);
+        res.json(approval);
+      } catch (error: any) {
+        res.status(400).json({ message: error.message });
+      }
+    }
+  );
+
+  app.post("/api/approvals/:id/reject", 
+    requireManager,
+    requireTenant,
+    auditLog('approval', 'reject', 'approval-requests'),
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const { id } = req.params;
+        const { reason } = req.body;
+        const userId = req.user?.id;
+        
+        const approval = await approvalService.rejectRequest(id, userId!, reason);
+        res.json(approval);
+      } catch (error: any) {
+        res.status(400).json({ message: error.message });
+      }
+    }
+  );
+
+  // Manager-Level Protected Actions with Approval Gates
+  app.post("/api/bookings/:id/apply-discount", 
+    requireManager,
+    requirePermission(RESOURCES.BOOKINGS, ACTIONS.UPDATE),
+    requireTenant,
+    auditLog('booking', 'discount', 'bookings'),
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const { id } = req.params;
+        const { discountAmount, reason } = req.body;
+        const userId = req.user?.id;
+        const tenantId = req.user?.tenantId;
+
+        // Check if approval is required
+        if (discountAmount > 500) { // Example threshold
+          const approvalId = await approvalService.requestApproval({
+            requesterId: userId!,
+            resourceId: id,
+            action: 'apply_discount',
+            reason: `Discount of $${discountAmount}: ${reason}`,
+            tenantId: tenantId!,
+            data: { discountAmount, reason }
+          });
+          
+          return res.json({ 
+            approval_required: true,
+            approval_id: approvalId,
+            message: "Approval required for discounts over $500"
+          });
+        }
+
+        // Apply discount directly if under threshold
+        await storage.applyBookingDiscount(id, { discountAmount, reason });
+        res.json({ success: true, message: "Discount applied" });
+      } catch (error: any) {
+        res.status(500).json({ message: error.message });
+      }
+    }
+  );
+
+  app.post("/api/payments/:id/refund", 
+    requireTenantAdmin,
+    requirePermission(RESOURCES.PAYMENTS, ACTIONS.DELETE),
+    requireTenant,
+    auditLog('payment', 'refund', 'payments'),
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const { id } = req.params;
+        const { amount, reason } = req.body;
+        const userId = req.user?.id;
+        const tenantId = req.user?.tenantId;
+
+        // Refunds always require approval
+        const approvalId = await approvalService.requestApproval({
+          requesterId: userId!,
+          resourceId: id,
+          action: 'process_refund',
+          reason: `Refund request: $${amount} - ${reason}`,
+          tenantId: tenantId!,
+          data: { amount, reason }
+        });
+        
+        res.json({ 
+          approval_required: true,
+          approval_id: approvalId,
+          message: "Refund request submitted for approval"
+        });
+      } catch (error: any) {
+        res.status(500).json({ message: error.message });
+      }
+    }
+  );
+
+  // Audit Logs
+  app.get("/api/admin/audit-logs", 
+    requireSuperAdmin,
+    async (req, res) => {
+      try {
+        const { tenant_id, limit = 50 } = req.query;
+        const logs = await storage.getAuditLogs(
+          tenant_id as string || null, 
+          Number(limit)
+        );
+        res.json(logs);
+      } catch (error: any) {
+        res.status(500).json({ message: error.message });
+      }
+    }
+  );
+
+  app.get("/api/tenant/audit-logs", 
+    requireTenantAdmin,
+    requireTenant,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const tenantId = req.user?.tenantId;
+        const { limit = 50 } = req.query;
+        const logs = await storage.getAuditLogs(tenantId!, Number(limit));
+        res.json(logs);
+      } catch (error: any) {
+        res.status(500).json({ message: error.message });
+      }
+    }
+  );
+
+  // Approval History
+  app.get("/api/tenant/approval-history", 
+    requireTenantAdmin,
+    requireTenant,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const tenantId = req.user?.tenantId;
+        const { limit = 50 } = req.query;
+        const history = await storage.getApprovalHistory(tenantId!, Number(limit));
+        res.json(history);
+      } catch (error: any) {
+        res.status(500).json({ message: error.message });
+      }
+    }
+  );
+
+  // Current User Context (for frontend RBAC)
+  app.get("/api/auth/me", 
+    requireTenant,
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const user = req.user;
+        if (!user) {
+          return res.status(401).json({ message: "Not authenticated" });
+        }
+        
+        // Return user context with role and permissions
+        res.json({
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          tenantId: user.tenantId,
+          venueIds: user.venueIds,
+          staffType: user.staffType,
+          permissions: {
+            // This would be dynamically calculated based on role
+            canManageUsers: ['super_admin', 'tenant_admin'].includes(user.role),
+            canManageVenues: ['super_admin', 'tenant_admin', 'manager'].includes(user.role),
+            canApproveRequests: ['super_admin', 'tenant_admin', 'manager'].includes(user.role),
+            canViewAuditLogs: ['super_admin', 'tenant_admin'].includes(user.role)
+          }
+        });
+      } catch (error: any) {
+        res.status(500).json({ message: error.message });
+      }
+    }
+  );
 
   const httpServer = createServer(app);
   return httpServer;

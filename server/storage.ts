@@ -20,7 +20,13 @@ import {
   type LeadActivity, type InsertLeadActivity,
   type LeadTask, type InsertLeadTask,
   type Tour, type InsertTour,
-
+  // Multi-tenant and role types
+  type Tenant, type InsertTenant,
+  type RolePermission, type InsertRolePermission,
+  type AuditLog, type InsertAuditLog,
+  type ApprovalRequest, type InsertApprovalRequest,
+  type UserSession, type InsertUserSession,
+  type RoleType
 } from "@shared/schema";
 
 // Additional types for new features
@@ -189,8 +195,46 @@ export interface IStorage {
   addLeadTag(leadId: string, tagId: string): Promise<void>;
   removeLeadTag(leadId: string, tagId: string): Promise<void>;
   
-
+  // Multi-tenant and Role-based Methods
+  // Tenants
+  getTenants(): Promise<Tenant[]>;
+  getTenant(id: string): Promise<Tenant | undefined>;
+  createTenant(tenant: InsertTenant): Promise<Tenant>;
+  updateTenant(id: string, tenant: Partial<InsertTenant>): Promise<Tenant | undefined>;
   
+  // Role Permissions
+  getRolePermissions(tenantId: string | null, role: RoleType): Promise<RolePermission[]>;
+  createRolePermission(permission: InsertRolePermission): Promise<RolePermission>;
+  updateRolePermission(id: string, permission: Partial<InsertRolePermission>): Promise<RolePermission | undefined>;
+  
+  // Audit Log
+  createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
+  getAuditLogs(tenantId: string | null, limit?: number): Promise<AuditLog[]>;
+  
+  // Approval Requests
+  createApprovalRequest(request: InsertApprovalRequest): Promise<ApprovalRequest>;
+  getApprovalRequest(id: string): Promise<ApprovalRequest | undefined>;
+  updateApprovalRequest(id: string, request: Partial<ApprovalRequest>): Promise<ApprovalRequest>;
+  getPendingApprovalRequests(userId: string, tenantId?: string): Promise<ApprovalRequest[]>;
+  getApprovalHistory(tenantId: string, limit?: number): Promise<ApprovalRequest[]>;
+  
+  // User Sessions
+  createUserSession(session: InsertUserSession): Promise<UserSession>;
+  getUserSession(sessionToken: string): Promise<UserSession | undefined>;
+  updateUserSession(id: string, session: Partial<UserSession>): Promise<UserSession | undefined>;
+  
+  // Tenant-specific user management
+  getTenantUsers(tenantId: string): Promise<User[]>;
+  
+  // Resource venue mapping for permission checks
+  getResourceVenueId(resourceId: string): Promise<{ venueId: string } | null>;
+  
+  // Approval workflow actions
+  applyBookingDiscount(bookingId: string, discountData: any): Promise<void>;
+  processRefund(paymentId: string, refundData: any): Promise<void>;
+  cancelBooking(bookingId: string, cancellationData: any): Promise<void>;
+  updateBookingRates(bookingId: string, rateData: any): Promise<void>;
+
   // Additional CRUD operations  
   deleteCustomer(id: string): Promise<boolean>;
   updateVenue(id: string, venueData: Partial<Venue>): Promise<Venue | null>;
@@ -216,6 +260,12 @@ export class MemStorage implements IStorage {
   private taxSettings: Map<string, TaxSetting>;
   private communications: Map<string, Communication>;
   private settings: Map<string, Setting>;
+  // Multi-tenant and role-based data structures
+  private tenants: Map<string, Tenant>;
+  private rolePermissions: Map<string, RolePermission>;
+  private auditLogs: Map<string, AuditLog>;
+  private approvalRequests: Map<string, ApprovalRequest>;
+  private userSessions: Map<string, UserSession>;
   
   // Lead Management Maps
   private campaignSources: Map<string, CampaignSource>;
@@ -245,6 +295,13 @@ export class MemStorage implements IStorage {
     this.communications = new Map();
     this.settings = new Map();
     
+    // Multi-tenant and role-based initialization
+    this.tenants = new Map();
+    this.rolePermissions = new Map();
+    this.auditLogs = new Map();
+    this.approvalRequests = new Map();
+    this.userSessions = new Map();
+    
     // Lead Management initialization
     this.campaignSources = new Map();
     this.tags = new Map();
@@ -257,6 +314,7 @@ export class MemStorage implements IStorage {
 
     this.initializeData();
     this.initializeLeadManagementData();
+    this.initializeRolePermissions();
   }
 
   private initializeData() {
@@ -1859,6 +1917,272 @@ export class MemStorage implements IStorage {
     this.leadTags.delete(`${leadId}:${tagId}`);
   }
 
+  // Multi-tenant and Role-based Method Implementations
+  async getTenants(): Promise<Tenant[]> {
+    return Array.from(this.tenants.values());
+  }
+
+  async getTenant(id: string): Promise<Tenant | undefined> {
+    return this.tenants.get(id);
+  }
+
+  async createTenant(tenant: InsertTenant): Promise<Tenant> {
+    const newTenant: Tenant = {
+      id: randomUUID(),
+      ...tenant,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.tenants.set(newTenant.id, newTenant);
+    return newTenant;
+  }
+
+  async updateTenant(id: string, tenant: Partial<InsertTenant>): Promise<Tenant | undefined> {
+    const existing = this.tenants.get(id);
+    if (!existing) return undefined;
+    
+    const updated = { ...existing, ...tenant, updatedAt: new Date() };
+    this.tenants.set(id, updated);
+    return updated;
+  }
+
+  async getRolePermissions(tenantId: string | null, role: RoleType): Promise<RolePermission[]> {
+    return Array.from(this.rolePermissions.values())
+      .filter(p => p.tenantId === tenantId && p.role === role);
+  }
+
+  async createRolePermission(permission: InsertRolePermission): Promise<RolePermission> {
+    const newPermission: RolePermission = {
+      id: randomUUID(),
+      ...permission,
+      createdAt: new Date()
+    };
+    this.rolePermissions.set(newPermission.id, newPermission);
+    return newPermission;
+  }
+
+  async updateRolePermission(id: string, permission: Partial<InsertRolePermission>): Promise<RolePermission | undefined> {
+    const existing = this.rolePermissions.get(id);
+    if (!existing) return undefined;
+    
+    const updated = { ...existing, ...permission };
+    this.rolePermissions.set(id, updated);
+    return updated;
+  }
+
+  async createAuditLog(log: InsertAuditLog): Promise<AuditLog> {
+    const newLog: AuditLog = {
+      id: randomUUID(),
+      ...log,
+      createdAt: new Date()
+    };
+    this.auditLogs.set(newLog.id, newLog);
+    return newLog;
+  }
+
+  async getAuditLogs(tenantId: string | null, limit = 50): Promise<AuditLog[]> {
+    return Array.from(this.auditLogs.values())
+      .filter(log => log.tenantId === tenantId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, limit);
+  }
+
+  async createApprovalRequest(request: InsertApprovalRequest): Promise<ApprovalRequest> {
+    const newRequest: ApprovalRequest = {
+      id: randomUUID(),
+      ...request,
+      createdAt: new Date()
+    };
+    this.approvalRequests.set(newRequest.id, newRequest);
+    return newRequest;
+  }
+
+  async getApprovalRequest(id: string): Promise<ApprovalRequest | undefined> {
+    return this.approvalRequests.get(id);
+  }
+
+  async updateApprovalRequest(id: string, request: Partial<ApprovalRequest>): Promise<ApprovalRequest> {
+    const existing = this.approvalRequests.get(id);
+    if (!existing) throw new Error('Approval request not found');
+    
+    const updated = { ...existing, ...request };
+    this.approvalRequests.set(id, updated);
+    return updated;
+  }
+
+  async getPendingApprovalRequests(userId: string, tenantId?: string): Promise<ApprovalRequest[]> {
+    return Array.from(this.approvalRequests.values())
+      .filter(req => 
+        req.approverId === userId && 
+        req.status === 'pending' &&
+        (!tenantId || req.tenantId === tenantId)
+      );
+  }
+
+  async getApprovalHistory(tenantId: string, limit = 50): Promise<ApprovalRequest[]> {
+    return Array.from(this.approvalRequests.values())
+      .filter(req => req.tenantId === tenantId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, limit);
+  }
+
+  async createUserSession(session: InsertUserSession): Promise<UserSession> {
+    const newSession: UserSession = {
+      id: randomUUID(),
+      ...session,
+      createdAt: new Date()
+    };
+    this.userSessions.set(newSession.id, newSession);
+    return newSession;
+  }
+
+  async getUserSession(sessionToken: string): Promise<UserSession | undefined> {
+    return Array.from(this.userSessions.values()).find(s => s.sessionToken === sessionToken);
+  }
+
+  async updateUserSession(id: string, session: Partial<UserSession>): Promise<UserSession | undefined> {
+    const existing = this.userSessions.get(id);
+    if (!existing) return undefined;
+    
+    const updated = { ...existing, ...session };
+    this.userSessions.set(id, updated);
+    return updated;
+  }
+
+  async getTenantUsers(tenantId: string): Promise<User[]> {
+    return Array.from(this.users.values())
+      .filter(user => user.tenantId === tenantId);
+  }
+
+  async getResourceVenueId(resourceId: string): Promise<{ venueId: string } | null> {
+    // For bookings, look up venue through booking
+    const booking = this.bookings.get(resourceId);
+    if (booking?.venueId) {
+      return { venueId: booking.venueId };
+    }
+    
+    // For other resources, implement as needed
+    return null;
+  }
+
+  // Approval workflow action stubs
+  async applyBookingDiscount(bookingId: string, discountData: any): Promise<void> {
+    const booking = this.bookings.get(bookingId);
+    if (booking) {
+      // Apply discount logic here
+      console.log(`Applying discount to booking ${bookingId}:`, discountData);
+    }
+  }
+
+  async processRefund(paymentId: string, refundData: any): Promise<void> {
+    const payment = this.payments.get(paymentId);
+    if (payment) {
+      // Process refund logic here
+      console.log(`Processing refund for payment ${paymentId}:`, refundData);
+    }
+  }
+
+  async cancelBooking(bookingId: string, cancellationData: any): Promise<void> {
+    const booking = this.bookings.get(bookingId);
+    if (booking) {
+      // Cancel booking logic here
+      console.log(`Cancelling booking ${bookingId}:`, cancellationData);
+    }
+  }
+
+  async updateBookingRates(bookingId: string, rateData: any): Promise<void> {
+    const booking = this.bookings.get(bookingId);
+    if (booking) {
+      // Update rates logic here
+      console.log(`Updating rates for booking ${bookingId}:`, rateData);
+    }
+  }
+
+  // Initialize role permissions with comprehensive 5-tier hierarchy
+  private initializeRolePermissions() {
+    const permissions = [
+      // Super Admin - Full access to everything (platform-wide)
+      { role: 'super_admin', resource: 'tenants', action: 'create', isAllowed: true },
+      { role: 'super_admin', resource: 'tenants', action: 'read', isAllowed: true },
+      { role: 'super_admin', resource: 'tenants', action: 'update', isAllowed: true },
+      { role: 'super_admin', resource: 'tenants', action: 'delete', isAllowed: true },
+      { role: 'super_admin', resource: 'users', action: 'create', isAllowed: true },
+      { role: 'super_admin', resource: 'users', action: 'read', isAllowed: true },
+      { role: 'super_admin', resource: 'users', action: 'update', isAllowed: true },
+      { role: 'super_admin', resource: 'users', action: 'delete', isAllowed: true },
+
+      // Tenant Admin - Full access within their tenant
+      { role: 'tenant_admin', resource: 'venues', action: 'create', isAllowed: true },
+      { role: 'tenant_admin', resource: 'venues', action: 'read', isAllowed: true },
+      { role: 'tenant_admin', resource: 'venues', action: 'update', isAllowed: true },
+      { role: 'tenant_admin', resource: 'venues', action: 'delete', isAllowed: true },
+      { role: 'tenant_admin', resource: 'users', action: 'create', isAllowed: true },
+      { role: 'tenant_admin', resource: 'users', action: 'read', isAllowed: true },
+      { role: 'tenant_admin', resource: 'users', action: 'update', isAllowed: true },
+      { role: 'tenant_admin', resource: 'users', action: 'delete', isAllowed: true },
+      { role: 'tenant_admin', resource: 'bookings', action: 'create', isAllowed: true },
+      { role: 'tenant_admin', resource: 'bookings', action: 'read', isAllowed: true },
+      { role: 'tenant_admin', resource: 'bookings', action: 'update', isAllowed: true },
+      { role: 'tenant_admin', resource: 'bookings', action: 'delete', isAllowed: true },
+      { role: 'tenant_admin', resource: 'customers', action: 'create', isAllowed: true },
+      { role: 'tenant_admin', resource: 'customers', action: 'read', isAllowed: true },
+      { role: 'tenant_admin', resource: 'customers', action: 'update', isAllowed: true },
+      { role: 'tenant_admin', resource: 'customers', action: 'delete', isAllowed: true },
+      { role: 'tenant_admin', resource: 'payments', action: 'read', isAllowed: true },
+      { role: 'tenant_admin', resource: 'payments', action: 'refund', isAllowed: true },
+      { role: 'tenant_admin', resource: 'reports', action: 'read', isAllowed: true },
+
+      // Manager - Venue-level management
+      { role: 'manager', resource: 'bookings', action: 'create', isAllowed: true },
+      { role: 'manager', resource: 'bookings', action: 'read', isAllowed: true },
+      { role: 'manager', resource: 'bookings', action: 'update', isAllowed: true },
+      { role: 'manager', resource: 'bookings', action: 'discount', isAllowed: true },
+      { role: 'manager', resource: 'customers', action: 'create', isAllowed: true },
+      { role: 'manager', resource: 'customers', action: 'read', isAllowed: true },
+      { role: 'manager', resource: 'customers', action: 'update', isAllowed: true },
+      { role: 'manager', resource: 'proposals', action: 'create', isAllowed: true },
+      { role: 'manager', resource: 'proposals', action: 'read', isAllowed: true },
+      { role: 'manager', resource: 'proposals', action: 'update', isAllowed: true },
+      { role: 'manager', resource: 'venues', action: 'read', isAllowed: true },
+      { role: 'manager', resource: 'venues', action: 'update', isAllowed: true },
+      { role: 'manager', resource: 'tasks', action: 'create', isAllowed: true },
+      { role: 'manager', resource: 'tasks', action: 'read', isAllowed: true },
+      { role: 'manager', resource: 'tasks', action: 'update', isAllowed: true },
+      { role: 'manager', resource: 'reports', action: 'read', isAllowed: true },
+
+      // Staff - Operational tasks based on type
+      { role: 'staff', resource: 'bookings', action: 'read', isAllowed: true },
+      { role: 'staff', resource: 'bookings', action: 'update', isAllowed: true },
+      { role: 'staff', resource: 'customers', action: 'read', isAllowed: true },
+      { role: 'staff', resource: 'customers', action: 'create', isAllowed: true },
+      { role: 'staff', resource: 'customers', action: 'update', isAllowed: true },
+      { role: 'staff', resource: 'proposals', action: 'read', isAllowed: true },
+      { role: 'staff', resource: 'proposals', action: 'create', isAllowed: true },
+      { role: 'staff', resource: 'tasks', action: 'read', isAllowed: true },
+      { role: 'staff', resource: 'tasks', action: 'update', isAllowed: true },
+      { role: 'staff', resource: 'venues', action: 'read', isAllowed: true },
+
+      // Customer - Self-service access
+      { role: 'customer', resource: 'bookings', action: 'read', isAllowed: true },
+      { role: 'customer', resource: 'proposals', action: 'read', isAllowed: true },
+      { role: 'customer', resource: 'payments', action: 'create', isAllowed: true },
+      { role: 'customer', resource: 'venues', action: 'read', isAllowed: true }
+    ];
+
+    permissions.forEach(perm => {
+      const rolePermission: RolePermission = {
+        id: randomUUID(),
+        tenantId: null, // Default permissions for all tenants
+        role: perm.role as RoleType,
+        resource: perm.resource as any,
+        action: perm.action as any,
+        isAllowed: perm.isAllowed,
+        conditions: null,
+        createdAt: new Date()
+      };
+      this.rolePermissions.set(rolePermission.id, rolePermission);
+    });
+  }
 
 }
 

@@ -17,7 +17,11 @@ import {
   Mic,
   ChevronLeft,
   ChevronRight,
-  Grid3X3
+  Grid3X3,
+  Shield,
+  Building2,
+  UserCheck,
+  Activity
 } from "lucide-react";
 
 const navigationItems = [
@@ -41,6 +45,13 @@ const aiFeatures = [
 const analyticsItems = [
   { name: "Reports & Analytics", href: "/reports", icon: BarChart3 },
   { name: "Settings", href: "/settings", icon: Settings },
+];
+
+const adminItems = [
+  { name: "Tenant Management", href: "/admin/tenants", icon: Building2 },
+  { name: "Role Permissions", href: "/admin/roles", icon: Shield },
+  { name: "Approval Center", href: "/admin/approvals", icon: UserCheck },
+  { name: "Audit Logs", href: "/admin/audit", icon: Activity },
 ];
 
 interface SidebarProps {
@@ -193,6 +204,66 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         {collapsed && (
           <div className="pt-4 space-y-1">
             {analyticsItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              
+              return (
+                <Link key={item.name} href={item.href}>
+                  <div
+                    className={`flex items-center justify-center w-10 h-10 mx-auto rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                      active
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                    }`}
+                    title={item.name}
+                  >
+                    <Icon className="w-5 h-5" />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Admin Section - Expanded */}
+        {!collapsed && (
+          <div className="pt-4">
+            <div className="px-3 mb-2">
+              <div className="flex items-center">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Administration
+                </span>
+                <div className="ml-2 px-2 py-0.5 bg-gradient-to-r from-red-500 to-orange-500 rounded-full">
+                  <span className="text-xs text-white font-medium">RBAC</span>
+                </div>
+              </div>
+            </div>
+            {adminItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              
+              return (
+                <Link key={item.name} href={item.href}>
+                  <div
+                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                      active
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                    }`}
+                  >
+                    <Icon className="w-5 h-5 mr-3" />
+                    {item.name}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Admin Section - Collapsed */}
+        {collapsed && (
+          <div className="pt-4 space-y-1">
+            {adminItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
               

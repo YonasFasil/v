@@ -19,6 +19,10 @@ import Reports from "@/pages/reports";
 import VoiceBooking from "@/pages/voice-booking";
 import ProposalView from "@/pages/proposal-view";
 import Proposals from "@/pages/proposals";
+import TenantManagement from "@/pages/admin/tenant-management";
+import RolePermissions from "@/pages/admin/role-permissions";
+import ApprovalCenter from "@/pages/admin/approval-center";
+import AuditLogs from "@/pages/admin/audit-logs";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -39,6 +43,10 @@ function Router() {
       <Route path="/settings" component={Settings} />
       <Route path="/proposals" component={Proposals} />
       <Route path="/proposal/:proposalId" component={ProposalView} />
+      <Route path="/admin/tenants" component={TenantManagement} />
+      <Route path="/admin/roles" component={RolePermissions} />
+      <Route path="/admin/approvals" component={ApprovalCenter} />
+      <Route path="/admin/audit" component={AuditLogs} />
       <Route component={NotFound} />
     </Switch>
   );

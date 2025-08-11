@@ -1,25 +1,54 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, decimal, timestamp, boolean, jsonb, primaryKey, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
+// Tenants table for multi-tenant architecture
+export const tenants = pgTable("tenants", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
   name: text("name").notNull(),
-  email: text("email").notNull(),
-  role: text("role").notNull().default("manager"),
+  subdomain: text("subdomain").notNull().unique(), // for subdomain-based tenant access
+  businessEmail: text("business_email").notNull(),
+  businessPhone: text("business_phone"),
+  address: text("address"),
+  plan: text("plan").notNull().default("basic"), // basic, professional, enterprise
+  isActive: boolean("is_active").default(true),
   stripeAccountId: text("stripe_account_id"), // Stripe Connect account ID
   stripeAccountStatus: text("stripe_account_status"), // pending, active, restricted, etc.
   stripeOnboardingCompleted: boolean("stripe_onboarding_completed").default(false),
   stripeChargesEnabled: boolean("stripe_charges_enabled").default(false),
   stripePayoutsEnabled: boolean("stripe_payouts_enabled").default(false),
   stripeConnectedAt: timestamp("stripe_connected_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Enhanced users table with role hierarchy
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id), // null for super admin
+  username: text("username").notNull(),
+  password: text("password").notNull(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  role: text("role").notNull().default("staff"), // super_admin, tenant_admin, manager, staff, customer
+  staffType: text("staff_type"), // sales, event, operations, general (for staff role)
+  isActive: boolean("is_active").default(true),
+  permissions: jsonb("permissions"), // Custom permissions override
+  assignedVenueIds: text("assigned_venue_ids").array(), // Venue scoping for managers/staff
+  discountLimit: decimal("discount_limit", { precision: 5, scale: 2 }), // Max discount % they can approve
+  refundLimit: decimal("refund_limit", { precision: 10, scale: 2 }), // Max refund amount they can approve
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  lastLoginAt: timestamp("last_login_at"),
+}, (table) => ({
+  // Ensure username is unique within tenant (super admin has no tenant)
+  uniqueUsernamePerTenant: unique().on(table.tenantId, table.username),
+}));
 
 export const venues = pgTable("venues", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   description: text("description"),
   capacity: integer("capacity").notNull(),
@@ -27,6 +56,7 @@ export const venues = pgTable("venues", {
   amenities: text("amenities").array(),
   imageUrl: text("image_url"),
   isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const setupStyles = pgTable("setup_styles", {
@@ -59,6 +89,7 @@ export const spaces = pgTable("spaces", {
 
 export const customers = pgTable("customers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone"),
@@ -72,6 +103,7 @@ export const customers = pgTable("customers", {
 // Contract table to group multiple events together
 export const contracts = pgTable("contracts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   customerId: varchar("customer_id").references(() => customers.id).notNull(),
   contractName: text("contract_name").notNull(),
   status: text("status").notNull().default("draft"), // draft, active, completed, cancelled
@@ -82,6 +114,7 @@ export const contracts = pgTable("contracts", {
 
 export const bookings = pgTable("bookings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   contractId: varchar("contract_id").references(() => contracts.id), // Link to contract
   eventName: text("event_name").notNull(),
   eventType: text("event_type").notNull(),
@@ -123,6 +156,7 @@ export const bookings = pgTable("bookings", {
 
 export const proposals = pgTable("proposals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   bookingId: varchar("booking_id").references(() => bookings.id),
   customerId: varchar("customer_id").references(() => customers.id),
   title: text("title").notNull(),
@@ -181,6 +215,7 @@ export const communications = pgTable("communications", {
 
 export const payments = pgTable("payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   bookingId: varchar("booking_id").references(() => bookings.id),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   paymentType: text("payment_type").notNull(), // deposit, final, refund
@@ -193,6 +228,7 @@ export const payments = pgTable("payments", {
 
 export const tasks = pgTable("tasks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   title: text("title").notNull(),
   description: text("description"),
   assignedTo: varchar("assigned_to").references(() => users.id),
@@ -216,6 +252,7 @@ export const aiInsights = pgTable("ai_insights", {
 
 export const packages = pgTable("packages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   description: text("description"),
   category: text("category").notNull(), // wedding, corporate, social, etc.
@@ -231,6 +268,7 @@ export const packages = pgTable("packages", {
 
 export const services = pgTable("services", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   description: text("description"),
   category: text("category").notNull(), // catering, entertainment, decor, etc.
@@ -245,6 +283,7 @@ export const services = pgTable("services", {
 // Tax and fees configuration
 export const taxSettings = pgTable("tax_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   type: text("type").notNull(), // 'tax', 'fee', 'service_charge'
   calculation: text("calculation").notNull(), // 'percentage', 'fixed'
@@ -275,6 +314,7 @@ export const tags = pgTable("tags", {
 
 export const leads = pgTable("leads", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   venueId: varchar("venue_id").references(() => venues.id),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
@@ -340,13 +380,83 @@ export const tours = pgTable("tours", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Role-based permission system
+export const rolePermissions = pgTable("role_permissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id), // null for super admin permissions
+  role: text("role").notNull(), // super_admin, tenant_admin, manager, staff, customer
+  resource: text("resource").notNull(), // bookings, customers, venues, payments, etc.
+  action: text("action").notNull(), // create, read, update, delete, approve, etc.
+  isAllowed: boolean("is_allowed").default(false),
+  conditions: jsonb("conditions"), // Additional conditions for permissions
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  // Unique permission per role/tenant/resource/action
+  uniqueRolePermission: unique().on(table.tenantId, table.role, table.resource, table.action),
+}));
+
+// Audit log for tracking admin and staff actions
+export const auditLog = pgTable("audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id), // null for super admin actions
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  action: text("action").notNull(), // created_booking, updated_customer, approved_discount, etc.
+  resourceType: text("resource_type").notNull(), // booking, customer, venue, payment, etc.
+  resourceId: varchar("resource_id"), // ID of the affected resource
+  oldValues: jsonb("old_values"), // Previous values before change
+  newValues: jsonb("new_values"), // New values after change
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  metadata: jsonb("metadata"), // Additional context
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Approval workflows for sensitive actions
+export const approvalRequests = pgTable("approval_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  requesterId: varchar("requester_id").references(() => users.id).notNull(),
+  approverId: varchar("approver_id").references(() => users.id),
+  requestType: text("request_type").notNull(), // discount, cancellation, refund, rate_change
+  resourceType: text("resource_type").notNull(), // booking, payment, etc.
+  resourceId: varchar("resource_id").notNull(),
+  requestData: jsonb("request_data").notNull(), // Details of the requested change
+  status: text("status").notNull().default("pending"), // pending, approved, rejected, expired
+  reason: text("reason"), // Reason for the request
+  approverNotes: text("approver_notes"), // Notes from approver
+  requestedAmount: decimal("requested_amount", { precision: 10, scale: 2 }), // For discount/refund requests
+  expiresAt: timestamp("expires_at"),
+  approvedAt: timestamp("approved_at"),
+  rejectedAt: timestamp("rejected_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// User sessions for multi-tenant authentication
+export const userSessions = pgTable("user_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  tenantId: varchar("tenant_id").references(() => tenants.id), // null for super admin
+  sessionToken: text("session_token").notNull().unique(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  isActive: boolean("is_active").default(true),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  lastAccessedAt: timestamp("last_accessed_at").defaultNow(),
+});
+
 // Insert schemas
-export const insertUserSchema = createInsertSchema(users).omit({ id: true });
-export const insertVenueSchema = createInsertSchema(venues).omit({ id: true });
+export const insertTenantSchema = createInsertSchema(tenants).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true, lastLoginAt: true });
+export const insertVenueSchema = createInsertSchema(venues).omit({ id: true, createdAt: true });
 export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true });
 export const insertContractSchema = createInsertSchema(contracts).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertSettingsSchema = createInsertSchema(settings).omit({ id: true, updatedAt: true });
 export const insertCommunicationSchema = createInsertSchema(communications).omit({ id: true, sentAt: true });
+export const insertRolePermissionSchema = createInsertSchema(rolePermissions).omit({ id: true, createdAt: true });
+export const insertAuditLogSchema = createInsertSchema(auditLog).omit({ id: true, createdAt: true });
+export const insertApprovalRequestSchema = createInsertSchema(approvalRequests).omit({ id: true, createdAt: true, approvedAt: true, rejectedAt: true });
+export const insertUserSessionSchema = createInsertSchema(userSessions).omit({ id: true, createdAt: true, lastAccessedAt: true });
 export const insertBookingSchema = createInsertSchema(bookings, {
   eventDate: z.union([z.string(), z.date()]).transform((val) => 
     typeof val === 'string' ? new Date(val) : val
@@ -394,11 +504,21 @@ export const insertLeadActivitySchema = createInsertSchema(leadActivities).omit(
 export const insertLeadTaskSchema = createInsertSchema(leadTasks).omit({ id: true, createdAt: true });
 export const insertTourSchema = createInsertSchema(tours).omit({ id: true, createdAt: true });
 
-// Types
+// Types - Multi-tenant and Role Hierarchy
+export type Tenant = typeof tenants.$inferSelect;
+export type InsertTenant = z.infer<typeof insertTenantSchema>;
 export type User = typeof users.$inferSelect;
-
-
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type RolePermission = typeof rolePermissions.$inferSelect;
+export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
+export type AuditLog = typeof auditLog.$inferSelect;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type ApprovalRequest = typeof approvalRequests.$inferSelect;
+export type InsertApprovalRequest = z.infer<typeof insertApprovalRequestSchema>;
+export type UserSession = typeof userSessions.$inferSelect;
+export type InsertUserSession = z.infer<typeof insertUserSessionSchema>;
+
+// Core Business Types
 export type Venue = typeof venues.$inferSelect;
 export type InsertVenue = z.infer<typeof insertVenueSchema>;
 export type Customer = typeof customers.$inferSelect;
@@ -439,3 +559,51 @@ export type LeadTask = typeof leadTasks.$inferSelect;
 export type InsertLeadTask = z.infer<typeof insertLeadTaskSchema>;
 export type Tour = typeof tours.$inferSelect;
 export type InsertTour = z.infer<typeof insertTourSchema>;
+
+// Role hierarchy constants
+export const ROLES = {
+  SUPER_ADMIN: 'super_admin',
+  TENANT_ADMIN: 'tenant_admin',
+  MANAGER: 'manager',
+  STAFF: 'staff',
+  CUSTOMER: 'customer'
+} as const;
+
+export const STAFF_TYPES = {
+  SALES: 'sales',
+  EVENT: 'event',
+  OPERATIONS: 'operations',
+  GENERAL: 'general'
+} as const;
+
+export const RESOURCES = {
+  TENANTS: 'tenants',
+  USERS: 'users',
+  VENUES: 'venues',
+  CUSTOMERS: 'customers',
+  BOOKINGS: 'bookings',
+  PROPOSALS: 'proposals',
+  PAYMENTS: 'payments',
+  TASKS: 'tasks',
+  PACKAGES: 'packages',
+  SERVICES: 'services',
+  SETTINGS: 'settings',
+  ANALYTICS: 'analytics',
+  REPORTS: 'reports'
+} as const;
+
+export const ACTIONS = {
+  CREATE: 'create',
+  READ: 'read',
+  UPDATE: 'update',
+  DELETE: 'delete',
+  APPROVE: 'approve',
+  CANCEL: 'cancel',
+  REFUND: 'refund',
+  DISCOUNT: 'discount'
+} as const;
+
+export type RoleType = typeof ROLES[keyof typeof ROLES];
+export type StaffType = typeof STAFF_TYPES[keyof typeof STAFF_TYPES];
+export type ResourceType = typeof RESOURCES[keyof typeof RESOURCES];
+export type ActionType = typeof ACTIONS[keyof typeof ACTIONS];
