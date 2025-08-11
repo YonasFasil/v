@@ -167,6 +167,19 @@ export function requirePermission(resource: ResourceType, action: ActionType) {
 
 // Role-based middleware shortcuts
 export const requireSuperAdmin = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  // Development bypass - check for dev admin header
+  if (process.env.NODE_ENV === 'development' && req.headers['x-dev-admin'] === 'true') {
+    req.user = {
+      id: 'dev-super-admin',
+      email: 'admin@venuin.dev',
+      role: 'super_admin' as RoleType,
+      tenantId: null,
+      venueIds: [],
+      staffType: null
+    };
+    return next();
+  }
+  
   if (req.user?.role !== ROLES.SUPER_ADMIN) {
     return res.status(403).json({ error: 'Super admin access required' });
   }
@@ -174,6 +187,19 @@ export const requireSuperAdmin = (req: AuthenticatedRequest, res: Response, next
 };
 
 export const requireTenantAdmin = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  // Development bypass - check for dev admin header
+  if (process.env.NODE_ENV === 'development' && req.headers['x-dev-admin'] === 'true') {
+    req.user = {
+      id: 'dev-tenant-admin',
+      email: 'tenant@venuin.dev',
+      role: 'tenant_admin' as RoleType,
+      tenantId: 'dev-tenant',
+      venueIds: [],
+      staffType: null
+    };
+    return next();
+  }
+  
   const userRole = req.user?.role;
   if (!userRole || !['super_admin', 'tenant_admin'].includes(userRole)) {
     return res.status(403).json({ error: 'Tenant admin access required' });
@@ -182,6 +208,19 @@ export const requireTenantAdmin = (req: AuthenticatedRequest, res: Response, nex
 };
 
 export const requireManager = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  // Development bypass - check for dev admin header  
+  if (process.env.NODE_ENV === 'development' && req.headers['x-dev-admin'] === 'true') {
+    req.user = {
+      id: 'dev-manager',
+      email: 'manager@venuin.dev', 
+      role: 'manager' as RoleType,
+      tenantId: 'dev-tenant',
+      venueIds: ['dev-venue-1'],
+      staffType: null
+    };
+    return next();
+  }
+  
   const userRole = req.user?.role;
   if (!userRole || !['super_admin', 'tenant_admin', 'manager'].includes(userRole)) {
     return res.status(403).json({ error: 'Manager access required' });

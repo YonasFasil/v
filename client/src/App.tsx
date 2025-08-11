@@ -23,6 +23,7 @@ import TenantManagement from "@/pages/admin/tenant-management";
 import RolePermissions from "@/pages/admin/role-permissions";
 import ApprovalCenter from "@/pages/admin/approval-center";
 import AuditLogs from "@/pages/admin/audit-logs";
+import DevAdmin from "@/pages/dev-admin";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -47,6 +48,7 @@ function Router() {
       <Route path="/admin/roles" component={RolePermissions} />
       <Route path="/admin/approvals" component={ApprovalCenter} />
       <Route path="/admin/audit" component={AuditLogs} />
+      <Route path="/dev-admin" component={DevAdmin} />
       <Route component={NotFound} />
     </Switch>
   );
