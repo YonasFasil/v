@@ -226,36 +226,36 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                   </div>
                   <div className="text-center">
                     <div className={`rounded-full p-3 w-12 h-12 mx-auto mb-2 flex items-center justify-center ${
-                      proposal.status === 'accepted' ? 'bg-green-100' : 'bg-gray-100'
+                      currentProposal.status === 'accepted' ? 'bg-green-100' : 'bg-gray-100'
                     }`}>
-                      <CheckCircle2 className={`h-6 w-6 ${proposal.status === 'accepted' ? 'text-green-600' : 'text-gray-400'}`} />
+                      <CheckCircle2 className={`h-6 w-6 ${currentProposal.status === 'accepted' ? 'text-green-600' : 'text-gray-400'}`} />
                     </div>
                     <div className="text-sm font-medium">Accepted</div>
                     <div className="text-xs text-gray-500">
-                      {proposal.status === 'accepted' ? format(new Date(proposal.viewedAt), "MMM d") : "Pending"}
+                      {currentProposal.status === 'accepted' ? format(new Date(currentProposal.viewedAt || currentProposal.createdAt), "MMM d") : "Pending"}
                     </div>
                   </div>
                   <div className="text-center">
                     <div className={`rounded-full p-3 w-12 h-12 mx-auto mb-2 flex items-center justify-center ${
-                      proposal.depositPaid ? 'bg-emerald-100' : 'bg-gray-100'
+                      currentProposal.depositPaid ? 'bg-emerald-100' : 'bg-gray-100'
                     }`}>
-                      <CreditCard className={`h-6 w-6 ${proposal.depositPaid ? 'text-emerald-600' : 'text-gray-400'}`} />
+                      <CreditCard className={`h-6 w-6 ${currentProposal.depositPaid ? 'text-emerald-600' : 'text-gray-400'}`} />
                     </div>
                     <div className="text-sm font-medium">Paid</div>
                     <div className="text-xs text-gray-500">
-                      {proposal.depositPaidAt ? format(new Date(proposal.depositPaidAt), "MMM d") : "Not paid"}
+                      {currentProposal.depositPaidAt ? format(new Date(currentProposal.depositPaidAt), "MMM d") : "Not paid"}
                     </div>
                   </div>
                 </div>
 
                 <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center justify-between">
-                    <Badge className={getStatusColor(proposal.status)}>
-                      {getStatusIcon(proposal.status)}
-                      <span className="ml-1">{proposal.status.charAt(0).toUpperCase() + proposal.status.slice(1)}</span>
+                    <Badge className={getStatusColor(currentProposal.status)}>
+                      {getStatusIcon(currentProposal.status)}
+                      <span className="ml-1">{currentProposal.status.charAt(0).toUpperCase() + currentProposal.status.slice(1)}</span>
                     </Badge>
                     <div className="text-sm text-gray-600">
-                      Created {format(new Date(proposal.createdAt), "MMM d, yyyy")}
+                      Created {format(new Date(currentProposal.createdAt), "MMM d, yyyy")}
                     </div>
                   </div>
                 </div>
