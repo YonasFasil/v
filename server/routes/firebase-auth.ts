@@ -215,11 +215,60 @@ export function registerFirebaseAuthRoutes(app: Express) {
     }
   });
 
+  // Session sync endpoint - stores Firebase UID in session for middleware compatibility
+  app.post('/api/auth/sync-session', async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      
+      if (!authHeader?.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No auth token provided' });
+      }
+
+      const token = authHeader.split('Bearer ')[1];
+      const decodedToken = await adminAuth.verifyIdToken(token);
+      
+      // Get user document
+      const userDoc = await db.collection(COLLECTIONS.USERS).doc(decodedToken.uid).get();
+      
+      if (!userDoc.exists) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      const userData = userDoc.data();
+      
+      // Store Firebase UID in session for middleware compatibility
+      (req.session as any).firebaseUid = decodedToken.uid;
+      (req.session as any).user = {
+        id: decodedToken.uid,
+        email: userData.email,
+        firstName: userData.firstName || '',
+        lastName: userData.lastName || '',
+        isSuperAdmin: userData.isSuperAdmin || false,
+      };
+
+      res.json({ 
+        message: 'Session synced successfully',
+        user: (req.session as any).user
+      });
+
+    } catch (error) {
+      console.error('Session sync error:', error);
+      res.status(500).json({ message: 'Session sync failed' });
+    }
+  });
+
   // Logout route
   app.post('/api/auth/logout', async (req, res) => {
     try {
-      // With Firebase, logout is handled client-side
-      res.json({ message: 'Logged out successfully' });
+      // Clear session data
+      req.session.destroy((err) => {
+        if (err) {
+          console.error('Session destroy error:', err);
+          return res.status(500).json({ message: 'Logout failed' });
+        }
+        res.clearCookie('connect.sid');
+        res.json({ message: 'Logged out successfully' });
+      });
     } catch (error) {
       console.error('Logout error:', error);
       res.status(500).json({ message: 'Logout failed' });

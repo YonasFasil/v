@@ -49,6 +49,26 @@ export function useFirebaseAuth() {
           
           setUser(authUser);
           console.log('Firebase user authenticated and synced with Firestore:', authUser);
+          
+          // Sync session with backend for middleware compatibility
+          try {
+            const idToken = await firebaseUser.getIdToken();
+            const response = await fetch('/api/auth/sync-session', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${idToken}`,
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            if (response.ok) {
+              console.log('Session synced successfully with backend');
+            } else {
+              console.error('Failed to sync session:', response.status);
+            }
+          } catch (sessionError) {
+            console.error('Error syncing session:', sessionError);
+          }
         } else {
           setUser(null);
           console.log('User signed out');
