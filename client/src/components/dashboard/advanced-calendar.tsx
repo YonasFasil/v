@@ -55,7 +55,7 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
   // Only fetch calendar data if not available from dashboard
   const { data: calendarData, isLoading } = useQuery({
     queryKey: [`/api/calendar/events`, viewMode],
-    enabled: !dashboardData?.calendar,
+    enabled: !(dashboardData as any)?.calendar,
     queryFn: async () => {
       const response = await fetch(`/api/calendar/events?mode=${viewMode}`);
       if (!response.ok) throw new Error('Failed to fetch calendar data');

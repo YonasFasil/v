@@ -1,5 +1,5 @@
 import { useState, Suspense } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { DashboardProvider } from "@/contexts/dashboard-context";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
@@ -10,28 +10,19 @@ import { EventSummaryModal } from "@/components/forms/event-summary-modal";
 import { EventEditFullModal } from "@/components/forms/event-edit-full-modal";
 import { CreateEventModal } from "@/components/forms/create-event-modal";
 import { AdvancedCalendar } from "@/components/dashboard/advanced-calendar";
+import { OptimizedRecentBookings, OptimizedActiveLeads, OptimizedRecentPayments } from "@/components/dashboard/optimized-components";
+import { useDashboardData } from "@/contexts/dashboard-context";
 
-// Optimized Dashboard - Only 2 API calls total instead of 12+
-export default function OptimizedDashboard() {
+// Inner Dashboard Component that uses context
+function DashboardContent() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCreateEventModal, setShowCreateEventModal] = useState(false);
   
-  // API Call #1: Main dashboard data (contains everything)
-  const { data: dashboardData, isLoading } = useQuery({
-    queryKey: ["/api/dashboard/overview"],
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    refetchInterval: 2 * 60 * 1000, // Refresh every 2 minutes
-  });
-
-  // API Call #2: Real-time quick stats (lightweight, frequent updates)
-  const { data: quickStats } = useQuery({
-    queryKey: ["/api/dashboard/quick-stats"],
-    refetchInterval: 30000, // Update every 30 seconds
-    staleTime: 30000,
-  });
+  // Get all data from context - no individual API calls
+  const { metrics, business, insights, isLoading, error } = useDashboardData();
 
   const handleEventClick = (booking: any) => {
     setSelectedEvent(booking);
@@ -78,24 +69,7 @@ export default function OptimizedDashboard() {
     );
   }
 
-  const {
-    metrics = {},
-    upcomingBookings = [],
-    activeLeads = [],
-    calendar = { data: [] },
-    insights = [],
-    business = {},
-    venues = [],
-    recentPayments = []
-  } = (dashboardData as any) || {};
-
-  // Combine quick stats with dashboard metrics
-  const displayMetrics = {
-    ...(metrics as any),
-    todayBookings: (quickStats as any)?.todayBookings || 0,
-    weeklyRevenue: (quickStats as any)?.weeklyRevenue || 0,
-    hotLeads: (quickStats as any)?.hotLeads || 0
-  };
+  const displayMetrics = metrics;
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
@@ -244,106 +218,15 @@ export default function OptimizedDashboard() {
 
           {/* Main Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Recent Bookings */}
+            {/* Recent Bookings - Using optimized component */}
             <div className="lg:col-span-2">
-              <Card>
-                <CardContent className="p-6">
-                  <h2 className="text-lg font-semibold mb-4">Recent Bookings</h2>
-                  <div className="space-y-4">
-                    {upcomingBookings.slice(0, 5).map((booking: any) => (
-                      <div key={booking.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 cursor-pointer">
-                        <div className="flex-1">
-                          <h3 className="font-medium">{booking.customerName}</h3>
-                          <p className="text-sm text-slate-500">
-                            {booking.eventType} • {booking.venue}
-                          </p>
-                          <p className="text-xs text-slate-400">
-                            {new Date(booking.eventDate).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium">${(booking.totalAmount || 0).toLocaleString()}</p>
-                          <Badge variant={
-                            booking.status === 'confirmed' ? 'default' :
-                            booking.status === 'pending' ? 'secondary' : 'outline'
-                          }>
-                            {booking.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                    {upcomingBookings.length === 0 && (
-                      <div className="text-center py-8 text-slate-500">
-                        <Calendar className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-                        <p>No upcoming bookings</p>
-                        <button 
-                          onClick={() => setShowCreateEventModal(true)}
-                          className="mt-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
-                        >
-                          Create your first booking
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+              <OptimizedRecentBookings />
             </div>
 
-            {/* Side Panel */}
+            {/* Side Panel - Using optimized components */}
             <div className="space-y-6">
-              {/* Active Leads */}
-              <Card>
-                <CardContent className="p-6">
-                  <h2 className="text-lg font-semibold mb-4">Active Leads</h2>
-                  <div className="space-y-3">
-                    {activeLeads.slice(0, 5).map((lead: any) => (
-                      <div key={lead.id} className="p-3 border rounded-lg">
-                        <h3 className="font-medium text-sm">
-                          {lead.firstName} {lead.lastName}
-                        </h3>
-                        <p className="text-xs text-slate-500">
-                          {lead.eventType} • {lead.guestCount} guests
-                        </p>
-                        <Badge variant="outline" className="mt-1 text-xs">
-                          {lead.status}
-                        </Badge>
-                      </div>
-                    ))}
-                    {activeLeads.length === 0 && (
-                      <div className="text-center py-4 text-slate-500">
-                        <Users className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                        <p className="text-sm">No active leads</p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Recent Payments */}
-              <Card>
-                <CardContent className="p-6">
-                  <h2 className="text-lg font-semibold mb-4">Recent Payments</h2>
-                  <div className="space-y-3">
-                    {recentPayments.slice(0, 3).map((payment: any) => (
-                      <div key={payment.id} className="flex justify-between items-center p-2 border rounded">
-                        <div>
-                          <p className="font-medium text-sm">${payment.amount}</p>
-                          <p className="text-xs text-slate-500">{payment.method}</p>
-                        </div>
-                        <Badge variant="outline" className="text-xs">
-                          {payment.status}
-                        </Badge>
-                      </div>
-                    ))}
-                    {recentPayments.length === 0 && (
-                      <div className="text-center py-4 text-slate-500">
-                        <DollarSign className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                        <p className="text-sm">No recent payments</p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+              <OptimizedActiveLeads />
+              <OptimizedRecentPayments />
             </div>
           </div>
         </main>
@@ -373,5 +256,14 @@ export default function OptimizedDashboard() {
         />
       </div>
     </div>
+  );
+}
+
+// Main component with context provider
+export default function OptimizedDashboard() {
+  return (
+    <DashboardProvider>
+      <DashboardContent />
+    </DashboardProvider>
   );
 }
