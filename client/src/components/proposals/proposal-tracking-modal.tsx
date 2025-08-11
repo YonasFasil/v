@@ -149,8 +149,13 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
 
   // Find related events
   const relatedEvents = proposal ? (() => {
-    // For direct proposals with event data
+    console.log('Finding related events for proposal:', proposal.id, 'customer:', proposal.customerId);
+    console.log('Proposal sentAt:', proposal.sentAt);
+    console.log('Available bookings:', bookings.length);
+    
+    // For direct proposals with event data embedded in the proposal
     if (proposal.eventDate && proposal.guestCount) {
+      console.log('Using embedded event data from proposal');
       return [{
         id: `proposal-event-${proposal.id}`,
         eventName: proposal.title,
@@ -168,24 +173,42 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
       }];
     }
 
-    // For proposals from booking flow
+    // For proposals created from booking flow - match by timing and customer
     if (proposal.sentAt) {
       const proposalTime = new Date(proposal.sentAt).getTime();
+      console.log('Searching for bookings around proposal time:', proposalTime);
       
-      const filtered = bookings.filter((booking) => {
-        if (booking.customerId !== proposal.customerId) return false;
-        if (booking.proposalId) return booking.proposalId === proposal.id;
+      const matchedBookings = bookings.filter((booking) => {
+        console.log('Checking booking:', booking.eventName, 'customer:', booking.customerId, 'proposalStatus:', booking.proposalStatus, 'proposalSentAt:', booking.proposalSentAt);
         
+        // Must be same customer
+        if (booking.customerId !== proposal.customerId) return false;
+        
+        // Direct proposal ID link (if exists)
+        if (booking.proposalId === proposal.id) {
+          console.log('Found booking with direct proposalId match');
+          return true;
+        }
+        
+        // Time-based matching for proposal flow
         if (booking.proposalStatus === 'sent' && booking.proposalSentAt) {
           const bookingProposalTime = new Date(booking.proposalSentAt).getTime();
           const timeDiff = Math.abs(proposalTime - bookingProposalTime);
-          return timeDiff < 30000; // 30 second window
+          console.log('Time difference:', timeDiff, 'ms');
+          
+          // 60-second window to be more generous
+          if (timeDiff < 60000) {
+            console.log('Found booking within time window');
+            return true;
+          }
         }
         
         return false;
       });
       
-      return filtered.flatMap((booking) => {
+      console.log('Matched bookings:', matchedBookings.length);
+      
+      return matchedBookings.flatMap((booking) => {
         if (booking.contractEvents && booking.contractEvents.length > 0) {
           return booking.contractEvents;
         }
@@ -193,11 +216,15 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
       });
     }
 
-    // Fallback
-    return bookings.filter((booking) => 
-      booking.customerId === proposal.customerId && 
-      booking.eventName === proposal.title
-    ).flatMap((booking) => {
+    // Fallback: match by customer and title/name similarity
+    console.log('Using fallback matching by customer and name');
+    return bookings.filter((booking) => {
+      if (booking.customerId !== proposal.customerId) return false;
+      
+      // Extract event name from proposal title (remove "Proposal for " prefix)
+      const proposalEventName = proposal.title.replace(/^Proposal for\s+/i, '');
+      return booking.eventName === proposalEventName || booking.eventName === proposal.title;
+    }).flatMap((booking) => {
       if (booking.contractEvents && booking.contractEvents.length > 0) {
         return booking.contractEvents;
       }
