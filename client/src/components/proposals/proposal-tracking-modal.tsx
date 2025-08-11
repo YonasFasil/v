@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,11 +40,18 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
   const [newMessage, setNewMessage] = useState("");
   const [messageType, setMessageType] = useState("email");
 
-  // Fetch proposal details
-  const { data: proposal, isLoading } = useQuery({
+  // Fetch proposal details with refreshing when modal opens
+  const { data: proposal, isLoading, refetch } = useQuery({
     queryKey: [`/api/proposals/${proposalId}`],
     enabled: !!proposalId && open && !proposalId?.startsWith('booking-')
   });
+
+  // Refresh proposal data when modal opens to get latest tracking info
+  useEffect(() => {
+    if (open && proposalId && !proposalId?.startsWith('booking-')) {
+      refetch();
+    }
+  }, [open, proposalId, refetch]);
 
   // Handle placeholder proposals (created from bookings with sent status)
   const isPlaceholderProposal = proposalId?.startsWith('booking-');
@@ -416,10 +423,10 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                   Resend Proposal
                 </Button>
                 
-                <div className="text-xs text-gray-500 text-center mt-4 p-2 bg-blue-50 rounded">
-                  <strong>Email Tracking Status:</strong><br/>
-                  Gmail configuration required for email tracking.<br/>
-                  Set up Gmail credentials in Settings to enable proposal emails.
+                <div className="text-xs text-gray-500 text-center mt-4 p-2 bg-green-50 rounded">
+                  <strong>Email Tracking Active:</strong><br/>
+                  Tracking pixels are embedded in proposal emails.<br/>
+                  Status updates automatically when emails are opened.
                 </div>
               </CardContent>
             </Card>
