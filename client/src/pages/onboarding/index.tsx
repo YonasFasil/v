@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, Building2, Globe, ArrowRight, Sparkles } from "lucide-react";
+import { CheckCircle2, Building2, Globe, ArrowRight, Sparkles, LogOut } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -39,6 +39,32 @@ export default function Onboarding() {
   const [, setLocation] = useLocation();
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 3;
+
+  // Logout mutation
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/auth/logout");
+      return response;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Signed out",
+        description: "You have been signed out successfully",
+      });
+      setLocation("/login");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Sign out failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleLogout = () => {
+    logoutMutation.mutate();
+  };
 
   // Check user info
   const { data: user, isLoading: userLoading } = useQuery({
@@ -125,21 +151,38 @@ export default function Onboarding() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Sparkles className="h-8 w-8 text-blue-600" />
-            <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              VENUIN
-            </span>
+        {/* Header with Logout */}
+        <div className="flex justify-between items-start mb-8">
+          <div className="flex-1" />
+          <div className="text-center flex-1">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <Sparkles className="h-8 w-8 text-blue-600" />
+              <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                VENUIN
+              </span>
+            </div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">
+              Welcome, {user?.firstName || "there"}!
+            </h1>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Let's set up your venue management system in just a few steps
+            </p>
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Welcome, {user?.firstName || "there"}!
-          </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Let's set up your venue management system in just a few steps
-          </p>
+          <div className="flex-1 flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLogout}
+              disabled={logoutMutation.isPending}
+              className="text-gray-600 hover:text-gray-900"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              {logoutMutation.isPending ? "Signing out..." : "Sign out"}
+            </Button>
+          </div>
         </div>
+
+
 
         {/* Progress */}
         <div className="max-w-2xl mx-auto mb-8">
