@@ -419,8 +419,8 @@ export function TaxesAndFeesSettings() {
                       </div>
                       <p className="text-sm text-slate-600">
                         {item.calculation === "percentage" 
-                          ? `${item.value}% of ${item.applyTo}`
-                          : `$${item.value} ${item.calculation} fee on ${item.applyTo}`
+                          ? `${item.rate}% of ${item.applyTo}`
+                          : `$${item.rate} ${item.calculation} fee on ${item.applyTo}`
                         }
                         {item.isTaxable && (item.type === "fee" || item.type === "service_charge") && (
                           <span className="text-orange-600 ml-2">• Taxable</span>
@@ -430,7 +430,7 @@ export function TaxesAndFeesSettings() {
                         <div className="mt-1">
                           <p className="text-xs text-slate-500">
                             Applied taxes: {item.applicableTaxIds.map(taxId => {
-                              const tax = availableTaxes.find(t => t.id === taxId);
+                              const tax = taxSettingsData?.find(t => t.id === taxId);
                               return tax ? tax.name : 'Unknown';
                             }).join(', ')}
                           </p>
