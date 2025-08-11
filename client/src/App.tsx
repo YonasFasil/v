@@ -44,8 +44,7 @@ import NotFound from "@/pages/not-found";
 // Removed deprecated Firebase components
 
 function Router() {
-  // TODO: Update authentication system to work with Firebase
-  // useAuthRedirect(); // Temporarily disabled for Firebase migration
+  // Using Firebase authentication now - no need for old auth redirect system
   
   return (
     <Switch>

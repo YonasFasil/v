@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
+import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
 import { FeaturePackageForm } from './FeaturePackageForm';
 import UsersManagement from './UsersManagement';
 import { AdminAuthGuard } from "@/components/AdminAuthGuard";
@@ -62,7 +63,7 @@ interface Analytics {
   recentActivity: any[];
 }
 
-function SuperAdminDashboardContent() {
+function SuperAdminDashboardContent({ user }: { user: any }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -82,25 +83,24 @@ function SuperAdminDashboardContent() {
   };
   const queryClient = useQueryClient();
 
-  // Logout mutation
-  const logoutMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/auth/logout"),
-    onSuccess: () => {
+  // Firebase logout
+  const handleLogout = async () => {
+    try {
+      const { logOut } = await import('@/lib/firebase');
+      await logOut();
       toast({
         title: "Logged out successfully",
         description: "You have been logged out of the superadmin console.",
       });
-      // Redirect to login or home page
-      window.location.href = "/";
-    },
-    onError: (error: any) => {
+      window.location.href = "/login";
+    } catch (error: any) {
       toast({
         title: "Logout failed", 
         description: error.message || "Failed to logout",
         variant: "destructive",
       });
     }
-  });
+  };
 
   // Analytics query
   const { data: analytics, isLoading: analyticsLoading } = useQuery<Analytics>({
@@ -264,11 +264,11 @@ function SuperAdminDashboardContent() {
         </div>
         <Button 
           variant="outline"
-          onClick={() => logoutMutation.mutate()}
-          disabled={logoutMutation.isPending}
+          onClick={handleLogout}
+          className="ml-auto"
         >
           <LogOut className="h-4 w-4 mr-2" />
-          {logoutMutation.isPending ? "Logging out..." : "Logout"}
+          Logout
         </Button>
       </div>
 
@@ -656,11 +656,30 @@ function SuperAdminDashboardContent() {
   );
 }
 
-// Main component with authentication guard
+// Main component with Firebase authentication guard
 export default function SuperAdminDashboard() {
-  return (
-    <AdminAuthGuard>
-      <SuperAdminDashboardContent />
-    </AdminAuthGuard>
-  );
+  const [, setLocation] = useLocation();
+  const { user, isLoading } = useFirebaseAuth();
+
+  // Redirect if not authenticated or not super admin
+  useEffect(() => {
+    if (!isLoading && (!user || !user.isSuperAdmin)) {
+      console.log('User not authorized for super admin, redirecting to login');
+      setLocation('/login');
+    }
+  }, [user, isLoading, setLocation]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (!user || !user.isSuperAdmin) {
+    return null;
+  }
+
+  return <SuperAdminDashboardContent user={user} />;
 }
