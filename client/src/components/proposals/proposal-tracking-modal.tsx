@@ -52,6 +52,32 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     enabled: !!proposalId && open
   });
 
+  // Fetch related events/bookings for this proposal
+  const { data: bookings = [] } = useQuery({
+    queryKey: ["/api/bookings"],
+    enabled: !!proposalId && open
+  });
+
+  // Fetch customers data
+  const { data: customers = [] } = useQuery({
+    queryKey: ["/api/customers"],
+    enabled: !!proposalId && open
+  });
+
+  // Fetch venues data
+  const { data: venues = [] } = useQuery({
+    queryKey: ["/api/venues-with-spaces"],
+    enabled: !!proposalId && open
+  });
+
+  // Find the events/bookings associated with this proposal
+  const relatedEvents = proposal ? bookings.filter((booking: any) => 
+    booking.customerId === proposal.customerId && booking.proposalStatus === 'sent'
+  ) : [];
+
+  // Get customer information
+  const customer = proposal ? customers.find((c: any) => c.id === proposal.customerId) : null;
+
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -225,44 +251,74 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
             {/* Event Details */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Event Details</CardTitle>
+                <CardTitle className="text-lg">
+                  Event Details {relatedEvents.length > 1 && `(${relatedEvents.length} Events)`}
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-gray-400" />
-                    <span>{proposal.eventDate ? format(new Date(proposal.eventDate), "MMMM d, yyyy") : "Date TBD"}</span>
+                {relatedEvents.length === 0 ? (
+                  <div className="text-gray-500 text-center py-4">
+                    <Calendar className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                    <p>No events found for this proposal</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-gray-400" />
-                    <span>{proposal.startTime} - {proposal.endTime}</span>
+                ) : (
+                  <div className="space-y-4">
+                    {relatedEvents.map((event: any, index: number) => {
+                      const venue = venues.find((v: any) => v.id === event.venueId);
+                      const space = venue?.spaces?.find((s: any) => s.id === event.spaceId);
+                      
+                      return (
+                        <div key={event.id} className={`${index > 0 ? 'border-t pt-4' : ''}`}>
+                          <div className="space-y-3">
+                            <div className="font-medium text-lg">{event.eventName}</div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-gray-400" />
+                                <span>{event.eventDate ? format(new Date(event.eventDate), "MMMM d, yyyy") : "Date TBD"}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-4 w-4 text-gray-400" />
+                                <span>{event.startTime} - {event.endTime}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Users className="h-4 w-4 text-gray-400" />
+                                <span>{event.guestCount} guests</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <MapPin className="h-4 w-4 text-gray-400" />
+                                <span>{venue?.name || 'Venue TBD'}{space ? ` - ${space.name}` : ''}</span>
+                              </div>
+                            </div>
+                            
+                            {event.notes && (
+                              <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                                <strong>Notes:</strong> {event.notes}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-gray-400" />
-                    <span>{proposal.guestCount} guests</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-gray-400" />
-                    <span>Venue & Space details</span>
-                  </div>
-                </div>
+                )}
 
                 <Separator className="my-4" />
 
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span>Total Amount</span>
-                    <span className="font-medium">${parseFloat(proposal.totalAmount).toFixed(2)}</span>
+                    <span className="font-medium">${parseFloat(proposal.totalAmount || 0).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-green-600">
                     <span>Required Deposit</span>
-                    <span className="font-medium">${parseFloat(proposal.depositAmount).toFixed(2)}</span>
+                    <span className="font-medium">${parseFloat(proposal.depositAmount || 0).toFixed(2)}</span>
                   </div>
                   {proposal.depositPaid && (
                     <div className="flex justify-between text-emerald-600">
                       <span>✓ Deposit Paid</span>
                       <span className="font-medium">
-                        {format(new Date(proposal.depositPaidAt), "MMM d, yyyy")}
+                        {proposal.depositPaidAt ? format(new Date(proposal.depositPaidAt), "MMM d, yyyy") : 'N/A'}
                       </span>
                     </div>
                   )}
@@ -322,11 +378,14 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 text-sm">
-                  <div className="font-medium">{proposal.customer?.name}</div>
-                  <div className="text-gray-600">{proposal.customer?.email}</div>
-                  <div className="text-gray-600">{proposal.customer?.phone}</div>
-                  {proposal.customer?.company && (
-                    <div className="text-gray-600">{proposal.customer.company}</div>
+                  <div className="font-medium">{customer?.name || 'Customer Name'}</div>
+                  <div className="text-gray-600">{customer?.email || 'No email'}</div>
+                  <div className="text-gray-600">{customer?.phone || 'No phone'}</div>
+                  {customer?.company && (
+                    <div className="text-gray-600">{customer.company}</div>
+                  )}
+                  {customer?.address && (
+                    <div className="text-gray-600 text-xs">{customer.address}</div>
                   )}
                 </div>
               </CardContent>
@@ -338,33 +397,10 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                 <CardTitle className="text-lg">Quick Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {!proposal.depositPaid && proposal.status === 'accepted' && (
-                  <Button
-                    onClick={() => processDepositMutation.mutate()}
-                    disabled={processDepositMutation.isPending}
-                    className="w-full bg-green-600 hover:bg-green-700"
-                  >
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Process Deposit Payment
-                  </Button>
-                )}
-                
-                <Button variant="outline" className="w-full">
-                  <FileText className="h-4 w-4 mr-2" />
-                  View Full Proposal
-                </Button>
-                
                 <Button variant="outline" className="w-full">
                   <Send className="h-4 w-4 mr-2" />
                   Resend Proposal
                 </Button>
-                
-                {proposal.status === 'accepted' && (
-                  <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                    Convert to Booking
-                  </Button>
-                )}
               </CardContent>
             </Card>
 
