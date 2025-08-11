@@ -36,7 +36,7 @@ export const STATUS_CONFIGS: Record<EventStatus, StatusConfig> = {
     isActive: true
   },
   pending: {
-    label: "Pending / Proposal Sent", 
+    label: "Proposal Shared", 
     description: "Proposal sent to client, awaiting response",
     color: "#f59e0b", // amber-500
     bgColor: "bg-amber-50",
