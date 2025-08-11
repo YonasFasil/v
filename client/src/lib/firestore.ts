@@ -141,6 +141,30 @@ export class UserService {
       userId,
     });
   }
+
+  static async getUserTenant(userId: string): Promise<{tenantId: string, tenantSlug: string, tenantName: string, role: string} | null> {
+    // Get the user's tenant relationship
+    const tenantUsers = await FirestoreService.list<TenantUserDoc>(
+      COLLECTIONS.TENANT_USERS,
+      [where('userId', '==', userId), limit(1)]
+    );
+    
+    if (tenantUsers.length === 0) return null;
+    
+    const tenantUser = tenantUsers[0];
+    
+    // Get tenant details
+    const tenant = await FirestoreService.get<TenantDoc>(COLLECTIONS.TENANTS, tenantUser.tenantId);
+    
+    if (!tenant) return null;
+    
+    return {
+      tenantId: tenant.id,
+      tenantSlug: tenant.slug,
+      tenantName: tenant.name,
+      role: tenantUser.role,
+    };
+  }
 }
 
 // Tenant operations  

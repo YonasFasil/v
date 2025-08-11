@@ -6,6 +6,12 @@ import type { UserDoc } from '@shared/firestore-schema';
 
 export interface AuthUser extends UserDoc {
   uid: string;
+  currentTenant?: {
+    id: string;
+    slug: string;
+    name: string;
+    role: string;
+  };
 }
 
 export function useFirebaseAuth() {
@@ -35,6 +41,24 @@ export function useFirebaseAuth() {
           const firestoreUser = await UserService.getUserByEmail(firebaseUser.email!);
           const isSuperAdmin = firestoreUser ? await UserService.checkIsSuperAdmin(firestoreUser.id) : false;
           
+          // Get user's tenant relationship if they have one
+          let currentTenant = null;
+          if (!isSuperAdmin && firestoreUser) {
+            try {
+              const tenantUserSnapshot = await UserService.getUserTenant(firebaseUser.uid);
+              if (tenantUserSnapshot) {
+                currentTenant = {
+                  id: tenantUserSnapshot.tenantId,
+                  slug: tenantUserSnapshot.tenantSlug,
+                  name: tenantUserSnapshot.tenantName,
+                  role: tenantUserSnapshot.role,
+                };
+              }
+            } catch (error) {
+              console.error('Error fetching user tenant:', error);
+            }
+          }
+          
           const authUser: AuthUser = {
             uid: firebaseUser.uid,
             id: firestoreUser?.id || firebaseUser.uid,
@@ -43,6 +67,7 @@ export function useFirebaseAuth() {
             lastName: firestoreUser?.lastName || userData.lastName,
             emailVerified: firebaseUser.emailVerified,
             isSuperAdmin,
+            currentTenant,
             createdAt: firestoreUser?.createdAt || new Date(),
             updatedAt: firestoreUser?.updatedAt || new Date(),
           };
