@@ -1,0 +1,1 @@
+{"id":"583dc21e-6fc4-4ef7-8e4f-1217c220482e","tenantId":"edac12ea-983a-452f-815b-c64694fe3403","firstName":"Test","lastName":"User","email":"test@example.com","phone":null,"company":null,"address":null,"notes":null,"tags":[],"createdAt":"2025-08-11T08:23:26.026Z","updatedAt":"2025-08-11T08:23:26.026Z"}
