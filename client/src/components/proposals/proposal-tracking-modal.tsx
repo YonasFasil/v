@@ -89,10 +89,25 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     enabled: !!proposalId && open
   });
 
-  // Find the events/bookings associated with this proposal
-  const relatedEvents = proposal ? bookings.filter((booking: any) => 
-    booking.customerId === proposal.customerId && booking.proposalStatus === 'sent'
-  ) : [];
+  // Find the events/bookings associated with this specific proposal
+  // For now, we'll match by customer ID and create timestamp to prevent mixing different proposals
+  const relatedEvents = proposal ? bookings.filter((booking: any) => {
+    if (booking.customerId !== proposal.customerId) return false;
+    
+    // If booking has a proposalId, use exact match
+    if (booking.proposalId) {
+      return booking.proposalId === proposal.id;
+    }
+    
+    // Fallback: match by exact event name and similar timestamps (within 1 minute)
+    const proposalTime = new Date(proposal.createdAt).getTime();
+    const bookingTime = new Date(booking.createdAt).getTime();
+    const timeDiff = Math.abs(proposalTime - bookingTime);
+    
+    return booking.eventName === proposal.title && 
+           booking.proposalStatus === 'sent' && 
+           timeDiff < 60000; // Within 1 minute
+  }) : [];
 
   // Get customer information
   const customer = proposal ? customers.find((c: any) => c.id === proposal.customerId) : null;
