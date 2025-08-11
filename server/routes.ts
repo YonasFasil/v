@@ -45,9 +45,17 @@ import {
 import { approvalService } from "./services/approvalService";
 import nodemailer from "nodemailer";
 import { RESOURCES, ACTIONS } from "@shared/schema";
+import { authenticate, optionalAuth, type AuthenticatedRequest } from "./middleware/auth";
+import { login, logout, getCurrentUser, registerTenant } from "./routes/auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // Authentication routes (public)
+  app.post("/api/auth/login", login);
+  app.post("/api/auth/logout", logout);
+  app.get("/api/auth/user", authenticate, getCurrentUser);
+  app.post("/api/auth/register-tenant", registerTenant);
+
   // Venues
   app.get("/api/venues", async (req, res) => {
     try {
