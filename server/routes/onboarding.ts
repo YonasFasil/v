@@ -16,7 +16,7 @@ const createTenantSchema = z.object({
   businessPhone: z.string().min(10, "Please enter a valid phone number"),
   businessAddress: z.string().min(10, "Please enter your business address"),
   businessDescription: z.string().min(10, "Please describe your business in at least 10 characters"),
-  featurePackageSlug: z.string().optional(),
+  featurePackageSlug: z.string().min(1, "Please select a plan"),
 });
 
 export function registerOnboardingRoutes(app: Express) {
@@ -63,15 +63,20 @@ export function registerOnboardingRoutes(app: Express) {
         });
       }
 
-      // Get default starter plan (or first available plan)
-      const featurePackagesSnapshot = await adminDb.collection('featurePackages').limit(1).get();
-      if (featurePackagesSnapshot.empty) {
-        return res.status(500).json({ 
-          message: 'No plans available. Please contact support.' 
+      // Get selected feature package
+      let selectedPlan;
+      if (featurePackageSlug) {
+        const packageSnapshot = await adminDb.collection('featurePackages').where('slug', '==', featurePackageSlug).get();
+        if (!packageSnapshot.empty) {
+          selectedPlan = packageSnapshot.docs[0].data();
+        }
+      }
+      
+      if (!selectedPlan) {
+        return res.status(400).json({ 
+          message: 'Selected plan not found. Please choose a valid plan.' 
         });
       }
-
-      const defaultPlan = featurePackagesSnapshot.docs[0].data();
 
       // Create tenant with clean environment
       const tenantId = randomUUID();
@@ -80,7 +85,9 @@ export function registerOnboardingRoutes(app: Express) {
         name: tenantName,
         slug: tenantSlug,
         industry: industry,
-        planId: defaultPlan.id,
+        planId: selectedPlan.id,
+        features: selectedPlan.features || {},
+        limits: selectedPlan.limits || { maxUsers: 3, maxVenues: 1, maxSpacesPerVenue: 5 },
         status: 'active',
         contactName: contactName,
         contactEmail: contactEmail,

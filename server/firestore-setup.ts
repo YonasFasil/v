@@ -67,6 +67,10 @@ export async function setupInitialData() {
     }
 
     console.log('Initial Firestore data setup completed successfully');
+  
+  // Initialize default feature packages
+  const { initializeDefaultPackages } = await import('./firebase-init-packages');
+  await initializeDefaultPackages();
   } catch (error) {
     console.error('Error setting up initial data:', error);
   }

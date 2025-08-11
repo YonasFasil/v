@@ -38,7 +38,7 @@ const tenantSetupSchema = z.object({
   businessPhone: z.string().min(10, "Please enter a valid phone number"),
   businessAddress: z.string().min(10, "Please enter your business address"),
   businessDescription: z.string().min(10, "Please describe your business in at least 10 characters"),
-  featurePackageSlug: z.string().optional(),
+  featurePackageSlug: z.string().min(1, "Please select a plan"),
 });
 
 type TenantSetupData = z.infer<typeof tenantSetupSchema>;
@@ -57,7 +57,7 @@ const industries = [
 export default function Onboarding() {
   const [, setLocation] = useLocation();
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 4;
+  const totalSteps = 5;
 
   // Logout mutation
   const logoutMutation = useMutation({
@@ -93,6 +93,12 @@ export default function Onboarding() {
   });
 
   const user = authResponse?.user;
+
+  // Fetch available feature packages (public endpoint)
+  const { data: featurePackages, isLoading: packagesLoading } = useQuery<any[]>({
+    queryKey: ["/api/public/plans"],
+    retry: false,
+  });
 
   // Super admin should NEVER reach onboarding - this is for tenant setup only
   useEffect(() => {
@@ -192,7 +198,7 @@ export default function Onboarding() {
     }
   };
 
-  if (userLoading) {
+  if (userLoading || packagesLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
@@ -376,7 +382,103 @@ export default function Onboarding() {
             </Card>
           )}
 
+          {/* Step 3: Choose Your Plan */}
           {currentStep === 3 && (
+            <Card className="border-0 shadow-xl">
+              <CardHeader className="text-center">
+                <CardTitle className="text-2xl">Choose Your Perfect Plan</CardTitle>
+                <CardDescription className="text-lg">
+                  Select the features that best fit your venue's needs
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-6">
+                  {featurePackages?.map((pkg: any) => (
+                    <div 
+                      key={pkg.id}
+                      className={`border-2 rounded-lg p-6 cursor-pointer transition-all ${
+                        form.watch("featurePackageSlug") === pkg.slug
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => form.setValue("featurePackageSlug", pkg.slug)}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3">
+                            <h3 className="text-xl font-semibold">{pkg.name}</h3>
+                            {pkg.popular && (
+                              <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                                Most Popular
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-gray-600 mt-2">{pkg.description}</p>
+                          <div className="mt-4">
+                            <div className="text-2xl font-bold">${pkg.priceMonthly}/month</div>
+                            <div className="text-sm text-gray-500">
+                              ${pkg.priceYearly}/year (save ${(pkg.priceMonthly * 12) - pkg.priceYearly})
+                            </div>
+                          </div>
+                        </div>
+                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                          form.watch("featurePackageSlug") === pkg.slug
+                            ? 'border-blue-500 bg-blue-500'
+                            : 'border-gray-300'
+                        }`}>
+                          {form.watch("featurePackageSlug") === pkg.slug && (
+                            <div className="w-2 h-2 bg-white rounded-full" />
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Feature highlights */}
+                      <div className="mt-4 grid grid-cols-2 gap-2 text-sm text-gray-600">
+                        {Object.entries(pkg.features || {})
+                          .filter(([, enabled]: [string, any]) => enabled)
+                          .slice(0, 6)
+                          .map(([feature, ]: [string, any]) => (
+                            <div key={feature} className="flex items-center gap-2">
+                              <div className="w-4 h-4 text-green-500">✓</div>
+                              <span>{feature.replace(/-/g, ' ').replace(/^\w/, c => c.toUpperCase())}</span>
+                            </div>
+                          ))
+                        }
+                        {Object.keys(pkg.features || {}).filter(([, enabled]: [string, any]) => enabled).length > 6 && (
+                          <div className="text-gray-500 col-span-2">
+                            + {Object.keys(pkg.features || {}).filter(([, enabled]: [string, any]) => enabled).length - 6} more features
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                <FormField
+                  control={form.control}
+                  name="featurePackageSlug"
+                  render={({ field }) => (
+                    <FormItem className="mt-4">
+                      <FormMessage />
+                      <input type="hidden" {...field} />
+                    </FormItem>
+                  )}
+                />
+                
+                <div className="flex justify-between mt-8">
+                  <Button type="button" variant="outline" onClick={prevStep} className="h-12 px-8">
+                    Back
+                  </Button>
+                  <Button type="button" onClick={nextStep} className="h-12 px-8">
+                    Continue
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 4: Business Details */}
+          {currentStep === 4 && (
             <Card className="border-0 shadow-xl">
               <CardHeader className="text-center pb-6">
                 <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -501,7 +603,8 @@ export default function Onboarding() {
             </Card>
           )}
 
-          {currentStep === 4 && (
+          {/* Step 5: Ready to Launch */}
+          {currentStep === 5 && (
             <Card className="border-0 shadow-xl">
               <CardHeader className="text-center pb-6">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -520,6 +623,7 @@ export default function Onboarding() {
                       <div><strong>Business:</strong> {form.getValues("tenantName")}</div>
                       <div><strong>URL:</strong> venuin.com/{form.getValues("tenantSlug")}</div>
                       <div><strong>Industry:</strong> {form.getValues("industry")}</div>
+                      <div><strong>Plan:</strong> {featurePackages?.find((pkg: any) => pkg.slug === form.getValues("featurePackageSlug"))?.name || form.getValues("featurePackageSlug")}</div>
                       <div><strong>Contact:</strong> {form.getValues("contactName")} ({form.getValues("contactEmail")})</div>
                       <div><strong>Phone:</strong> {form.getValues("businessPhone")}</div>
                       <div><strong>Address:</strong> {form.getValues("businessAddress")}</div>
