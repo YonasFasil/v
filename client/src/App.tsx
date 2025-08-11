@@ -19,6 +19,7 @@ import Signup from "@/pages/auth/Signup";
 import VerifyEmailSent from "@/pages/auth/VerifyEmailSent";
 import EmailVerification from "@/pages/auth/EmailVerification";
 import LogoutPage from "@/pages/LogoutPage";
+import ForceLogout from "@/pages/ForceLogout";
 
 // App pages
 import Dashboard from "@/pages/dashboard";
@@ -58,6 +59,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       <Route path="/logout" component={LogoutPage} />
+      <Route path="/force-logout" component={ForceLogout} />
       <Route path="/verify-email-sent" component={VerifyEmailSent} />
       <Route path="/verify-email" component={EmailVerification} />
       <Route path="/onboarding" component={Onboarding} />
