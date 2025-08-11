@@ -15,7 +15,8 @@ import {
   insertProposalSchema, 
   insertTaskSchema,
   insertLeadSchema,
-  insertVenueSchema
+  insertVenueSchema,
+  insertSpaceSchema
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -35,6 +36,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Apply auth middleware to tenant-specific routes (simplified)
   app.use('/api/venues', requireAuth);
+  app.use('/api/spaces', requireAuth);
   app.use('/api/bookings', requireAuth);
   app.use('/api/customers', requireAuth);
   app.use('/api/leads', requireAuth);
@@ -51,11 +53,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const venues = await storage.getVenues(req.user.currentTenant.id);
-      // For now, return venues with empty spaces array since spaces functionality may not be fully implemented
-      const venuesWithSpaces = venues.map((venue: any) => ({
-        ...venue,
-        spaces: []
-      }));
+      // Get spaces for each venue and combine the data
+      const venuesWithSpaces = await Promise.all(
+        venues.map(async (venue: any) => {
+          const spaces = await storage.getSpacesByVenue(venue.id);
+          return {
+            ...venue,
+            spaces
+          };
+        })
+      );
       res.json(venuesWithSpaces);
     } catch (error) {
       console.error('Venues with spaces error:', error);
@@ -72,6 +79,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(venue);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch venue" });
+    }
+  });
+
+  app.get("/api/venues/:id/spaces", async (req, res) => {
+    try {
+      const spaces = await storage.getSpacesByVenue(req.params.id);
+      res.json(spaces);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch venue spaces" });
     }
   });
 
@@ -235,6 +251,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to create task" });
+    }
+  });
+
+  // Spaces
+  app.get("/api/spaces", async (req: any, res) => {
+    try {
+      const spaces = await storage.getSpaces(req.user.currentTenant.id);
+      res.json(spaces);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch spaces" });
+    }
+  });
+
+  app.post("/api/spaces", async (req: any, res) => {
+    try {
+      const spaceData = insertSpaceSchema.parse({
+        ...req.body,
+        tenantId: req.user.currentTenant.id,
+      });
+      const space = await storage.createSpace(spaceData);
+      res.status(201).json(space);
+    } catch (error: any) {
+      console.error('Space creation error:', error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create space" });
     }
   });
 

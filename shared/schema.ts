@@ -114,6 +114,22 @@ export const venues = pgTable("venues", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Spaces table (spaces within venues)
+export const spaces = pgTable("spaces", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  venueId: uuid("venue_id").references(() => venues.id, { onDelete: 'cascade' }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  capacity: integer("capacity"),
+  description: text("description"),
+  amenities: jsonb("amenities").default([]),
+  pricing: jsonb("pricing").default({}),
+  dimensions: varchar("dimensions", { length: 100 }),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Customers table
 export const customers = pgTable("customers", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -227,6 +243,7 @@ export const tenantsRelations = relations(tenants, ({ one, many }) => ({
   bookings: many(bookings),
   proposals: many(proposals),
   tasks: many(tasks),
+  spaces: many(spaces),
 }));
 
 export const tenantUsersRelations = relations(tenantUsers, ({ one }) => ({
@@ -236,7 +253,13 @@ export const tenantUsersRelations = relations(tenantUsers, ({ one }) => ({
 
 export const venuesRelations = relations(venues, ({ one, many }) => ({
   tenant: one(tenants, { fields: [venues.tenantId], references: [tenants.id] }),
+  spaces: many(spaces),
   bookings: many(bookings),
+}));
+
+export const spacesRelations = relations(spaces, ({ one, many }) => ({
+  tenant: one(tenants, { fields: [spaces.tenantId], references: [tenants.id] }),
+  venue: one(venues, { fields: [spaces.venueId], references: [venues.id] }),
 }));
 
 export const customersRelations = relations(customers, ({ one, many }) => ({
@@ -351,6 +374,14 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({
 
 export const selectTaskSchema = createSelectSchema(tasks);
 
+export const insertSpaceSchema = createInsertSchema(spaces).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const selectSpaceSchema = createSelectSchema(spaces);
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
@@ -362,6 +393,8 @@ export type TenantUser = typeof tenantUsers.$inferSelect;
 export type InsertTenantUser = typeof tenantUsers.$inferInsert;
 export type Venue = typeof venues.$inferSelect;
 export type InsertVenue = typeof venues.$inferInsert;
+export type Space = typeof spaces.$inferSelect;
+export type InsertSpace = typeof spaces.$inferInsert;
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = typeof customers.$inferInsert;
 export type Lead = typeof leads.$inferSelect;

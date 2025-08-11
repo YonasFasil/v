@@ -1,7 +1,7 @@
 import { 
-  users, tenants, tenantUsers, featurePackages, venues, customers, leads, bookings, proposals, tasks,
+  users, tenants, tenantUsers, featurePackages, venues, spaces, customers, leads, bookings, proposals, tasks,
   type User, type InsertUser, type Tenant, type InsertTenant, type TenantUser, type InsertTenantUser,
-  type FeaturePackage, type InsertFeaturePackage, type Venue, type InsertVenue,
+  type FeaturePackage, type InsertFeaturePackage, type Venue, type InsertVenue, type Space, type InsertSpace,
   type Customer, type InsertCustomer, type Lead, type InsertLead,
   type Booking, type InsertBooking, type Proposal, type InsertProposal,
   type Task, type InsertTask
@@ -50,6 +50,14 @@ export interface IStorage {
   createVenue(insertVenue: InsertVenue): Promise<Venue>;
   updateVenue(id: string, updates: Partial<Venue>): Promise<Venue>;
   deleteVenue(id: string): Promise<void>;
+
+  // Space operations
+  getSpaces(tenantId?: string): Promise<Space[]>;
+  getSpacesByVenue(venueId: string): Promise<Space[]>;
+  getSpace(id: string): Promise<Space | undefined>;
+  createSpace(insertSpace: InsertSpace): Promise<Space>;
+  updateSpace(id: string, updates: Partial<Space>): Promise<Space>;
+  deleteSpace(id: string): Promise<void>;
 
   // Customer operations
   getCustomers(tenantId: string): Promise<Customer[]>;
@@ -323,6 +331,49 @@ export class DatabaseStorage implements IStorage {
 
   async deleteVenue(id: string): Promise<void> {
     await db.delete(venues).where(eq(venues.id, id));
+  }
+
+  // Space operations
+  async getSpaces(tenantId?: string): Promise<Space[]> {
+    const query = db.select().from(spaces);
+    if (tenantId) {
+      return await query.where(eq(spaces.tenantId, tenantId));
+    }
+    return await query;
+  }
+
+  async getSpacesByVenue(venueId: string): Promise<Space[]> {
+    return await db
+      .select()
+      .from(spaces)
+      .where(eq(spaces.venueId, venueId))
+      .orderBy(desc(spaces.createdAt));
+  }
+
+  async getSpace(id: string): Promise<Space | undefined> {
+    const [space] = await db.select().from(spaces).where(eq(spaces.id, id));
+    return space;
+  }
+
+  async createSpace(insertSpace: InsertSpace): Promise<Space> {
+    const [space] = await db
+      .insert(spaces)
+      .values(insertSpace)
+      .returning();
+    return space;
+  }
+
+  async updateSpace(id: string, updates: Partial<Space>): Promise<Space> {
+    const [space] = await db
+      .update(spaces)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(spaces.id, id))
+      .returning();
+    return space;
+  }
+
+  async deleteSpace(id: string): Promise<void> {
+    await db.delete(spaces).where(eq(spaces.id, id));
   }
 
   // Customer operations
