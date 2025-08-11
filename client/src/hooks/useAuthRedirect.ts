@@ -16,12 +16,16 @@ interface AuthUser {
 export function useAuthRedirect() {
   const [, setLocation] = useLocation();
   
-  const { data: user, isLoading } = useQuery<AuthUser>({
+  const { data: authResponse, isLoading } = useQuery<{user: AuthUser}>({
     queryKey: ['/api/auth/me'],
     retry: false,
   });
 
+  const user = authResponse?.user;
+
   useEffect(() => {
+    console.log('useAuthRedirect hook:', { isLoading, user, isSuperAdmin: user?.isSuperAdmin, currentPath: window.location.pathname });
+    
     if (isLoading) return;
 
     // Not authenticated - stay on current page (login/signup/public)

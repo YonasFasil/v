@@ -13,6 +13,19 @@ import { CheckCircle2, Building2, Globe, ArrowRight, Sparkles, LogOut } from "lu
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
+interface AuthUser {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  isSuperAdmin: boolean;
+  currentTenant?: {
+    id: string;
+    slug: string;
+    role: string;
+  };
+}
+
 const tenantSetupSchema = z.object({
   tenantName: z.string().min(2, "Business name must be at least 2 characters"),
   tenantSlug: z.string()
@@ -67,14 +80,23 @@ export default function Onboarding() {
   };
 
   // Check user info
-  const { data: user, isLoading: userLoading } = useQuery({
+  const { data: authResponse, isLoading: userLoading } = useQuery<{user: AuthUser}>({
     queryKey: ["/api/auth/me"],
+    retry: false,
   });
+
+  const user = authResponse?.user;
 
   // Super admin redirect - they should never see onboarding
   useEffect(() => {
-    if (!userLoading && user?.isSuperAdmin) {
-      setLocation('/admin/dashboard');
+    console.log('Onboarding page useEffect:', { userLoading, user, isSuperAdmin: user?.isSuperAdmin });
+    
+    if (!userLoading && user) {
+      if (user.isSuperAdmin) {
+        console.log('Super admin detected, redirecting to /admin/dashboard');
+        setLocation('/admin/dashboard');
+        return;
+      }
     }
   }, [user, userLoading, setLocation]);
 
