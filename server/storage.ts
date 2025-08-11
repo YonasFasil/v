@@ -435,7 +435,7 @@ export class MemStorage implements IStorage {
           startTime: "18:00",
           endTime: "23:00",
           guestCount: 150,
-          status: "confirmed",
+          status: "confirmed_fully_paid", // Updated to new 7-status system
           customerId: updatedCustomers[0]?.id,
           venueId: venues[0]?.id,
           spaceId: spaces[0]?.id,
@@ -451,7 +451,7 @@ export class MemStorage implements IStorage {
           startTime: "17:00",
           endTime: "22:00",
           guestCount: 80,
-          status: "pending",
+          status: "proposal_shared", // Updated to new 7-status system
           customerId: updatedCustomers[1]?.id,
           venueId: venues[0]?.id,
           spaceId: spaces[1]?.id,
@@ -467,7 +467,7 @@ export class MemStorage implements IStorage {
           startTime: "19:00", 
           endTime: "21:30",
           guestCount: 45,
-          status: "confirmed" as const,
+          status: "confirmed_deposit_paid", // Updated to new 7-status system
           customerId: updatedCustomers[2]?.id,
           venueId: venues[1]?.id,
           spaceId: spaces[2]?.id,
@@ -483,7 +483,7 @@ export class MemStorage implements IStorage {
           startTime: "15:00",
           endTime: "18:00", 
           guestCount: 25,
-          status: "confirmed" as const,
+          status: "tentative", // Updated to new 7-status system
           customerId: updatedCustomers[0]?.id,
           venueId: venues[2]?.id,
           spaceId: spaces[4]?.id,
