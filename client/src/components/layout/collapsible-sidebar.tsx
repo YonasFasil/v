@@ -2,6 +2,9 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import {
   LayoutDashboard,
   Calendar,
@@ -15,7 +18,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
-  X
+  X,
+  LogOut
 } from "lucide-react";
 
 const navigation = [
@@ -38,6 +42,27 @@ interface CollapsibleSidebarProps {
 
 export function CollapsibleSidebar({ isCollapsed = false, onToggle, className }: CollapsibleSidebarProps) {
   const [location] = useLocation();
+  const { toast } = useToast();
+  
+  // Logout mutation
+  const logoutMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/auth/logout"),
+    onSuccess: () => {
+      toast({
+        title: "Logged out successfully",
+        description: "You have been logged out.",
+      });
+      // Redirect to home page
+      window.location.href = "/";
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Logout failed", 
+        description: error.message || "Failed to logout",
+        variant: "destructive",
+      });
+    }
+  });
 
   return (
     <div className={cn(
@@ -100,19 +125,51 @@ export function CollapsibleSidebar({ isCollapsed = false, onToggle, className }:
       </nav>
 
       {/* Footer */}
-      {!isCollapsed && (
-        <div className="p-4 border-t border-slate-200">
-          <div className="flex items-center space-x-3 px-3 py-2">
-            <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center">
-              <span className="text-slate-600 font-medium text-sm">JD</span>
+      <div className="p-4 border-t border-slate-200">
+        {isCollapsed ? (
+          <>
+            <div className="flex justify-center mb-3">
+              <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center" title="John Doe - Venue Manager">
+                <span className="text-slate-600 font-medium text-sm">JD</span>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-900 truncate">John Doe</p>
-              <p className="text-xs text-slate-500 truncate">Venue Manager</p>
+            <div className="flex justify-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => logoutMutation.mutate()}
+                disabled={logoutMutation.isPending}
+                className="w-8 h-8 p-0 hover:bg-red-50"
+                title="Logout"
+              >
+                <LogOut className="h-4 w-4 text-red-600" />
+              </Button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        ) : (
+          <>
+            <div className="flex items-center space-x-3 px-3 py-2 mb-3">
+              <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center">
+                <span className="text-slate-600 font-medium text-sm">JD</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-900 truncate">John Doe</p>
+                <p className="text-xs text-slate-500 truncate">Venue Manager</p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => logoutMutation.mutate()}
+              disabled={logoutMutation.isPending}
+              className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              {logoutMutation.isPending ? "Logging out..." : "Logout"}
+            </Button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -124,6 +181,27 @@ interface MobileSidebarProps {
 
 export function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
   const [location] = useLocation();
+  const { toast } = useToast();
+  
+  // Logout mutation
+  const logoutMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/auth/logout"),
+    onSuccess: () => {
+      toast({
+        title: "Logged out successfully",
+        description: "You have been logged out.",
+      });
+      // Redirect to home page
+      window.location.href = "/";
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Logout failed", 
+        description: error.message || "Failed to logout",
+        variant: "destructive",
+      });
+    }
+  });
 
   if (!isOpen) return null;
 
@@ -174,7 +252,7 @@ export function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
 
         {/* Footer */}
         <div className="p-4 border-t border-slate-200">
-          <div className="flex items-center space-x-3 px-3 py-2">
+          <div className="flex items-center space-x-3 px-3 py-2 mb-3">
             <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center">
               <span className="text-slate-600 font-medium text-sm">JD</span>
             </div>
@@ -183,6 +261,16 @@ export function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
               <p className="text-xs text-slate-500 truncate">Venue Manager</p>
             </div>
           </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => logoutMutation.mutate()}
+            disabled={logoutMutation.isPending}
+            className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            {logoutMutation.isPending ? "Logging out..." : "Logout"}
+          </Button>
         </div>
       </div>
     </>
