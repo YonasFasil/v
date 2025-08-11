@@ -3,12 +3,12 @@ import { getAuth, signInWithRedirect, GoogleAuthProvider, getRedirectResult, sig
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebasestorage.app`,
-  messagingSenderId: "123456789",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyA543_XOxgTQTb50BDKGGR4gV0SQYIxwRE",
+  authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID || "venuine-519d3"}.firebaseapp.com`,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "venuine-519d3",
+  storageBucket: `${import.meta.env.VITE_FIREBASE_PROJECT_ID || "venuine-519d3"}.firebasestorage.app`,
+  messagingSenderId: "948784074321",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:948784074321:web:f1351c2b98de55b5e7b270",
 };
 
 // Initialize Firebase
