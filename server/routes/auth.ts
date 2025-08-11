@@ -120,7 +120,7 @@ export function registerAuthRoutes(app: Express) {
         isSuperAdmin: isSuperAdmin,
       };
 
-      let tenantResult = { rows: [] };
+      let tenantResult: { rows: any[] } = { rows: [] };
       
       // Only check for tenant if NOT a super admin
       if (!isSuperAdmin) {

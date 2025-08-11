@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { sessionMiddleware } from "./middleware/session";
 import { tenantContext, type TenantRequest } from "./middleware/tenantContext";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerPublicRoutes } from "./routes/public";
@@ -34,6 +35,9 @@ import {
 import { aiService } from "./services/ai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Apply session middleware globally
+  app.use(sessionMiddleware);
+  
   // Apply Firebase authentication middleware globally for protected routes
   // Public routes don't need authentication, but protected routes will check for Firebase tokens
 
