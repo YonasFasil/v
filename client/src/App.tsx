@@ -72,6 +72,8 @@ function Router() {
       <Route path="/t/:slug/app/setup-styles" component={SetupStyles} />
       <Route path="/t/:slug/app/packages" component={Packages} />
       <Route path="/t/:slug/app/ai-analytics" component={AIAnalytics} />
+      <Route path="/t/:slug/app/ai-scheduling" component={AIAnalytics} />
+      <Route path="/t/:slug/app/ai-proposals" component={AIAnalytics} />
       <Route path="/t/:slug/app/reports" component={Reports} />
       <Route path="/t/:slug/app/voice-booking" component={VoiceBooking} />
       <Route path="/t/:slug/app/settings" component={Settings} />

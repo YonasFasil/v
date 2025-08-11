@@ -129,25 +129,26 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
     isDemoAccount: tenantInfo?.contactEmail === 'demo@venuin.com'
   });
   
-  // Show all navigation items for demo account - simplified approach
+  // Show all navigation items with tenant-specific URLs
+  const tenantSlug = tenantInfo?.slug || 'demo-venue-company';
   const navigationItems = [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard },
-    { name: "Events & Bookings", href: "/events", icon: Calendar },
-    { name: "Customers", href: "/customers", icon: Users },
-    { name: "Leads", href: "/leads", icon: UserPlus },
-    { name: "Proposals", href: "/proposals", icon: FileText },
-    { name: "Payments", href: "/payments", icon: CreditCard },
-    { name: "Tasks & Team", href: "/tasks", icon: CheckSquare },
-    { name: "Venues", href: "/venues", icon: MapPin },
-    { name: "Setup Styles", href: "/setup-styles", icon: Grid3X3 },
-    { name: "Packages & Services", href: "/packages", icon: Package },
+    { name: "Dashboard", href: `/t/${tenantSlug}/app`, icon: LayoutDashboard },
+    { name: "Events & Bookings", href: `/t/${tenantSlug}/app/events`, icon: Calendar },
+    { name: "Customers", href: `/t/${tenantSlug}/app/customers`, icon: Users },
+    { name: "Leads", href: `/t/${tenantSlug}/app/leads`, icon: UserPlus },
+    { name: "Proposals", href: `/t/${tenantSlug}/app/proposals`, icon: FileText },
+    { name: "Payments", href: `/t/${tenantSlug}/app/payments`, icon: CreditCard },
+    { name: "Tasks & Team", href: `/t/${tenantSlug}/app/tasks`, icon: CheckSquare },
+    { name: "Venues", href: `/t/${tenantSlug}/app/venues`, icon: MapPin },
+    { name: "Setup Styles", href: `/t/${tenantSlug}/app/setup-styles`, icon: Grid3X3 },
+    { name: "Packages & Services", href: `/t/${tenantSlug}/app/packages`, icon: Package },
   ];
   
   const aiFeatures = [
-    { name: "AI Analytics & Reports", href: "/ai-analytics", icon: BarChart3 },
-    { name: "Voice Booking", href: "/voice-booking", icon: Mic },
-    { name: "Smart Scheduling", href: "/ai-scheduling", icon: Brain },
-    { name: "AI Proposal Generator", href: "/ai-proposals", icon: Lightbulb },
+    { name: "AI Analytics & Reports", href: `/t/${tenantSlug}/app/ai-analytics`, icon: BarChart3 },
+    { name: "Voice Booking", href: `/t/${tenantSlug}/app/voice-booking`, icon: Mic },
+    { name: "Smart Scheduling", href: `/t/${tenantSlug}/app/ai-scheduling`, icon: Brain },
+    { name: "AI Proposal Generator", href: `/t/${tenantSlug}/app/ai-proposals`, icon: Lightbulb },
   ];
   
   // Logout mutation

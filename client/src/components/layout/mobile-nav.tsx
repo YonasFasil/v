@@ -73,19 +73,20 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
   const { toast } = useToast();
   const { hasFeature, isLoading, tenantInfo } = useTenantFeatures();
   
-  // Show all navigation items - simplified approach
+  // Show all navigation items with tenant-specific URLs
+  const tenantSlug = tenantInfo?.slug || 'demo-venue-company';
   const navigationItems = [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard },
-    { name: "Events & Bookings", href: "/events", icon: Calendar },
-    { name: "Customers", href: "/customers", icon: Users },
-    { name: "Leads", href: "/leads", icon: UserPlus },
-    { name: "Proposals", href: "/proposals", icon: FileText },
-    { name: "Payments", href: "/payments", icon: CreditCard },
-    { name: "Tasks & Team", href: "/tasks", icon: CheckSquare },
-    { name: "Venues", href: "/venues", icon: Building },
-    { name: "Packages & Services", href: "/packages", icon: Package },
-    { name: "Reports & Insights", href: "/reports", icon: BarChart3 },
-    { name: "Settings", href: "/settings", icon: Settings },
+    { name: "Dashboard", href: `/t/${tenantSlug}/app`, icon: LayoutDashboard },
+    { name: "Events & Bookings", href: `/t/${tenantSlug}/app/events`, icon: Calendar },
+    { name: "Customers", href: `/t/${tenantSlug}/app/customers`, icon: Users },
+    { name: "Leads", href: `/t/${tenantSlug}/app/leads`, icon: UserPlus },
+    { name: "Proposals", href: `/t/${tenantSlug}/app/proposals`, icon: FileText },
+    { name: "Payments", href: `/t/${tenantSlug}/app/payments`, icon: CreditCard },
+    { name: "Tasks & Team", href: `/t/${tenantSlug}/app/tasks`, icon: CheckSquare },
+    { name: "Venues", href: `/t/${tenantSlug}/app/venues`, icon: Building },
+    { name: "Packages & Services", href: `/t/${tenantSlug}/app/packages`, icon: Package },
+    { name: "Reports & Insights", href: `/t/${tenantSlug}/app/reports`, icon: BarChart3 },
+    { name: "Settings", href: `/t/${tenantSlug}/app/settings`, icon: Settings },
   ];
   
   // Logout mutation
