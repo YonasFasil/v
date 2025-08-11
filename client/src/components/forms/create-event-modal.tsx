@@ -16,6 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 import { VoiceBookingPanel } from "../voice/voice-booking-panel";
 import { ProposalCreationModal } from "../proposals/proposal-creation-modal";
 import { ProposalEmailModal } from "../proposals/proposal-email-modal";
+import { StatusSelector } from "../events/status-selector";
+import { type EventStatus } from "@shared/status-utils";
 
 interface Props {
   open: boolean;
@@ -982,7 +984,11 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                   </Button>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
+                <StatusSelector
+                  currentStatus={eventStatus as EventStatus}
+                  onStatusChange={(newStatus) => setEventStatus(newStatus)}
+                />
                 {/* Close button space */}
               </div>
             </div>
@@ -2174,19 +2180,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                         )}
                       </div>
 
-                      <div>
-                        <Label className="text-base font-medium">Event Status</Label>
-                        <Select value={eventStatus} onValueChange={setEventStatus}>
-                          <SelectTrigger className="mt-2">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="inquiry">Lead</SelectItem>
-                            <SelectItem value="confirmed">Booked</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+
 
 
 
