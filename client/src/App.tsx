@@ -85,14 +85,15 @@ function Router() {
       <Route path="/t/:slug/app/proposal/:proposalId" component={ProposalView} />
       <Route path="/t/:slug/app/plan" component={PlanManagement} />
       
-      {/* Platform admin routes - clean professional URLs */}
+      {/* Super Admin routes */}
+      <Route path="/super-admin" component={SuperAdminDashboard} />
+      <Route path="/super-admin/dashboard" component={SuperAdminDashboard} />
+      <Route path="/super-admin/tenants" component={SuperAdminDashboard} />
+      <Route path="/super-admin/users" component={SuperAdminDashboard} />
+      <Route path="/super-admin/packages" component={SuperAdminDashboard} />
+      <Route path="/super-admin/analytics" component={SuperAdminDashboard} />
       <Route path="/admin/login" component={SuperAdminLogin} />
-      <Route path="/admin" component={SuperAdminDashboard} />
-      <Route path="/admin/dashboard" component={SuperAdminDashboard} />
-      <Route path="/admin/tenants" component={SuperAdminDashboard} />
-      <Route path="/admin/users" component={SuperAdminDashboard} />
-      <Route path="/admin/analytics" component={SuperAdminDashboard} />
-      <Route path="/super-admin" component={SuperAdmin} />
+      <Route path="/admin" component={SuperAdmin} />
       <Route path="/admin/access" component={SuperAdminDirectAccess} />
       
       {/* Removed deprecated Firebase routes - use /login and /signup instead */}
