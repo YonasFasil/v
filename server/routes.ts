@@ -134,8 +134,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/customers", requireFeature({ feature: "customer-management" }), checkUsageLimit("maxCustomers"), async (req: any, res) => {
+  app.post("/api/customers", requireAuth, async (req: any, res) => {
     try {
+      if (!req.user?.currentTenant?.id) {
+        return res.status(403).json({ 
+          message: "User tenant context not found"
+        });
+      }
+      
       const customerData = insertCustomerSchema.parse({
         ...req.body,
         tenantId: req.user.currentTenant.id,
@@ -143,6 +149,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const customer = await storage.createCustomer(customerData);
       res.status(201).json(customer);
     } catch (error: any) {
+      console.error('Customer creation error:', error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
@@ -160,8 +167,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/leads", requireFeature({ feature: "lead-management" }), async (req: any, res) => {
+  app.post("/api/leads", requireAuth, async (req: any, res) => {
     try {
+      if (!req.user?.currentTenant?.id) {
+        return res.status(403).json({ 
+          message: "User tenant context not found"
+        });
+      }
+      
       const leadData = insertLeadSchema.parse({
         ...req.body,
         tenantId: req.user.currentTenant.id,
@@ -169,6 +182,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const lead = await storage.createLead(leadData);
       res.status(201).json(lead);
     } catch (error: any) {
+      console.error('Lead creation error:', error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
@@ -186,8 +200,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/bookings", requireFeature({ feature: "event-management" }), checkUsageLimit("maxBookings"), async (req: any, res) => {
+  app.post("/api/bookings", requireAuth, async (req: any, res) => {
     try {
+      if (!req.user?.currentTenant?.id) {
+        return res.status(403).json({ 
+          message: "User tenant context not found"
+        });
+      }
+      
       const bookingData = insertBookingSchema.parse({
         ...req.body,
         tenantId: req.user.currentTenant.id,
@@ -195,6 +215,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const booking = await storage.createBooking(bookingData);
       res.status(201).json(booking);
     } catch (error: any) {
+      console.error('Booking creation error:', error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
@@ -203,24 +224,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Proposals
-  app.get("/api/proposals", async (req: any, res) => {
+  app.get("/api/proposals", requireAuth, async (req: any, res) => {
     try {
-      const proposals = await storage.getProposals(req.tenant.id);
+      if (!req.user?.currentTenant?.id) {
+        return res.status(403).json({ 
+          message: "User tenant context not found"
+        });
+      }
+      
+      const proposals = await storage.getProposals(req.user.currentTenant.id);
       res.json(proposals);
     } catch (error) {
+      console.error('Proposals fetch error:', error);
       res.status(500).json({ message: "Failed to fetch proposals" });
     }
   });
 
-  app.post("/api/proposals", requireFeature({ feature: "proposal-system" }), async (req: any, res) => {
+  app.post("/api/proposals", requireAuth, async (req: any, res) => {
     try {
+      if (!req.user?.currentTenant?.id) {
+        return res.status(403).json({ 
+          message: "User tenant context not found"
+        });
+      }
+      
       const proposalData = insertProposalSchema.parse({
         ...req.body,
-        tenantId: req.tenant.id,
+        tenantId: req.user.currentTenant.id,
       });
       const proposal = await storage.createProposal(proposalData);
       res.status(201).json(proposal);
     } catch (error: any) {
+      console.error('Proposal creation error:', error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
