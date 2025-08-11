@@ -9,12 +9,22 @@ if (getApps().length === 0) {
   // In production, this will use the default credentials
   try {
     if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+      console.log('Service account key found, attempting to initialize Firebase Admin...');
       const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+      console.log('Service account parsed, project_id:', serviceAccount.project_id);
+      
+      // Fix private key formatting - replace escaped newlines with actual newlines
+      if (serviceAccount.private_key) {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+      }
+      
       app = initializeApp({
         credential: cert(serviceAccount),
-        projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+        projectId: serviceAccount.project_id,
       });
+      console.log('Firebase Admin initialized successfully with service account');
     } else {
+      console.log('No service account key found, using default credentials');
       // Use default credentials (works in production)
       app = initializeApp({
         projectId: process.env.VITE_FIREBASE_PROJECT_ID,
@@ -22,9 +32,12 @@ if (getApps().length === 0) {
     }
   } catch (error) {
     console.error('Failed to initialize Firebase Admin:', error);
-    // Fallback initialization
+    console.error('Error details:', JSON.stringify(error, null, 2));
+    
+    // Fallback to basic Firebase initialization for now
+    console.log('Falling back to basic Firebase initialization...');
     app = initializeApp({
-      projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+      projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'venuine-519d3',
     });
   }
 } else {
