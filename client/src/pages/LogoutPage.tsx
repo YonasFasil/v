@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { logOut } from '@/lib/firebase';
+// Using PostgreSQL-based authentication
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
@@ -15,7 +15,10 @@ export default function LogoutPage() {
 
   const handleLogout = async () => {
     try {
-      await logOut();
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
       console.log('Successfully logged out');
       setTimeout(() => {
         setLocation('/login');

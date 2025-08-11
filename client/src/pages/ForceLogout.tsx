@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { logOut } from '@/lib/firebase';
+// Using PostgreSQL-based authentication
 
 export default function ForceLogout() {
   const [, setLocation] = useLocation();
@@ -9,7 +9,10 @@ export default function ForceLogout() {
     const forceLogout = async () => {
       try {
         console.log('Force logout initiated...');
-        await logOut();
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          credentials: 'include',
+        });
         
         // Clear all storage
         localStorage.clear();

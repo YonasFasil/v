@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { DevTools } from "@/components/DevTools";
-import { useAuthRedirect } from "@/hooks/useAuthRedirect";
+// Using PostgreSQL-based authentication
 
 // Public pages
 import Home from "@/pages/public/Home";
@@ -44,10 +44,8 @@ import Proposals from "@/pages/proposals";
 import Onboarding from "@/pages/onboarding";
 import PlanManagement from "@/pages/plan-management";
 import NotFound from "@/pages/not-found";
-// Removed deprecated Firebase components
-
 function Router() {
-  // Using Firebase authentication now - no need for old auth redirect system
+  // Using PostgreSQL-based authentication
   
   return (
     <Switch>

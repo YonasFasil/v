@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
-import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
+// Using PostgreSQL-based authentication
 import { FeaturePackageForm } from './FeaturePackageForm';
 import UsersManagement from './UsersManagement';
 import { AdminAuthGuard } from "@/components/AdminAuthGuard";
@@ -83,11 +83,13 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
   };
   const queryClient = useQueryClient();
 
-  // Firebase logout
+  // PostgreSQL logout
   const handleLogout = async () => {
     try {
-      const { logOut } = await import('@/lib/firebase');
-      await logOut();
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
       toast({
         title: "Logged out successfully",
         description: "You have been logged out of the superadmin console.",
@@ -656,10 +658,15 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
   );
 }
 
-// Main component with Firebase authentication guard
+// Main component with PostgreSQL authentication guard
 export default function SuperAdminDashboard() {
   const [, setLocation] = useLocation();
-  const { user, isLoading } = useFirebaseAuth();
+  
+  // Use auth API to get user info
+  const { data: user, isLoading } = useQuery({
+    queryKey: ["/api/auth/user"],
+    retry: false,
+  });
 
   // Redirect if not authenticated or not super admin
   useEffect(() => {

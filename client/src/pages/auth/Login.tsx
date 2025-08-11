@@ -10,8 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Calendar, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { signInWithEmailPassword } from "@/lib/firebase";
-import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
+// Using PostgreSQL-based authentication
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -25,8 +24,6 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { user, isLoading } = useFirebaseAuth();
-
   const form = useForm<LoginData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -35,48 +32,44 @@ export default function Login() {
     },
   });
 
-  // Redirect authenticated users
-  useEffect(() => {
-    if (!isLoading && user) {
-      console.log('User authenticated, redirecting...', { user, isSuperAdmin: user.isSuperAdmin });
-      if (user.isSuperAdmin) {
-        console.log('Redirecting super admin to /admin/dashboard');
-        setLocation('/admin/dashboard');
-      } else {
-        // For now, all regular users go to onboarding to set up their tenant
-        console.log('Regular user without tenant - redirecting to onboarding');
-        setLocation('/onboarding');
-      }
-    }
-  }, [user, isLoading, setLocation]);
-
   const onSubmit = async (data: LoginData) => {
     setIsSubmitting(true);
     setError("");
     
     try {
-      console.log('Attempting login with email:', data.email);
-      await signInWithEmailPassword(data.email, data.password);
-      
-      toast({
-        title: "Welcome back!",
-        description: "You have successfully signed in.",
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        credentials: 'include',
       });
-    } catch (error: any) {
+
+      const result = await response.json();
+
+      if (response.ok && result.user) {
+        toast({
+          title: "Login successful",
+          description: "Welcome back!",
+        });
+
+        // Redirect based on user type
+        if (result.user.isSuperAdmin) {
+          setLocation('/super-admin');
+        } else {
+          setLocation('/onboarding');
+        }
+      } else {
+        setError(result.message || "Login failed");
+      }
+    } catch (error) {
       console.error('Login error:', error);
-      setError(error.message || "Invalid email or password");
+      setError("Login failed. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">

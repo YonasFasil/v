@@ -140,8 +140,10 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
   // Logout mutation
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      const { logOut } = await import('@/lib/firebase');
-      return await logOut();
+      return await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
     },
     onSuccess: () => {
       toast({

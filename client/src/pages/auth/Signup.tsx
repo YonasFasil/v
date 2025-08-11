@@ -10,8 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Calendar, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { signUpWithEmailPassword } from "@/lib/firebase";
-import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
+// Using PostgreSQL-based authentication
 
 const signupSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -30,8 +29,6 @@ export default function Signup() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { user, isLoading } = useFirebaseAuth();
-
   const form = useForm<SignupData>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
@@ -41,50 +38,41 @@ export default function Signup() {
     },
   });
 
-  // Redirect authenticated users
-  useEffect(() => {
-    if (!isLoading && user) {
-      console.log('User authenticated on signup, redirecting...', { user, isSuperAdmin: user.isSuperAdmin });
-      if (user.isSuperAdmin) {
-        console.log('Redirecting super admin to /admin/dashboard');
-        setLocation('/admin/dashboard');
-      } else if (user.currentTenant) {
-        console.log('Redirecting to tenant dashboard');
-        setLocation(`/t/${user.currentTenant.slug}/app`);
-      } else {
-        console.log('Redirecting new user to onboarding');
-        setLocation('/onboarding');
-      }
-    }
-  }, [user, isLoading, setLocation]);
-
   const onSubmit = async (data: SignupData) => {
     setIsSubmitting(true);
     setError("");
     
     try {
-      console.log('Attempting signup with email:', data.email);
-      await signUpWithEmailPassword(data.email, data.password);
-      
-      toast({
-        title: "Account created!",
-        description: "Welcome to VENUIN. Please complete your setup.",
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+        }),
+        credentials: 'include',
       });
-    } catch (error: any) {
+
+      const result = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: "Account created!",
+          description: "Welcome to VENUIN. Please complete your setup.",
+        });
+        setLocation('/onboarding');
+      } else {
+        setError(result.message || "Failed to create account");
+      }
+    } catch (error) {
       console.error('Signup error:', error);
-      setError(error.message || "Failed to create account");
+      setError("Failed to create account. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">

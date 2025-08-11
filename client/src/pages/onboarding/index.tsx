@@ -12,7 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { CheckCircle2, Building2, Globe, ArrowRight, Sparkles, LogOut } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
+// Using PostgreSQL-based authentication
 
 interface AuthUser {
   id: string;
@@ -63,8 +63,10 @@ export default function Onboarding() {
   // Logout mutation
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      const { logOut } = await import('@/lib/firebase');
-      return await logOut();
+      return await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
     },
     onSuccess: () => {
       toast({
@@ -87,8 +89,11 @@ export default function Onboarding() {
     logoutMutation.mutate();
   };
 
-  // Use Firebase auth hook directly instead of API call to avoid state confusion
-  const { user, isLoading: userLoading } = useFirebaseAuth();
+  // Use auth API to get user info
+  const { data: user, isLoading: userLoading } = useQuery({
+    queryKey: ["/api/auth/user"],
+    retry: false,
+  });
 
   // Fetch available feature packages (public endpoint)
   const { data: featurePackages, isLoading: packagesLoading } = useQuery<any[]>({

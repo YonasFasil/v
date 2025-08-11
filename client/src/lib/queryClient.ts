@@ -14,16 +14,7 @@ export async function apiRequest(
 ): Promise<Response> {
   const headers: HeadersInit = data ? { "Content-Type": "application/json" } : {};
   
-  // Add Firebase ID token if user is authenticated
-  try {
-    const { auth } = await import('@/lib/firebase');
-    if (auth.currentUser) {
-      const token = await auth.currentUser.getIdToken();
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-  } catch (error) {
-    console.warn('Failed to get Firebase token:', error);
-  }
+  // Using session-based authentication with PostgreSQL
 
   const res = await fetch(url, {
     method,
@@ -44,16 +35,7 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     const headers: HeadersInit = {};
     
-    // Add Firebase ID token if user is authenticated
-    try {
-      const { auth } = await import('@/lib/firebase');
-      if (auth.currentUser) {
-        const token = await auth.currentUser.getIdToken();
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-    } catch (error) {
-      console.warn('Failed to get Firebase token:', error);
-    }
+    // Using session-based authentication with PostgreSQL
 
     const res = await fetch(queryKey.join("/") as string, {
       credentials: "include",
