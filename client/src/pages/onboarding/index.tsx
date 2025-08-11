@@ -64,7 +64,8 @@ export default function Onboarding() {
         title: "Signed out",
         description: "You have been signed out successfully",
       });
-      setLocation("/login");
+      // Redirect to login page after logout
+      window.location.href = "/login";
     },
     onError: (error: Error) => {
       toast({

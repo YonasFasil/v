@@ -1,35 +1,33 @@
 import { useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
-
-interface AuthUser {
-  id: string;
-  email: string;
-  isSuperAdmin: boolean;
-  currentTenant?: {
-    id: string;
-    slug: string;
-    role: string;
-  };
-}
+import { useFirebaseAuth } from './useFirebaseAuth';
 
 export function useAuthRedirect() {
   const [, setLocation] = useLocation();
-  
-  const { data: authResponse, isLoading } = useQuery<{user: AuthUser}>({
-    queryKey: ['/api/auth/me'],
-    retry: false,
-  });
-
-  const user = authResponse?.user;
+  const { user, isLoading } = useFirebaseAuth();
 
   useEffect(() => {
     console.log('useAuthRedirect hook:', { isLoading, user, isSuperAdmin: user?.isSuperAdmin, currentPath: window.location.pathname });
     
     if (isLoading) return;
 
-    // Not authenticated - stay on current page (login/signup/public)
-    if (!user) return;
+    // Not authenticated - redirect to login if on protected pages
+    if (!user) {
+      const currentPath = window.location.pathname;
+      // If user is on a protected page (not public pages), redirect to login
+      if (!currentPath.startsWith('/login') && 
+          !currentPath.startsWith('/signup') && 
+          !currentPath.startsWith('/') &&
+          !currentPath.startsWith('/features') &&
+          !currentPath.startsWith('/pricing') &&
+          !currentPath.startsWith('/contact') &&
+          !currentPath.startsWith('/terms') &&
+          !currentPath.startsWith('/privacy')) {
+        console.log('Not authenticated, redirecting to login from:', currentPath);
+        setLocation('/login');
+      }
+      return;
+    }
 
     // Handle super admin routing - they get redirected immediately to admin dashboard
     if (user.isSuperAdmin) {

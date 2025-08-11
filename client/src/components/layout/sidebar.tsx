@@ -71,8 +71,8 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         title: "Logged out successfully",
         description: "You have been logged out.",
       });
-      // Redirect to home page
-      window.location.href = "/";
+      // Redirect to login page
+      window.location.href = "/login";
     },
     onError: (error: any) => {
       toast({
