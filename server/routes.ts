@@ -3025,69 +3025,7 @@ This is a test email from your Venuine venue management system.
     }
   });
 
-  // Client-facing proposal view endpoint
-  app.get("/api/proposals/view/:customerId", async (req, res) => {
-    try {
-      const customerId = req.params.customerId;
-      
-      // Get customer information
-      const customer = await storage.getCustomer(customerId);
-      if (!customer) {
-        return res.status(404).json({ message: "Customer not found" });
-      }
-
-      // Get the latest proposal for this customer
-      const proposals = await storage.getProposals();
-      const customerProposal = proposals.find(p => p.customerId === customerId && p.status !== 'declined');
-      
-      if (!customerProposal) {
-        return res.status(404).json({ message: "No active proposal found for this customer" });
-      }
-
-      // Get related booking data if available
-      let eventData = {};
-      try {
-        eventData = JSON.parse(customerProposal.content || '{}');
-      } catch {
-        eventData = {};
-      }
-
-      // Get venue and space information
-      const venues = await storage.getVenues();
-      const spaces = await storage.getSpaces();
-      
-      // Format response for the client proposal view
-      const proposalData = {
-        id: customerProposal.id,
-        eventName: customerProposal.title || 'Event Booking',
-        customerName: customer.name,
-        customerEmail: customer.email,
-        totalAmount: Number(customerProposal.totalAmount) || 0,
-        status: customerProposal.status,
-        proposalSentAt: customerProposal.sentAt?.toISOString() || customerProposal.createdAt.toISOString(),
-        validUntil: customerProposal.validUntil?.toISOString() || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        eventDates: (eventData as any).eventDates || [{
-          date: new Date().toISOString(),
-          startTime: '18:00',
-          endTime: '23:00',
-          venue: 'Grand Ballroom',
-          space: 'Main Hall',
-          guestCount: 50
-        }],
-        companyInfo: {
-          name: 'Venuine Events',
-          address: '123 Event Street, City, State 12345',
-          phone: '(555) 123-4567',
-          email: 'hello@venuineevents.com'
-        }
-      };
-
-      res.json(proposalData);
-    } catch (error) {
-      console.error('Error fetching proposal view:', error);
-      res.status(500).json({ message: "Failed to fetch proposal" });
-    }
-  });
+  // Removed conflicting endpoint - using public proposal access instead
 
   // Accept proposal endpoint
   app.post("/api/proposals/:id/accept", async (req, res) => {
