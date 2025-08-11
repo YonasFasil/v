@@ -5,18 +5,26 @@ import { insertUserSchema } from "@shared/schema";
 import crypto from "crypto";
 
 export function registerAuthRoutes(app: Express) {
-  // Register endpoint
-  app.post("/api/auth/register", async (req, res) => {
+  // Signup endpoint - matches frontend call
+  app.post("/api/auth/signup", async (req, res) => {
     try {
-      const userData = insertUserSchema.parse({
-        ...req.body,
-        passwordHash: req.body.password, // Will be hashed in storage
-      });
+      const { email, password, firstName, lastName, packageId, companyName } = req.body;
+
+      // Validate required fields
+      if (!email || !password || !firstName || !lastName || !packageId || !companyName) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
 
       // Check if user already exists
-      const existingUser = await storage.getUserByEmail(userData.email);
+      const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
         return res.status(400).json({ message: "User already exists" });
+      }
+
+      // Verify package exists
+      const selectedPackage = await storage.getFeaturePackage(packageId);
+      if (!selectedPackage) {
+        return res.status(400).json({ message: "Invalid package selected" });
       }
 
       // Generate email verification token
@@ -24,9 +32,35 @@ export function registerAuthRoutes(app: Express) {
 
       // Create user
       const user = await storage.createUser({
-        ...userData,
+        email,
+        firstName,
+        lastName,
+        passwordHash: password, // Will be hashed in storage
         emailVerificationToken,
         emailVerified: false,
+      });
+
+      // Create tenant for the user with selected package
+      const tenantSlug = companyName.toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') + '-' + Date.now().toString(36);
+
+      const tenant = await storage.createTenant({
+        name: companyName,
+        slug: tenantSlug,
+        planId: packageId,
+        contactName: `${firstName} ${lastName}`,
+        contactEmail: email,
+        ownerId: user.id,
+        status: 'active',
+      });
+
+      // Add user as owner to tenant
+      await storage.addUserToTenant({
+        tenantId: tenant.id,
+        userId: user.id,
+        role: 'owner',
+        permissions: {},
       });
 
       // Generate token
@@ -43,19 +77,19 @@ export function registerAuthRoutes(app: Express) {
       const { passwordHash, emailVerificationToken: _, ...userResponse } = user;
 
       res.status(201).json({
-        message: "User created successfully",
+        message: "Account created successfully",
         user: userResponse,
+        tenant: {
+          id: tenant.id,
+          name: tenant.name,
+          slug: tenant.slug,
+          planId: tenant.planId,
+        },
         token,
       });
     } catch (error: any) {
-      console.error("Register error:", error);
-      if (error.name === 'ZodError') {
-        return res.status(400).json({ 
-          message: "Validation error", 
-          errors: error.errors 
-        });
-      }
-      res.status(500).json({ message: "Failed to create user" });
+      console.error("Signup error:", error);
+      res.status(500).json({ message: "Failed to create account. Please try again." });
     }
   });
 

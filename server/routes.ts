@@ -6,6 +6,7 @@ import { requireAuth } from "./middleware/auth";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerPublicRoutes } from "./routes/public";
 import { registerOnboardingRoutes } from "./routes/onboarding";
+import { registerSuperAdminRoutes } from "./routes/superadmin";
 import { storage } from "./storage";
 import { 
   insertBookingSchema, 
@@ -28,6 +29,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register onboarding routes (after auth, before tenant middleware)
   registerOnboardingRoutes(app);
+
+  // Register super admin routes
+  registerSuperAdminRoutes(app);
 
   // Apply tenant context middleware to tenant-specific routes only
   app.use('/api/venues', requireAuth, tenantContext);

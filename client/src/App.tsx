@@ -16,6 +16,7 @@ import Pricing from "@/pages/public/Pricing";
 // Auth pages  
 import Login from "@/pages/auth/Login";
 import Signup from "@/pages/auth/Signup";
+import SignupWithPackages from "@/pages/auth/SignupWithPackages";
 import VerifyEmailSent from "@/pages/auth/VerifyEmailSent";
 import EmailVerification from "@/pages/auth/EmailVerification";
 import LogoutPage from "@/pages/LogoutPage";
@@ -56,7 +57,8 @@ function Router() {
       
       {/* Auth routes */}
       <Route path="/login" component={Login} />
-      <Route path="/signup" component={Signup} />
+      <Route path="/signup" component={SignupWithPackages} />
+      <Route path="/signup-basic" component={Signup} />
       <Route path="/logout" component={LogoutPage} />
       <Route path="/force-logout" component={ForceLogout} />
       <Route path="/verify-email-sent" component={VerifyEmailSent} />

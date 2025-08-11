@@ -42,6 +42,9 @@ export interface IStorage {
   updateFeaturePackage(id: string, updates: Partial<FeaturePackage>): Promise<FeaturePackage>;
   deleteFeaturePackage(id: string): Promise<void>;
 
+  // Super admin operations
+  getAllTenantsWithOwners(): Promise<any[]>;
+
   // Venue operations
   getVenues(tenantId?: string): Promise<Venue[]>;
   getVenue(id: string): Promise<Venue | undefined>;
@@ -146,6 +149,16 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return user;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    try {
+      await db.delete(users).where(eq(users.id, id));
+      return true;
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      return false;
+    }
   }
 
 
@@ -569,6 +582,32 @@ export class DatabaseStorage implements IStorage {
   async deleteTenant(id: string): Promise<boolean> {
     const result = await db.delete(tenants).where(eq(tenants.id, id));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  async getAllTenantsWithOwners(): Promise<any[]> {
+    const tenantsWithOwners = await db
+      .select({
+        id: tenants.id,
+        name: tenants.name,
+        slug: tenants.slug,
+        industry: tenants.industry,
+        planId: tenants.planId,
+        status: tenants.status,
+        contactName: tenants.contactName,
+        contactEmail: tenants.contactEmail,
+        businessPhone: tenants.businessPhone,
+        createdAt: tenants.createdAt,
+        owner: {
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+        },
+      })
+      .from(tenants)
+      .leftJoin(users, eq(tenants.ownerId, users.id));
+
+    return tenantsWithOwners;
   }
 }
 
