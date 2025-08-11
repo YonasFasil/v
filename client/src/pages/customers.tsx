@@ -63,11 +63,11 @@ export default function Customers() {
   const form = useForm({
     resolver: zodResolver(insertCustomerSchema),
     defaultValues: {
-      firstName: "",
-      lastName: "",
+      name: "",
       email: "",
       phone: "",
       company: "",
+      status: "lead",
       notes: "",
     }
   });
@@ -85,31 +85,30 @@ export default function Customers() {
         description: "Customer created successfully!",
       });
     },
-    onError: (error: any) => {
-      console.error('Customer creation error in UI:', error);
+    onError: (error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to create customer. Please try again.",
+        description: "Failed to create customer. Please try again.",
         variant: "destructive",
       });
     },
   });
 
   const onSubmit = async (data: any) => {
-    console.log('Form data being submitted:', data);
     createCustomerMutation.mutate(data);
   };
 
   // Filter customers
   const filteredCustomers = customerAnalytics.filter(customer => {
-    const fullName = `${customer.firstName} ${customer.lastName}`;
-    const matchesSearch = fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch = customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          (customer.company?.toLowerCase().includes(searchQuery.toLowerCase()) || false);
     
+    const matchesStatus = statusFilter === "all" || customer.status === statusFilter;
+    
     const matchesValue = valueFilter === "all" || customer.analytics.lifetimeValueCategory === valueFilter;
     
-    return matchesSearch && matchesValue;
+    return matchesSearch && matchesStatus && matchesValue;
   });
 
   const getStatusColor = (status: string) => {
@@ -148,7 +147,8 @@ export default function Customers() {
 
   // Calculate summary stats
   const totalRevenue = customerAnalytics.reduce((sum, customer) => sum + customer.analytics.totalRevenue, 0);
-  const totalCustomers = customerAnalytics.length;
+  const totalCustomers = customerAnalytics.filter(c => c.status === "customer").length;
+  const totalLeads = customerAnalytics.filter(c => c.status === "lead").length;
   const averageValue = customerAnalytics.length > 0 ? totalRevenue / customerAnalytics.length : 0;
 
   if (isLoading) {
@@ -210,35 +210,19 @@ export default function Customers() {
                 </DialogHeader>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pb-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="firstName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>First Name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Enter first name" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={form.control}
-                        name="lastName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Last Name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Enter last name" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Full Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter full name" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     
                     <FormField
                       control={form.control}
@@ -282,7 +266,28 @@ export default function Customers() {
                       )}
                     />
 
-
+                    <FormField
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Status</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="lead">Lead</SelectItem>
+                              <SelectItem value="customer">Customer</SelectItem>
+                              <SelectItem value="inactive">Inactive</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
                     <FormField
                       control={form.control}
@@ -342,7 +347,7 @@ export default function Customers() {
                     <TrendingUp className="h-4 w-4 text-orange-600" />
                     <span className="text-sm font-medium text-gray-500">Total Leads</span>
                   </div>
-                  <div className="text-2xl font-bold">0</div>
+                  <div className="text-2xl font-bold">{totalLeads}</div>
                 </CardContent>
               </Card>
               
@@ -430,7 +435,7 @@ export default function Customers() {
                         <TableRow key={customer.id}>
                           <TableCell>
                             <div className="space-y-1">
-                              <div className="font-medium">{customer.firstName} {customer.lastName}</div>
+                              <div className="font-medium">{customer.name}</div>
                               <div className="text-sm text-gray-500 flex items-center gap-1">
                                 <Mail className="h-3 w-3" />
                                 {customer.email}
@@ -451,8 +456,8 @@ export default function Customers() {
                           </TableCell>
                           
                           <TableCell>
-                            <Badge className="bg-green-100 text-green-800">
-                              Customer
+                            <Badge className={getStatusColor(customer.status)}>
+                              {customer.status}
                             </Badge>
                           </TableCell>
                           
@@ -532,7 +537,7 @@ export default function Customers() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                {selectedCustomer.firstName} {selectedCustomer.lastName} - Customer Details
+                {selectedCustomer.name} - Customer Details
               </DialogTitle>
             </DialogHeader>
             

@@ -50,8 +50,8 @@ export function TaxesAndFeesSettings() {
     queryKey: ["/api/tax-settings"],
   });
 
-  // Cast taxesAndFees to proper type
-  const taxSettingsData = taxesAndFees as TaxSetting[];
+  // Get available taxes for selection
+  const availableTaxes = taxesAndFees.filter((item: TaxSetting) => item.type === 'tax' && item.isActive);
 
   // Create tax/fee mutation
   const createMutation = useMutation({
@@ -64,13 +64,13 @@ export function TaxesAndFeesSettings() {
       setFormData(defaultTaxFeeForm);
       toast({
         title: "Success",
-        description: "Tax setting created successfully",
+        description: `${formData.type} created successfully`,
       });
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to create tax setting",
+        description: `Failed to create ${formData.type}`,
         variant: "destructive",
       });
     },
@@ -87,13 +87,13 @@ export function TaxesAndFeesSettings() {
       setFormData(defaultTaxFeeForm);
       toast({
         title: "Success",
-        description: "Tax setting updated successfully",
+        description: `${formData.type} updated successfully`,
       });
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to update tax setting",
+        description: `Failed to update ${formData.type}`,
         variant: "destructive",
       });
     },
@@ -130,31 +130,17 @@ export function TaxesAndFeesSettings() {
       return;
     }
 
-    // Ensure the value is a valid number and convert to string for decimal field
-    const rateValue = parseFloat(formData.value);
-    if (isNaN(rateValue) || rateValue < 0) {
-      toast({
-        title: "Error", 
-        description: "Please enter a valid positive number for the rate",
-        variant: "destructive",
-      });
-      return;
-    }
-
     const data: InsertTaxSetting = {
       name: formData.name,
       type: formData.type,
       calculation: formData.calculation,
-      rate: formData.value.toString(), // Ensure it's a string for decimal field  
+      value: formData.value,
       applyTo: formData.applyTo,
       description: formData.description || null,
       isActive: formData.isActive,
-      isDefault: false,
       isTaxable: formData.isTaxable,
       applicableTaxIds: formData.applicableTaxIds,
     };
-
-    console.log("Submitting tax setting data:", data);
 
     if (editingItem) {
       updateMutation.mutate({ id: editingItem.id, data });
@@ -169,7 +155,7 @@ export function TaxesAndFeesSettings() {
       name: item.name,
       type: item.type as "tax" | "fee" | "service_charge",
       calculation: item.calculation as "percentage" | "fixed",
-      value: item.rate,
+      value: item.value,
       applyTo: item.applyTo as "packages" | "services" | "both" | "total",
       description: item.description || "",
       isActive: item.isActive || true,
@@ -432,8 +418,8 @@ export function TaxesAndFeesSettings() {
                       </div>
                       <p className="text-sm text-slate-600">
                         {item.calculation === "percentage" 
-                          ? `${item.rate}% of ${item.applyTo}`
-                          : `$${item.rate} ${item.calculation} fee on ${item.applyTo}`
+                          ? `${item.value}% of ${item.applyTo}`
+                          : `$${item.value} ${item.calculation} fee on ${item.applyTo}`
                         }
                         {item.isTaxable && (item.type === "fee" || item.type === "service_charge") && (
                           <span className="text-orange-600 ml-2">• Taxable</span>
@@ -443,7 +429,7 @@ export function TaxesAndFeesSettings() {
                         <div className="mt-1">
                           <p className="text-xs text-slate-500">
                             Applied taxes: {item.applicableTaxIds.map(taxId => {
-                              const tax = taxSettingsData?.find(t => t.id === taxId);
+                              const tax = availableTaxes.find(t => t.id === taxId);
                               return tax ? tax.name : 'Unknown';
                             }).join(', ')}
                           </p>

@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useDashboardData } from "@/contexts/dashboard-context";
 import { 
   Calendar as CalendarIcon, 
   ChevronLeft, 
@@ -46,13 +46,18 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'events' | 'venues'>('events');
 
-  // Use dashboard context data if available, otherwise fetch directly
-  // Get calendar data from dashboard context instead of making API calls
-  const { calendar } = useDashboardData();
-  const isLoading = false; // Data comes from context
+  // Fetch calendar data based on mode
+  const { data: calendarData, isLoading } = useQuery({
+    queryKey: [`/api/calendar/events`, viewMode],
+    queryFn: async () => {
+      const response = await fetch(`/api/calendar/events?mode=${viewMode}`);
+      if (!response.ok) throw new Error('Failed to fetch calendar data');
+      return response.json();
+    }
+  });
 
-  const events = calendar?.data || [];
-  const venueData = calendar?.venues || [];
+  const events = calendarData?.mode === 'events' ? calendarData.data as CalendarEvent[] : [];
+  const venueData = calendarData?.mode === 'venues' ? calendarData.data as VenueCalendarData[] : [];
 
   // Calculate calendar days
   const monthStart = startOfMonth(currentDate);

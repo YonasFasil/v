@@ -101,7 +101,7 @@ export function Header({ title, subtitle, action, onMobileMenuToggle, onNewBooki
 
           {/* Settings */}
           <button 
-            onClick={() => window.location.href = window.location.pathname.includes('/t/') ? window.location.pathname.split('/app')[0] + '/app/settings' : '/settings'}
+            onClick={() => window.location.href = '/settings'}
             className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
             title="Settings"
           >

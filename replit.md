@@ -1,8 +1,8 @@
-# VENUIN - Complete SaaS Venue Management Platform
+# VENUIN - Complete Venue Management Platform Documentation
 
 ## Overview
 
-VENUIN is a comprehensive SaaS platform that combines a public marketing website, self-serve signup with Stripe billing, and advanced multi-tenant venue management capabilities. The platform features a public marketing site with pricing plans, complete authentication suite, automated tenant provisioning, and a superadmin console for platform management. Each tenant receives a full venue management system with booking management, customer relations, AI-powered features, and Stripe Connect for client payments, while the platform uses Stripe Billing for subscription management.
+VENUIN is an advanced multi-tenant SaaS platform designed for comprehensive venue management. Its primary purpose is to provide venue owners and event managers with a complete suite of tools for managing bookings, customers, proposals, payments, and tasks. The platform incorporates AI-powered features to optimize operations, enhance administrative capabilities with role-based access controls, and ensure scalability. The business vision is to streamline venue operations, improve efficiency, and leverage AI for intelligent insights, positioning VENUIN as a leading solution in the event management market.
 
 ## User Preferences
 
@@ -10,7 +10,7 @@ Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-VENUIN is built with a modern, scalable architecture designed for high performance and maintainability.
+VENUIN is built with a modern, scalable multi-tenant architecture designed for high performance and maintainability.
 
 **Frontend Architecture:**
 - **Framework**: React 18 with TypeScript, using Vite for build tooling.
@@ -27,19 +27,12 @@ VENUIN is built with a modern, scalable architecture designed for high performan
 - **Database**: PostgreSQL with Drizzle ORM for type-safe operations.
 - **Session Management**: Express sessions with PostgreSQL session store.
 
-**Platform Architecture:**
-- **Public Marketing Site**: Landing pages (/), feature showcase (/features), pricing plans (/pricing), contact/legal pages with SEO optimization and responsive design.
-- **Authentication Suite**: Email/password signup/login, email verification, password recovery, secure session management with httpOnly cookies.
-- **Subscription Billing**: Stripe Billing integration for plan management, automated provisioning, webhook handling, and customer portal access.
-- **Multi-tenant System**: Isolated tenant environments at /t/:tenantSlug/app/* with plan-based feature gating and usage enforcement.
-- **Superadmin Console**: Platform management at /super-admin for tenant oversight, plan management, activity monitoring, and Stripe sync.
-
-**Tenant Features & Capabilities:**
+**Major Features & Capabilities:**
 - **Dashboard & Analytics**: Real-time metrics, booking pipeline visualization, AI-powered insights, and comprehensive reports.
 - **Event & Booking Management**: Complete booking lifecycle, multi-date event support, interactive calendar, proposal integration, and 2D floor plan designer.
 - **Customer & Lead Management**: Lead capture with UTM tracking, lead scoring, customer lifecycle tracking, and communication history.
 - **Proposal System**: Professional proposal generation, email delivery with tracking, digital signature acceptance, and auto-conversion to bookings.
-- **Payment Processing**: Stripe Connect for client payments, secure deposit handling, and automated payment workflows.
+- **Payment Processing**: Secure payment handling via Stripe Connect, including onboarding, payment intent creation, and webhook integration.
 - **Venue & Space Management**: Multi-venue support, capacity management, amenity tracking, and flexible pricing configuration.
 - **Service & Package Management**: Flexible service catalog, package bundling, dynamic pricing models, and tax/fee application.
 - **Communication & Notifications**: Gmail integration for automated workflows, internal notes, and customizable email templates.
@@ -52,55 +45,25 @@ VENUIN is built with a modern, scalable architecture designed for high performan
 - **Mobile Responsiveness**: Fully responsive layout, mobile-optimized navigation, and touch-friendly elements.
 
 **Security & Role Management:**
+- Comprehensive 5-tier RBAC system (Super Admin → Tenant Admin → Manager → Staff → Customer).
+- Multi-tenant data isolation with tenant ID validation on all operations.
 - Session-based authentication with PostgreSQL session store.
-- Unified authentication system for all user types (super admin, tenant owners, tenant users).
-- Role-based access control with clear hierarchy: super_admin > owner > admin > manager > staff > viewer.
-- Clean URL structure: /admin/* for platform management, /t/:slug/* for tenant access.
+- Permission-based access control with middleware enforcement.
 - Secure session handling with HTTP-only cookies and environment-based secret management.
+- Admin development interface for role testing and tenant management.
+
+**Recent Fixes (August 11, 2025):**
+- Successfully transitioned from development to production mode with proper authentication system.
+- Implemented session-based authentication with HTTP-only cookies and PostgreSQL session store.
+- Created super admin account (yonasfasil.sl@gmail.com) with bcrypt password hashing.
+- Integrated complete authentication flow: Login, Register, and protected routes.
+- Removed development `/dev-admin` shortcuts in favor of secure production authentication.
+- Built responsive authentication UI with proper error handling and user feedback.
+- Established proper multi-tenant RBAC with role-based route protection.
 
 ## External Dependencies
 
 - **AI Provider**: Google Gemini 2.5 Flash (for AI-powered insights, voice-to-text, scheduling, lead scoring, and content generation).
-- **Payment Processing**: 
-  - Stripe Billing (for platform subscription management, plan enforcement, and automated provisioning)
-  - Stripe Connect (for tenant client payments, deposit handling, and payout management)
-- **Email Services**: Gmail SMTP integration (for transactional emails, notifications, email verification, and automated workflows).
+- **Payments**: Stripe Connect (for secure payment processing, account onboarding, and payment intent creation).
+- **Email Services**: Gmail SMTP integration (for notifications, proposals, and automated email workflows).
 - **Icons**: Lucide React (for UI icons).
-
-## Recent Changes (August 2025)
-
-### Complete SaaS Platform Transformation
-- **Multi-tenant Architecture**: Implemented comprehensive tenant isolation with database-level separation
-- **Public Marketing Site**: Created SEO-optimized pages with Apple.com-inspired design, large typography, and gradient effects  
-- **Authentication System**: Built complete email/password auth with verification, password recovery, and secure sessions
-- **Stripe Billing Integration**: Added subscription management, automated provisioning, and plan enforcement
-- **Superadmin Console**: Developed platform management tools with working authentication and feature package creation
-- **Dynamic Package System**: Frontend now pulls pricing data from actual feature packages created by super admin
-- **Fixed Authentication Issues**: Resolved super admin login and authentication middleware problems
-- **Real Data Integration**: Public pricing page displays actual packages instead of hardcoded data
-- **Plan Management System**: Built complete tenant plan management with API endpoints, beautiful UI, and upgrade functionality
-- **Clean Tenant Environment**: New tenants start with pristine databases without demo data, properly linked to chosen plans
-- **Feature Package Editing**: Completed full CRUD operations for feature packages with edit/delete functionality
-- **Streamlined User Flow**: Removed onboarding step - users now go directly to tenant dashboard after signup with package selection
-- **Comprehensive User Management**: Added Users tab to super admin dashboard with user listing, deletion, and analytics
-- **Enhanced Security System**: Implemented strict role-based access control preventing cross-role access and unauthorized impersonation
-- **Complete Logout System**: Added proper logout functionality for both super admin and tenant users with session clearing and secure redirects
-- **Single Super Admin Policy**: Implemented database-level constraints ensuring only one super admin can exist, with emergency transfer privileges functionality
-- **Enhanced Permission System**: Added granular permission middleware with role presets (owner, admin, manager, staff, viewer) and plan enforcement capabilities following industry best practices
-- **Clean Database State**: Reset database to clean state with only the protected super admin account (yonasfasil.sl@gmail.com) for fresh platform start
-- **Frontend Security Fix**: Fixed critical security vulnerability where regular users could access super admin interface - added proper authentication checks and automatic redirects
-- **Authentication Architecture Reform**: Implemented clean, manageable authentication structure with unified login system, professional admin URLs (/admin/*), and smart role-based routing eliminating confusing multiple authentication flows
-- **Direct Tenant Access**: Removed onboarding step for streamlined user experience - new users with selected packages go directly to their tenant dashboard
-- **Complete Feature Enforcement System**: Implemented comprehensive feature gating with server-side middleware and frontend components - every feature in super admin packages is now actually enforced within tenant applications
-- **Real Feature Package Integration**: Features created in super admin are automatically pulled from database and enforced via API middleware, usage limits, and UI restrictions throughout tenant applications
-- **Advanced Feature Gating Components**: Created FeatureGate and FeatureButton components that dynamically show/hide functionality based on tenant's actual plan features and usage limits
-- **Comprehensive Tax & Fees System Restoration**: Fully restored advanced tax and fees implementation with enhanced database schema supporting taxes, fees, service charges, percentage/fixed calculations, package/service targeting, taxable fees with applicable tax rules, and rich descriptions
-
-### Performance & Optimization Improvements (August 2025)
-- **Dashboard Performance Optimization**: Reduced API calls from 12+ to 3-4 essential calls using optimized endpoints
-- **Lazy Loading Implementation**: Added React lazy loading with Suspense for non-critical dashboard components
-- **Unified AI Service**: Consolidated Gemini and OpenAI services into single AI service to eliminate duplication and reduce complexity
-- **Optimized Dashboard API**: Created `/api/dashboard/overview` endpoint that fetches all essential data in parallel
-- **Component Caching**: Added 5-minute cache for dashboard data and 30-second refresh for real-time stats
-- **TypeScript Error Resolution**: Fixed all LSP diagnostics and maintained site stability during optimizations
-- **Performance Skeleton Loading**: Added loading states and skeleton screens for better user experience

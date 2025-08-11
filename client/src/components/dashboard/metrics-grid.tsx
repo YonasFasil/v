@@ -10,18 +10,25 @@ export function MetricsGrid() {
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
   const { formatAmount } = useFormattedCurrency();
   
-  // Use single optimized dashboard endpoint instead of multiple API calls
-  const { data: dashboardData, isLoading } = useQuery({
-    queryKey: ["/api/dashboard/overview"],
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  const { data: metrics, isLoading } = useQuery({
+    queryKey: ["/api/dashboard/metrics"],
   });
 
-  // Extract data from unified response with proper typing
-  const metrics = (dashboardData as any)?.metrics || {};
-  const bookings = (dashboardData as any)?.upcomingBookings || [];
-  const customers = (dashboardData as any)?.activeLeads || []; // Using activeLeads as customer proxy
-  const venues = (dashboardData as any)?.venues || [];
-  const payments = (dashboardData as any)?.recentPayments || [];
+  const { data: bookings = [] } = useQuery({
+    queryKey: ["/api/bookings"],
+  });
+
+  const { data: customers = [] } = useQuery({
+    queryKey: ["/api/customers"],
+  });
+
+  const { data: venues = [] } = useQuery({
+    queryKey: ["/api/venues"],
+  });
+
+  const { data: payments = [] } = useQuery({
+    queryKey: ["/api/payments"],
+  });
 
   if (isLoading) {
     return (
@@ -63,7 +70,7 @@ export function MetricsGrid() {
               </div>
             </div>
             <div className="space-y-3 max-h-80 overflow-y-auto">
-              {(bookings as any[]).slice(0, 10).map((booking: any) => (
+              {bookings.slice(0, 10).map((booking: any) => (
                 <div key={booking.id} className="p-3 border rounded-lg flex justify-between items-center">
                   <div>
                     <div className="font-medium">{booking.eventName}</div>
@@ -190,11 +197,11 @@ export function MetricsGrid() {
                   <div className="text-sm text-green-600">Total Venues</div>
                 </div>
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-700">{(bookings as any[]).length}</div>
+                  <div className="text-2xl font-bold text-blue-700">{bookings.length}</div>
                   <div className="text-sm text-blue-600">Total Bookings</div>
                 </div>
                 <div className="text-center p-4 bg-purple-50 rounded-lg">
-                  <div className="text-2xl font-bold text-purple-700">{Math.round(venues.length > 0 ? (bookings as any[]).length / venues.length : 0)}%</div>
+                  <div className="text-2xl font-bold text-purple-700">{Math.round(venues.length > 0 ? bookings.length / venues.length : 0)}%</div>
                   <div className="text-sm text-purple-600">Avg Utilization</div>
                 </div>
               </div>

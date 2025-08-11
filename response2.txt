@@ -1,1 +1,0 @@
-{"message":"Validation error","errors":[{"validation":"uuid","code":"invalid_string","message":"Invalid uuid","path":["venueId"]},{"code":"invalid_type","expected":"date","received":"string","path":["eventDate"],"message":"Expected date, received string"}]}

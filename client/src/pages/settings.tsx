@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { TaxesAndFeesSettings } from "@/components/taxes-and-fees-settings";
 import { NotificationTestPanel } from "@/components/NotificationTestPanel";
@@ -1395,8 +1395,8 @@ function StripePaymentSection() {
     testPaymentMutation.mutate();
   };
 
-  const isConfigured = (stripeStatus as any)?.configured || false;
-  const isReady = (stripeStatus as any)?.ready || false;
+  const isConfigured = stripeStatus?.configured;
+  const isReady = stripeStatus?.ready;
 
   return (
     <div className="p-4 border rounded-lg">
@@ -1480,7 +1480,7 @@ function StripePaymentSection() {
                     // Initialize the connection process
                     try {
                       await apiRequest("POST", "/api/stripe/connect/initialize");
-                      // Open the Stripe Connect setup
+                      // Open the Stripe Connect onboarding
                       window.open(
                         "https://connect.stripe.com/d/setup/s/_SqBRbOzYAs1NHOUIfHZJLBpBD4/YWNjdF8xUnVWNHlSQ1ROTFBEaDJ2/9f48a3151cb6a548c",
                         "_blank"

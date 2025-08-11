@@ -24,7 +24,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
       {/* Mobile Menu */}
       <div className="md:hidden">
-        <MobileNav isOpen={false} onClose={() => {}} />
+        <MobileNav />
       </div>
 
       {/* Main Content */}

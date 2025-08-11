@@ -1,30 +1,29 @@
-import { useState, useEffect } from "react";
-import { Link, useLocation } from "wouter";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Calendar, AlertCircle, Eye, EyeOff } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
-// Using PostgreSQL-based authentication
+import { EyeIcon, EyeOffIcon, LogIn } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useLocation } from "wouter";
 
 const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
-type LoginData = z.infer<typeof loginSchema>;
+type LoginForm = z.infer<typeof loginSchema>;
 
 export default function Login() {
-  const [, setLocation] = useLocation();
+  const [, navigate] = useLocation();
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string>("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const form = useForm<LoginData>({
+  const { login, isLoggingIn, loginError } = useAuth();
+
+  const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "",
@@ -32,146 +31,119 @@ export default function Login() {
     },
   });
 
-  const onSubmit = async (data: LoginData) => {
-    setIsSubmitting(true);
-    setError("");
-    
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-        credentials: 'include',
-      });
-
-      const result = await response.json();
-
-      if (response.ok && result.user) {
-        toast({
-          title: "Login successful",
-          description: "Welcome back!",
-        });
-
-        // Redirect based on user type
-        if (result.user.isSuperAdmin) {
-          setLocation('/super-admin');
-        } else {
-          // Redirect to tenant dashboard or home page
-          if (result.user.currentTenant?.slug) {
-            setLocation(`/t/${result.user.currentTenant.slug}/app`);
-          } else {
-            setLocation('/');
-          }
-        }
-      } else {
-        setError(result.message || "Login failed");
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      setError("Login failed. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
+  const onSubmit = (data: LoginForm) => {
+    login(data, {
+      onSuccess: () => {
+        navigate("/"); // Redirect to dashboard after successful login
+      },
+    });
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex items-center justify-center mb-4">
-            <Calendar className="h-8 w-8 text-blue-600" />
-          </div>
-          <CardTitle className="text-2xl font-bold">Welcome to VENUIN</CardTitle>
-          <CardDescription>
-            Sign in to your venue management dashboard
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-gray-900">VENUIN</h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Venue Management Platform
+          </p>
+        </div>
 
-          <Form {...form}>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-center">Sign In</CardTitle>
+            <CardDescription className="text-center">
+              Enter your credentials to access your account
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="email"
-                        placeholder="Enter your email"
-                        disabled={isSubmitting}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {loginError && (
+                <Alert variant="destructive">
+                  <AlertDescription>
+                    {loginError.message || "Login failed. Please check your credentials."}
+                  </AlertDescription>
+                </Alert>
+              )}
 
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          {...field}
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Enter your password"
-                          disabled={isSubmitting}
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => setShowPassword(!showPassword)}
-                          disabled={isSubmitting}
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  {...form.register("email")}
+                  className={form.formState.errors.email ? "border-red-500" : ""}
+                />
+                {form.formState.errors.email && (
+                  <p className="text-sm text-red-500">{form.formState.errors.email.message}</p>
                 )}
-              />
+              </div>
 
-              <Button 
-                type="submit" 
-                className="w-full" 
-                disabled={isSubmitting}
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    {...form.register("password")}
+                    className={form.formState.errors.password ? "border-red-500 pr-10" : "pr-10"}
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOffIcon className="h-4 w-4 text-gray-400" />
+                    ) : (
+                      <EyeIcon className="h-4 w-4 text-gray-400" />
+                    )}
+                  </button>
+                </div>
+                {form.formState.errors.password && (
+                  <p className="text-sm text-red-500">{form.formState.errors.password.message}</p>
+                )}
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoggingIn}
               >
-                {isSubmitting ? "Signing in..." : "Sign In"}
+                {isLoggingIn ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Signing in...
+                  </div>
+                ) : (
+                  <div className="flex items-center">
+                    <LogIn className="h-4 w-4 mr-2" />
+                    Sign In
+                  </div>
+                )}
               </Button>
             </form>
-          </Form>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Don't have an account?{" "}
-              <Link href="/signup" className="text-blue-600 hover:underline">
-                Sign up
-              </Link>
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600">
+                Don't have an account?{" "}
+                <button
+                  onClick={() => navigate("/register")}
+                  className="font-medium text-blue-600 hover:text-blue-500"
+                >
+                  Register your venue
+                </button>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="text-center text-xs text-gray-500">
+          <p>© 2025 VENUIN. All rights reserved.</p>
+        </div>
+      </div>
     </div>
   );
 }
