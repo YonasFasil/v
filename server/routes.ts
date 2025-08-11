@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { sessionMiddleware } from "./middleware/session";
 import { tenantContext } from "./middleware/tenant";
-import { requireAuth } from "./middleware/auth";
+import { requireAuth, requireTenantAdmin, requireStaffAccess, requireViewerAccess, requirePermission } from "./middleware/auth";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerPublicRoutes } from "./routes/public";
 // Onboarding routes removed
@@ -33,12 +33,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerSuperAdminRoutes(app);
 
   // Apply tenant context middleware to tenant-specific routes only
-  app.use('/api/venues', requireAuth, tenantContext);
-  app.use('/api/bookings', requireAuth, tenantContext);
-  app.use('/api/customers', requireAuth, tenantContext);
-  app.use('/api/leads', requireAuth, tenantContext);
-  app.use('/api/proposals', requireAuth, tenantContext);
-  app.use('/api/tasks', requireAuth, tenantContext);
+  app.use('/api/venues', requireAuth, requireViewerAccess, tenantContext);
+  app.use('/api/bookings', requireAuth, requireViewerAccess, tenantContext);
+  app.use('/api/customers', requireAuth, requireViewerAccess, tenantContext);
+  app.use('/api/leads', requireAuth, requireViewerAccess, tenantContext);
+  app.use('/api/proposals', requireAuth, requireViewerAccess, tenantContext);
+  app.use('/api/tasks', requireAuth, requireViewerAccess, tenantContext);
   
   // Venues
   app.get("/api/venues", async (req: any, res) => {
@@ -62,7 +62,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/venues", async (req: any, res) => {
+  app.post("/api/venues", requireStaffAccess, async (req: any, res) => {
     try {
       const venueData = insertVenueSchema.parse({
         ...req.body,

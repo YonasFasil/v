@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { DevTools } from "@/components/DevTools";
-import { SuperAdminNavigation } from "@/components/SuperAdminNavigation";
+
 // Using PostgreSQL-based authentication
 
 // Public pages
@@ -110,7 +110,6 @@ function App() {
       <TooltipProvider>
         <Toaster />
         <Router />
-        <SuperAdminNavigation />
         <QuickActions />
         <DevTools />
       </TooltipProvider>

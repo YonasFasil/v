@@ -2,15 +2,23 @@ import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { storage } from "../storage";
 
+interface AuthUser {
+  id: string;
+  email: string;
+  isSuperAdmin: boolean;
+  currentTenant?: {
+    id: string;
+    slug: string;
+    name: string;
+    role: 'super_admin' | 'owner' | 'admin' | 'manager' | 'staff' | 'viewer';
+    permissions: any;
+  };
+}
+
 declare global {
   namespace Express {
     interface Request {
-      user?: {
-        id: string;
-        email: string;
-        isSuperAdmin: boolean;
-      };
-      session: any;
+      user?: AuthUser;
     }
   }
 }
@@ -18,19 +26,15 @@ declare global {
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 export interface AuthRequest extends Request {
-  user: {
-    id: string;
-    email: string;
-    isSuperAdmin: boolean;
-  };
+  user: AuthUser;
 }
 
 // Authentication middleware
 export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
     // Check session first
-    if (req.session?.user) {
-      req.user = req.session.user;
+    if ((req.session as any)?.user) {
+      req.user = (req.session as any).user;
       return next();
     }
 
@@ -47,14 +51,24 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
       return res.status(401).json({ message: 'Invalid token' });
     }
 
+    // Get user's primary tenant for proper role-based access
+    const primaryTenant = await storage.getUserPrimaryTenant(user.id);
+
     req.user = {
       id: user.id,
       email: user.email,
       isSuperAdmin: user.isSuperAdmin || false,
+      currentTenant: primaryTenant ? {
+        id: primaryTenant.tenant.id,
+        slug: primaryTenant.tenant.slug,
+        name: primaryTenant.tenant.name,
+        role: primaryTenant.role as any,
+        permissions: (primaryTenant as any).permissions || {},
+      } : undefined,
     };
 
     // Store in session for future requests
-    req.session.user = req.user;
+    (req.session as any).user = req.user;
 
     next();
   } catch (error) {
@@ -62,12 +76,105 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
-// Super admin middleware
+// Super admin middleware - Platform Owner (Level 1)
 export const requireSuperAdmin = (req: Request, res: Response, next: NextFunction) => {
   if (!req.user?.isSuperAdmin) {
     return res.status(403).json({ message: 'Super admin access required' });
   }
   next();
+};
+
+// Tenant admin middleware - Account Owner (Level 2)
+export const requireTenantAdmin = (req: Request, res: Response, next: NextFunction) => {
+  const user = req.user;
+  if (!user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+  
+  // Super admin can access any tenant
+  if (user.isSuperAdmin) {
+    return next();
+  }
+  
+  // Must be tenant owner/admin
+  if (!user.currentTenant || !['owner', 'admin'].includes(user.currentTenant.role)) {
+    return res.status(403).json({ message: 'Tenant admin access required' });
+  }
+  
+  next();
+};
+
+// Staff access middleware - Team Member (Level 3)
+export const requireStaffAccess = (req: Request, res: Response, next: NextFunction) => {
+  const user = req.user;
+  if (!user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+  
+  // Super admin can access anything
+  if (user.isSuperAdmin) {
+    return next();
+  }
+  
+  // Must be part of a tenant with staff+ privileges
+  if (!user.currentTenant || !['owner', 'admin', 'manager', 'staff'].includes(user.currentTenant.role)) {
+    return res.status(403).json({ message: 'Staff access required' });
+  }
+  
+  next();
+};
+
+// Viewer access middleware - Read-Only (Level 4)  
+export const requireViewerAccess = (req: Request, res: Response, next: NextFunction) => {
+  const user = req.user;
+  if (!user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+  
+  // Super admin can access anything
+  if (user.isSuperAdmin) {
+    return next();
+  }
+  
+  // Must be part of a tenant
+  if (!user.currentTenant) {
+    return res.status(403).json({ message: 'Tenant access required' });
+  }
+  
+  next();
+};
+
+// Permission checker for specific actions
+export const requirePermission = (permission: string) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+    
+    // Super admin has all permissions
+    if (user.isSuperAdmin) {
+      return next();
+    }
+    
+    // Check tenant-level permissions
+    if (!user.currentTenant) {
+      return res.status(403).json({ message: 'Tenant access required' });
+    }
+    
+    // Owner and admin have all permissions by default
+    if (['owner', 'admin'].includes(user.currentTenant.role)) {
+      return next();
+    }
+    
+    // Check specific permission for other roles
+    const permissions = user.currentTenant.permissions || {};
+    if (!permissions[permission]) {
+      return res.status(403).json({ message: `Permission required: ${permission}` });
+    }
+    
+    next();
+  };
 };
 
 // Generate JWT token
