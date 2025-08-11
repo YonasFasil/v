@@ -41,13 +41,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/proposals', requireAuth);
   app.use('/api/tasks', requireAuth);
   
-  // Venues
-  app.get("/api/venues", async (req: any, res) => {
+  // Venues (specific routes first, then general routes)
+  app.get("/api/venues-with-spaces", requireAuth, async (req: any, res) => {
     try {
+      if (!req.user?.currentTenant?.id) {
+        return res.status(403).json({ 
+          message: "User tenant context not found"
+        });
+      }
+      
       const venues = await storage.getVenues(req.user.currentTenant.id);
-      res.json(venues);
+      // For now, return venues with empty spaces array since spaces functionality may not be fully implemented
+      const venuesWithSpaces = venues.map((venue: any) => ({
+        ...venue,
+        spaces: []
+      }));
+      res.json(venuesWithSpaces);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch venues" });
+      console.error('Venues with spaces error:', error);
+      res.status(500).json({ message: "Failed to fetch venues with spaces" });
     }
   });
 
@@ -60,6 +72,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(venue);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch venue" });
+    }
+  });
+
+  app.get("/api/venues", async (req: any, res) => {
+    try {
+      const venues = await storage.getVenues(req.user.currentTenant.id);
+      res.json(venues);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch venues" });
     }
   });
 
