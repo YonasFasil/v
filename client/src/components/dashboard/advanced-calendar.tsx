@@ -294,61 +294,39 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
             </div>
           </div>
           {/* Status Legend */}
-          <div className="mt-8 pt-6 border-t border-slate-200 bg-gradient-to-r from-slate-50 to-blue-50 p-6 rounded-lg">
-            <div className="flex items-center gap-2 mb-6">
-              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h4 className="text-lg font-bold text-slate-800 bg-gradient-to-r from-slate-700 to-blue-700 bg-clip-text text-transparent">
-                Event Status Guide
-              </h4>
+          <div className="mt-6 pt-4 border-t border-slate-200">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-semibold text-slate-700">Status Legend</h4>
+              <div className="text-xs text-slate-500">Hover for details</div>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="flex flex-wrap gap-3">
               {getAllStatuses().map((status) => {
                 const config = getStatusConfig(status.value);
                 return (
                   <div 
                     key={status.value} 
-                    className="group bg-white p-4 rounded-xl shadow-sm border border-slate-100 hover:shadow-md hover:border-slate-200 transition-all duration-200 hover:-translate-y-0.5"
+                    className="group relative"
+                    title={`${config.label}: ${config.description}`}
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="relative">
-                        <div 
-                          className={`w-5 h-5 rounded-full border-2 border-white shadow-md group-hover:scale-110 transition-transform duration-200`}
-                          style={{ backgroundColor: config.color }}
-                        />
-                        <div 
-                          className="absolute inset-0 w-5 h-5 rounded-full opacity-20 group-hover:animate-pulse"
-                          style={{ backgroundColor: config.color }}
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-slate-800 text-sm mb-1 group-hover:text-slate-900 transition-colors">
-                          {config.label}
-                        </div>
-                        <div className="text-xs text-slate-500 leading-relaxed">
-                          {config.description}
-                        </div>
-                      </div>
+                    <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all duration-200 cursor-help">
+                      <div 
+                        className={`w-3 h-3 rounded-full border border-white shadow-sm`}
+                        style={{ backgroundColor: config.color }}
+                      />
+                      <span className="text-xs font-medium text-slate-700 whitespace-nowrap">
+                        {config.label}
+                      </span>
+                    </div>
+                    
+                    {/* Tooltip on hover */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-slate-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10 whitespace-nowrap">
+                      {config.description}
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-slate-900"></div>
                     </div>
                   </div>
                 );
               })}
-            </div>
-            
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
-              <div className="flex items-center gap-2 text-blue-800">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="text-sm font-medium">Quick Tip</span>
-              </div>
-              <p className="text-sm text-blue-700 mt-2">
-                Click on any event in the calendar to view details or update its status. Events automatically progress through statuses based on payments and confirmations.
-              </p>
             </div>
           </div>
         </div>
