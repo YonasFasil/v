@@ -60,40 +60,20 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
   const events = calendarData?.mode === 'events' ? calendarData.data as CalendarEvent[] : [];
   const venueData = calendarData?.mode === 'venues' ? calendarData.data as VenueCalendarData[] : [];
 
-  // Calculate calendar days
+  // Generate calendar grid - completely rewritten to avoid duplicates
   const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(currentDate);
-  const calendarDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
-
-  // Generate calendar grid with proper date handling
+  const firstDayOfWeek = monthStart.getDay(); // 0 = Sunday
+  
+  // Start from the first day of the calendar week (could be previous month)
+  const calendarStart = new Date(monthStart);
+  calendarStart.setDate(monthStart.getDate() - firstDayOfWeek);
+  
+  // Generate exactly 42 consecutive days starting from calendar start
   const paddedDays = [];
-  const firstDayOfWeek = monthStart.getDay();
-  
-  // Add previous month's ending days
-  for (let i = firstDayOfWeek - 1; i >= 0; i--) {
-    const paddingDate = new Date(monthStart);
-    paddingDate.setDate(paddingDate.getDate() - (i + 1));
-    paddedDays.push(paddingDate);
-  }
-  
-  // Add current month days (no duplicate addition)
-  paddedDays.push(...calendarDays);
-  
-  // Add next month's beginning days to complete the grid (ensure we need exactly 42 cells)
-  const totalCells = 42; // 6 weeks * 7 days = 42 cells
-  for (let i = paddedDays.length; i < totalCells; i++) {
-    const paddingDate = new Date(monthEnd);
-    paddingDate.setDate(paddingDate.getDate() + (i - paddedDays.length + 1));
-    paddedDays.push(paddingDate);
-  }
-
-  // Verify no duplicates (remove this debug code once confirmed working)
-  const uniqueDates = [...new Set(paddedDays.map(d => format(d, 'yyyy-MM-dd')))];
-  if (uniqueDates.length !== paddedDays.length) {
-    console.error('Duplicate dates found in calendar grid:', {
-      totalDays: paddedDays.length,
-      uniqueDates: uniqueDates.length
-    });
+  for (let i = 0; i < 42; i++) {
+    const date = new Date(calendarStart);
+    date.setDate(calendarStart.getDate() + i);
+    paddedDays.push(date);
   }
 
   // Get events for a specific day
