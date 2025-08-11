@@ -19,7 +19,7 @@ export function UpcomingEvents() {
     return (bookings as any[])
       .filter(booking => {
         try {
-          if (booking.status === 'cancelled_refunded' || !booking.date) return false;
+          if (booking.status === 'cancelled' || !booking.date) return false;
           const eventDate = parseISO(booking.date);
           return eventDate >= now && eventDate <= nextWeek;
         } catch {

@@ -186,8 +186,8 @@ export default function Events() {
                               </CardTitle>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Badge className={getStatusColor(booking.status, booking.proposalStatus)}>
-                                {getDisplayStatus(booking.status, booking.proposalStatus)}
+                              <Badge className={`${getStatusConfig(booking.status).bgColor} ${getStatusConfig(booking.status).textColor} ${getStatusConfig(booking.status).borderColor} border`}>
+                                {getStatusConfig(booking.status).label}
                               </Badge>
                               <Button
                                 variant="ghost"
@@ -328,8 +328,8 @@ export default function Events() {
                             </TableCell>
                             <TableCell>
                               <div className="flex flex-col gap-1">
-                                <Badge className={getStatusColor(booking.status, booking.proposalStatus)}>
-                                  {getDisplayStatus(booking.status, booking.proposalStatus)}
+                                <Badge className={`${getStatusConfig(booking.status).bgColor} ${getStatusConfig(booking.status).textColor} ${getStatusConfig(booking.status).borderColor} border`}>
+                                  {getStatusConfig(booking.status).label}
                                 </Badge>
 
                               </div>

@@ -7,7 +7,7 @@ export type EventStatus =
   | "confirmed_deposit_paid" 
   | "confirmed_fully_paid" 
   | "completed" 
-  | "cancelled_refunded";
+  | "cancelled";
 
 export interface StatusConfig {
   label: string;
@@ -30,7 +30,7 @@ export const STATUS_CONFIGS: Record<EventStatus, StatusConfig> = {
     bgColor: "bg-gray-50",
     borderColor: "border-gray-200", 
     textColor: "text-gray-700",
-    nextStatuses: ["pending", "cancelled_refunded"],
+    nextStatuses: ["pending", "cancelled"],
     canEdit: true,
     isCompleted: false,
     isActive: true
@@ -42,7 +42,7 @@ export const STATUS_CONFIGS: Record<EventStatus, StatusConfig> = {
     bgColor: "bg-amber-50",
     borderColor: "border-amber-200",
     textColor: "text-amber-700",
-    nextStatuses: ["tentative", "cancelled_refunded"],
+    nextStatuses: ["tentative", "cancelled"],
     canEdit: true,
     isCompleted: false,
     isActive: true
@@ -54,7 +54,7 @@ export const STATUS_CONFIGS: Record<EventStatus, StatusConfig> = {
     bgColor: "bg-blue-50",
     borderColor: "border-blue-200",
     textColor: "text-blue-700",
-    nextStatuses: ["confirmed_deposit_paid", "cancelled_refunded"],
+    nextStatuses: ["confirmed_deposit_paid", "cancelled"],
     canEdit: true,
     isCompleted: false,
     isActive: true
@@ -66,7 +66,7 @@ export const STATUS_CONFIGS: Record<EventStatus, StatusConfig> = {
     bgColor: "bg-violet-50",
     borderColor: "border-violet-200",
     textColor: "text-violet-700",
-    nextStatuses: ["confirmed_fully_paid", "cancelled_refunded"],
+    nextStatuses: ["confirmed_fully_paid", "cancelled"],
     canEdit: true,
     isCompleted: false,
     isActive: true
@@ -78,7 +78,7 @@ export const STATUS_CONFIGS: Record<EventStatus, StatusConfig> = {
     bgColor: "bg-emerald-50", 
     borderColor: "border-emerald-200",
     textColor: "text-emerald-700",
-    nextStatuses: ["completed", "cancelled_refunded"],
+    nextStatuses: ["completed", "cancelled"],
     canEdit: true,
     isCompleted: false,
     isActive: true
@@ -95,8 +95,8 @@ export const STATUS_CONFIGS: Record<EventStatus, StatusConfig> = {
     isCompleted: true,
     isActive: false
   },
-  cancelled_refunded: {
-    label: "Cancelled / Refunded",
+  cancelled: {
+    label: "Cancelled",
     description: "Event cancelled and refunds processed",
     color: "#dc2626", // red-600
     bgColor: "bg-red-50",
@@ -116,7 +116,7 @@ export function getStatusConfig(status: EventStatus | string): StatusConfig {
     'confirmed': 'tentative',
     'pending': 'pending',
     'completed': 'completed',
-    'cancelled': 'cancelled_refunded',
+    'cancelled': 'cancelled',
     'inquiry': 'inquiry'
   };
   
@@ -131,7 +131,7 @@ export function getStatusColor(status: EventStatus | string): string {
     'confirmed': 'tentative',
     'pending': 'pending',
     'completed': 'completed',
-    'cancelled': 'cancelled_refunded',
+    'cancelled': 'cancelled',
     'inquiry': 'inquiry'
   };
   
@@ -146,7 +146,7 @@ export function getStatusLabel(status: EventStatus | string): string {
     'confirmed': 'tentative',
     'pending': 'inquiry',
     'completed': 'completed',
-    'cancelled': 'cancelled_refunded'
+    'cancelled': 'cancelled'
   };
   
   const mappedStatus = statusMap[status] || status as EventStatus;
@@ -160,7 +160,7 @@ export function getNextStatuses(currentStatus: EventStatus | string): EventStatu
     'confirmed': 'tentative',
     'pending': 'inquiry',
     'completed': 'completed',
-    'cancelled': 'cancelled_refunded'
+    'cancelled': 'cancelled'
   };
   
   const mappedStatus = statusMap[currentStatus] || currentStatus as EventStatus;
@@ -174,7 +174,7 @@ export function canEditStatus(status: EventStatus | string): boolean {
     'confirmed': 'tentative',
     'pending': 'inquiry',
     'completed': 'completed',
-    'cancelled': 'cancelled_refunded'
+    'cancelled': 'cancelled'
   };
   
   const mappedStatus = statusMap[status] || status as EventStatus;
@@ -204,7 +204,7 @@ export function getAutoStatus(
   const eventPassed = eventDate < now;
   
   // If event is completed, don't change
-  if (currentStatus === "completed" || currentStatus === "cancelled_refunded") {
+  if (currentStatus === "completed" || currentStatus === "cancelled") {
     return currentStatus;
   }
   
