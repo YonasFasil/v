@@ -20,15 +20,7 @@ import {
   type LeadActivity, type InsertLeadActivity,
   type LeadTask, type InsertLeadTask,
   type Tour, type InsertTour,
-  // Multi-tenant and role types
-  type Tenant, type InsertTenant,
-  type RolePermission, type InsertRolePermission,
-  type AuditLog, type InsertAuditLog,
-  type ApprovalRequest, type InsertApprovalRequest,
-  type UserSession, type InsertUserSession,
-  type SubscriptionPackage, type InsertSubscriptionPackage,
-  type EmailSetting, type InsertEmailSetting,
-  type RoleType
+
 } from "@shared/schema";
 
 // Additional types for new features
@@ -50,10 +42,8 @@ export interface IStorage {
   // Users
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
-  getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
-  updateUserLastLogin(id: string): Promise<void>;
 
   // Venues
   getVenues(): Promise<Venue[]>;
@@ -199,63 +189,8 @@ export interface IStorage {
   addLeadTag(leadId: string, tagId: string): Promise<void>;
   removeLeadTag(leadId: string, tagId: string): Promise<void>;
   
-  // Multi-tenant and Role-based Methods
-  // Tenants
-  getTenants(): Promise<Tenant[]>;
-  getTenant(id: string): Promise<Tenant | undefined>;
-  getTenantBySubdomain(subdomain: string): Promise<Tenant | undefined>;
-  createTenant(tenant: InsertTenant): Promise<Tenant>;
-  updateTenant(id: string, tenant: Partial<InsertTenant>): Promise<Tenant | undefined>;
-  
-  // Role Permissions
-  getRolePermissions(tenantId: string | null, role: RoleType): Promise<RolePermission[]>;
-  createRolePermission(permission: InsertRolePermission): Promise<RolePermission>;
-  updateRolePermission(id: string, permission: Partial<InsertRolePermission>): Promise<RolePermission | undefined>;
-  
-  // Audit Log
-  createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
-  getAuditLogs(tenantId: string | null, limit?: number): Promise<AuditLog[]>;
-  
-  // Approval Requests
-  createApprovalRequest(request: InsertApprovalRequest): Promise<ApprovalRequest>;
-  getApprovalRequest(id: string): Promise<ApprovalRequest | undefined>;
-  updateApprovalRequest(id: string, request: Partial<ApprovalRequest>): Promise<ApprovalRequest>;
-  getPendingApprovalRequests(userId: string, tenantId?: string): Promise<ApprovalRequest[]>;
-  getApprovalHistory(tenantId: string, limit?: number): Promise<ApprovalRequest[]>;
-  
-  // User Sessions
-  createUserSession(session: InsertUserSession): Promise<UserSession>;
-  getUserSession(sessionToken: string): Promise<UserSession | undefined>;
-  updateUserSession(id: string, session: Partial<UserSession>): Promise<UserSession | undefined>;
-  
-  // Tenant-specific user management
-  getTenantUsers(tenantId: string): Promise<User[]>;
-  
-  // Resource venue mapping for permission checks
-  getResourceVenueId(resourceId: string): Promise<{ venueId: string } | null>;
-  
-  // Approval workflow actions
-  applyBookingDiscount(bookingId: string, discountData: any): Promise<void>;
-  processRefund(paymentId: string, refundData: any): Promise<void>;
-  cancelBooking(bookingId: string, cancellationData: any): Promise<void>;
-  updateBookingRates(bookingId: string, rateData: any): Promise<void>;
 
-  // Subscription Packages (Super Admin only)
-  getSubscriptionPackages(): Promise<SubscriptionPackage[]>;
-  getSubscriptionPackage(id: string): Promise<SubscriptionPackage | undefined>;
-  createSubscriptionPackage(packageData: InsertSubscriptionPackage): Promise<SubscriptionPackage>;
-  updateSubscriptionPackage(id: string, packageData: Partial<InsertSubscriptionPackage>): Promise<SubscriptionPackage | undefined>;
-  deleteSubscriptionPackage(id: string): Promise<boolean>;
-
-  // Email Settings (Super Admin only)
-  getEmailSettings(): Promise<EmailSetting[]>;
-  getEmailSetting(id: string): Promise<EmailSetting | undefined>;
-  getDefaultEmailSetting(): Promise<EmailSetting | undefined>;
-  createEmailSetting(setting: InsertEmailSetting): Promise<EmailSetting>;
-  updateEmailSetting(id: string, setting: Partial<InsertEmailSetting>): Promise<EmailSetting | undefined>;
-  deleteEmailSetting(id: string): Promise<boolean>;
-  setDefaultEmailSetting(id: string): Promise<void>;
-
+  
   // Additional CRUD operations  
   deleteCustomer(id: string): Promise<boolean>;
   updateVenue(id: string, venueData: Partial<Venue>): Promise<Venue | null>;
@@ -281,14 +216,6 @@ export class MemStorage implements IStorage {
   private taxSettings: Map<string, TaxSetting>;
   private communications: Map<string, Communication>;
   private settings: Map<string, Setting>;
-  // Multi-tenant and role-based data structures
-  private tenants: Map<string, Tenant>;
-  private rolePermissions: Map<string, RolePermission>;
-  private auditLogs: Map<string, AuditLog>;
-  private approvalRequests: Map<string, ApprovalRequest>;
-  private userSessions: Map<string, UserSession>;
-  private subscriptionPackages: Map<string, SubscriptionPackage>;
-  private emailSettings: Map<string, EmailSetting>;
   
   // Lead Management Maps
   private campaignSources: Map<string, CampaignSource>;
@@ -318,15 +245,6 @@ export class MemStorage implements IStorage {
     this.communications = new Map();
     this.settings = new Map();
     
-    // Multi-tenant and role-based initialization
-    this.tenants = new Map();
-    this.rolePermissions = new Map();
-    this.auditLogs = new Map();
-    this.approvalRequests = new Map();
-    this.userSessions = new Map();
-    this.subscriptionPackages = new Map();
-    this.emailSettings = new Map();
-    
     // Lead Management initialization
     this.campaignSources = new Map();
     this.tags = new Map();
@@ -339,8 +257,6 @@ export class MemStorage implements IStorage {
 
     this.initializeData();
     this.initializeLeadManagementData();
-    this.initializeRolePermissions();
-    this.initializeSubscriptionPackages();
   }
 
   private initializeData() {
@@ -894,10 +810,6 @@ export class MemStorage implements IStorage {
     return Array.from(this.users.values()).find(user => user.username === username);
   }
 
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.email === email);
-  }
-
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = randomUUID();
     const user: User = { 
@@ -921,14 +833,6 @@ export class MemStorage implements IStorage {
     const updated = { ...existing, ...updateData };
     this.users.set(id, updated);
     return updated;
-  }
-
-  async updateUserLastLogin(id: string): Promise<void> {
-    const user = this.users.get(id);
-    if (user) {
-      user.lastLoginAt = new Date();
-      this.users.set(id, user);
-    }
   }
 
   // Venues
@@ -1955,472 +1859,6 @@ export class MemStorage implements IStorage {
     this.leadTags.delete(`${leadId}:${tagId}`);
   }
 
-  // Subscription Packages implementation
-  private initializeSubscriptionPackages() {
-    const packages: SubscriptionPackage[] = [
-      {
-        id: randomUUID(),
-        name: "Basic",
-        description: "Perfect for small venues just getting started",
-        price: "29.00",
-        billingInterval: "month",
-        maxVenues: 2,
-        maxUsers: 5,
-        maxEventsPerMonth: 25,
-        storageGB: 5,
-        features: {
-          basic_analytics: true,
-          email_support: true,
-          calendar_integration: true,
-          proposal_system: true,
-          payment_processing: false,
-          ai_insights: false,
-          advanced_reports: false,
-          custom_branding: false
-        },
-        isActive: true,
-        isPopular: false,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: randomUUID(),
-        name: "Professional",
-        description: "Best for growing businesses with multiple venues",
-        price: "79.00",
-        billingInterval: "month",
-        maxVenues: 10,
-        maxUsers: 25,
-        maxEventsPerMonth: 100,
-        storageGB: 50,
-        features: {
-          basic_analytics: true,
-          email_support: true,
-          calendar_integration: true,
-          proposal_system: true,
-          payment_processing: true,
-          ai_insights: true,
-          advanced_reports: true,
-          custom_branding: false,
-          priority_support: true,
-          team_collaboration: true
-        },
-        isActive: true,
-        isPopular: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: randomUUID(),
-        name: "Enterprise",
-        description: "Full-featured solution for large organizations",
-        price: "199.00",
-        billingInterval: "month",
-        maxVenues: null,
-        maxUsers: null,
-        maxEventsPerMonth: null,
-        storageGB: null,
-        features: {
-          basic_analytics: true,
-          email_support: true,
-          calendar_integration: true,
-          proposal_system: true,
-          payment_processing: true,
-          ai_insights: true,
-          advanced_reports: true,
-          custom_branding: true,
-          priority_support: true,
-          team_collaboration: true,
-          api_access: true,
-          white_label: true,
-          dedicated_manager: true
-        },
-        isActive: true,
-        isPopular: false,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    ];
-
-    packages.forEach(pkg => this.subscriptionPackages.set(pkg.id, pkg));
-  }
-
-  async getSubscriptionPackages(): Promise<SubscriptionPackage[]> {
-    return Array.from(this.subscriptionPackages.values())
-      .filter(pkg => pkg.isActive)
-      .sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
-  }
-
-  async getSubscriptionPackage(id: string): Promise<SubscriptionPackage | undefined> {
-    return this.subscriptionPackages.get(id);
-  }
-
-  async createSubscriptionPackage(packageData: InsertSubscriptionPackage): Promise<SubscriptionPackage> {
-    const newPackage: SubscriptionPackage = {
-      id: randomUUID(),
-      ...packageData,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    this.subscriptionPackages.set(newPackage.id, newPackage);
-    return newPackage;
-  }
-
-  async updateSubscriptionPackage(id: string, packageData: Partial<InsertSubscriptionPackage>): Promise<SubscriptionPackage | undefined> {
-    const existing = this.subscriptionPackages.get(id);
-    if (!existing) return undefined;
-    
-    const updated = { ...existing, ...packageData, updatedAt: new Date() };
-    this.subscriptionPackages.set(id, updated);
-    return updated;
-  }
-
-  async deleteSubscriptionPackage(id: string): Promise<boolean> {
-    return this.subscriptionPackages.delete(id);
-  }
-
-  // Email Settings Implementation
-  async getEmailSettings(): Promise<EmailSetting[]> {
-    return Array.from(this.emailSettings.values());
-  }
-
-  async getEmailSetting(id: string): Promise<EmailSetting | undefined> {
-    return this.emailSettings.get(id);
-  }
-
-  async getDefaultEmailSetting(): Promise<EmailSetting | undefined> {
-    return Array.from(this.emailSettings.values()).find(setting => setting.isDefault);
-  }
-
-  async createEmailSetting(settingData: InsertEmailSetting): Promise<EmailSetting> {
-    const newSetting: EmailSetting = {
-      id: randomUUID(),
-      ...settingData,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
-    // If this is set as default, unset all other defaults
-    if (newSetting.isDefault) {
-      for (const [id, existing] of this.emailSettings) {
-        if (existing.isDefault) {
-          this.emailSettings.set(id, { ...existing, isDefault: false, updatedAt: new Date() });
-        }
-      }
-    }
-    
-    this.emailSettings.set(newSetting.id, newSetting);
-    return newSetting;
-  }
-
-  async updateEmailSetting(id: string, settingData: Partial<InsertEmailSetting>): Promise<EmailSetting | undefined> {
-    const existing = this.emailSettings.get(id);
-    if (!existing) return undefined;
-    
-    const updated = { ...existing, ...settingData, updatedAt: new Date() };
-    
-    // If this is being set as default, unset all other defaults
-    if (settingData.isDefault) {
-      for (const [existingId, existingSetting] of this.emailSettings) {
-        if (existingId !== id && existingSetting.isDefault) {
-          this.emailSettings.set(existingId, { ...existingSetting, isDefault: false, updatedAt: new Date() });
-        }
-      }
-    }
-    
-    this.emailSettings.set(id, updated);
-    return updated;
-  }
-
-  async deleteEmailSetting(id: string): Promise<boolean> {
-    return this.emailSettings.delete(id);
-  }
-
-  async setDefaultEmailSetting(id: string): Promise<void> {
-    // Unset all defaults
-    for (const [existingId, existing] of this.emailSettings) {
-      if (existing.isDefault) {
-        this.emailSettings.set(existingId, { ...existing, isDefault: false, updatedAt: new Date() });
-      }
-    }
-    
-    // Set the specified one as default
-    const setting = this.emailSettings.get(id);
-    if (setting) {
-      this.emailSettings.set(id, { ...setting, isDefault: true, updatedAt: new Date() });
-    }
-  }
-
-  // Multi-tenant and Role-based Method Implementations
-  async getTenants(): Promise<Tenant[]> {
-    return Array.from(this.tenants.values());
-  }
-
-  async getTenant(id: string): Promise<Tenant | undefined> {
-    return this.tenants.get(id);
-  }
-
-  async getTenantBySubdomain(subdomain: string): Promise<Tenant | undefined> {
-    return Array.from(this.tenants.values()).find(tenant => tenant.subdomain === subdomain);
-  }
-
-  async createTenant(tenant: InsertTenant): Promise<Tenant> {
-    const newTenant: Tenant = {
-      id: randomUUID(),
-      ...tenant,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    this.tenants.set(newTenant.id, newTenant);
-    return newTenant;
-  }
-
-  async updateTenant(id: string, tenant: Partial<InsertTenant>): Promise<Tenant | undefined> {
-    const existing = this.tenants.get(id);
-    if (!existing) return undefined;
-    
-    const updated = { ...existing, ...tenant, updatedAt: new Date() };
-    this.tenants.set(id, updated);
-    return updated;
-  }
-
-  async getRolePermissions(tenantId: string | null, role: RoleType): Promise<RolePermission[]> {
-    return Array.from(this.rolePermissions.values())
-      .filter(p => p.tenantId === tenantId && p.role === role);
-  }
-
-  async createRolePermission(permission: InsertRolePermission): Promise<RolePermission> {
-    const newPermission: RolePermission = {
-      id: randomUUID(),
-      ...permission,
-      createdAt: new Date()
-    };
-    this.rolePermissions.set(newPermission.id, newPermission);
-    return newPermission;
-  }
-
-  async updateRolePermission(id: string, permission: Partial<InsertRolePermission>): Promise<RolePermission | undefined> {
-    const existing = this.rolePermissions.get(id);
-    if (!existing) return undefined;
-    
-    const updated = { ...existing, ...permission };
-    this.rolePermissions.set(id, updated);
-    return updated;
-  }
-
-  async createAuditLog(log: InsertAuditLog): Promise<AuditLog> {
-    const newLog: AuditLog = {
-      id: randomUUID(),
-      ...log,
-      createdAt: new Date()
-    };
-    this.auditLogs.set(newLog.id, newLog);
-    return newLog;
-  }
-
-  async getAuditLogs(tenantId: string | null, limit = 50): Promise<AuditLog[]> {
-    return Array.from(this.auditLogs.values())
-      .filter(log => log.tenantId === tenantId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, limit);
-  }
-
-  async createApprovalRequest(request: InsertApprovalRequest): Promise<ApprovalRequest> {
-    const newRequest: ApprovalRequest = {
-      id: randomUUID(),
-      ...request,
-      createdAt: new Date()
-    };
-    this.approvalRequests.set(newRequest.id, newRequest);
-    return newRequest;
-  }
-
-  async getApprovalRequest(id: string): Promise<ApprovalRequest | undefined> {
-    return this.approvalRequests.get(id);
-  }
-
-  async updateApprovalRequest(id: string, request: Partial<ApprovalRequest>): Promise<ApprovalRequest> {
-    const existing = this.approvalRequests.get(id);
-    if (!existing) throw new Error('Approval request not found');
-    
-    const updated = { ...existing, ...request };
-    this.approvalRequests.set(id, updated);
-    return updated;
-  }
-
-  async getPendingApprovalRequests(userId: string, tenantId?: string): Promise<ApprovalRequest[]> {
-    return Array.from(this.approvalRequests.values())
-      .filter(req => 
-        req.approverId === userId && 
-        req.status === 'pending' &&
-        (!tenantId || req.tenantId === tenantId)
-      );
-  }
-
-  async getApprovalHistory(tenantId: string, limit = 50): Promise<ApprovalRequest[]> {
-    return Array.from(this.approvalRequests.values())
-      .filter(req => req.tenantId === tenantId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, limit);
-  }
-
-  async createUserSession(session: InsertUserSession): Promise<UserSession> {
-    const newSession: UserSession = {
-      id: randomUUID(),
-      ...session,
-      createdAt: new Date()
-    };
-    this.userSessions.set(newSession.id, newSession);
-    return newSession;
-  }
-
-  async getUserSession(sessionToken: string): Promise<UserSession | undefined> {
-    return Array.from(this.userSessions.values()).find(s => s.sessionToken === sessionToken);
-  }
-
-  async updateUserSession(id: string, session: Partial<UserSession>): Promise<UserSession | undefined> {
-    const existing = this.userSessions.get(id);
-    if (!existing) return undefined;
-    
-    const updated = { ...existing, ...session };
-    this.userSessions.set(id, updated);
-    return updated;
-  }
-
-  async getTenantUsers(tenantId: string): Promise<User[]> {
-    return Array.from(this.users.values())
-      .filter(user => user.tenantId === tenantId);
-  }
-
-  async getResourceVenueId(resourceId: string): Promise<{ venueId: string } | null> {
-    // For bookings, look up venue through booking
-    const booking = this.bookings.get(resourceId);
-    if (booking?.venueId) {
-      return { venueId: booking.venueId };
-    }
-    
-    // For other resources, implement as needed
-    return null;
-  }
-
-  // Approval workflow action stubs
-  async applyBookingDiscount(bookingId: string, discountData: any): Promise<void> {
-    const booking = this.bookings.get(bookingId);
-    if (booking) {
-      // Apply discount logic here
-      console.log(`Applying discount to booking ${bookingId}:`, discountData);
-    }
-  }
-
-  async processRefund(paymentId: string, refundData: any): Promise<void> {
-    const payment = this.payments.get(paymentId);
-    if (payment) {
-      // Process refund logic here
-      console.log(`Processing refund for payment ${paymentId}:`, refundData);
-    }
-  }
-
-  async cancelBooking(bookingId: string, cancellationData: any): Promise<void> {
-    const booking = this.bookings.get(bookingId);
-    if (booking) {
-      // Cancel booking logic here
-      console.log(`Cancelling booking ${bookingId}:`, cancellationData);
-    }
-  }
-
-  async updateBookingRates(bookingId: string, rateData: any): Promise<void> {
-    const booking = this.bookings.get(bookingId);
-    if (booking) {
-      // Update rates logic here
-      console.log(`Updating rates for booking ${bookingId}:`, rateData);
-    }
-  }
-
-  // Initialize role permissions with comprehensive 5-tier hierarchy
-  private initializeRolePermissions() {
-    const permissions = [
-      // Super Admin - Full access to everything (platform-wide)
-      { role: 'super_admin', resource: 'tenants', action: 'create', isAllowed: true },
-      { role: 'super_admin', resource: 'tenants', action: 'read', isAllowed: true },
-      { role: 'super_admin', resource: 'tenants', action: 'update', isAllowed: true },
-      { role: 'super_admin', resource: 'tenants', action: 'delete', isAllowed: true },
-      { role: 'super_admin', resource: 'users', action: 'create', isAllowed: true },
-      { role: 'super_admin', resource: 'users', action: 'read', isAllowed: true },
-      { role: 'super_admin', resource: 'users', action: 'update', isAllowed: true },
-      { role: 'super_admin', resource: 'users', action: 'delete', isAllowed: true },
-
-      // Tenant Admin - Full access within their tenant
-      { role: 'tenant_admin', resource: 'venues', action: 'create', isAllowed: true },
-      { role: 'tenant_admin', resource: 'venues', action: 'read', isAllowed: true },
-      { role: 'tenant_admin', resource: 'venues', action: 'update', isAllowed: true },
-      { role: 'tenant_admin', resource: 'venues', action: 'delete', isAllowed: true },
-      { role: 'tenant_admin', resource: 'users', action: 'create', isAllowed: true },
-      { role: 'tenant_admin', resource: 'users', action: 'read', isAllowed: true },
-      { role: 'tenant_admin', resource: 'users', action: 'update', isAllowed: true },
-      { role: 'tenant_admin', resource: 'users', action: 'delete', isAllowed: true },
-      { role: 'tenant_admin', resource: 'bookings', action: 'create', isAllowed: true },
-      { role: 'tenant_admin', resource: 'bookings', action: 'read', isAllowed: true },
-      { role: 'tenant_admin', resource: 'bookings', action: 'update', isAllowed: true },
-      { role: 'tenant_admin', resource: 'bookings', action: 'delete', isAllowed: true },
-      { role: 'tenant_admin', resource: 'customers', action: 'create', isAllowed: true },
-      { role: 'tenant_admin', resource: 'customers', action: 'read', isAllowed: true },
-      { role: 'tenant_admin', resource: 'customers', action: 'update', isAllowed: true },
-      { role: 'tenant_admin', resource: 'customers', action: 'delete', isAllowed: true },
-      { role: 'tenant_admin', resource: 'payments', action: 'read', isAllowed: true },
-      { role: 'tenant_admin', resource: 'payments', action: 'refund', isAllowed: true },
-      { role: 'tenant_admin', resource: 'reports', action: 'read', isAllowed: true },
-
-      // Manager - Venue-level management
-      { role: 'manager', resource: 'bookings', action: 'create', isAllowed: true },
-      { role: 'manager', resource: 'bookings', action: 'read', isAllowed: true },
-      { role: 'manager', resource: 'bookings', action: 'update', isAllowed: true },
-      { role: 'manager', resource: 'bookings', action: 'discount', isAllowed: true },
-      { role: 'manager', resource: 'customers', action: 'create', isAllowed: true },
-      { role: 'manager', resource: 'customers', action: 'read', isAllowed: true },
-      { role: 'manager', resource: 'customers', action: 'update', isAllowed: true },
-      { role: 'manager', resource: 'proposals', action: 'create', isAllowed: true },
-      { role: 'manager', resource: 'proposals', action: 'read', isAllowed: true },
-      { role: 'manager', resource: 'proposals', action: 'update', isAllowed: true },
-      { role: 'manager', resource: 'venues', action: 'read', isAllowed: true },
-      { role: 'manager', resource: 'venues', action: 'update', isAllowed: true },
-      { role: 'manager', resource: 'tasks', action: 'create', isAllowed: true },
-      { role: 'manager', resource: 'tasks', action: 'read', isAllowed: true },
-      { role: 'manager', resource: 'tasks', action: 'update', isAllowed: true },
-      { role: 'manager', resource: 'reports', action: 'read', isAllowed: true },
-
-      // Staff - Operational tasks based on type
-      { role: 'staff', resource: 'bookings', action: 'read', isAllowed: true },
-      { role: 'staff', resource: 'bookings', action: 'update', isAllowed: true },
-      { role: 'staff', resource: 'customers', action: 'read', isAllowed: true },
-      { role: 'staff', resource: 'customers', action: 'create', isAllowed: true },
-      { role: 'staff', resource: 'customers', action: 'update', isAllowed: true },
-      { role: 'staff', resource: 'proposals', action: 'read', isAllowed: true },
-      { role: 'staff', resource: 'proposals', action: 'create', isAllowed: true },
-      { role: 'staff', resource: 'tasks', action: 'read', isAllowed: true },
-      { role: 'staff', resource: 'tasks', action: 'update', isAllowed: true },
-      { role: 'staff', resource: 'venues', action: 'read', isAllowed: true },
-
-      // Customer - Self-service access
-      { role: 'customer', resource: 'bookings', action: 'read', isAllowed: true },
-      { role: 'customer', resource: 'proposals', action: 'read', isAllowed: true },
-      { role: 'customer', resource: 'payments', action: 'create', isAllowed: true },
-      { role: 'customer', resource: 'venues', action: 'read', isAllowed: true }
-    ];
-
-    permissions.forEach(perm => {
-      const rolePermission: RolePermission = {
-        id: randomUUID(),
-        tenantId: null, // Default permissions for all tenants
-        role: perm.role as RoleType,
-        resource: perm.resource as any,
-        action: perm.action as any,
-        isAllowed: perm.isAllowed,
-        conditions: null,
-        createdAt: new Date()
-      };
-      this.rolePermissions.set(rolePermission.id, rolePermission);
-    });
-  }
 
 }
 
