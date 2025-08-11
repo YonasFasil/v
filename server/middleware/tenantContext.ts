@@ -37,6 +37,7 @@ export const tenantContext = async (req: TenantRequest, res: Response, next: Nex
 
     // Check if user has tenant context from auth middleware
     if (!user.currentTenant) {
+      console.log('Tenant context debug - user:', JSON.stringify(user, null, 2));
       return res.status(403).json({ 
         message: 'Tenant access required' 
       });

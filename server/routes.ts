@@ -33,17 +33,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerSuperAdminRoutes(app);
 
   // Apply tenant context middleware to tenant-specific routes only
-  app.use('/api/venues', requireAuth, requireViewerAccess, tenantContext);
-  app.use('/api/bookings', requireAuth, requireViewerAccess, tenantContext);
-  app.use('/api/customers', requireAuth, requireViewerAccess, tenantContext);
-  app.use('/api/leads', requireAuth, requireViewerAccess, tenantContext);
-  app.use('/api/proposals', requireAuth, requireViewerAccess, tenantContext);
-  app.use('/api/tasks', requireAuth, requireViewerAccess, tenantContext);
+  // NOTE: tenantContext middleware is not needed since requireAuth already sets up tenant context
+  app.use('/api/venues', requireAuth, requireViewerAccess);
+  app.use('/api/bookings', requireAuth, requireViewerAccess);
+  app.use('/api/customers', requireAuth, requireViewerAccess);
+  app.use('/api/leads', requireAuth, requireViewerAccess);
+  app.use('/api/proposals', requireAuth, requireViewerAccess);
+  app.use('/api/tasks', requireAuth, requireViewerAccess);
   
   // Venues
   app.get("/api/venues", async (req: any, res) => {
     try {
-      const venues = await storage.getVenues(req.tenant?.id);
+      const venues = await storage.getVenues(req.user.currentTenant.id);
       res.json(venues);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch venues" });
@@ -66,7 +67,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const venueData = insertVenueSchema.parse({
         ...req.body,
-        tenantId: req.tenant.id,
+        tenantId: req.user.currentTenant.id,
       });
       const venue = await storage.createVenue(venueData);
       res.status(201).json(venue);
@@ -81,7 +82,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Customers
   app.get("/api/customers", async (req: any, res) => {
     try {
-      const customers = await storage.getCustomers(req.tenant.id);
+      const customers = await storage.getCustomers(req.user.currentTenant.id);
       res.json(customers);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch customers" });
@@ -92,7 +93,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const customerData = insertCustomerSchema.parse({
         ...req.body,
-        tenantId: req.tenant.id,
+        tenantId: req.user.currentTenant.id,
       });
       const customer = await storage.createCustomer(customerData);
       res.status(201).json(customer);
@@ -107,7 +108,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Leads
   app.get("/api/leads", async (req: any, res) => {
     try {
-      const leads = await storage.getLeads(req.tenant.id);
+      const leads = await storage.getLeads(req.user.currentTenant.id);
       res.json(leads);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch leads" });
@@ -118,7 +119,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const leadData = insertLeadSchema.parse({
         ...req.body,
-        tenantId: req.tenant.id,
+        tenantId: req.user.currentTenant.id,
       });
       const lead = await storage.createLead(leadData);
       res.status(201).json(lead);
@@ -133,7 +134,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bookings
   app.get("/api/bookings", async (req: any, res) => {
     try {
-      const bookings = await storage.getBookings(req.tenant.id);
+      const bookings = await storage.getBookings(req.user.currentTenant.id);
       res.json(bookings);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch bookings" });
@@ -144,7 +145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const bookingData = insertBookingSchema.parse({
         ...req.body,
-        tenantId: req.tenant.id,
+        tenantId: req.user.currentTenant.id,
       });
       const booking = await storage.createBooking(bookingData);
       res.status(201).json(booking);

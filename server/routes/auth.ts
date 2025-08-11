@@ -66,11 +66,17 @@ export function registerAuthRoutes(app: Express) {
       // Generate token
       const token = generateToken(user);
 
-      // Store user in session
+      // Store user in session with tenant context
       req.session.user = {
         id: user.id,
         email: user.email,
         isSuperAdmin: user.isSuperAdmin || false,
+        currentTenant: {
+          id: tenant.id,
+          slug: tenant.slug,
+          name: tenant.name,
+          role: 'owner',
+        },
       };
 
       // Remove sensitive data from response
@@ -111,15 +117,21 @@ export function registerAuthRoutes(app: Express) {
       // Generate token
       const token = generateToken(user);
 
-      // Store user in session
+      // Get user's primary tenant for session and response
+      const primaryTenant = await storage.getUserPrimaryTenant(user.id);
+
+      // Store user in session with tenant context
       (req.session as any).user = {
         id: user.id,
         email: user.email,
         isSuperAdmin: user.isSuperAdmin || false,
+        currentTenant: primaryTenant ? {
+          id: primaryTenant.tenant.id,
+          slug: primaryTenant.tenant.slug,
+          name: primaryTenant.tenant.name,
+          role: primaryTenant.role,
+        } : null,
       };
-
-      // Get user's primary tenant for redirect
-      const primaryTenant = await storage.getUserPrimaryTenant(user.id);
 
       // Remove sensitive data from response
       const { passwordHash, ...userResponse } = user;
