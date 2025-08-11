@@ -143,6 +143,14 @@ export function registerAuthRoutes(app: Express) {
           firstName: foundUser.firstName,
           lastName: foundUser.lastName,
           isSuperAdmin: isSuperAdmin,
+          // Super admins don't have tenant associations
+          currentTenant: !isSuperAdmin && tenantResult.rows.length > 0 ? {
+            id: tenantResult.rows[0].id,
+            name: tenantResult.rows[0].name,
+            slug: tenantResult.rows[0].slug,
+            status: tenantResult.rows[0].status,
+            role: tenantResult.rows[0].role,
+          } : null,
         },
         isSuperAdmin: isSuperAdmin,
         hasTenant: !isSuperAdmin && tenantResult.rows.length > 0,
@@ -206,10 +214,35 @@ export function registerAuthRoutes(app: Express) {
       (req.session as any).isSuperAdmin = isSuperAdmin;
       (req.session as any).user.isSuperAdmin = isSuperAdmin;
 
+      // Get tenant information for regular users only
+      let currentTenant = null;
+      if (!isSuperAdmin) {
+        const tenantResult = await db.execute(sql`
+          SELECT 
+            t.id, t.name, t.slug, t.status,
+            tu.role
+          FROM tenant_users tu
+          JOIN tenants t ON t.id = tu.tenant_id
+          WHERE tu.user_id = ${userId} AND t.status = 'active'
+          LIMIT 1
+        `);
+
+        if (tenantResult.rows.length > 0) {
+          currentTenant = {
+            id: tenantResult.rows[0].id,
+            name: tenantResult.rows[0].name,
+            slug: tenantResult.rows[0].slug,
+            status: tenantResult.rows[0].status,
+            role: tenantResult.rows[0].role,
+          };
+        }
+      }
+
       res.json({
         user: {
           ...(req.session as any).user,
           isSuperAdmin: isSuperAdmin,
+          currentTenant: currentTenant,
         },
       });
     } catch (error) {
