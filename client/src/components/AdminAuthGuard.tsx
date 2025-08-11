@@ -24,9 +24,9 @@ export function AdminAuthGuard({ children }: AdminAuthGuardProps) {
     }
 
     // Not super admin - redirect to home or tenant dashboard
-    if (!user.isSuperAdmin) {
-      if (user.currentTenant) {
-        setLocation(`/t/${user.currentTenant.slug}/dashboard`);
+    if (!(user as any).isSuperAdmin) {
+      if ((user as any).currentTenant) {
+        setLocation(`/t/${(user as any).currentTenant.slug}/dashboard`);
       } else {
         setLocation('/');
       }
@@ -44,7 +44,7 @@ export function AdminAuthGuard({ children }: AdminAuthGuardProps) {
   }
 
   // Don't render anything while redirecting
-  if (!user || !user.isSuperAdmin) {
+  if (!user || !(user as any).isSuperAdmin) {
     return null;
   }
 

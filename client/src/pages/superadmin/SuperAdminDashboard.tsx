@@ -246,18 +246,13 @@ function SuperAdminDashboardContent() {
     return <Badge variant={variants[status as keyof typeof variants] as any}>{status}</Badge>;
   };
 
-  // Show loading screen while checking authentication
-  if (authLoading) {
+  // Loading state for dashboard data
+  if (tenantsLoading || analyticsLoading || packagesLoading) {
     return (
       <div className="h-screen flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" aria-label="Loading"/>
       </div>
     );
-  }
-
-  // Don't render dashboard if not authenticated (will redirect)
-  if (!authUser) {
-    return null;
   }
 
   return (
