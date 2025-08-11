@@ -261,86 +261,180 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Super Admin Dashboard</h1>
-          <p className="text-muted-foreground">Manage tenants, packages, and platform analytics</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-950">
+      <div className="container mx-auto p-6 space-y-8">
+        {/* Stunning Header Section */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 p-8 text-white shadow-2xl">
+          <div className="absolute inset-0 bg-black/20"></div>
+          <div className="relative flex justify-between items-center">
+            <div className="space-y-2">
+              <h1 className="text-4xl font-bold bg-white/10 backdrop-blur-sm rounded-2xl px-6 py-3 inline-block">
+                🚀 Super Admin Console
+              </h1>
+              <p className="text-white/90 text-lg font-medium">
+                Platform command center • Manage everything from one place
+              </p>
+            </div>
+            <Button 
+              variant="secondary"
+              onClick={handleLogout}
+              className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border-white/30 text-white hover:text-white transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
+          
+          {/* Floating decorative elements */}
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-10 -left-10 w-60 h-60 bg-purple-400/20 rounded-full blur-3xl"></div>
         </div>
-        <Button 
-          variant="outline"
-          onClick={handleLogout}
-          className="ml-auto"
-        >
-          <LogOut className="h-4 w-4 mr-2" />
-          Logout
-        </Button>
-      </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="tenants">Tenants</TabsTrigger>
-          <TabsTrigger value="packages">Feature Packages</TabsTrigger>
-          <TabsTrigger value="activity">Activity Logs</TabsTrigger>
-        </TabsList>
+        {/* Enhanced Navigation Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+          <div className="flex justify-center">
+            <TabsList className="bg-white/60 backdrop-blur-lg shadow-xl border-0 p-2 rounded-2xl">
+              <TabsTrigger value="overview" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-purple-600 data-[state=active]:text-white rounded-xl px-6 py-3 font-medium transition-all duration-300">
+                <Activity className="w-4 h-4 mr-2" />
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="users" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white rounded-xl px-6 py-3 font-medium transition-all duration-300">
+                <Users className="w-4 h-4 mr-2" />
+                Users
+              </TabsTrigger>
+              <TabsTrigger value="tenants" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-600 data-[state=active]:text-white rounded-xl px-6 py-3 font-medium transition-all duration-300">
+                <Building2 className="w-4 h-4 mr-2" />
+                Tenants
+              </TabsTrigger>
+              <TabsTrigger value="packages" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-600 data-[state=active]:text-white rounded-xl px-6 py-3 font-medium transition-all duration-300">
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Packages
+              </TabsTrigger>
+              <TabsTrigger value="activity" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-rose-600 data-[state=active]:text-white rounded-xl px-6 py-3 font-medium transition-all duration-300">
+                <Activity className="w-4 h-4 mr-2" />
+                Activity
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-        <TabsContent value="overview" className="space-y-6">
-          {analyticsLoading ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {[...Array(4)].map((_, i) => (
-                <Card key={i}>
-                  <CardContent className="p-6">
-                    <div className="animate-pulse">
-                      <div className="h-4 bg-gray-300 rounded mb-2"></div>
-                      <div className="h-8 bg-gray-300 rounded"></div>
+          <TabsContent value="overview" className="space-y-8">
+            {analyticsLoading ? (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                {[...Array(4)].map((_, i) => (
+                  <Card key={i} className="bg-white/60 backdrop-blur-lg shadow-xl border-0 rounded-2xl overflow-hidden">
+                    <CardContent className="p-8">
+                      <div className="animate-pulse">
+                        <div className="h-4 bg-gradient-to-r from-gray-200 to-gray-300 rounded-full mb-4"></div>
+                        <div className="h-8 bg-gradient-to-r from-gray-300 to-gray-400 rounded-full"></div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                <Card className="group bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-2xl border-0 rounded-2xl overflow-hidden hover:shadow-3xl transition-all duration-300 transform hover:-translate-y-2">
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/10"></div>
+                  <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-4">
+                    <CardTitle className="text-sm font-semibold text-white/90">Total Tenants</CardTitle>
+                    <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                      <Building2 className="h-6 w-6 text-white" />
                     </div>
+                  </CardHeader>
+                  <CardContent className="relative">
+                    <div className="text-4xl font-bold text-white mb-2">{analytics?.totalTenants || 0}</div>
+                    <p className="text-white/80 text-sm">Active organizations</p>
                   </CardContent>
                 </Card>
-              ))}
+                
+                <Card className="group bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-2xl border-0 rounded-2xl overflow-hidden hover:shadow-3xl transition-all duration-300 transform hover:-translate-y-2">
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/10"></div>
+                  <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-4">
+                    <CardTitle className="text-sm font-semibold text-white/90">Active Tenants</CardTitle>
+                    <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                      <TrendingUp className="h-6 w-6 text-white" />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="relative">
+                    <div className="text-4xl font-bold text-white mb-2">{analytics?.activeTenants || 0}</div>
+                    <p className="text-white/80 text-sm">Currently paying</p>
+                  </CardContent>
+                </Card>
+                
+                <Card className="group bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-2xl border-0 rounded-2xl overflow-hidden hover:shadow-3xl transition-all duration-300 transform hover:-translate-y-2">
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/10"></div>
+                  <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-4">
+                    <CardTitle className="text-sm font-semibold text-white/90">Total Users</CardTitle>
+                    <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                      <Users className="h-6 w-6 text-white" />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="relative">
+                    <div className="text-4xl font-bold text-white mb-2">{analytics?.totalUsers || 0}</div>
+                    <p className="text-white/80 text-sm">Platform members</p>
+                  </CardContent>
+                </Card>
+                
+                <Card className="group bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-2xl border-0 rounded-2xl overflow-hidden hover:shadow-3xl transition-all duration-300 transform hover:-translate-y-2">
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/10"></div>
+                  <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-4">
+                    <CardTitle className="text-sm font-semibold text-white/90">Recent Activity</CardTitle>
+                    <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                      <Activity className="h-6 w-6 text-white" />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="relative">
+                    <div className="text-4xl font-bold text-white mb-2">{analytics?.recentActivity?.length || 0}</div>
+                    <p className="text-white/80 text-sm">System events</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+            
+            {/* Quick Actions Section */}
+            <div className="bg-white/60 backdrop-blur-lg rounded-2xl shadow-xl border-0 p-8">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                    Quick Actions
+                  </h3>
+                  <p className="text-gray-600 mt-1">Common administrative tasks</p>
+                </div>
+              </div>
+              
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <Button 
+                  onClick={() => setIsCreateTenantOpen(true)}
+                  className="h-20 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 rounded-xl"
+                >
+                  <div className="flex flex-col items-center space-y-2">
+                    <Plus className="h-6 w-6" />
+                    <span className="font-semibold">Create Tenant</span>
+                  </div>
+                </Button>
+                
+                <Button 
+                  onClick={() => setIsCreatePackageOpen(true)}
+                  className="h-20 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 rounded-xl"
+                >
+                  <div className="flex flex-col items-center space-y-2">
+                    <Plus className="h-6 w-6" />
+                    <span className="font-semibold">New Package</span>
+                  </div>
+                </Button>
+                
+                <Button 
+                  onClick={() => setActiveTab("users")}
+                  className="h-20 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 rounded-xl"
+                >
+                  <div className="flex flex-col items-center space-y-2">
+                    <Search className="h-6 w-6" />
+                    <span className="font-semibold">Manage Users</span>
+                  </div>
+                </Button>
+              </div>
             </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Tenants</CardTitle>
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{analytics?.totalTenants || 0}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active Tenants</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{analytics?.activeTenants || 0}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{analytics?.totalUsers || 0}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Recent Activity</CardTitle>
-                  <Activity className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{analytics?.recentActivity?.length || 0}</div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-        </TabsContent>
+          </TabsContent>
 
         <TabsContent value="users" className="space-y-4">
           <UsersManagement />
@@ -657,21 +751,20 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
           </Card>
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 }
 
-// Main component with PostgreSQL authentication guard
+// Main component with authentication
 export default function SuperAdminDashboard() {
   const [, setLocation] = useLocation();
   
-  // Use auth API to get user info
   const { data: user, isLoading } = useQuery({
     queryKey: ["/api/auth/user"],
     retry: false,
   });
 
-  // Redirect if not authenticated or not super admin
   useEffect(() => {
     if (!isLoading && (!user || !user.isSuperAdmin)) {
       console.log('User not authorized for super admin, redirecting to login');
