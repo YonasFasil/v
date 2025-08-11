@@ -16,6 +16,7 @@ export default function Login() {
     handleAuthRedirect()
       .then((result) => {
         if (result?.user) {
+          console.log('Redirect result user:', result.user);
           toast({
             title: "Welcome!",
             description: `Signed in as ${result.user.displayName || result.user.email}`,
@@ -23,9 +24,12 @@ export default function Login() {
           
           // Check if user is super admin by email
           const userEmail = result.user.email;
+          console.log('Checking user email:', userEmail);
           if (userEmail === 'yonasfasil.sl@gmail.com') {
+            console.log('Super admin login detected, redirecting to /admin/dashboard');
             setLocation('/admin/dashboard');
           } else {
+            console.log('Regular user login, redirecting to /onboarding');
             setLocation('/onboarding');
           }
         }
@@ -43,10 +47,13 @@ export default function Login() {
   // Redirect if already authenticated
   useEffect(() => {
     if (!isLoading && user) {
+      console.log('User authenticated via Firebase:', user);
       const userEmail = user.email;
       if (userEmail === 'yonasfasil.sl@gmail.com') {
+        console.log('Super admin detected, redirecting to /admin/dashboard');
         setLocation('/admin/dashboard');
       } else {
+        console.log('Regular user, redirecting to /onboarding');
         setLocation('/onboarding');
       }
     }

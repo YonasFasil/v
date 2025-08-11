@@ -45,8 +45,8 @@ import FirebaseLogin from "@/pages/firebase-login";
 import FirebaseDashboard from "@/pages/firebase-dashboard";
 
 function Router() {
-  // Handle authentication-based redirects
-  useAuthRedirect();
+  // TODO: Update authentication system to work with Firebase
+  // useAuthRedirect(); // Temporarily disabled for Firebase migration
   
   return (
     <Switch>
