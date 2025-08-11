@@ -19,7 +19,6 @@ export interface IStorage {
   updateUser(id: string, updates: Partial<User>): Promise<User>;
   deleteUser(id: string): Promise<boolean>;
   verifyPassword(email: string, password: string): Promise<User | null>;
-  verifyPassword(email: string, password: string): Promise<User | null>;
 
   // Tenant operations
   getTenant(id: string): Promise<Tenant | undefined>;

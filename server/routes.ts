@@ -70,7 +70,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       const venue = await storage.createVenue(venueData);
       res.status(201).json(venue);
-    } catch (error) {
+    } catch (error: any) {
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
@@ -96,7 +96,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       const customer = await storage.createCustomer(customerData);
       res.status(201).json(customer);
-    } catch (error) {
+    } catch (error: any) {
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
@@ -122,7 +122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       const lead = await storage.createLead(leadData);
       res.status(201).json(lead);
-    } catch (error) {
+    } catch (error: any) {
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
@@ -148,7 +148,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       const booking = await storage.createBooking(bookingData);
       res.status(201).json(booking);
-    } catch (error) {
+    } catch (error: any) {
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
@@ -174,7 +174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       const proposal = await storage.createProposal(proposalData);
       res.status(201).json(proposal);
-    } catch (error) {
+    } catch (error: any) {
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
@@ -200,7 +200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       const task = await storage.createTask(taskData);
       res.status(201).json(task);
-    } catch (error) {
+    } catch (error: any) {
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
@@ -219,153 +219,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Super Admin Routes
-  app.get("/api/admin/users", async (req: any, res) => {
-    try {
-      const users = await storage.getAllUsers();
-      res.json(users);
-    } catch (error) {
-      console.error("Failed to fetch users:", error);
-      res.status(500).json({ message: "Failed to fetch users" });
-    }
-  });
 
-  app.get("/api/admin/tenants", async (req: any, res) => {
-    try {
-      const tenants = await storage.getAllTenants();
-      res.json(tenants);
-    } catch (error) {
-      console.error("Failed to fetch tenants:", error);
-      res.status(500).json({ message: "Failed to fetch tenants" });
-    }
-  });
 
-  app.get("/api/admin/packages", async (req: any, res) => {
-    try {
-      const packages = await storage.getAllFeaturePackages();
-      res.json(packages);
-    } catch (error) {
-      console.error("Failed to fetch packages:", error);
-      res.status(500).json({ message: "Failed to fetch packages" });
-    }
-  });
 
-  app.delete("/api/admin/users/:id", async (req: any, res) => {
-    try {
-      const success = await storage.deleteUser(req.params.id);
-      if (success) {
-        res.status(204).send();
-      } else {
-        res.status(404).json({ message: "User not found" });
-      }
-    } catch (error) {
-      console.error("Failed to delete user:", error);
-      res.status(500).json({ message: "Failed to delete user" });
-    }
-  });
-
-  app.delete("/api/admin/tenants/:id", async (req: any, res) => {
-    try {
-      const success = await storage.deleteTenant(req.params.id);
-      if (success) {
-        res.status(204).send();
-      } else {
-        res.status(404).json({ message: "Tenant not found" });
-      }
-    } catch (error) {
-      console.error("Failed to delete tenant:", error);
-      res.status(500).json({ message: "Failed to delete tenant" });
-    }
-  });
-
-  // Super Admin routes (PostgreSQL-based)
-  app.get('/api/admin/users', requireAuth, async (req: any, res) => {
-    try {
-      // Check if user is super admin
-      const user = await storage.getUser(req.user.id);
-      if (!user || !user.isSuperAdmin) {
-        return res.status(403).json({ message: 'Super admin access required' });
-      }
-
-      const users = await storage.getUsers();
-      res.json(users);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      res.status(500).json({ message: 'Failed to fetch users' });
-    }
-  });
-
-  app.get('/api/admin/tenants', requireAuth, async (req: any, res) => {
-    try {
-      // Check if user is super admin
-      const user = await storage.getUser(req.user.id);
-      if (!user || !user.isSuperAdmin) {
-        return res.status(403).json({ message: 'Super admin access required' });
-      }
-
-      const tenants = await storage.getTenants();
-      res.json(tenants);
-    } catch (error) {
-      console.error('Error fetching tenants:', error);
-      res.status(500).json({ message: 'Failed to fetch tenants' });
-    }
-  });
-
-  app.get('/api/admin/packages', requireAuth, async (req: any, res) => {
-    try {
-      // Check if user is super admin
-      const user = await storage.getUser(req.user.id);
-      if (!user || !user.isSuperAdmin) {
-        return res.status(403).json({ message: 'Super admin access required' });
-      }
-
-      const packages = await storage.getFeaturePackages();
-      res.json(packages);
-    } catch (error) {
-      console.error('Error fetching packages:', error);
-      res.status(500).json({ message: 'Failed to fetch packages' });
-    }
-  });
-
-  app.delete('/api/admin/users/:id', requireAuth, async (req: any, res) => {
-    try {
-      // Check if user is super admin
-      const user = await storage.getUser(req.user.id);
-      if (!user || !user.isSuperAdmin) {
-        return res.status(403).json({ message: 'Super admin access required' });
-      }
-
-      const success = await storage.deleteUser(req.params.id);
-      if (success) {
-        res.json({ message: 'User deleted successfully' });
-      } else {
-        res.status(404).json({ message: 'User not found' });
-      }
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      res.status(500).json({ message: 'Failed to delete user' });
-    }
-  });
-
-  app.delete('/api/admin/tenants/:id', requireAuth, async (req: any, res) => {
-    try {
-      // Check if user is super admin
-      const user = await storage.getUser(req.user.id);
-      if (!user || !user.isSuperAdmin) {
-        return res.status(403).json({ message: 'Super admin access required' });
-      }
-
-      const success = await storage.deleteTenant(req.params.id);
-      if (success) {
-        res.json({ message: 'Tenant deleted successfully' });
-      } else {
-        res.status(404).json({ message: 'Tenant not found' });
-      }
-    } catch (error) {
-      console.error('Error deleting tenant:', error);
-      res.status(500).json({ message: 'Failed to delete tenant' });
-    }
-  });
 
   const httpServer = createServer(app);
   return httpServer;

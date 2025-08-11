@@ -24,7 +24,6 @@ import LogoutPage from "@/pages/LogoutPage";
 import ForceLogout from "@/pages/ForceLogout";
 
 // App pages
-import Dashboard from "@/pages/dashboard";
 import OptimizedDashboard from "@/pages/optimized-dashboard";
 import Events from "@/pages/events";
 import Customers from "@/pages/customers";
@@ -37,14 +36,10 @@ import Packages from "@/pages/packages";
 import Settings from "@/pages/settings";
 import AIAnalytics from "@/pages/ai-analytics";
 import SuperAdminDashboard from "@/pages/superadmin/SuperAdminDashboard";
-import SuperAdminLogin from "@/pages/superadmin/SuperAdminLogin";
-import SuperAdmin from "@/pages/SuperAdmin";
-import SuperAdminDirectAccess from "@/pages/SuperAdminDirectAccess";
 import Reports from "@/pages/reports";
 import VoiceBooking from "@/pages/voice-booking";
 import ProposalView from "@/pages/proposal-view";
 import Proposals from "@/pages/proposals";
-// Onboarding removed
 import PlanManagement from "@/pages/plan-management";
 import NotFound from "@/pages/not-found";
 function Router() {
@@ -68,7 +63,6 @@ function Router() {
       
       {/* Tenant app routes */}
       <Route path="/t/:slug/app" component={OptimizedDashboard} />
-      <Route path="/t/:slug/app/dashboard-old" component={Dashboard} />
       <Route path="/t/:slug/app/events" component={Events} />
       <Route path="/t/:slug/app/customers" component={Customers} />
       <Route path="/t/:slug/app/leads" component={Leads} />
@@ -87,18 +81,7 @@ function Router() {
       
       {/* Super Admin routes */}
       <Route path="/super-admin" component={SuperAdminDashboard} />
-      <Route path="/super-admin/dashboard" component={SuperAdminDashboard} />
-      <Route path="/super-admin/tenants" component={SuperAdminDashboard} />
-      <Route path="/super-admin/users" component={SuperAdminDashboard} />
-      <Route path="/super-admin/packages" component={SuperAdminDashboard} />
-      <Route path="/super-admin/analytics" component={SuperAdminDashboard} />
-      <Route path="/admin/login" component={SuperAdminLogin} />
-      <Route path="/admin" component={SuperAdmin} />
-      <Route path="/admin/access" component={SuperAdminDirectAccess} />
-      
-      {/* Removed deprecated Firebase routes - use /login and /signup instead */}
-      
-      {/* Legacy routes removed for security - all tenant routes must use /t/:slug/app/* pattern */}
+
       
       <Route component={NotFound} />
     </Switch>
