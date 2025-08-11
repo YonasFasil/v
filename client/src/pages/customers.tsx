@@ -85,16 +85,18 @@ export default function Customers() {
         description: "Customer created successfully!",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error('Customer creation error in UI:', error);
       toast({
         title: "Error",
-        description: "Failed to create customer. Please try again.",
+        description: error.message || "Failed to create customer. Please try again.",
         variant: "destructive",
       });
     },
   });
 
   const onSubmit = async (data: any) => {
+    console.log('Form data being submitted:', data);
     createCustomerMutation.mutate(data);
   };
 
