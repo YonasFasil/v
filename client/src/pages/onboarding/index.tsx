@@ -102,10 +102,22 @@ export default function Onboarding() {
 
   // Super admin should NEVER reach onboarding - this is for tenant setup only
   useEffect(() => {
-    if (!userLoading && user?.isSuperAdmin) {
-      console.log('Super admin incorrectly reached onboarding, redirecting immediately');
-      setLocation('/admin/dashboard');
-      return;
+    if (!userLoading && user) {
+      console.log('Onboarding: checking user status', { 
+        email: user.email, 
+        isSuperAdmin: user.isSuperAdmin, 
+        type: typeof user.isSuperAdmin 
+      });
+      
+      // Never redirect regular users - they should complete onboarding
+      // Only super admin accounts (like yonasfasil.sl@gmail.com) should redirect away
+      if (user.isSuperAdmin === true && user.email === 'yonasfasil.sl@gmail.com') {
+        console.log('Confirmed super admin at onboarding, redirecting to admin dashboard');
+        setLocation('/admin/dashboard');
+        return;
+      }
+      
+      console.log('Regular user at onboarding - showing tenant setup form');
     }
   }, [user, userLoading, setLocation]);
 

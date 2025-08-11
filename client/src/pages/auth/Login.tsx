@@ -42,11 +42,9 @@ export default function Login() {
       if (user.isSuperAdmin) {
         console.log('Redirecting super admin to /admin/dashboard');
         setLocation('/admin/dashboard');
-      } else if (user.currentTenant) {
-        console.log('Redirecting to tenant dashboard');
-        setLocation(`/t/${user.currentTenant.slug}/app`);
       } else {
-        console.log('Redirecting new user to onboarding');
+        // For now, all regular users go to onboarding to set up their tenant
+        console.log('Regular user without tenant - redirecting to onboarding');
         setLocation('/onboarding');
       }
     }
