@@ -46,9 +46,16 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'events' | 'venues'>('events');
 
-  // Fetch calendar data based on mode
+  // Use dashboard context data if available, otherwise fetch directly
+  const { data: dashboardData } = useQuery({
+    queryKey: ["/api/dashboard/overview"],
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Only fetch calendar data if not available from dashboard
   const { data: calendarData, isLoading } = useQuery({
     queryKey: [`/api/calendar/events`, viewMode],
+    enabled: !dashboardData?.calendar,
     queryFn: async () => {
       const response = await fetch(`/api/calendar/events?mode=${viewMode}`);
       if (!response.ok) throw new Error('Failed to fetch calendar data');
