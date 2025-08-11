@@ -91,48 +91,43 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
 
   // Find the events/bookings associated with this specific proposal
   const relatedEvents = proposal ? (() => {
-    console.log('Proposal:', proposal);
-    console.log('All bookings:', bookings);
+    // If this proposal was created from the proposals tab directly, match by exact title/name
+    if (proposal.source === 'proposal' || !proposal.sentAt) {
+      return bookings.filter((booking: any) => 
+        booking.customerId === proposal.customerId && 
+        (booking.eventName === proposal.title || booking.eventName === proposal.eventName)
+      ).flatMap((booking: any) => {
+        if (booking.contractEvents && booking.contractEvents.length > 0) {
+          return booking.contractEvents;
+        }
+        return [booking];
+      });
+    }
+    
+    // For proposals created from booking flow, use very strict timing match
+    const proposalTime = new Date(proposal.sentAt).getTime();
     
     const filtered = bookings.filter((booking: any) => {
-      // First, check if this booking is for the same customer
       if (booking.customerId !== proposal.customerId) return false;
+      if (booking.proposalId) return booking.proposalId === proposal.id;
       
-      // If booking has a proposalId, use exact match
-      if (booking.proposalId) {
-        return booking.proposalId === proposal.id;
-      }
-      
-      // For proposals created from booking flow, match by proposal status and timing
       if (booking.proposalStatus === 'sent' && booking.proposalSentAt) {
-        const proposalTime = proposal.sentAt ? new Date(proposal.sentAt).getTime() : new Date(proposal.createdAt).getTime();
         const bookingProposalTime = new Date(booking.proposalSentAt).getTime();
         const timeDiff = Math.abs(proposalTime - bookingProposalTime);
         
-        console.log(`Checking booking ${booking.id}: proposalTime=${new Date(proposalTime)}, bookingProposalTime=${new Date(bookingProposalTime)}, timeDiff=${timeDiff}ms`);
-        
-        // Match if sent within 5 minutes of each other (increased from 2 minutes)
-        if (timeDiff < 300000) {
-          return true;
-        }
+        // Only match if sent within 10 seconds (extremely tight)
+        return timeDiff < 10000;
       }
       
       return false;
     });
     
-    console.log('Filtered bookings:', filtered);
-    
-    const events = filtered.flatMap((booking: any) => {
-      // Handle contract events (multiple events under one booking)
+    return filtered.flatMap((booking: any) => {
       if (booking.contractEvents && booking.contractEvents.length > 0) {
         return booking.contractEvents;
       }
-      // Handle regular single events
       return [booking];
     });
-    
-    console.log('Final events:', events);
-    return events;
   })() : [];
 
   // Get customer information
