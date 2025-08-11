@@ -94,6 +94,7 @@ VENUIN is built with a modern, scalable architecture designed for high performan
 - **Complete Feature Enforcement System**: Implemented comprehensive feature gating with server-side middleware and frontend components - every feature in super admin packages is now actually enforced within tenant applications
 - **Real Feature Package Integration**: Features created in super admin are automatically pulled from database and enforced via API middleware, usage limits, and UI restrictions throughout tenant applications
 - **Advanced Feature Gating Components**: Created FeatureGate and FeatureButton components that dynamically show/hide functionality based on tenant's actual plan features and usage limits
+- **Comprehensive Tax & Fees System Restoration**: Fully restored advanced tax and fees implementation with enhanced database schema supporting taxes, fees, service charges, percentage/fixed calculations, package/service targeting, taxable fees with applicable tax rules, and rich descriptions
 
 ### Performance & Optimization Improvements (August 2025)
 - **Dashboard Performance Optimization**: Reduced API calls from 12+ to 3-4 essential calls using optimized endpoints
