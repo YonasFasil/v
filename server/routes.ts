@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { sessionMiddleware } from "./middleware/session";
 import { tenantContext } from "./middleware/tenant";
 import { requireAuth, requireTenantAdmin, requireStaffAccess, requireViewerAccess, requirePermission, requireSuperAdmin } from "./middleware/auth";
+import { requireFeature, checkUsageLimit } from "./middleware/featureGating";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerPublicRoutes } from "./routes/public";
 // Onboarding routes removed
@@ -63,7 +64,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/venues", requireStaffAccess, async (req: any, res) => {
+  app.post("/api/venues", requireStaffAccess, requireFeature({ feature: "venue-management" }), checkUsageLimit("maxVenues"), async (req: any, res) => {
     try {
       const venueData = insertVenueSchema.parse({
         ...req.body,
@@ -89,7 +90,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/customers", async (req: any, res) => {
+  app.post("/api/customers", requireFeature({ feature: "customer-management" }), checkUsageLimit("maxCustomers"), async (req: any, res) => {
     try {
       const customerData = insertCustomerSchema.parse({
         ...req.body,
@@ -115,7 +116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/leads", async (req: any, res) => {
+  app.post("/api/leads", requireFeature({ feature: "lead-management" }), async (req: any, res) => {
     try {
       const leadData = insertLeadSchema.parse({
         ...req.body,
@@ -141,7 +142,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/bookings", async (req: any, res) => {
+  app.post("/api/bookings", requireFeature({ feature: "event-management" }), checkUsageLimit("maxBookings"), async (req: any, res) => {
     try {
       const bookingData = insertBookingSchema.parse({
         ...req.body,
@@ -167,7 +168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/proposals", async (req: any, res) => {
+  app.post("/api/proposals", requireFeature({ feature: "proposal-system" }), async (req: any, res) => {
     try {
       const proposalData = insertProposalSchema.parse({
         ...req.body,
@@ -193,7 +194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/tasks", async (req: any, res) => {
+  app.post("/api/tasks", requireFeature({ feature: "task-management" }), async (req: any, res) => {
     try {
       const taskData = insertTaskSchema.parse({
         ...req.body,

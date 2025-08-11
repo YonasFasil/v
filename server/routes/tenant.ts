@@ -28,6 +28,7 @@ import {
 } from "../../shared/schema";
 import { eq } from "drizzle-orm";
 import { tenantContext } from "../middleware/tenantContext";
+import { getTenantFeatures } from "../middleware/featureGating";
 
 export function registerTenantRoutes(app: Express) {
   // GET /api/tenant/plan-info - Get current tenant plan information  

@@ -9,16 +9,22 @@ export interface TenantInfo {
   features: Record<string, boolean>;
   limits: Record<string, number>;
   status: string;
+  planName?: string;
 }
 
 export function useTenantFeatures() {
   const { data: tenantInfo, isLoading } = useQuery<TenantInfo>({
     queryKey: ['/api/tenant/info'],
     retry: false,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   const hasFeature = (featureName: string) => {
-    return tenantInfo?.features?.[featureName] || false;
+    return tenantInfo?.features?.[featureName] === true;
+  };
+
+  const getUsageLimit = (limitName: string): number => {
+    return tenantInfo?.limits?.[limitName] || 0;
   };
 
   const isEnterprise = tenantInfo?.planId === 'enterprise';
@@ -29,10 +35,13 @@ export function useTenantFeatures() {
     tenantInfo,
     isLoading,
     hasFeature,
+    getUsageLimit,
     isEnterprise,
     isProfessional, 
     isStarter,
     features: tenantInfo?.features || {},
-    limits: tenantInfo?.limits || {}
+    limits: tenantInfo?.limits || {},
+    planId: tenantInfo?.planId,
+    planName: tenantInfo?.planName
   };
 }
