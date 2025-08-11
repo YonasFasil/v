@@ -117,6 +117,32 @@ export function FeaturePackageForm({ onSubmit, isPending, onCancel, initialData 
           <p className="text-sm text-muted-foreground">Select which VENUIN features this package includes</p>
         </CardHeader>
         <CardContent>
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex gap-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  const allFeatureKeys = Object.keys(VENUIN_FEATURES);
+                  setSelectedFeatures(allFeatureKeys);
+                }}
+              >
+                Enable All
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm"
+                onClick={() => setSelectedFeatures([])}
+              >
+                Disable All
+              </Button>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {selectedFeatures.length} of {Object.keys(VENUIN_FEATURES).length} features selected
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             {Object.entries(VENUIN_FEATURES).map(([key, label]) => (
               <div key={key} className="flex items-center space-x-2">

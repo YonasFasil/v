@@ -331,6 +331,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get current tenant's package information for feature access
+  app.get("/api/tenant/package", requireAuth, async (req, res) => {
+    try {
+      const user = req.user;
+      
+      // Super admin doesn't need package restrictions
+      if (user?.isSuperAdmin) {
+        return res.json({
+          id: 'super-admin',
+          name: 'Super Admin',
+          features: {}, // All features enabled by middleware
+          limits: {}, // No limits for super admin
+        });
+      }
+      
+      if (!user?.currentTenant) {
+        return res.status(403).json({ message: "No tenant access" });
+      }
+      
+      const tenant = await storage.getTenant(user.currentTenant.tenantId);
+      if (!tenant?.planId) {
+        return res.status(404).json({ message: "No plan assigned to tenant" });
+      }
+      
+      const featurePackage = await storage.getFeaturePackage(tenant.planId);
+      if (!featurePackage) {
+        return res.status(404).json({ message: "Feature package not found" });
+      }
+      
+      res.json(featurePackage);
+    } catch (error) {
+      console.error("Error fetching tenant package:", error);
+      res.status(500).json({ message: "Failed to fetch package information" });
+    }
+  });
+
 
 
 

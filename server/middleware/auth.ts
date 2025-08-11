@@ -185,6 +185,118 @@ export const requirePermission = (permission: string) => {
   };
 };
 
+// Feature access control middleware
+export const requireFeature = (feature: string) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+    
+    // Super admin has access to all features
+    if (user.isSuperAdmin) {
+      return next();
+    }
+    
+    // Check if user has access through their tenant's package
+    if (!user.currentTenant) {
+      return res.status(403).json({ message: 'Tenant access required' });
+    }
+    
+    try {
+      const tenant = await storage.getTenant(user.currentTenant.tenantId);
+      if (!tenant?.planId) {
+        return res.status(403).json({ message: 'No plan assigned to tenant' });
+      }
+      
+      const featurePackage = await storage.getFeaturePackage(tenant.planId);
+      if (!featurePackage) {
+        return res.status(403).json({ message: 'Invalid plan configuration' });
+      }
+      
+      const features = featurePackage.features as Record<string, boolean>;
+      if (!features[feature]) {
+        return res.status(403).json({ 
+          message: `Feature '${feature}' not available in your current plan`,
+          featureRequired: feature
+        });
+      }
+      
+      next();
+    } catch (error) {
+      console.error('Feature access check error:', error);
+      res.status(500).json({ message: 'Error checking feature access' });
+    }
+  };
+};
+
+// Check usage limits middleware
+export const checkUsageLimit = (limitType: string) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+    
+    // Super admin bypasses all limits
+    if (user.isSuperAdmin) {
+      return next();
+    }
+    
+    if (!user.currentTenant) {
+      return res.status(403).json({ message: 'Tenant access required' });
+    }
+    
+    try {
+      const tenant = await storage.getTenant(user.currentTenant.tenantId);
+      if (!tenant?.planId) {
+        return res.status(403).json({ message: 'No plan assigned to tenant' });
+      }
+      
+      const featurePackage = await storage.getFeaturePackage(tenant.planId);
+      if (!featurePackage) {
+        return res.status(403).json({ message: 'Invalid plan configuration' });
+      }
+      
+      const limits = featurePackage.limits as Record<string, number>;
+      const limit = limits[limitType];
+      
+      if (limit !== undefined && limit > 0) {
+        // Check current usage based on limit type
+        let currentUsage = 0;
+        
+        switch (limitType) {
+          case 'maxUsers':
+          case 'staff':
+            const tenantUsers = await storage.getTenantUsers(user.currentTenant.tenantId);
+            currentUsage = tenantUsers.length;
+            break;
+          case 'maxVenues':
+          case 'venues':
+            const venues = await storage.getVenues(user.currentTenant.tenantId);
+            currentUsage = venues.length;
+            break;
+          // Add more limit checks as needed
+        }
+        
+        if (currentUsage >= limit) {
+          return res.status(403).json({ 
+            message: `Usage limit exceeded for ${limitType}. Current: ${currentUsage}, Limit: ${limit}`,
+            limitType,
+            currentUsage,
+            limit
+          });
+        }
+      }
+      
+      next();
+    } catch (error) {
+      console.error('Usage limit check error:', error);
+      res.status(500).json({ message: 'Error checking usage limits' });
+    }
+  };
+};
+
 // Generate JWT token
 export const generateToken = (user: { id: string; email: string }) => {
   return jwt.sign(

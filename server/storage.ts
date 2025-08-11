@@ -282,6 +282,14 @@ export class DatabaseStorage implements IStorage {
     await db.delete(featurePackages).where(eq(featurePackages.id, id));
   }
 
+  // Get tenant users for usage limit checking
+  async getTenantUsers(tenantId: string): Promise<TenantUser[]> {
+    return await db
+      .select()
+      .from(tenantUsers)
+      .where(eq(tenantUsers.tenantId, tenantId));
+  }
+
   // Venue operations
   async getVenues(tenantId?: string): Promise<Venue[]> {
     const query = db.select().from(venues);
