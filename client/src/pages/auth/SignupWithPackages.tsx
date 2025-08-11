@@ -82,11 +82,17 @@ export default function SignupWithPackages() {
       });
 
       if (response.ok) {
+        const result = await response.json();
         toast({
           title: "Account created!",
-          description: "Welcome to VENUIN. Setting up your workspace...",
+          description: "Welcome to VENUIN. Redirecting to your dashboard...",
         });
-        setLocation('/onboarding');
+        // Redirect to tenant dashboard
+        if (result.tenant?.slug) {
+          setLocation(`/t/${result.tenant.slug}/app`);
+        } else {
+          setLocation('/');
+        }
       } else {
         const result = await response.json();
         setError(result.message || "Failed to create account");

@@ -60,9 +60,9 @@ export default function Signup() {
       if (response.ok) {
         toast({
           title: "Account created!",
-          description: "Welcome to VENUIN. Please complete your setup.",
+          description: "Welcome to VENUIN. Redirecting to dashboard...",
         });
-        setLocation('/onboarding');
+        setLocation('/');
       } else {
         setError(result.message || "Failed to create account");
       }

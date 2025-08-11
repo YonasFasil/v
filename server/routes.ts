@@ -5,7 +5,7 @@ import { tenantContext } from "./middleware/tenant";
 import { requireAuth } from "./middleware/auth";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerPublicRoutes } from "./routes/public";
-import { registerOnboardingRoutes } from "./routes/onboarding";
+// Onboarding routes removed
 import { registerSuperAdminRoutes } from "./routes/superadmin";
 import { storage } from "./storage";
 import { 
@@ -27,8 +27,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register auth routes
   registerAuthRoutes(app);
 
-  // Register onboarding routes (after auth, before tenant middleware)
-  registerOnboardingRoutes(app);
+  // Onboarding removed - users go directly to tenant dashboard after signup
 
   // Register super admin routes
   registerSuperAdminRoutes(app);
