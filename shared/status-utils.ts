@@ -3,7 +3,7 @@
 export type EventStatus = 
   | "inquiry" 
   | "pending" 
-  | "confirmed_unpaid" 
+  | "tentative" 
   | "confirmed_deposit_paid" 
   | "confirmed_fully_paid" 
   | "completed" 
@@ -42,14 +42,14 @@ export const STATUS_CONFIGS: Record<EventStatus, StatusConfig> = {
     bgColor: "bg-amber-50",
     borderColor: "border-amber-200",
     textColor: "text-amber-700",
-    nextStatuses: ["confirmed_unpaid", "cancelled_refunded"],
+    nextStatuses: ["tentative", "cancelled_refunded"],
     canEdit: true,
     isCompleted: false,
     isActive: true
   },
-  confirmed_unpaid: {
-    label: "Confirmed (Unpaid)",
-    description: "Booking confirmed, awaiting deposit payment",
+  tentative: {
+    label: "Tentative",
+    description: "Tentative booking, awaiting confirmation",
     color: "#3b82f6", // blue-500
     bgColor: "bg-blue-50",
     borderColor: "border-blue-200",
@@ -113,7 +113,7 @@ export const STATUS_CONFIGS: Record<EventStatus, StatusConfig> = {
 export function getStatusConfig(status: EventStatus | string): StatusConfig {
   // Handle legacy statuses by mapping them to new ones
   const statusMap: Record<string, EventStatus> = {
-    'confirmed': 'confirmed_unpaid',
+    'confirmed': 'tentative',
     'pending': 'pending',
     'completed': 'completed',
     'cancelled': 'cancelled_refunded',
@@ -128,7 +128,7 @@ export function getStatusConfig(status: EventStatus | string): StatusConfig {
 export function getStatusColor(status: EventStatus | string): string {
   // Handle legacy statuses by mapping them to new ones
   const statusMap: Record<string, EventStatus> = {
-    'confirmed': 'confirmed_unpaid',
+    'confirmed': 'tentative',
     'pending': 'pending',
     'completed': 'completed',
     'cancelled': 'cancelled_refunded',
@@ -198,7 +198,7 @@ export function getAutoStatus(
   
   // If proposal accepted but no payment
   if (proposalStatus === "accepted") {
-    return "confirmed_unpaid";
+    return "tentative";
   }
   
   // If proposal sent
