@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EnhancedBeoModal } from "./enhanced-beo-modal";
 import { CreateEventModal } from "./create-event-modal";
+import { StatusSelector } from "../events/status-selector";
+import { type EventStatus } from "@shared/status-utils";
 import { 
   X, 
   Edit3, 
@@ -21,7 +23,9 @@ import {
   Copy,
   FileOutput
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
 interface Props {
@@ -37,6 +41,9 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
   const [communicationType, setCommunicationType] = useState("email");
   const [showBeoModal, setShowBeoModal] = useState(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   const { data: venues = [] } = useQuery({ queryKey: ["/api/venues-with-spaces"] });
   const { data: packages = [] } = useQuery({ queryKey: ["/api/packages"] });
@@ -62,6 +69,34 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // Status update mutation
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ bookingId, newStatus }: { bookingId: string; newStatus: EventStatus }) => {
+      return apiRequest("PATCH", `/api/bookings/${bookingId}`, { status: newStatus });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Status updated",
+        description: "Event status has been successfully updated."
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/calendar/events"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error updating status",
+        description: error.response?.data?.message || "An error occurred while updating the status.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleStatusChange = (newStatus: EventStatus) => {
+    if (booking?.id) {
+      updateStatusMutation.mutate({ bookingId: booking.id, newStatus });
     }
   };
 
@@ -98,6 +133,16 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
             )}
           </div>
 
+          {/* Status Selector in top right corner */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-slate-600">Status:</span>
+              <StatusSelector
+                currentStatus={booking.status as EventStatus}
+                onStatusChange={handleStatusChange}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Contract Summary Banner */}
