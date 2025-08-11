@@ -12,6 +12,12 @@ const createTenantSchema = z.object({
     .max(30, "Slug must be less than 30 characters")
     .regex(/^[a-z0-9-]+$/, "Slug can only contain lowercase letters, numbers, and hyphens"),
   industry: z.string().min(1, "Please select an industry"),
+  contactName: z.string().min(2, "Contact name must be at least 2 characters"),
+  contactEmail: z.string().email("Please enter a valid email address"),
+  businessPhone: z.string().min(10, "Please enter a valid phone number"),
+  businessAddress: z.string().min(10, "Please enter your business address"),
+  businessDescription: z.string().min(10, "Please describe your business in at least 10 characters"),
+  featurePackageSlug: z.string().optional(),
 });
 
 export function registerOnboardingRoutes(app: Express) {
@@ -27,7 +33,7 @@ export function registerOnboardingRoutes(app: Express) {
         });
       }
 
-      const { tenantName, tenantSlug, industry } = validationResult.data;
+      const { tenantName, tenantSlug, industry, contactName, contactEmail, businessPhone, businessAddress, businessDescription, featurePackageSlug } = validationResult.data;
       const userUid = req.user?.uid;
 
       if (!userUid) {
@@ -111,11 +117,15 @@ export function registerOnboardingRoutes(app: Express) {
         .values({
           name: tenantName,
           slug: tenantSlug,
+          industry: industry,
           planSlug: starterPlan[0].slug,
           featurePackageId: starterPlan[0].id,
           status: 'active',
-          contactName: req.user?.email?.split('@')[0] || '',
-          contactEmail: req.user?.email || '',
+          contactName: contactName,
+          contactEmail: contactEmail,
+          businessPhone: businessPhone,
+          businessAddress: businessAddress,
+          businessDescription: businessDescription,
           stripeCustomerId: null, // Will be set when they upgrade
           stripeSubscriptionId: null,
         })

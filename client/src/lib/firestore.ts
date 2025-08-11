@@ -94,6 +94,23 @@ export async function getUser(uid: string): Promise<FirestoreUser | null> {
   return null;
 }
 
+// Update user with tenant information after onboarding
+export async function updateUserWithTenant(uid: string, tenantInfo: {
+  id: string;
+  slug: string;
+  role: string;
+}): Promise<void> {
+  console.log('Updating user with tenant info:', { uid, tenantInfo });
+  
+  const userRef = doc(db, 'users', uid);
+  await updateDoc(userRef, {
+    currentTenant: tenantInfo,
+    updatedAt: serverTimestamp(),
+  });
+  
+  console.log('User updated with tenant information');
+}
+
 // Check if user is super admin
 export async function checkSuperAdmin(email: string): Promise<boolean> {
   return email === 'yonasfasil.sl@gmail.com';

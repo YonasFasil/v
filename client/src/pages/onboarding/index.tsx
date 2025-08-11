@@ -33,6 +33,12 @@ const tenantSetupSchema = z.object({
     .max(30, "Slug must be less than 30 characters")
     .regex(/^[a-z0-9-]+$/, "Slug can only contain lowercase letters, numbers, and hyphens"),
   industry: z.string().min(1, "Please select an industry"),
+  contactName: z.string().min(2, "Contact name must be at least 2 characters"),
+  contactEmail: z.string().email("Please enter a valid email address"),
+  businessPhone: z.string().min(10, "Please enter a valid phone number"),
+  businessAddress: z.string().min(10, "Please enter your business address"),
+  businessDescription: z.string().min(10, "Please describe your business in at least 10 characters"),
+  featurePackageSlug: z.string().optional(),
 });
 
 type TenantSetupData = z.infer<typeof tenantSetupSchema>;
@@ -51,7 +57,7 @@ const industries = [
 export default function Onboarding() {
   const [, setLocation] = useLocation();
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 3;
+  const totalSteps = 4;
 
   // Logout mutation
   const logoutMutation = useMutation({
@@ -103,6 +109,12 @@ export default function Onboarding() {
       tenantName: "",
       tenantSlug: "",
       industry: "",
+      contactName: "",
+      contactEmail: "",
+      businessPhone: "",
+      businessAddress: "",
+      businessDescription: "",
+      featurePackageSlug: "",
     },
   });
 
@@ -126,13 +138,30 @@ export default function Onboarding() {
       const response = await apiRequest("POST", "/api/onboarding/create-tenant", data);
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      // Update user's Firestore record with tenant information
+      try {
+        const { auth } = await import('@/lib/firebase');
+        const { updateUserWithTenant } = await import('@/lib/firestore');
+        
+        if (auth.currentUser?.uid) {
+          await updateUserWithTenant(auth.currentUser.uid, {
+            id: data.tenant.id,
+            slug: data.tenant.slug,
+            role: 'owner'
+          });
+        }
+      } catch (error) {
+        console.error('Error updating user with tenant info:', error);
+      }
+      
       toast({
         title: "Welcome to VENUIN!",
         description: "Your venue management system is ready to use.",
       });
-      // Redirect to tenant app
-      setLocation(`/t/${data.tenantSlug}/app`);
+      
+      // Redirect to tenant dashboard
+      window.location.href = `/t/${data.tenantSlug}/app`;
     },
     onError: (error: Error) => {
       toast({
@@ -346,22 +375,151 @@ export default function Onboarding() {
           {currentStep === 3 && (
             <Card className="border-0 shadow-xl">
               <CardHeader className="text-center pb-6">
+                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Building2 className="h-8 w-8 text-orange-600" />
+                </div>
+                <CardTitle className="text-2xl">Business Details</CardTitle>
+                <CardDescription className="text-lg">
+                  Tell us more about your business so we can customize your experience
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <form className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="contactName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-base font-semibold">Primary Contact Name</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="John Smith"
+                              className="h-12 text-base"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="contactEmail"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-base font-semibold">Contact Email</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="email"
+                              placeholder="john@grandoakevents.com"
+                              className="h-12 text-base"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="businessPhone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-base font-semibold">Business Phone</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="tel"
+                              placeholder="+1 (555) 123-4567"
+                              className="h-12 text-base"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="businessAddress"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-base font-semibold">Business Address</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="123 Main Street, City, State 12345"
+                              className="h-12 text-base"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="businessDescription"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-base font-semibold">Business Description</FormLabel>
+                          <FormControl>
+                            <textarea
+                              placeholder="Describe your venue, services, and what makes your business special..."
+                              className="w-full h-24 px-3 py-3 text-base border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="flex justify-between">
+                      <Button type="button" variant="outline" onClick={prevStep} className="h-12 px-8">
+                        Back
+                      </Button>
+                      <Button 
+                        type="button" 
+                        onClick={nextStep}
+                        disabled={!form.getValues("contactName") || !form.getValues("contactEmail") || !form.getValues("businessPhone") || !form.getValues("businessAddress") || !form.getValues("businessDescription")}
+                        className="h-12 px-8"
+                      >
+                        Continue <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          )}
+
+          {currentStep === 4 && (
+            <Card className="border-0 shadow-xl">
+              <CardHeader className="text-center pb-6">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <CheckCircle2 className="h-8 w-8 text-green-600" />
                 </div>
                 <CardTitle className="text-2xl">Ready to launch!</CardTitle>
                 <CardDescription className="text-lg">
-                  Let's create your venue management system
+                  Review your information and create your venue management system
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="text-center space-y-6">
                   <div className="bg-gray-50 rounded-lg p-6 text-left">
                     <h3 className="font-semibold mb-4">Your Setup Summary:</h3>
-                    <div className="space-y-2 text-sm">
+                    <div className="space-y-3 text-sm">
                       <div><strong>Business:</strong> {form.getValues("tenantName")}</div>
                       <div><strong>URL:</strong> venuin.com/{form.getValues("tenantSlug")}</div>
                       <div><strong>Industry:</strong> {form.getValues("industry")}</div>
+                      <div><strong>Contact:</strong> {form.getValues("contactName")} ({form.getValues("contactEmail")})</div>
+                      <div><strong>Phone:</strong> {form.getValues("businessPhone")}</div>
+                      <div><strong>Address:</strong> {form.getValues("businessAddress")}</div>
+                      <div><strong>Description:</strong> {form.getValues("businessDescription")}</div>
                     </div>
                   </div>
 

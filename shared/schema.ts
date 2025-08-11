@@ -17,6 +17,11 @@ export const tenants = pgTable("tenants", {
   // Contact fields
   contactName: text("contact_name"),
   contactEmail: text("contact_email"),
+  // Business details
+  industry: text("industry"),
+  businessPhone: text("business_phone"),
+  businessAddress: text("business_address"),
+  businessDescription: text("business_description"),
   // Feature package assignment
   featurePackageId: uuid("feature_package_id").references(() => featurePackages.id),
   // Billing fields
