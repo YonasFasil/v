@@ -54,25 +54,7 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
     enabled: !!booking?.id 
   });
 
-  if (!booking) return null;
-
-  // Use enhanced data from calendar API if available, otherwise fallback to lookup
-  const selectedVenueData = booking.venueData || (venues as any[]).find((v: any) => v.id === booking.venueId);
-  const selectedSpaceData = booking.spaceData || selectedVenueData?.spaces?.find((s: any) => s.id === booking.spaceId);
-  const selectedPackageData = (packages as any[]).find((p: any) => p.id === booking.packageId);
-  const selectedCustomerData = booking.customerData || (customers as any[]).find((c: any) => c.id === booking.customerId);
-  const selectedServicesData = (services as any[]).filter((s: any) => booking.serviceIds?.includes(s.id));
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  // Status update mutation
+  // Status update mutation - moved before early return to maintain hook order
   const updateStatusMutation = useMutation({
     mutationFn: async ({ bookingId, newStatus }: { bookingId: string; newStatus: EventStatus }) => {
       return apiRequest("PATCH", `/api/bookings/${bookingId}`, { status: newStatus });
@@ -97,6 +79,24 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
   const handleStatusChange = (newStatus: EventStatus) => {
     if (booking?.id) {
       updateStatusMutation.mutate({ bookingId: booking.id, newStatus });
+    }
+  };
+
+  if (!booking) return null;
+
+  // Use enhanced data from calendar API if available, otherwise fallback to lookup
+  const selectedVenueData = booking.venueData || (venues as any[]).find((v: any) => v.id === booking.venueId);
+  const selectedSpaceData = booking.spaceData || selectedVenueData?.spaces?.find((s: any) => s.id === booking.spaceId);
+  const selectedPackageData = (packages as any[]).find((p: any) => p.id === booking.packageId);
+  const selectedCustomerData = booking.customerData || (customers as any[]).find((c: any) => c.id === booking.customerId);
+  const selectedServicesData = (services as any[]).filter((s: any) => booking.serviceIds?.includes(s.id));
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'confirmed': return 'bg-green-100 text-green-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
