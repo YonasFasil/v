@@ -65,7 +65,7 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
   const monthEnd = endOfMonth(currentDate);
   const calendarDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  // Add padding days to start with Sunday
+  // Generate calendar grid with proper date handling
   const paddedDays = [];
   const firstDayOfWeek = monthStart.getDay();
   
@@ -76,22 +76,41 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
     paddedDays.push(paddingDate);
   }
   
-  // Add current month days
+  // Add current month days (no duplicate addition)
   paddedDays.push(...calendarDays);
   
-  // Add next month's beginning days to complete the grid
-  const totalCells = Math.ceil(paddedDays.length / 7) * 7;
+  // Add next month's beginning days to complete the grid (ensure we need exactly 42 cells)
+  const totalCells = 42; // 6 weeks * 7 days = 42 cells
   for (let i = paddedDays.length; i < totalCells; i++) {
     const paddingDate = new Date(monthEnd);
     paddingDate.setDate(paddingDate.getDate() + (i - paddedDays.length + 1));
     paddedDays.push(paddingDate);
   }
 
+  // Verify no duplicates (remove this debug code once confirmed working)
+  const uniqueDates = [...new Set(paddedDays.map(d => format(d, 'yyyy-MM-dd')))];
+  if (uniqueDates.length !== paddedDays.length) {
+    console.error('Duplicate dates found in calendar grid:', {
+      totalDays: paddedDays.length,
+      uniqueDates: uniqueDates.length
+    });
+  }
+
   // Get events for a specific day
   const getEventsForDay = (date: Date) => {
-    return events.filter(event => 
+    const filteredEvents = events.filter(event => 
       isSameDay(new Date(event.start), date)
     );
+    // Debug logging to help identify duplicate event issues
+    if (filteredEvents.length > 0) {
+      console.log(`Events for ${format(date, 'yyyy-MM-dd')}:`, filteredEvents.map(e => ({
+        id: e.id,
+        title: e.title,
+        guestCount: e.guestCount,
+        status: e.status
+      })));
+    }
+    return filteredEvents;
   };
 
   // Navigate calendar
