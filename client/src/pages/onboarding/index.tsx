@@ -56,8 +56,8 @@ export default function Onboarding() {
   // Logout mutation
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/auth/logout");
-      return response;
+      const { logOut } = await import('@/lib/firebase');
+      return await logOut();
     },
     onSuccess: () => {
       toast({

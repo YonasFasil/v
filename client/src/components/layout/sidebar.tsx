@@ -62,7 +62,10 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
   
   // Logout mutation
   const logoutMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/auth/logout"),
+    mutationFn: async () => {
+      const { logOut } = await import('@/lib/firebase');
+      return await logOut();
+    },
     onSuccess: () => {
       toast({
         title: "Logged out successfully",
