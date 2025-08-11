@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
@@ -23,7 +24,8 @@ import {
   MoreHorizontal,
   Edit,
   Trash2,
-  LogOut
+  LogOut,
+  Ban
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
@@ -71,6 +73,8 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
   const [isCreatePackageOpen, setIsCreatePackageOpen] = useState(false);
   const [isEditPackageOpen, setIsEditPackageOpen] = useState(false);
   const [editingPackage, setEditingPackage] = useState<any>(null);
+  const [isEditTenantOpen, setIsEditTenantOpen] = useState(false);
+  const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
   const [, setLocation] = useLocation();
   
   const generateSlug = (name: string) => {
@@ -213,6 +217,27 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
     },
   });
 
+  // Update tenant mutation
+  const updateTenantMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string, data: any }) => {
+      return await apiRequest('PUT', `/api/admin/tenants/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/tenants'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/analytics'] });
+      setIsEditTenantOpen(false);
+      setEditingTenant(null);
+      toast({ title: "Success", description: "Tenant updated successfully" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to update tenant", 
+        variant: "destructive" 
+      });
+    },
+  });
+
   const handleCreateTenant = (event: React.FormEvent) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget as HTMLFormElement);
@@ -259,6 +284,31 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
     if (confirm(`Are you sure you want to delete the feature package "${pkg.name}"? This action cannot be undone.`)) {
       deletePackageMutation.mutate(pkg.id);
     }
+  };
+
+  const handleEditTenant = (tenant: Tenant) => {
+    setEditingTenant(tenant);
+    setIsEditTenantOpen(true);
+  };
+
+  const handleUpdateTenant = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editingTenant) return;
+    
+    const formData = new FormData(event.currentTarget as HTMLFormElement);
+    const planId = formData.get('planId');
+    
+    updateTenantMutation.mutate({
+      id: editingTenant.id,
+      data: {
+        name: formData.get('name'),
+        slug: formData.get('slug'),
+        contactName: formData.get('contactName'),
+        contactEmail: formData.get('contactEmail'),
+        status: formData.get('status'),
+        planId: planId === 'no-package' ? null : planId,
+      }
+    });
   };
 
 
@@ -684,9 +734,33 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
                         {new Date(tenant.createdAt).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEditTenant(tenant)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit Tenant
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => {
+                                if (confirm(`Are you sure you want to suspend tenant "${tenant.name}"?`)) {
+                                  updateTenantMutation.mutate({
+                                    id: tenant.id,
+                                    data: { status: 'suspended' }
+                                  });
+                                }
+                              }}
+                              disabled={tenant.status === 'suspended'}
+                            >
+                              <Ban className="h-4 w-4 mr-2" />
+                              Suspend
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))
@@ -843,6 +917,109 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Tenant Dialog */}
+      <Dialog open={isEditTenantOpen} onOpenChange={setIsEditTenantOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Tenant</DialogTitle>
+            <DialogDescription>
+              Update tenant information, contact details, and plan assignment.
+            </DialogDescription>
+          </DialogHeader>
+          {editingTenant && (
+            <form onSubmit={handleUpdateTenant} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="name">Tenant Name</Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    defaultValue={editingTenant.name}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="slug">Slug</Label>
+                  <Input
+                    id="slug"
+                    name="slug"
+                    defaultValue={editingTenant.slug}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="contactName">Contact Name</Label>
+                  <Input
+                    id="contactName"
+                    name="contactName"
+                    defaultValue={editingTenant.contactName}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="contactEmail">Contact Email</Label>
+                  <Input
+                    id="contactEmail"
+                    name="contactEmail"
+                    type="email"
+                    defaultValue={editingTenant.contactEmail}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="status">Status</Label>
+                  <Select name="status" defaultValue={editingTenant.status}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="suspended">Suspended</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="planId">Feature Package</Label>
+                  <Select name="planId" defaultValue={editingTenant.featurePackageId || 'no-package'}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="no-package">No Package</SelectItem>
+                      {featurePackages?.map((pkg: any) => (
+                        <SelectItem key={pkg.id} value={pkg.id}>
+                          {pkg.name} - ${pkg.price_monthly || pkg.priceMonthly}/month
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsEditTenantOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={updateTenantMutation.isPending}>
+                  {updateTenantMutation.isPending ? 'Updating...' : 'Update Tenant'}
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
       </div>
     </div>
   );

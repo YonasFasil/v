@@ -318,6 +318,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/admin/tenants/:tenantId", requireAuth, requireSuperAdmin, async (req, res) => {
+    try {
+      const { tenantId } = req.params;
+      const updateData = req.body;
+      
+      const updatedTenant = await storage.updateTenant(tenantId, updateData);
+      res.json(updatedTenant);
+    } catch (error) {
+      console.error("Error updating tenant:", error);
+      res.status(500).json({ message: "Failed to update tenant" });
+    }
+  });
+
 
 
 
