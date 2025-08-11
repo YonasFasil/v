@@ -226,6 +226,92 @@ export const tasks = pgTable("tasks", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Services table
+export const services = pgTable("services", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  price: decimal("price", { precision: 10, scale: 2 }),
+  category: varchar("category", { length: 100 }),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Service packages table
+export const packages = pgTable("packages", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  price: decimal("price", { precision: 10, scale: 2 }),
+  services: jsonb("services").default([]), // Array of service IDs
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Setup styles table
+export const setupStyles = pgTable("setup_styles", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  category: varchar("category", { length: 100 }),
+  iconName: varchar("icon_name", { length: 100 }),
+  minCapacity: integer("min_capacity"),
+  maxCapacity: integer("max_capacity"),
+  floorPlan: jsonb("floor_plan").default({}),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Tax settings table
+export const taxSettings = pgTable("tax_settings", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  rate: decimal("rate", { precision: 5, scale: 2 }).notNull(),
+  isDefault: boolean("is_default").default(false),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Settings table
+export const settings = pgTable("settings", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  key: varchar("key", { length: 255 }).notNull(),
+  value: text("value"),
+  type: varchar("type", { length: 50 }).default('string'), // 'string', 'number', 'boolean', 'json'
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Tags table
+export const tags = pgTable("tags", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  color: varchar("color", { length: 7 }).default('#3B82F6'), // hex color
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Campaign sources table
+export const campaignSources = pgTable("campaign_sources", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   tenantUsers: many(tenantUsers),
@@ -382,11 +468,82 @@ export const insertSpaceSchema = createInsertSchema(spaces).omit({
 
 export const selectSpaceSchema = createSelectSchema(spaces);
 
+// New table schemas
+export const insertServiceSchema = createInsertSchema(services).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const selectServiceSchema = createSelectSchema(services);
+
+export const insertPackageSchema = createInsertSchema(packages).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const selectPackageSchema = createSelectSchema(packages);
+
+export const insertSetupStyleSchema = createInsertSchema(setupStyles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const selectSetupStyleSchema = createSelectSchema(setupStyles);
+
+export const insertTaxSettingSchema = createInsertSchema(taxSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const selectTaxSettingSchema = createSelectSchema(taxSettings);
+
+export const insertSettingSchema = createInsertSchema(settings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const selectSettingSchema = createSelectSchema(settings);
+
+export const insertTagSchema = createInsertSchema(tags).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const selectTagSchema = createSelectSchema(tags);
+
+export const insertCampaignSourceSchema = createInsertSchema(campaignSources).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const selectCampaignSourceSchema = createSelectSchema(campaignSources);
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type FeaturePackage = typeof featurePackages.$inferSelect;
 export type InsertFeaturePackage = typeof featurePackages.$inferInsert;
+export type Service = typeof services.$inferSelect;
+export type InsertService = typeof services.$inferInsert;
+export type Package = typeof packages.$inferSelect;
+export type InsertPackage = typeof packages.$inferInsert;
+export type SetupStyle = typeof setupStyles.$inferSelect;
+export type InsertSetupStyle = typeof setupStyles.$inferInsert;
+export type TaxSetting = typeof taxSettings.$inferSelect;
+export type InsertTaxSetting = typeof taxSettings.$inferInsert;
+export type Setting = typeof settings.$inferSelect;
+export type InsertSetting = typeof settings.$inferInsert;
+export type Tag = typeof tags.$inferSelect;
+export type InsertTag = typeof tags.$inferInsert;
+export type CampaignSource = typeof campaignSources.$inferSelect;
+export type InsertCampaignSource = typeof campaignSources.$inferInsert;
 export type Tenant = typeof tenants.$inferSelect;
 export type InsertTenant = typeof tenants.$inferInsert;
 export type TenantUser = typeof tenantUsers.$inferSelect;

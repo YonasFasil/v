@@ -1,10 +1,14 @@
 import { 
   users, tenants, tenantUsers, featurePackages, venues, spaces, customers, leads, bookings, proposals, tasks,
+  services, packages, setupStyles, taxSettings, settings, tags, campaignSources,
   type User, type InsertUser, type Tenant, type InsertTenant, type TenantUser, type InsertTenantUser,
   type FeaturePackage, type InsertFeaturePackage, type Venue, type InsertVenue, type Space, type InsertSpace,
   type Customer, type InsertCustomer, type Lead, type InsertLead,
   type Booking, type InsertBooking, type Proposal, type InsertProposal,
-  type Task, type InsertTask
+  type Task, type InsertTask, type Service, type InsertService,
+  type Package, type InsertPackage, type SetupStyle, type InsertSetupStyle,
+  type TaxSetting, type InsertTaxSetting, type Setting, type InsertSetting,
+  type Tag, type InsertTag, type CampaignSource, type InsertCampaignSource
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, count } from "drizzle-orm";
@@ -60,24 +64,24 @@ export interface IStorage {
   deleteSpace(id: string): Promise<void>;
 
   // Service operations  
-  getServices(tenantId: string): Promise<any[]>;
-  createService(insertService: any): Promise<any>;
+  getServices(tenantId: string): Promise<Service[]>;
+  createService(insertService: InsertService): Promise<Service>;
   
   // Package operations (service packages)
-  getPackages(tenantId: string): Promise<any[]>;
-  createPackage(insertPackage: any): Promise<any>;
+  getPackages(tenantId: string): Promise<Package[]>;
+  createPackage(insertPackage: InsertPackage): Promise<Package>;
   
   // Tax settings operations
-  getTaxSettings(tenantId: string): Promise<any[]>;
-  createTaxSettings(insertTaxSettings: any): Promise<any>;
+  getTaxSettings(tenantId: string): Promise<TaxSetting[]>;
+  createTaxSettings(insertTaxSettings: InsertTaxSetting): Promise<TaxSetting>;
   
   // Setup styles operations
-  getSetupStyles(tenantId: string): Promise<any[]>;
-  createSetupStyles(insertSetupStyles: any): Promise<any>;
+  getSetupStyles(tenantId: string): Promise<SetupStyle[]>;
+  createSetupStyles(insertSetupStyles: InsertSetupStyle): Promise<SetupStyle>;
   
   // Settings operations
-  getSettings(tenantId: string): Promise<any[]>;
-  createSettings(insertSettings: any): Promise<any>;
+  getSettings(tenantId: string): Promise<Setting[]>;
+  createSettings(insertSettings: InsertSetting): Promise<Setting>;
   
   // Payment operations
   getPayments(tenantId: string): Promise<any[]>;
@@ -406,76 +410,84 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Service operations  
-  async getServices(tenantId: string): Promise<any[]> {
-    // Return empty array for now - table doesn't exist yet
-    return [];
+  async getServices(tenantId: string): Promise<Service[]> {
+    return await db.select().from(services).where(eq(services.tenantId, tenantId));
   }
 
-  async createService(insertService: any): Promise<any> {
-    // Return mock service for now - table doesn't exist yet  
-    return { id: `service_${Date.now()}`, ...insertService };
+  async createService(insertService: InsertService): Promise<Service> {
+    const [service] = await db
+      .insert(services)
+      .values(insertService)
+      .returning();
+    return service;
   }
   
   // Package operations (service packages)
-  async getPackages(tenantId: string): Promise<any[]> {
-    // Return empty array for now - table doesn't exist yet
-    return [];
+  async getPackages(tenantId: string): Promise<Package[]> {
+    return await db.select().from(packages).where(eq(packages.tenantId, tenantId));
   }
 
-  async createPackage(insertPackage: any): Promise<any> {
-    // Return mock package for now - table doesn't exist yet
-    return { id: `package_${Date.now()}`, ...insertPackage };
+  async createPackage(insertPackage: InsertPackage): Promise<Package> {
+    const [pkg] = await db
+      .insert(packages)
+      .values(insertPackage)
+      .returning();
+    return pkg;
   }
   
   // Tax settings operations
-  async getTaxSettings(tenantId: string): Promise<any[]> {
-    // Return empty array for now - table doesn't exist yet
-    return [];
+  async getTaxSettings(tenantId: string): Promise<TaxSetting[]> {
+    return await db.select().from(taxSettings).where(eq(taxSettings.tenantId, tenantId));
   }
 
-  async createTaxSettings(insertTaxSettings: any): Promise<any> {
-    // Return mock tax settings for now - table doesn't exist yet
-    return { id: `tax_${Date.now()}`, ...insertTaxSettings };
+  async createTaxSettings(insertTaxSettings: InsertTaxSetting): Promise<TaxSetting> {
+    const [taxSetting] = await db
+      .insert(taxSettings)
+      .values(insertTaxSettings)
+      .returning();
+    return taxSetting;
   }
   
   // Setup styles operations
-  async getSetupStyles(tenantId: string): Promise<any[]> {
-    // Return empty array for now - table doesn't exist yet
-    return [];
+  async getSetupStyles(tenantId: string): Promise<SetupStyle[]> {
+    return await db.select().from(setupStyles).where(eq(setupStyles.tenantId, tenantId));
   }
 
-  async createSetupStyles(insertSetupStyles: any): Promise<any> {
-    // Return mock setup styles for now - table doesn't exist yet
-    return { id: `style_${Date.now()}`, ...insertSetupStyles };
+  async createSetupStyles(insertSetupStyles: InsertSetupStyle): Promise<SetupStyle> {
+    const [setupStyle] = await db
+      .insert(setupStyles)
+      .values(insertSetupStyles)
+      .returning();
+    return setupStyle;
   }
   
   // Settings operations
-  async getSettings(tenantId: string): Promise<any[]> {
-    // Return empty array for now - table doesn't exist yet
-    return [];
+  async getSettings(tenantId: string): Promise<Setting[]> {
+    return await db.select().from(settings).where(eq(settings.tenantId, tenantId));
   }
 
-  async createSettings(insertSettings: any): Promise<any> {
-    // Return mock settings for now - table doesn't exist yet
-    return { id: `settings_${Date.now()}`, ...insertSettings };
+  async createSettings(insertSettings: InsertSetting): Promise<Setting> {
+    const [setting] = await db
+      .insert(settings)
+      .values(insertSettings)
+      .returning();
+    return setting;
   }
   
   // Payment operations
   async getPayments(tenantId: string): Promise<any[]> {
-    // Return empty array for now - table doesn't exist yet
+    // Payment operations would integrate with Stripe - return empty for now
     return [];
   }
   
   // Tag operations
-  async getTags(tenantId: string): Promise<any[]> {
-    // Return empty array for now - table doesn't exist yet
-    return [];
+  async getTags(tenantId: string): Promise<Tag[]> {
+    return await db.select().from(tags).where(eq(tags.tenantId, tenantId));
   }
   
   // Campaign source operations
-  async getCampaignSources(tenantId: string): Promise<any[]> {
-    // Return empty array for now - table doesn't exist yet
-    return [];
+  async getCampaignSources(tenantId: string): Promise<CampaignSource[]> {
+    return await db.select().from(campaignSources).where(eq(campaignSources.tenantId, tenantId));
   }
 
   // Customer operations
