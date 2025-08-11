@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import { onAuthChange } from '@/lib/firebase';
-import { createOrUpdateUser, FirestoreUser } from '@/lib/firestore';
+import { UserService } from '@/lib/firestore';
+import type { UserDoc } from '@shared/firestore-schema';
 
-export interface AuthUser extends FirestoreUser {}
+export interface AuthUser extends UserDoc {
+  uid: string;
+}
 
 export function useFirebaseAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -17,10 +20,35 @@ export function useFirebaseAuth() {
       try {
         if (firebaseUser) {
           console.log('Creating/updating user in Firestore...');
-          // Create or update user in Firestore and get the complete user data
-          const firestoreUser = await createOrUpdateUser(firebaseUser);
-          setUser(firestoreUser);
-          console.log('Firebase user authenticated and synced with Firestore:', firestoreUser);
+          
+          // Create or update user in Firestore
+          const userData = {
+            email: firebaseUser.email!,
+            firstName: firebaseUser.displayName?.split(' ')[0] || '',
+            lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || '',
+            emailVerified: firebaseUser.emailVerified,
+          };
+          
+          await UserService.createOrUpdateUser(userData);
+          
+          // Get the complete user data including super admin status
+          const firestoreUser = await UserService.getUserByEmail(firebaseUser.email!);
+          const isSuperAdmin = firestoreUser ? await UserService.checkIsSuperAdmin(firestoreUser.id) : false;
+          
+          const authUser: AuthUser = {
+            uid: firebaseUser.uid,
+            id: firestoreUser?.id || firebaseUser.uid,
+            email: firebaseUser.email!,
+            firstName: firestoreUser?.firstName || userData.firstName,
+            lastName: firestoreUser?.lastName || userData.lastName,
+            emailVerified: firebaseUser.emailVerified,
+            isSuperAdmin,
+            createdAt: firestoreUser?.createdAt || new Date(),
+            updatedAt: firestoreUser?.updatedAt || new Date(),
+          };
+          
+          setUser(authUser);
+          console.log('Firebase user authenticated and synced with Firestore:', authUser);
         } else {
           setUser(null);
           console.log('User signed out');
