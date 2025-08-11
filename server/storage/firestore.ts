@@ -1,4 +1,4 @@
-import { adminDb } from '../firebase-admin';
+import { serverFirebaseOps } from '../firebase-client';
 import { randomUUID } from 'crypto';
 
 // Firestore-based storage implementation
@@ -6,65 +6,19 @@ export class FirestoreStorage {
   
   // Feature Packages
   async getFeaturePackages() {
-    try {
-      const snapshot = await adminDb.collection('featurePackages').get();
-      return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
-    } catch (error) {
-      console.error('Error getting feature packages:', error);
-      return [];
-    }
+    return await serverFirebaseOps.getFeaturePackages();
   }
 
   async getFeaturePackage(id: string) {
-    try {
-      const doc = await adminDb.collection('featurePackages').doc(id).get();
-      if (doc.exists) {
-        return { id: doc.id, ...doc.data() };
-      }
-      return null;
-    } catch (error) {
-      console.error('Error getting feature package:', error);
-      return null;
-    }
+    return await serverFirebaseOps.getFeaturePackage(id);
   }
 
   async createFeaturePackage(data: any) {
-    try {
-      const id = randomUUID();
-      const packageData = {
-        ...data,
-        id,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        status: data.status || 'active'
-      };
-      
-      await adminDb.collection('featurePackages').doc(id).set(packageData);
-      return { id, ...packageData };
-    } catch (error) {
-      console.error('Error creating feature package:', error);
-      throw error;
-    }
+    return await serverFirebaseOps.createFeaturePackage(data);
   }
 
   async updateFeaturePackage(id: string, data: any) {
-    try {
-      const updateData = {
-        ...data,
-        updatedAt: new Date()
-      };
-      
-      await adminDb.collection('featurePackages').doc(id).update(updateData);
-      
-      const doc = await adminDb.collection('featurePackages').doc(id).get();
-      if (doc.exists) {
-        return { id: doc.id, ...doc.data() };
-      }
-      return null;
-    } catch (error) {
-      console.error('Error updating feature package:', error);
-      throw error;
-    }
+    return await serverFirebaseOps.updateFeaturePackage(id, data);
   }
 
   async deleteFeaturePackage(id: string) {
