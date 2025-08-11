@@ -386,6 +386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const settings = await storage.getSettings(req.user.currentTenant.id);
       res.json(settings);
     } catch (error) {
+      console.error('Settings fetch error:', error);
       res.status(500).json({ message: "Failed to fetch settings" });
     }
   });

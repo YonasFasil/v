@@ -487,7 +487,15 @@ export class DatabaseStorage implements IStorage {
   
   // Settings operations
   async getSettings(tenantId: string): Promise<Setting[]> {
-    return await db.select().from(settings).where(eq(settings.tenantId, tenantId));
+    try {
+      console.log('Fetching settings for tenant:', tenantId);
+      const result = await db.select().from(settings).where(eq(settings.tenantId, tenantId));
+      console.log('Settings query result:', result);
+      return result;
+    } catch (error) {
+      console.error('Settings database error:', error);
+      throw error;
+    }
   }
 
   async createSettings(insertSettings: InsertSetting): Promise<Setting> {

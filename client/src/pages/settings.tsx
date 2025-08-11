@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { TaxesAndFeesSettings } from "@/components/taxes-and-fees-settings";
 import { NotificationTestPanel } from "@/components/NotificationTestPanel";
@@ -1395,8 +1395,8 @@ function StripePaymentSection() {
     testPaymentMutation.mutate();
   };
 
-  const isConfigured = stripeStatus?.configured;
-  const isReady = stripeStatus?.ready;
+  const isConfigured = (stripeStatus as any)?.configured || false;
+  const isReady = (stripeStatus as any)?.ready || false;
 
   return (
     <div className="p-4 border rounded-lg">
