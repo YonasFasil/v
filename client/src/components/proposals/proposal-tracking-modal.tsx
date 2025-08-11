@@ -416,24 +416,11 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                   Resend Proposal
                 </Button>
                 
-                {/* Demo button to simulate email opening for testing */}
-                {process.env.NODE_ENV === 'development' && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full text-xs mt-2"
-                    onClick={() => {
-                      // Simulate email open for testing
-                      fetch(`/api/proposals/${proposalId}/track-open`)
-                        .then(() => {
-                          window.location.reload(); // Refresh to show updated status
-                        })
-                        .catch(console.error);
-                    }}
-                  >
-                    🧪 Test Email Open (Dev)
-                  </Button>
-                )}
+                <div className="text-xs text-gray-500 text-center mt-4 p-2 bg-blue-50 rounded">
+                  <strong>Email Tracking Status:</strong><br/>
+                  Gmail configuration required for email tracking.<br/>
+                  Set up Gmail credentials in Settings to enable proposal emails.
+                </div>
               </CardContent>
             </Card>
 
