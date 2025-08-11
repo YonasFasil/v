@@ -516,6 +516,9 @@ export class MemStorage implements IStorage {
           depositAmount: weddingBooking.depositAmount,
           status: "sent" as const,
           sentAt: new Date(),
+          emailOpened: false,
+          emailOpenedAt: null,
+          openCount: 0,
           notes: "Wedding reception proposal with premium package options"
         };
         this.createProposal(sampleProposal);

@@ -71,12 +71,14 @@ export class GmailService {
     totalAmount: string;
     validUntil?: string;
     companyName?: string;
+    proposalId?: string;
+    baseUrl?: string;
   }): Promise<boolean> {
     if (!this.transporter || !this.config) {
       throw new Error('Gmail not configured. Please set up Gmail credentials first.');
     }
 
-    const { to, customerName, proposalContent, totalAmount, validUntil, companyName = 'Venuine Events' } = options;
+    const { to, customerName, proposalContent, totalAmount, validUntil, companyName = 'Venuine Events', proposalId, baseUrl } = options;
 
     const subject = `Event Proposal from ${companyName}`;
     
@@ -147,6 +149,7 @@ export class GmailService {
             <a href="mailto:${this.config.email}">${this.config.email}</a>
           </p>
         </div>
+        ${proposalId && baseUrl ? `<img src="${baseUrl}/api/proposals/${proposalId}/track-open" alt="" style="width:1px;height:1px;border:0;" />` : ''}
       </body>
       </html>
     `;

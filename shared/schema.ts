@@ -139,6 +139,7 @@ export const proposals = pgTable("proposals", {
   viewedAt: timestamp("viewed_at"),
   emailOpened: boolean("email_opened").default(false),
   emailOpenedAt: timestamp("email_opened_at"),
+  openCount: integer("open_count").default(0),
   signature: text("signature"), // Digital signature for acceptance
   acceptedAt: timestamp("accepted_at"),
   declinedAt: timestamp("declined_at"),

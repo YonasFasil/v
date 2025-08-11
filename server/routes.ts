@@ -2115,7 +2115,9 @@ This is a test email from your Venuine venue management system.
         proposalContent,
         totalAmount,
         validUntil,
-        companyName
+        companyName,
+        proposalId: req.body.proposalId,
+        baseUrl: `${req.protocol}://${req.get('host')}`
       });
 
       // Create a tentative booking if event data is provided
@@ -2586,6 +2588,48 @@ This is a test email from your Venuine venue management system.
     }
   });
 
+  // Email tracking endpoint - tracks when customers open proposal emails
+  app.get("/api/proposals/:id/track-open", async (req, res) => {
+    try {
+      const proposal = await storage.getProposal(req.params.id);
+      if (!proposal) {
+        return res.status(404).send("Not found");
+      }
+
+      // Update proposal with open tracking
+      await storage.updateProposal(req.params.id, {
+        emailOpened: true,
+        emailOpenedAt: new Date(),
+        openCount: (proposal.openCount || 0) + 1
+      });
+
+      // Return a 1x1 transparent pixel
+      const pixel = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+        'base64'
+      );
+      
+      res.set({
+        'Content-Type': 'image/png',
+        'Content-Length': pixel.length,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
+      
+      res.end(pixel);
+    } catch (error) {
+      console.error("Error tracking email open:", error);
+      // Still return the pixel even if tracking fails
+      const pixel = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+        'base64'
+      );
+      res.set('Content-Type', 'image/png');
+      res.end(pixel);
+    }
+  });
+
   // Get proposal for public viewing (client-facing)
   app.get("/api/proposals/view/:proposalId", async (req, res) => {
     try {
@@ -2670,7 +2714,9 @@ This is a test email from your Venuine venue management system.
               proposalContent: proposal.content,
               totalAmount: proposal.totalAmount || "0",
               validUntil: proposal.validUntil?.toISOString(),
-              companyName: 'Venuine Events'
+              companyName: 'Venuine Events',
+              proposalId: proposal.id,
+              baseUrl: `${req.protocol}://${req.get('host')}`
             });
             console.log(`✅ Proposal email sent via Gmail to ${customer.email}`);
           } else {
