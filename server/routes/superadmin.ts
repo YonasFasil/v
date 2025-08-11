@@ -124,7 +124,7 @@ export function registerSuperAdminRoutes(app: Express) {
   });
 
   // Delete feature package
-  app.delete("/api/admin/packages/:packageId", requireSuperAdmin, async (req, res) => {
+  app.delete("/api/admin/packages/:packageId", requireAuth, requireSuperAdmin, async (req, res) => {
     try {
       const { packageId } = req.params;
       await storage.deleteFeaturePackage(packageId);
@@ -136,7 +136,7 @@ export function registerSuperAdminRoutes(app: Express) {
   });
 
   // Get platform analytics
-  app.get("/api/admin/analytics", requireSuperAdmin, async (req, res) => {
+  app.get("/api/admin/analytics", requireAuth, requireSuperAdmin, async (req, res) => {
     try {
       const users = await storage.getUsers();
       const totalUsers = users.length;
@@ -149,17 +149,31 @@ export function registerSuperAdminRoutes(app: Express) {
         u.createdAt && new Date(u.createdAt) > thirtyDaysAgo && !u.isSuperAdmin
       ).length;
 
-      // This could be enhanced with more analytics from the database
+      // Get tenant analytics
+      const allTenants = await storage.getAllTenantsWithOwners();
+      const totalTenants = allTenants.length;
+      const activeTenants = allTenants.filter(t => t.status === 'active').length;
+
+      // Plan distribution
+      const planCounts = allTenants.reduce((acc, tenant) => {
+        const planId = tenant.planId || 'starter';
+        acc[planId] = (acc[planId] || 0) + 1;
+        return acc;
+      }, {} as any);
+
       const analytics = {
         totalUsers: activeUsers,
         recentSignups,
+        totalTenants,
+        activeTenants,
         totalRevenue: 0, // Would need to calculate from Stripe data
         activePlans: {
-          starter: 0,
-          professional: 0,
-          enterprise: 0,
+          starter: planCounts.starter || 0,
+          professional: planCounts.professional || 0,
+          enterprise: planCounts.enterprise || 0,
         },
         userGrowth: [], // Would need historical data
+        recentActivity: [], // Would need activity tracking
       };
 
       res.json(analytics);
