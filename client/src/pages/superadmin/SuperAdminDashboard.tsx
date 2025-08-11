@@ -29,6 +29,7 @@ import { useLocation } from "wouter";
 import { useEffect } from "react";
 import { FeaturePackageForm } from './FeaturePackageForm';
 import UsersManagement from './UsersManagement';
+import { useSuperAdmin } from "@/hooks/useSuperAdmin";
 
 interface Tenant {
   id: string;
@@ -46,9 +47,11 @@ interface FeaturePackage {
   id: string;
   name: string;
   description: string;
-  features: string[];
-  maxUsers: number;
+  features: any;
+  limits: any;
   priceMonthly: number;
+  price_monthly: number;
+  status: string;
   isActive: boolean;
 }
 
@@ -60,6 +63,7 @@ interface Analytics {
 }
 
 export default function SuperAdminDashboard() {
+  const { isSuperAdmin, isLoading, hasAccess } = useSuperAdmin();
   const [activeTab, setActiveTab] = useState("overview");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -67,6 +71,20 @@ export default function SuperAdminDashboard() {
   const [isCreatePackageOpen, setIsCreatePackageOpen] = useState(false);
   const [isEditPackageOpen, setIsEditPackageOpen] = useState(false);
   const [editingPackage, setEditingPackage] = useState<any>(null);
+
+  // Show loading while checking super admin status
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  // Don't render anything if not super admin (useSuperAdmin hook handles redirect)
+  if (!hasAccess) {
+    return null;
+  }
   
   const generateSlug = (name: string) => {
     return name

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,11 +15,18 @@ export default function SuperAdminLogin() {
   const [password, setPassword] = useState("");
   const [, navigate] = useLocation();
 
-  // Check if already authenticated
+  // Check if already authenticated and is super admin
   const { data: authUser, isLoading: authLoading } = useQuery({
     queryKey: ['/api/auth/me'],
     retry: false,
   });
+
+  // Redirect if already super admin
+  React.useEffect(() => {
+    if (authUser && (authUser as any)?.isSuperAdmin) {
+      navigate('/sys-admin-x7k9p2w4');
+    }
+  }, [authUser, navigate]);
 
   const loginMutation = useMutation({
     mutationFn: async (data: { email: string; password: string }) => {
