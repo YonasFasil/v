@@ -148,21 +148,7 @@ export default function Onboarding() {
       return result;
     },
     onSuccess: async (data) => {
-      // Update user's Firestore record with tenant information
-      try {
-        const { auth } = await import('@/lib/firebase');
-        const { updateUserWithTenant } = await import('@/lib/firestore');
-        
-        if (auth.currentUser?.uid) {
-          await updateUserWithTenant(auth.currentUser.uid, {
-            id: data.tenant.id,
-            slug: data.tenant.slug,
-            role: 'owner'
-          });
-        }
-      } catch (error) {
-        console.error('Error updating user with tenant info:', error);
-      }
+      // The server already handles user updates, no need for additional client-side updates
       
       toast({
         title: "Welcome to VENUIN!",

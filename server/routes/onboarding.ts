@@ -44,9 +44,9 @@ export function registerOnboardingRoutes(app: Express) {
       }
 
       // Check if user already has a tenant in Firestore
-      const userDoc = await adminDb.collection('users').doc(userUid).get();
-      if (userDoc.exists && userDoc.data()?.tenantId) {
-        const tenantDoc = await adminDb.collection('tenants').doc(userDoc.data()?.tenantId).get();
+      const existingUserDoc = await adminDb.collection('users').doc(userUid).get();
+      if (existingUserDoc.exists && existingUserDoc.data()?.tenantId) {
+        const tenantDoc = await adminDb.collection('tenants').doc(existingUserDoc.data()?.tenantId).get();
         if (tenantDoc.exists) {
           return res.status(409).json({ 
             message: 'User already has a tenant',
@@ -97,13 +97,30 @@ export function registerOnboardingRoutes(app: Express) {
 
       await adminDb.collection('tenants').doc(tenantId).set(tenantData);
 
-      // Update user document with tenant information
-      await adminDb.collection('users').doc(userUid).update({
+      // Ensure user document exists, then update with tenant information
+      const userDocRef = adminDb.collection('users').doc(userUid);
+      const userDoc = await userDocRef.get();
+      
+      const userData = {
         tenantId: tenantId,
         tenantSlug: tenantSlug,
         role: 'owner',
         updatedAt: new Date(),
-      });
+      };
+
+      if (userDoc.exists) {
+        // Update existing user document
+        await userDocRef.update(userData);
+      } else {
+        // Create user document if it doesn't exist
+        await userDocRef.set({
+          uid: userUid,
+          email: req.user?.email || '',
+          isSuperAdmin: false,
+          createdAt: new Date(),
+          ...userData,
+        });
+      }
 
       res.status(201).json({
         message: 'Tenant created successfully',
