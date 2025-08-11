@@ -31,8 +31,12 @@ export function useAuthRedirect() {
     if (user.isSuperAdmin) {
       const currentPath = window.location.pathname;
       
-      // If super admin is on tenant routes, redirect to admin
-      if (currentPath.startsWith('/t/') || currentPath === '/') {
+      // Super admins should NEVER see onboarding or tenant routes
+      if (currentPath.startsWith('/t/') || 
+          currentPath === '/' || 
+          currentPath.startsWith('/onboarding') ||
+          currentPath === '/login' ||
+          currentPath === '/signup') {
         setLocation('/admin/dashboard');
         return;
       }
