@@ -8,6 +8,7 @@ interface AuthUser {
   isSuperAdmin: boolean;
   currentTenant?: {
     id: string;
+    tenantId: string;
     slug: string;
     name: string;
     role: 'super_admin' | 'owner' | 'admin' | 'manager' | 'staff' | 'viewer';
@@ -60,6 +61,7 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
       isSuperAdmin: user.isSuperAdmin || false,
       currentTenant: primaryTenant ? {
         id: primaryTenant.tenant.id,
+        tenantId: primaryTenant.tenant.id,
         slug: primaryTenant.tenant.slug,
         name: primaryTenant.tenant.name,
         role: primaryTenant.role as any,
@@ -204,7 +206,7 @@ export const requireFeature = (feature: string) => {
     }
     
     try {
-      const tenant = await storage.getTenant(user.currentTenant.tenantId);
+      const tenant = await storage.getTenant(user.currentTenant.id);
       if (!tenant?.planId) {
         return res.status(403).json({ message: 'No plan assigned to tenant' });
       }
@@ -248,7 +250,7 @@ export const checkUsageLimit = (limitType: string) => {
     }
     
     try {
-      const tenant = await storage.getTenant(user.currentTenant.tenantId);
+      const tenant = await storage.getTenant(user.currentTenant.id);
       if (!tenant?.planId) {
         return res.status(403).json({ message: 'No plan assigned to tenant' });
       }
@@ -268,12 +270,12 @@ export const checkUsageLimit = (limitType: string) => {
         switch (limitType) {
           case 'maxUsers':
           case 'staff':
-            const tenantUsers = await storage.getTenantUsers(user.currentTenant.tenantId);
+            const tenantUsers = await storage.getTenantUsers(user.currentTenant.id);
             currentUsage = tenantUsers.length;
             break;
           case 'maxVenues':
           case 'venues':
-            const venues = await storage.getVenues(user.currentTenant.tenantId);
+            const venues = await storage.getVenues(user.currentTenant.id);
             currentUsage = venues.length;
             break;
           // Add more limit checks as needed

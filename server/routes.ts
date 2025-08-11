@@ -350,7 +350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "No tenant access" });
       }
       
-      const tenant = await storage.getTenant(user.currentTenant.tenantId);
+      const tenant = await storage.getTenant(user.currentTenant.id);
       if (!tenant?.planId) {
         return res.status(404).json({ message: "No plan assigned to tenant" });
       }
