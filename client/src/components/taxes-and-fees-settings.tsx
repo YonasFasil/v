@@ -15,26 +15,16 @@ import type { TaxSetting, InsertTaxSetting } from "@shared/schema";
 
 interface TaxFeeFormData {
   name: string;
-  type: "tax" | "fee" | "service_charge";
-  calculation: "percentage" | "fixed";
-  value: string;
-  applyTo: "packages" | "services" | "both" | "total";
-  description: string;
+  value: string; // Will be mapped to 'rate' field
   isActive: boolean;
-  isTaxable: boolean;
-  applicableTaxIds: string[];
+  isDefault: boolean;
 }
 
 const defaultTaxFeeForm: TaxFeeFormData = {
   name: "",
-  type: "tax",
-  calculation: "percentage",
   value: "",
-  applyTo: "both",
-  description: "",
   isActive: true,
-  isTaxable: false,
-  applicableTaxIds: []
+  isDefault: false
 };
 
 export function TaxesAndFeesSettings() {
@@ -50,8 +40,8 @@ export function TaxesAndFeesSettings() {
     queryKey: ["/api/tax-settings"],
   });
 
-  // Get available taxes for selection
-  const availableTaxes = taxesAndFees.filter((item: TaxSetting) => item.type === 'tax' && item.isActive);
+  // Cast taxesAndFees to proper type
+  const taxSettingsData = taxesAndFees as TaxSetting[];
 
   // Create tax/fee mutation
   const createMutation = useMutation({
@@ -64,13 +54,13 @@ export function TaxesAndFeesSettings() {
       setFormData(defaultTaxFeeForm);
       toast({
         title: "Success",
-        description: `${formData.type} created successfully`,
+        description: "Tax setting created successfully",
       });
     },
     onError: () => {
       toast({
         title: "Error",
-        description: `Failed to create ${formData.type}`,
+        description: "Failed to create tax setting",
         variant: "destructive",
       });
     },
@@ -87,13 +77,13 @@ export function TaxesAndFeesSettings() {
       setFormData(defaultTaxFeeForm);
       toast({
         title: "Success",
-        description: `${formData.type} updated successfully`,
+        description: "Tax setting updated successfully",
       });
     },
     onError: () => {
       toast({
         title: "Error",
-        description: `Failed to update ${formData.type}`,
+        description: "Failed to update tax setting",
         variant: "destructive",
       });
     },
@@ -132,14 +122,9 @@ export function TaxesAndFeesSettings() {
 
     const data: InsertTaxSetting = {
       name: formData.name,
-      type: formData.type,
-      calculation: formData.calculation,
-      value: formData.value,
-      applyTo: formData.applyTo,
-      description: formData.description || null,
+      rate: formData.value, // Map 'value' to 'rate' field
       isActive: formData.isActive,
-      isTaxable: formData.isTaxable,
-      applicableTaxIds: formData.applicableTaxIds,
+      isDefault: formData.isDefault,
     };
 
     if (editingItem) {

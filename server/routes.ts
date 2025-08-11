@@ -385,14 +385,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/tax-settings", requireAuth, async (req: any, res) => {
     try {
+      if (!req.user?.currentTenant?.id) {
+        return res.status(403).json({ 
+          message: "User tenant context not found"
+        });
+      }
+      
       const taxData = {
         ...req.body,
+        rate: req.body.rate ? parseFloat(req.body.rate).toString() : req.body.rate,
         tenantId: req.user.currentTenant.id,
       };
       const taxSettings = await storage.createTaxSettings(taxData);
       res.status(201).json(taxSettings);
     } catch (error: any) {
       console.error('Tax settings creation error:', error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
       res.status(500).json({ message: "Failed to create tax settings" });
     }
   });
