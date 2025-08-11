@@ -124,6 +124,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/venues/:id", requireAuth, async (req: any, res) => {
+    try {
+      if (!req.user?.currentTenant?.id) {
+        return res.status(403).json({ 
+          message: "User tenant context not found"
+        });
+      }
+      
+      // Verify the venue belongs to the current tenant
+      const venue = await storage.getVenue(req.params.id);
+      if (!venue) {
+        return res.status(404).json({ message: "Venue not found" });
+      }
+      
+      if (venue.tenantId !== req.user.currentTenant.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      await storage.deleteVenue(req.params.id);
+      res.json({ message: "Venue deleted successfully" });
+    } catch (error: any) {
+      console.error('Venue deletion error:', error);
+      res.status(500).json({ message: "Failed to delete venue" });
+    }
+  });
+
   // Customers
   app.get("/api/customers", async (req: any, res) => {
     try {
@@ -347,6 +373,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/services/:id", requireAuth, async (req: any, res) => {
+    try {
+      if (!req.user?.currentTenant?.id) {
+        return res.status(403).json({ 
+          message: "User tenant context not found"
+        });
+      }
+      
+      // Verify the service belongs to the current tenant
+      const service = await storage.getService(req.params.id);
+      if (!service) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+      
+      if (service.tenantId !== req.user.currentTenant.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      await storage.deleteService(req.params.id);
+      res.json({ message: "Service deleted successfully" });
+    } catch (error: any) {
+      console.error('Service deletion error:', error);
+      res.status(500).json({ message: "Failed to delete service" });
+    }
+  });
+
   // Packages (service packages)
   app.get("/api/packages", requireAuth, async (req: any, res) => {
     try {
@@ -369,6 +421,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('Package creation error:', error);
       res.status(500).json({ message: "Failed to create package" });
+    }
+  });
+
+  app.delete("/api/packages/:id", requireAuth, async (req: any, res) => {
+    try {
+      if (!req.user?.currentTenant?.id) {
+        return res.status(403).json({ 
+          message: "User tenant context not found"
+        });
+      }
+      
+      // Verify the package belongs to the current tenant
+      const pkg = await storage.getPackage(req.params.id);
+      if (!pkg) {
+        return res.status(404).json({ message: "Package not found" });
+      }
+      
+      if (pkg.tenantId !== req.user.currentTenant.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      await storage.deletePackage(req.params.id);
+      res.json({ message: "Package deleted successfully" });
+    } catch (error: any) {
+      console.error('Package deletion error:', error);
+      res.status(500).json({ message: "Failed to delete package" });
     }
   });
 

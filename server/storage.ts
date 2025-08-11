@@ -366,6 +366,14 @@ export class DatabaseStorage implements IStorage {
     await db.delete(venues).where(eq(venues.id, id));
   }
 
+  async deletePackage(id: string): Promise<void> {
+    await db.delete(packages).where(eq(packages.id, id));
+  }
+
+  async deleteService(id: string): Promise<void> {
+    await db.delete(services).where(eq(services.id, id));
+  }
+
   // Space operations
   async getSpaces(tenantId?: string): Promise<Space[]> {
     const query = db.select().from(spaces);
