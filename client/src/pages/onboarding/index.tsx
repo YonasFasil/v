@@ -454,16 +454,18 @@ export default function Onboarding() {
                   ))}
                 </div>
                 
-                <FormField
-                  control={form.control}
-                  name="featurePackageSlug"
-                  render={({ field }) => (
-                    <FormItem className="mt-4">
-                      <FormMessage />
-                      <input type="hidden" {...field} />
-                    </FormItem>
-                  )}
-                />
+                <Form {...form}>
+                  <FormField
+                    control={form.control}
+                    name="featurePackageSlug"
+                    render={({ field }) => (
+                      <FormItem className="mt-4">
+                        <FormMessage />
+                        <input type="hidden" {...field} />
+                      </FormItem>
+                    )}
+                  />
+                </Form>
                 
                 <div className="flex justify-between mt-8">
                   <Button type="button" variant="outline" onClick={prevStep} className="h-12 px-8">
