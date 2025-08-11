@@ -8,12 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useQuery } from "@tanstack/react-query";
-import { ProposalCreationModal } from "@/components/proposals/proposal-creation-modal";
 import { ProposalTrackingModal } from "@/components/proposals/proposal-tracking-modal";
 import { format } from "date-fns";
 import { 
   FileText, 
-  Plus, 
   Eye, 
   Mail, 
   DollarSign, 
@@ -29,7 +27,6 @@ import {
 
 export default function Proposals() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showTrackingModal, setShowTrackingModal] = useState(false);
   const [selectedProposalId, setSelectedProposalId] = useState("");
 
@@ -104,14 +101,8 @@ export default function Proposals() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header 
           title="Proposals" 
-          subtitle="Create, track, and manage event proposals"
+          subtitle="Track and manage sent event proposals"
           onMobileMenuToggle={() => setMobileNavOpen(true)}
-          action={
-            <Button onClick={() => setShowCreateModal(true)} className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Proposal
-            </Button>
-          }
         />
         
         <main className="flex-1 overflow-y-auto p-3 sm:p-6">
@@ -204,13 +195,9 @@ export default function Proposals() {
                         <div className="flex flex-col items-center gap-3">
                           <FileText className="h-12 w-12 text-gray-300" />
                           <div>
-                            <p className="font-medium text-gray-900">No proposals yet</p>
-                            <p className="text-sm text-gray-500">Create your first proposal to get started</p>
+                            <p className="font-medium text-gray-900">No proposals sent yet</p>
+                            <p className="text-sm text-gray-500">Proposals sent through the event creation process will appear here</p>
                           </div>
-                          <Button onClick={() => setShowCreateModal(true)} className="w-full">
-                            <Plus className="h-4 w-4 mr-2" />
-                            Create Proposal
-                          </Button>
                         </div>
                       </div>
                     ) : (
@@ -294,13 +281,9 @@ export default function Proposals() {
                               <div className="flex flex-col items-center gap-3">
                                 <FileText className="h-12 w-12 text-gray-300" />
                                 <div>
-                                  <p className="font-medium text-gray-900">No proposals yet</p>
-                                  <p className="text-sm text-gray-500">Create your first proposal to get started</p>
+                                  <p className="font-medium text-gray-900">No proposals sent yet</p>
+                                  <p className="text-sm text-gray-500">Proposals sent through the event creation process will appear here</p>
                                 </div>
-                                <Button onClick={() => setShowCreateModal(true)} className="bg-blue-600 hover:bg-blue-700">
-                                  <Plus className="h-4 w-4 mr-2" />
-                                  Create Proposal
-                                </Button>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -420,11 +403,6 @@ export default function Proposals() {
         </main>
 
         {/* Modals */}
-        <ProposalCreationModal
-          open={showCreateModal}
-          onOpenChange={setShowCreateModal}
-        />
-
         <ProposalTrackingModal
           open={showTrackingModal}
           onOpenChange={setShowTrackingModal}

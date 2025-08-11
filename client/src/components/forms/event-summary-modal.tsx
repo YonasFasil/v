@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EnhancedBeoModal } from "./enhanced-beo-modal";
 import { CreateEventModal } from "./create-event-modal";
 import { StatusSelector } from "../events/status-selector";
+import { ProposalTrackingModal } from "../proposals/proposal-tracking-modal";
 import { type EventStatus, getStatusConfig } from "@shared/status-utils";
 import { 
   X, 
@@ -21,7 +22,8 @@ import {
   FileText,
   Send,
   Copy,
-  FileOutput
+  FileOutput,
+  Eye
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -41,6 +43,7 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
   const [communicationType, setCommunicationType] = useState("email");
   const [showBeoModal, setShowBeoModal] = useState(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [showProposalModal, setShowProposalModal] = useState(false);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -53,6 +56,14 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
     queryKey: ["/api/communications", booking?.id], 
     enabled: !!booking?.id 
   });
+
+  // Get proposal data if this booking has a proposal
+  const { data: proposals = [] } = useQuery({ 
+    queryKey: ["/api/proposals"] 
+  });
+  
+  // Find the proposal associated with this booking
+  const bookingProposal = proposals.find((p: any) => p.customerId === booking?.customerId && p.eventName === booking?.eventName);
 
   // Status update mutation - moved before early return to maintain hook order
   const updateStatusMutation = useMutation({
@@ -619,6 +630,12 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
         {/* Action Buttons - Sticky at bottom */}
         <div className="sticky bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t mt-6 pt-4 -mx-6 px-6 -mb-6 pb-6">
           <div className="flex gap-3 justify-end">
+            {bookingProposal && (
+              <Button variant="outline" className="gap-2" onClick={() => setShowProposalModal(true)}>
+                <Eye className="h-4 w-4" />
+                View Proposal
+              </Button>
+            )}
             <Button variant="outline" onClick={onEditClick} className="gap-2">
               <Edit3 className="h-4 w-4" />
               Edit {booking.isContract ? "Contract" : "Event"}
@@ -648,6 +665,15 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
         onOpenChange={setShowDuplicateModal}
         duplicateFromBooking={booking}
       />
+      
+      {/* Proposal Tracking Modal */}
+      {bookingProposal && (
+        <ProposalTrackingModal
+          open={showProposalModal}
+          onOpenChange={setShowProposalModal}
+          proposalId={bookingProposal.id}
+        />
+      )}
     </Dialog>
   );
 }
