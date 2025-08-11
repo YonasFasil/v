@@ -2,6 +2,26 @@ import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, integer, decimal, timestamp, boolean, jsonb, primaryKey, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from "drizzle-orm";
+
+// Subscription Packages table - Super Admin creates packages for tenants
+export const subscriptionPackages = pgTable("subscription_packages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // Basic, Professional, Enterprise, Custom
+  description: text("description"),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(), // Monthly price
+  billingInterval: text("billing_interval").notNull().default("month"), // month, year
+  maxVenues: integer("max_venues"), // null for unlimited
+  maxUsers: integer("max_users"), // null for unlimited
+  maxEventsPerMonth: integer("max_events_per_month"), // null for unlimited
+  storageGB: integer("storage_gb"), // Storage limit in GB, null for unlimited
+  features: jsonb("features").notNull().default('{}'), // Feature flags: {"ai_insights": true, "advanced_reports": true, etc.}
+  isActive: boolean("is_active").default(true),
+  stripePriceId: text("stripe_price_id"), // Stripe price ID for billing
+  isPopular: boolean("is_popular").default(false), // Highlight as popular choice
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
 
 // Tenants table for multi-tenant architecture
 export const tenants = pgTable("tenants", {
@@ -11,6 +31,7 @@ export const tenants = pgTable("tenants", {
   businessEmail: text("business_email").notNull(),
   businessPhone: text("business_phone"),
   address: text("address"),
+  packageId: varchar("package_id").references(() => subscriptionPackages.id), // References subscription package
   plan: text("plan").notNull().default("basic"), // basic, professional, enterprise
   isActive: boolean("is_active").default(true),
   stripeAccountId: text("stripe_account_id"), // Stripe Connect account ID
@@ -457,6 +478,7 @@ export const insertRolePermissionSchema = createInsertSchema(rolePermissions).om
 export const insertAuditLogSchema = createInsertSchema(auditLog).omit({ id: true, createdAt: true });
 export const insertApprovalRequestSchema = createInsertSchema(approvalRequests).omit({ id: true, createdAt: true, approvedAt: true, rejectedAt: true });
 export const insertUserSessionSchema = createInsertSchema(userSessions).omit({ id: true, createdAt: true, lastAccessedAt: true });
+export const insertSubscriptionPackageSchema = createInsertSchema(subscriptionPackages).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertBookingSchema = createInsertSchema(bookings, {
   eventDate: z.union([z.string(), z.date()]).transform((val) => 
     typeof val === 'string' ? new Date(val) : val
@@ -517,6 +539,8 @@ export type ApprovalRequest = typeof approvalRequests.$inferSelect;
 export type InsertApprovalRequest = z.infer<typeof insertApprovalRequestSchema>;
 export type UserSession = typeof userSessions.$inferSelect;
 export type InsertUserSession = z.infer<typeof insertUserSessionSchema>;
+export type SubscriptionPackage = typeof subscriptionPackages.$inferSelect;
+export type InsertSubscriptionPackage = z.infer<typeof insertSubscriptionPackageSchema>;
 
 // Core Business Types
 export type Venue = typeof venues.$inferSelect;

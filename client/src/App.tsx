@@ -23,6 +23,7 @@ import TenantManagement from "@/pages/admin/tenant-management";
 import RolePermissions from "@/pages/admin/role-permissions";
 import ApprovalCenter from "@/pages/admin/approval-center";
 import AuditLogs from "@/pages/admin/audit-logs";
+import SubscriptionPackages from "@/pages/admin/subscription-packages";
 import DevAdmin from "@/pages/dev-admin";
 import NotFound from "@/pages/not-found";
 
@@ -48,6 +49,7 @@ function Router() {
       <Route path="/admin/roles" component={RolePermissions} />
       <Route path="/admin/approvals" component={ApprovalCenter} />
       <Route path="/admin/audit" component={AuditLogs} />
+      <Route path="/admin/packages" component={SubscriptionPackages} />
       <Route path="/dev-admin" component={DevAdmin} />
       <Route component={NotFound} />
     </Switch>

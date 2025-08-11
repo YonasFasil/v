@@ -26,6 +26,7 @@ import {
   type AuditLog, type InsertAuditLog,
   type ApprovalRequest, type InsertApprovalRequest,
   type UserSession, type InsertUserSession,
+  type SubscriptionPackage, type InsertSubscriptionPackage,
   type RoleType
 } from "@shared/schema";
 
@@ -235,6 +236,13 @@ export interface IStorage {
   cancelBooking(bookingId: string, cancellationData: any): Promise<void>;
   updateBookingRates(bookingId: string, rateData: any): Promise<void>;
 
+  // Subscription Packages (Super Admin only)
+  getSubscriptionPackages(): Promise<SubscriptionPackage[]>;
+  getSubscriptionPackage(id: string): Promise<SubscriptionPackage | undefined>;
+  createSubscriptionPackage(packageData: InsertSubscriptionPackage): Promise<SubscriptionPackage>;
+  updateSubscriptionPackage(id: string, packageData: Partial<InsertSubscriptionPackage>): Promise<SubscriptionPackage | undefined>;
+  deleteSubscriptionPackage(id: string): Promise<boolean>;
+
   // Additional CRUD operations  
   deleteCustomer(id: string): Promise<boolean>;
   updateVenue(id: string, venueData: Partial<Venue>): Promise<Venue | null>;
@@ -266,6 +274,7 @@ export class MemStorage implements IStorage {
   private auditLogs: Map<string, AuditLog>;
   private approvalRequests: Map<string, ApprovalRequest>;
   private userSessions: Map<string, UserSession>;
+  private subscriptionPackages: Map<string, SubscriptionPackage>;
   
   // Lead Management Maps
   private campaignSources: Map<string, CampaignSource>;
@@ -301,6 +310,7 @@ export class MemStorage implements IStorage {
     this.auditLogs = new Map();
     this.approvalRequests = new Map();
     this.userSessions = new Map();
+    this.subscriptionPackages = new Map();
     
     // Lead Management initialization
     this.campaignSources = new Map();
@@ -315,6 +325,7 @@ export class MemStorage implements IStorage {
     this.initializeData();
     this.initializeLeadManagementData();
     this.initializeRolePermissions();
+    this.initializeSubscriptionPackages();
   }
 
   private initializeData() {
@@ -1915,6 +1926,130 @@ export class MemStorage implements IStorage {
 
   async removeLeadTag(leadId: string, tagId: string): Promise<void> {
     this.leadTags.delete(`${leadId}:${tagId}`);
+  }
+
+  // Subscription Packages implementation
+  private initializeSubscriptionPackages() {
+    const packages: SubscriptionPackage[] = [
+      {
+        id: randomUUID(),
+        name: "Basic",
+        description: "Perfect for small venues just getting started",
+        price: "29.00",
+        billingInterval: "month",
+        maxVenues: 2,
+        maxUsers: 5,
+        maxEventsPerMonth: 25,
+        storageGB: 5,
+        features: {
+          basic_analytics: true,
+          email_support: true,
+          calendar_integration: true,
+          proposal_system: true,
+          payment_processing: false,
+          ai_insights: false,
+          advanced_reports: false,
+          custom_branding: false
+        },
+        isActive: true,
+        isPopular: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: randomUUID(),
+        name: "Professional",
+        description: "Best for growing businesses with multiple venues",
+        price: "79.00",
+        billingInterval: "month",
+        maxVenues: 10,
+        maxUsers: 25,
+        maxEventsPerMonth: 100,
+        storageGB: 50,
+        features: {
+          basic_analytics: true,
+          email_support: true,
+          calendar_integration: true,
+          proposal_system: true,
+          payment_processing: true,
+          ai_insights: true,
+          advanced_reports: true,
+          custom_branding: false,
+          priority_support: true,
+          team_collaboration: true
+        },
+        isActive: true,
+        isPopular: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: randomUUID(),
+        name: "Enterprise",
+        description: "Full-featured solution for large organizations",
+        price: "199.00",
+        billingInterval: "month",
+        maxVenues: null,
+        maxUsers: null,
+        maxEventsPerMonth: null,
+        storageGB: null,
+        features: {
+          basic_analytics: true,
+          email_support: true,
+          calendar_integration: true,
+          proposal_system: true,
+          payment_processing: true,
+          ai_insights: true,
+          advanced_reports: true,
+          custom_branding: true,
+          priority_support: true,
+          team_collaboration: true,
+          api_access: true,
+          white_label: true,
+          dedicated_manager: true
+        },
+        isActive: true,
+        isPopular: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ];
+
+    packages.forEach(pkg => this.subscriptionPackages.set(pkg.id, pkg));
+  }
+
+  async getSubscriptionPackages(): Promise<SubscriptionPackage[]> {
+    return Array.from(this.subscriptionPackages.values())
+      .filter(pkg => pkg.isActive)
+      .sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+  }
+
+  async getSubscriptionPackage(id: string): Promise<SubscriptionPackage | undefined> {
+    return this.subscriptionPackages.get(id);
+  }
+
+  async createSubscriptionPackage(packageData: InsertSubscriptionPackage): Promise<SubscriptionPackage> {
+    const newPackage: SubscriptionPackage = {
+      id: randomUUID(),
+      ...packageData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.subscriptionPackages.set(newPackage.id, newPackage);
+    return newPackage;
+  }
+
+  async updateSubscriptionPackage(id: string, packageData: Partial<InsertSubscriptionPackage>): Promise<SubscriptionPackage | undefined> {
+    const existing = this.subscriptionPackages.get(id);
+    if (!existing) return undefined;
+    
+    const updated = { ...existing, ...packageData, updatedAt: new Date() };
+    this.subscriptionPackages.set(id, updated);
+    return updated;
+  }
+
+  async deleteSubscriptionPackage(id: string): Promise<boolean> {
+    return this.subscriptionPackages.delete(id);
   }
 
   // Multi-tenant and Role-based Method Implementations

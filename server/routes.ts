@@ -4302,6 +4302,105 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     }
   );
 
+  // SUPER ADMIN - Subscription Package Management
+  app.get('/api/super-admin/packages', requireSuperAdmin, async (req: any, res) => {
+    try {
+      const packages = await storage.getSubscriptionPackages();
+      res.json(packages);
+    } catch (error) {
+      console.error('Error fetching subscription packages:', error);
+      res.status(500).json({ message: 'Failed to fetch subscription packages' });
+    }
+  });
+
+  app.post('/api/super-admin/packages', requireSuperAdmin, async (req: any, res) => {
+    try {
+      const packageData = req.body;
+      const newPackage = await storage.createSubscriptionPackage(packageData);
+      
+      await storage.createAuditLog({
+        tenantId: null,
+        userId: req.headers['x-user-id'] || 'dev-super-admin',
+        action: 'created_subscription_package',
+        resourceType: 'subscription_package',
+        resourceId: newPackage.id,
+        newValues: newPackage,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent') || '',
+        metadata: { packageName: newPackage.name }
+      });
+      
+      res.json(newPackage);
+    } catch (error) {
+      console.error('Error creating subscription package:', error);
+      res.status(500).json({ message: 'Failed to create subscription package' });
+    }
+  });
+
+  app.put('/api/super-admin/packages/:id', requireSuperAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const packageData = req.body;
+      const existingPackage = await storage.getSubscriptionPackage(id);
+      
+      if (!existingPackage) {
+        return res.status(404).json({ message: 'Package not found' });
+      }
+      
+      const updatedPackage = await storage.updateSubscriptionPackage(id, packageData);
+      
+      await storage.createAuditLog({
+        tenantId: null,
+        userId: req.headers['x-user-id'] || 'dev-super-admin',
+        action: 'updated_subscription_package',
+        resourceType: 'subscription_package',
+        resourceId: id,
+        oldValues: existingPackage,
+        newValues: updatedPackage,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent') || '',
+        metadata: { packageName: updatedPackage?.name }
+      });
+      
+      res.json(updatedPackage);
+    } catch (error) {
+      console.error('Error updating subscription package:', error);
+      res.status(500).json({ message: 'Failed to update subscription package' });
+    }
+  });
+
+  app.delete('/api/super-admin/packages/:id', requireSuperAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const existingPackage = await storage.getSubscriptionPackage(id);
+      
+      if (!existingPackage) {
+        return res.status(404).json({ message: 'Package not found' });
+      }
+      
+      const deleted = await storage.deleteSubscriptionPackage(id);
+      
+      if (deleted) {
+        await storage.createAuditLog({
+          tenantId: null,
+          userId: req.headers['x-user-id'] || 'dev-super-admin',
+          action: 'deleted_subscription_package',
+          resourceType: 'subscription_package',
+          resourceId: id,
+          oldValues: existingPackage,
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent') || '',
+          metadata: { packageName: existingPackage.name }
+        });
+      }
+      
+      res.json({ success: deleted });
+    } catch (error) {
+      console.error('Error deleting subscription package:', error);
+      res.status(500).json({ message: 'Failed to delete subscription package' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
