@@ -61,17 +61,17 @@ export function FeaturePackageForm({ onSubmit, isPending, onCancel, initialData 
     event.preventDefault();
     const formData = new FormData(event.currentTarget as HTMLFormElement);
     
-    // Create features object
+    // Create features object - set ALL features to false first, then enable selected ones
     const features: Record<string, boolean> = {};
-    selectedFeatures.forEach(key => {
-      features[key] = true;
+    Object.keys(VENUIN_FEATURES).forEach(key => {
+      features[key] = selectedFeatures.includes(key);
     });
 
     // Create limits object
     const limits = {
-      maxUsers: parseInt(formData.get('maxUsers') as string),
-      maxVenues: parseInt(formData.get('maxVenues') as string),
-      maxSpacesPerVenue: parseInt(formData.get('maxSpaces') as string)
+      maxUsers: parseInt(formData.get('maxUsers') as string) || 0,
+      maxVenues: parseInt(formData.get('maxVenues') as string) || 0,
+      maxSpacesPerVenue: parseInt(formData.get('maxSpaces') as string) || 0
     };
 
     onSubmit({
