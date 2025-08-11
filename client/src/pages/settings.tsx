@@ -16,7 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
-import { SimpleTaxSettings } from "@/components/simple-tax-settings";
+import { TaxesAndFeesSettings } from "@/components/taxes-and-fees-settings";
 import { NotificationTestPanel } from "@/components/NotificationTestPanel";
 import { 
   Building2, 
@@ -1232,7 +1232,7 @@ export default function Settings() {
 
               {/* Taxes and Fees Settings */}
               <TabsContent value="taxes" className="space-y-6">
-                <SimpleTaxSettings />
+                <TaxesAndFeesSettings />
               </TabsContent>
 
               {/* Security Settings */}

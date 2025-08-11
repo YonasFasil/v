@@ -268,14 +268,20 @@ export const setupStyles = pgTable("setup_styles", {
   updatedAt: timestamp("updatedAt").defaultNow(),
 });
 
-// Tax settings table
+// Tax settings table - enhanced for comprehensive tax and fee management
 export const taxSettings = pgTable("tax_settings", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   tenantId: uuid("tenantId").references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
   name: varchar("name", { length: 255 }).notNull(),
-  rate: decimal("rate", { precision: 5, scale: 2 }).notNull(),
+  type: varchar("type", { length: 50 }).default('tax').notNull(), // 'tax', 'fee', 'service_charge'
+  calculation: varchar("calculation", { length: 20 }).default('percentage').notNull(), // 'percentage', 'fixed'
+  rate: decimal("rate", { precision: 10, scale: 4 }).notNull(), // Renamed from 'value' to 'rate' for consistency
+  applyTo: varchar("applyTo", { length: 50 }).default('both').notNull(), // 'packages', 'services', 'both', 'total'
+  description: text("description"),
   isDefault: boolean("isDefault").default(false),
   isActive: boolean("isActive").default(true),
+  isTaxable: boolean("isTaxable").default(false), // Whether this fee/charge is subject to taxes
+  applicableTaxIds: jsonb("applicableTaxIds").default([]), // Array of tax IDs that apply to this fee
   createdAt: timestamp("createdAt").defaultNow(),
   updatedAt: timestamp("updatedAt").defaultNow(),
 });

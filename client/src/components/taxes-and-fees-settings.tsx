@@ -15,16 +15,26 @@ import type { TaxSetting, InsertTaxSetting } from "@shared/schema";
 
 interface TaxFeeFormData {
   name: string;
-  value: string; // Will be mapped to 'rate' field
+  type: "tax" | "fee" | "service_charge";
+  calculation: "percentage" | "fixed";
+  value: string;
+  applyTo: "packages" | "services" | "both" | "total";
+  description: string;
   isActive: boolean;
-  isDefault: boolean;
+  isTaxable: boolean;
+  applicableTaxIds: string[];
 }
 
 const defaultTaxFeeForm: TaxFeeFormData = {
   name: "",
+  type: "tax",
+  calculation: "percentage",
   value: "",
+  applyTo: "both",
+  description: "",
   isActive: true,
-  isDefault: false
+  isTaxable: false,
+  applicableTaxIds: []
 };
 
 export function TaxesAndFeesSettings() {
@@ -122,9 +132,15 @@ export function TaxesAndFeesSettings() {
 
     const data: InsertTaxSetting = {
       name: formData.name,
-      rate: formData.value, // Map 'value' to 'rate' field
+      type: formData.type,
+      calculation: formData.calculation,
+      rate: formData.value, // Map 'value' to 'rate' field  
+      applyTo: formData.applyTo,
+      description: formData.description || null,
       isActive: formData.isActive,
-      isDefault: formData.isDefault,
+      isDefault: false,
+      isTaxable: formData.isTaxable,
+      applicableTaxIds: formData.applicableTaxIds,
     };
 
     if (editingItem) {
@@ -140,7 +156,7 @@ export function TaxesAndFeesSettings() {
       name: item.name,
       type: item.type as "tax" | "fee" | "service_charge",
       calculation: item.calculation as "percentage" | "fixed",
-      value: item.value,
+      value: item.rate,
       applyTo: item.applyTo as "packages" | "services" | "both" | "total",
       description: item.description || "",
       isActive: item.isActive || true,
