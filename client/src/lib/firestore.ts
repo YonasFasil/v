@@ -29,12 +29,17 @@ export interface FirestoreUser {
 
 // Create or update user in Firestore
 export async function createOrUpdateUser(firebaseUser: User): Promise<FirestoreUser> {
+  console.log('createOrUpdateUser called for:', firebaseUser.email);
+  
   const userRef = doc(db, 'users', firebaseUser.uid);
+  console.log('Getting user document from Firestore...');
   const userDoc = await getDoc(userRef);
   
   const isSuperAdmin = firebaseUser.email === 'yonasfasil.sl@gmail.com';
+  console.log('Is super admin?', isSuperAdmin, 'for email:', firebaseUser.email);
   
   if (userDoc.exists()) {
+    console.log('User exists in Firestore, updating...');
     // Update existing user
     const userData = userDoc.data() as FirestoreUser;
     await updateDoc(userRef, {
@@ -44,13 +49,16 @@ export async function createOrUpdateUser(firebaseUser: User): Promise<FirestoreU
       updatedAt: serverTimestamp(),
     });
     
-    return {
+    const updatedUser = {
       ...userData,
       email: firebaseUser.email!,
       displayName: firebaseUser.displayName || undefined,
       photoURL: firebaseUser.photoURL || undefined,
     };
+    console.log('User updated in Firestore:', updatedUser);
+    return updatedUser;
   } else {
+    console.log('Creating new user in Firestore...');
     // Create new user
     const newUser: FirestoreUser = {
       uid: firebaseUser.uid,
@@ -63,6 +71,7 @@ export async function createOrUpdateUser(firebaseUser: User): Promise<FirestoreU
     };
     
     await setDoc(userRef, newUser);
+    console.log('New user created in Firestore:', newUser);
     return newUser;
   }
 }

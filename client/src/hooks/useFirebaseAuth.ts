@@ -10,9 +10,13 @@ export function useFirebaseAuth() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    console.log('Setting up Firebase auth listener...');
     const unsubscribe = onAuthChange(async (firebaseUser: User | null) => {
+      console.log('Firebase auth state changed:', firebaseUser ? `User: ${firebaseUser.email}` : 'No user');
+      
       try {
         if (firebaseUser) {
+          console.log('Creating/updating user in Firestore...');
           // Create or update user in Firestore and get the complete user data
           const firestoreUser = await createOrUpdateUser(firebaseUser);
           setUser(firestoreUser);
@@ -23,6 +27,7 @@ export function useFirebaseAuth() {
         }
       } catch (error) {
         console.error('Error syncing user with Firestore:', error);
+        console.error('Full error:', error);
         setUser(null);
       } finally {
         setIsLoading(false);

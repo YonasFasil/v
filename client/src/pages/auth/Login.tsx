@@ -55,8 +55,11 @@ export default function Login() {
 
   const handleGoogleSignIn = async () => {
     try {
+      console.log('Starting Google sign-in...');
       await signInWithGoogle();
+      console.log('Google sign-in redirect initiated');
     } catch (error: any) {
+      console.error('Google sign-in error:', error);
       toast({
         title: "Sign in failed",
         description: error.message,
