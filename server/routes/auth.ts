@@ -1,172 +1,294 @@
-import { Request, Response } from 'express';
-import { storage } from '../storage';
-import { hashPassword, verifyPassword } from '../middleware/auth';
-import type { AuthenticatedRequest } from '../middleware/auth';
-import { z } from 'zod';
+import type { Express } from "express";
+import { storage } from "../storage";
+import { requireAuth, generateToken } from "../middleware/auth";
+import { insertUserSchema } from "@shared/schema";
+import crypto from "crypto";
 
-// Validation schemas
-const loginSchema = z.object({
-  email: z.string().email('Invalid email format'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-});
+export function registerAuthRoutes(app: Express) {
+  // Signup endpoint - matches frontend call
+  app.post("/api/auth/signup", async (req, res) => {
+    try {
+      const { email, password, firstName, lastName, packageId, companyName } = req.body;
 
-const registerTenantSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  email: z.string().email('Invalid email format'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  tenantName: z.string().min(1, 'Business name is required'),
-  subdomain: z.string().min(1, 'Subdomain is required').regex(/^[a-z0-9-]+$/, 'Invalid subdomain format'),
-  businessEmail: z.string().email('Invalid business email format'),
-  businessPhone: z.string().optional(),
-  address: z.string().optional(),
-});
+      // Validate required fields
+      if (!email || !password || !firstName || !lastName || !packageId || !companyName) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
 
-// Login endpoint
-export const login = async (req: Request, res: Response) => {
-  try {
-    const { email, password } = loginSchema.parse(req.body);
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ message: "User already exists" });
+      }
 
-    // Find user by email
-    const user = await storage.getUserByEmail(email);
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid email or password' });
-    }
+      // Verify package exists
+      const selectedPackage = await storage.getFeaturePackage(packageId);
+      if (!selectedPackage) {
+        return res.status(400).json({ message: "Invalid package selected" });
+      }
 
-    // Check if user is active
-    if (!user.isActive) {
-      return res.status(401).json({ message: 'Account is deactivated' });
-    }
+      // Generate email verification token
+      const emailVerificationToken = crypto.randomBytes(32).toString('hex');
 
-    // Verify password
-    const isValidPassword = await verifyPassword(password, user.password);
-    if (!isValidPassword) {
-      return res.status(401).json({ message: 'Invalid email or password' });
-    }
-
-    // Update last login
-    await storage.updateUserLastLogin(user.id);
-
-    // Create session
-    req.session.userId = user.id;
-    req.session.userRole = user.role;
-    req.session.tenantId = user.tenantId;
-
-    // Return user data (without password)
-    const { password: _, ...userWithoutPassword } = user;
-    res.json({
-      user: userWithoutPassword,
-      message: 'Login successful'
-    });
-
-  } catch (error) {
-    console.error('Login error:', error);
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ 
-        message: 'Validation error', 
-        errors: error.errors 
+      // Create user
+      const user = await storage.createUser({
+        email,
+        firstName,
+        lastName,
+        passwordHash: password, // Will be hashed in storage
+        emailVerificationToken,
+        emailVerified: false,
       });
-    }
-    res.status(500).json({ message: 'Login failed' });
-  }
-};
 
-// Logout endpoint
-export const logout = async (req: Request, res: Response) => {
-  try {
+      // Create tenant for the user with selected package
+      const tenantSlug = companyName.toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') + '-' + Date.now().toString(36);
+
+      const tenant = await storage.createTenant({
+        name: companyName,
+        slug: tenantSlug,
+        planId: packageId,
+        contactName: `${firstName} ${lastName}`,
+        contactEmail: email,
+        ownerId: user.id,
+        status: 'active',
+      });
+
+      // Add user as owner to tenant
+      await storage.addUserToTenant({
+        tenantId: tenant.id,
+        userId: user.id,
+        role: 'owner',
+        permissions: {},
+      });
+
+      // Generate token
+      const token = generateToken(user);
+
+      // Store user in session with tenant context
+      req.session.user = {
+        id: user.id,
+        email: user.email,
+        isSuperAdmin: user.isSuperAdmin || false,
+        currentTenant: {
+          id: tenant.id,
+          slug: tenant.slug,
+          name: tenant.name,
+          role: 'owner',
+        },
+      };
+
+      // Remove sensitive data from response
+      const { passwordHash, emailVerificationToken: _, ...userResponse } = user;
+
+      res.status(201).json({
+        message: "Account created successfully",
+        user: userResponse,
+        tenant: {
+          id: tenant.id,
+          name: tenant.name,
+          slug: tenant.slug,
+          planId: tenant.planId,
+        },
+        token,
+      });
+    } catch (error: any) {
+      console.error("Signup error:", error);
+      res.status(500).json({ message: "Failed to create account. Please try again." });
+    }
+  });
+
+  // Login endpoint
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+
+      // Verify user credentials
+      const user = await storage.verifyPassword(email, password);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      // Generate token
+      const token = generateToken(user);
+
+      // Get user's primary tenant for session and response
+      const primaryTenant = await storage.getUserPrimaryTenant(user.id);
+
+      // Store user in session with tenant context
+      (req.session as any).user = {
+        id: user.id,
+        email: user.email,
+        isSuperAdmin: user.isSuperAdmin || false,
+        currentTenant: primaryTenant ? {
+          id: primaryTenant.tenant.id,
+          slug: primaryTenant.tenant.slug,
+          name: primaryTenant.tenant.name,
+          role: primaryTenant.role,
+        } : null,
+      };
+
+      // Remove sensitive data from response
+      const { passwordHash, ...userResponse } = user;
+
+      res.json({
+        message: "Login successful",
+        user: {
+          ...userResponse,
+          currentTenant: primaryTenant ? {
+            id: primaryTenant.tenant.id,
+            slug: primaryTenant.tenant.slug,
+            name: primaryTenant.tenant.name,
+            role: primaryTenant.role,
+          } : null,
+        },
+        token,
+      });
+    } catch (error: any) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  // Get current user endpoint
+  app.get("/api/auth/user", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Get user's primary tenant
+      const primaryTenant = await storage.getUserPrimaryTenant(user.id);
+
+      // Remove sensitive data from response
+      const { passwordHash, ...userResponse } = user;
+
+      res.json({
+        ...userResponse,
+        currentTenant: primaryTenant ? {
+          id: primaryTenant.tenant.id,
+          slug: primaryTenant.tenant.slug,
+          name: primaryTenant.tenant.name,
+          role: primaryTenant.role,
+        } : null,
+      });
+    } catch (error) {
+      console.error("Get user error:", error);
+      res.status(500).json({ message: "Failed to get user" });
+    }
+  });
+
+  // Logout endpoint
+  app.post("/api/auth/logout", (req, res) => {
     req.session.destroy((err) => {
       if (err) {
-        console.error('Session destruction error:', err);
-        return res.status(500).json({ message: 'Logout failed' });
+        return res.status(500).json({ message: "Logout failed" });
       }
-      res.clearCookie('venuin.sid');
-      res.json({ message: 'Logout successful' });
+      res.json({ message: "Logout successful" });
     });
-  } catch (error) {
-    console.error('Logout error:', error);
-    res.status(500).json({ message: 'Logout failed' });
-  }
-};
+  });
 
-// Get current user endpoint
-export const getCurrentUser = async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: 'Not authenticated' });
-    }
+  // Email verification endpoint
+  app.post("/api/auth/verify-email", async (req, res) => {
+    try {
+      const { token } = req.body;
 
-    // Get fresh user data
-    const user = await storage.getUser(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+      if (!token) {
+        return res.status(400).json({ message: "Verification token is required" });
+      }
 
-    // Return user data (without password)
-    const { password: _, ...userWithoutPassword } = user;
-    res.json({ user: userWithoutPassword });
+      // Find user by verification token
+      const users = await storage.getUsers(); // We need to implement this
+      const user = users.find(u => u.emailVerificationToken === token);
 
-  } catch (error) {
-    console.error('Get current user error:', error);
-    res.status(500).json({ message: 'Failed to get user data' });
-  }
-};
+      if (!user) {
+        return res.status(400).json({ message: "Invalid or expired verification token" });
+      }
 
-// Register new tenant endpoint
-export const registerTenant = async (req: Request, res: Response) => {
-  try {
-    const data = registerTenantSchema.parse(req.body);
-
-    // Check if email or subdomain already exists
-    const existingUser = await storage.getUserByEmail(data.email);
-    if (existingUser) {
-      return res.status(400).json({ message: 'Email already registered' });
-    }
-
-    const existingTenant = await storage.getTenantBySubdomain(data.subdomain);
-    if (existingTenant) {
-      return res.status(400).json({ message: 'Subdomain already taken' });
-    }
-
-    // Hash password
-    const hashedPassword = await hashPassword(data.password);
-
-    // Create tenant first
-    const tenant = await storage.createTenant({
-      name: data.tenantName,
-      subdomain: data.subdomain,
-      businessEmail: data.businessEmail,
-      businessPhone: data.businessPhone,
-      address: data.address,
-      plan: 'basic',
-      isActive: true,
-    });
-
-    // Create tenant admin user
-    const user = await storage.createUser({
-      tenantId: tenant.id,
-      username: data.email.split('@')[0], // Use email prefix as username
-      password: hashedPassword,
-      name: data.name,
-      email: data.email,
-      role: 'tenant_admin',
-      isActive: true,
-    });
-
-    // Return success (without password)
-    const { password: _, ...userWithoutPassword } = user;
-    res.status(201).json({
-      user: userWithoutPassword,
-      tenant,
-      message: 'Registration successful'
-    });
-
-  } catch (error) {
-    console.error('Registration error:', error);
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ 
-        message: 'Validation error', 
-        errors: error.errors 
+      // Update user as verified
+      await storage.updateUser(user.id, {
+        emailVerified: true,
+        emailVerificationToken: null,
       });
+
+      res.json({ message: "Email verified successfully" });
+    } catch (error) {
+      console.error("Email verification error:", error);
+      res.status(500).json({ message: "Email verification failed" });
     }
-    res.status(500).json({ message: 'Registration failed' });
-  }
-};
+  });
+
+  // Password reset request endpoint
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        // Don't reveal if email exists for security
+        return res.json({ message: "If an account with that email exists, you will receive a password reset email." });
+      }
+
+      // Generate reset token
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      await storage.updateUser(user.id, {
+        passwordResetToken: resetToken,
+        passwordResetExpires: resetExpires,
+      });
+
+      // TODO: Send email with reset token
+      
+      res.json({ message: "If an account with that email exists, you will receive a password reset email." });
+    } catch (error) {
+      console.error("Password reset request error:", error);
+      res.status(500).json({ message: "Failed to process password reset request" });
+    }
+  });
+
+  // Password reset endpoint
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { token, password } = req.body;
+
+      if (!token || !password) {
+        return res.status(400).json({ message: "Token and password are required" });
+      }
+
+      // Find user by reset token
+      const users = await storage.getUsers(); // We need to implement this
+      const user = users.find(u => 
+        u.passwordResetToken === token && 
+        u.passwordResetExpires && 
+        u.passwordResetExpires > new Date()
+      );
+
+      if (!user) {
+        return res.status(400).json({ message: "Invalid or expired reset token" });
+      }
+
+      // Update password and clear reset token
+      await storage.updateUser(user.id, {
+        passwordHash: password, // Will be hashed in storage
+        passwordResetToken: null,
+        passwordResetExpires: null,
+      });
+
+      res.json({ message: "Password reset successfully" });
+    } catch (error) {
+      console.error("Password reset error:", error);
+      res.status(500).json({ message: "Password reset failed" });
+    }
+  });
+}

@@ -1,95 +1,309 @@
-import { Request, Response, NextFunction } from 'express';
-import bcrypt from 'bcrypt';
-import { storage } from '../storage';
+import type { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
+import { storage } from "../storage";
 
-declare module 'express-session' {
-  interface SessionData {
-    userId?: string;
-    userRole?: string;
-    tenantId?: string;
-  }
-}
-
-export interface AuthenticatedRequest extends Request {
-  user?: {
+interface AuthUser {
+  id: string;
+  email: string;
+  isSuperAdmin: boolean;
+  currentTenant?: {
     id: string;
-    tenantId: string | null;
-    role: string;
+    tenantId: string;
+    slug: string;
     name: string;
-    email: string;
-    staffType?: string;
-    venueIds?: string[];
+    role: 'super_admin' | 'owner' | 'admin' | 'manager' | 'staff' | 'viewer';
+    permissions: any;
   };
 }
 
+declare global {
+  namespace Express {
+    interface Request {
+      user?: AuthUser;
+    }
+  }
+}
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+
+export interface AuthRequest extends Request {
+  user: AuthUser;
+}
+
 // Authentication middleware
-export const authenticate = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = req.session?.userId;
-    
-    if (!userId) {
+    // Check session first
+    if ((req.session as any)?.user) {
+      req.user = (req.session as any).user;
+      return next();
+    }
+
+    // Check JWT token
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    const user = await storage.getUser(userId);
-    if (!user || !user.isActive) {
-      req.session.destroy((err) => {
-        if (err) console.error('Session destruction error:', err);
-      });
-      return res.status(401).json({ message: 'Invalid session' });
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const user = await storage.getUser(decoded.id);
+    
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid token' });
     }
 
-    // Attach user to request
+    // Get user's primary tenant for proper role-based access
+    const primaryTenant = await storage.getUserPrimaryTenant(user.id);
+
     req.user = {
       id: user.id,
-      tenantId: user.tenantId,
-      role: user.role,
-      name: user.name,
       email: user.email,
-      staffType: user.staffType || undefined,
-      venueIds: user.assignedVenueIds || [],
+      isSuperAdmin: user.isSuperAdmin || false,
+      currentTenant: primaryTenant ? {
+        id: primaryTenant.tenant.id,
+        tenantId: primaryTenant.tenant.id,
+        slug: primaryTenant.tenant.slug,
+        name: primaryTenant.tenant.name,
+        role: primaryTenant.role as any,
+        permissions: (primaryTenant as any).permissions || {},
+      } : undefined,
     };
 
+    // Store in session for future requests
+    (req.session as any).user = req.user;
+
     next();
   } catch (error) {
-    console.error('Authentication error:', error);
-    res.status(500).json({ message: 'Authentication failed' });
+    return res.status(401).json({ message: 'Invalid token' });
   }
 };
 
-// Optional authentication middleware (doesn't require login)
-export const optionalAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  try {
-    const userId = req.session?.userId;
-    
-    if (userId) {
-      const user = await storage.getUser(userId);
-      if (user && user.isActive) {
-        req.user = {
-          id: user.id,
-          tenantId: user.tenantId,
-          role: user.role,
-          name: user.name,
-          email: user.email,
-          staffType: user.staffType || undefined,
-          venueIds: user.assignedVenueIds || [],
-        };
-      }
+// Super admin middleware - Platform Owner (Level 1)
+export const requireSuperAdmin = async (req: Request, res: Response, next: NextFunction) => {
+  // Ensure user is authenticated first
+  if (!req.user) {
+    await requireAuth(req, res, () => {});
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required' });
     }
-
-    next();
-  } catch (error) {
-    console.error('Optional auth error:', error);
-    next(); // Continue without authentication
   }
+  
+  if (!req.user.isSuperAdmin) {
+    return res.status(403).json({ message: 'Super admin access required' });
+  }
+  next();
 };
 
-// Helper function to hash passwords
-export const hashPassword = async (password: string): Promise<string> => {
-  return bcrypt.hash(password, 12);
+// Tenant admin middleware - Account Owner (Level 2)
+export const requireTenantAdmin = (req: Request, res: Response, next: NextFunction) => {
+  const user = req.user;
+  if (!user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+  
+  // Super admin can access any tenant
+  if (user.isSuperAdmin) {
+    return next();
+  }
+  
+  // Must be tenant owner/admin
+  if (!user.currentTenant || !['owner', 'admin'].includes(user.currentTenant.role)) {
+    return res.status(403).json({ message: 'Tenant admin access required' });
+  }
+  
+  next();
 };
 
-// Helper function to verify passwords
-export const verifyPassword = async (password: string, hashedPassword: string): Promise<boolean> => {
-  return bcrypt.compare(password, hashedPassword);
+// Staff access middleware - Team Member (Level 3)
+export const requireStaffAccess = (req: Request, res: Response, next: NextFunction) => {
+  const user = req.user;
+  if (!user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+  
+  // Super admin can access anything
+  if (user.isSuperAdmin) {
+    return next();
+  }
+  
+  // Must be part of a tenant with staff+ privileges
+  if (!user.currentTenant || !['owner', 'admin', 'manager', 'staff'].includes(user.currentTenant.role)) {
+    return res.status(403).json({ message: 'Staff access required' });
+  }
+  
+  next();
+};
+
+// Viewer access middleware - Read-Only (Level 4)  
+export const requireViewerAccess = (req: Request, res: Response, next: NextFunction) => {
+  const user = req.user;
+  if (!user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+  
+  // Super admin can access anything
+  if (user.isSuperAdmin) {
+    return next();
+  }
+  
+  // Must be part of a tenant
+  if (!user.currentTenant) {
+    return res.status(403).json({ message: 'Tenant access required' });
+  }
+  
+  next();
+};
+
+// Permission checker for specific actions
+export const requirePermission = (permission: string) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+    
+    // Super admin has all permissions
+    if (user.isSuperAdmin) {
+      return next();
+    }
+    
+    // Check tenant-level permissions
+    if (!user.currentTenant) {
+      return res.status(403).json({ message: 'Tenant access required' });
+    }
+    
+    // Owner and admin have all permissions by default
+    if (['owner', 'admin'].includes(user.currentTenant.role)) {
+      return next();
+    }
+    
+    // Check specific permission for other roles
+    const permissions = user.currentTenant.permissions || {};
+    if (!permissions[permission]) {
+      return res.status(403).json({ message: `Permission required: ${permission}` });
+    }
+    
+    next();
+  };
+};
+
+// Feature access control middleware
+export const requireFeature = (feature: string) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+    
+    // Super admin has access to all features
+    if (user.isSuperAdmin) {
+      return next();
+    }
+    
+    // Check if user has access through their tenant's package
+    if (!user.currentTenant) {
+      return res.status(403).json({ message: 'Tenant access required' });
+    }
+    
+    try {
+      const tenant = await storage.getTenant(user.currentTenant.id);
+      if (!tenant?.planId) {
+        return res.status(403).json({ message: 'No plan assigned to tenant' });
+      }
+      
+      const featurePackage = await storage.getFeaturePackage(tenant.planId);
+      if (!featurePackage) {
+        return res.status(403).json({ message: 'Invalid plan configuration' });
+      }
+      
+      const features = featurePackage.features as Record<string, boolean>;
+      if (!features[feature]) {
+        return res.status(403).json({ 
+          message: `Feature '${feature}' not available in your current plan`,
+          featureRequired: feature
+        });
+      }
+      
+      next();
+    } catch (error) {
+      console.error('Feature access check error:', error);
+      res.status(500).json({ message: 'Error checking feature access' });
+    }
+  };
+};
+
+// Check usage limits middleware
+export const checkUsageLimit = (limitType: string) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+    
+    // Super admin bypasses all limits
+    if (user.isSuperAdmin) {
+      return next();
+    }
+    
+    if (!user.currentTenant) {
+      return res.status(403).json({ message: 'Tenant access required' });
+    }
+    
+    try {
+      const tenant = await storage.getTenant(user.currentTenant.id);
+      if (!tenant?.planId) {
+        return res.status(403).json({ message: 'No plan assigned to tenant' });
+      }
+      
+      const featurePackage = await storage.getFeaturePackage(tenant.planId);
+      if (!featurePackage) {
+        return res.status(403).json({ message: 'Invalid plan configuration' });
+      }
+      
+      const limits = featurePackage.limits as Record<string, number>;
+      const limit = limits[limitType];
+      
+      if (limit !== undefined && limit > 0) {
+        // Check current usage based on limit type
+        let currentUsage = 0;
+        
+        switch (limitType) {
+          case 'maxUsers':
+          case 'staff':
+            const tenantUsers = await storage.getTenantUsers(user.currentTenant.id);
+            currentUsage = tenantUsers.length;
+            break;
+          case 'maxVenues':
+          case 'venues':
+            const venues = await storage.getVenues(user.currentTenant.id);
+            currentUsage = venues.length;
+            break;
+          // Add more limit checks as needed
+        }
+        
+        if (currentUsage >= limit) {
+          return res.status(403).json({ 
+            message: `Usage limit exceeded for ${limitType}. Current: ${currentUsage}, Limit: ${limit}`,
+            limitType,
+            currentUsage,
+            limit
+          });
+        }
+      }
+      
+      next();
+    } catch (error) {
+      console.error('Usage limit check error:', error);
+      res.status(500).json({ message: 'Error checking usage limits' });
+    }
+  };
+};
+
+// Generate JWT token
+export const generateToken = (user: { id: string; email: string }) => {
+  return jwt.sign(
+    { id: user.id, email: user.email },
+    JWT_SECRET,
+    { expiresIn: '7d' }
+  );
 };

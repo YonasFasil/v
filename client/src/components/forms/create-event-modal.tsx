@@ -329,9 +329,9 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
         if (feeSetting && (feeSetting.type === 'fee' || feeSetting.type === 'service_charge')) {
           if (feeSetting.calculation === 'percentage') {
-            feesTotal += (packageSubtotal * parseFloat(feeSetting.value)) / 100;
+            feesTotal += (packageSubtotal * parseFloat(feeSetting.rate)) / 100;
           } else {
-            feesTotal += parseFloat(feeSetting.value);
+            feesTotal += parseFloat(feeSetting.rate);
           }
         }
       });
@@ -340,7 +340,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
       (selectedPackage.enabledTaxIds || []).forEach(taxId => {
         const taxSetting = (taxSettings as any[])?.find((s: any) => s.id === taxId && s.isActive);
         if (taxSetting) {
-          taxesTotal += (packageSubtotal * parseFloat(taxSetting.value)) / 100;
+          taxesTotal += (packageSubtotal * parseFloat(taxSetting.rate)) / 100;
         }
       });
     }
@@ -388,9 +388,9 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
           if (feeSetting && (feeSetting.type === 'fee' || feeSetting.type === 'service_charge')) {
             let feeAmount = 0;
             if (feeSetting.calculation === 'percentage') {
-              feeAmount = (serviceSubtotal * parseFloat(feeSetting.value)) / 100;
+              feeAmount = (serviceSubtotal * parseFloat(feeSetting.rate)) / 100;
             } else {
-              feeAmount = parseFloat(feeSetting.value);
+              feeAmount = parseFloat(feeSetting.rate);
             }
             feesTotal += feeAmount;
             serviceFeeAmount += feeAmount;
@@ -410,15 +410,15 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
               if (feeSetting && feeSetting.isTaxable && (feeSetting.applicableTaxIds || []).includes(taxId)) {
                 let feeAmount = 0;
                 if (feeSetting.calculation === 'percentage') {
-                  feeAmount = (serviceSubtotal * parseFloat(feeSetting.value)) / 100;
+                  feeAmount = (serviceSubtotal * parseFloat(feeSetting.rate)) / 100;
                 } else {
-                  feeAmount = parseFloat(feeSetting.value);
+                  feeAmount = parseFloat(feeSetting.rate);
                 }
                 taxableAmount += feeAmount;
               }
             });
             
-            const taxAmount = (taxableAmount * parseFloat(taxSetting.value)) / 100;
+            const taxAmount = (taxableAmount * parseFloat(taxSetting.rate)) / 100;
             console.log('Applying tax:', taxSetting.name, 'to service:', service.name, 'taxable amount:', taxableAmount, 'tax amount:', taxAmount);
             taxesTotal += taxAmount;
           }
@@ -1569,11 +1569,11 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                                     <span className="font-medium">Inherited from package:</span>
                                                     {(pkg.appliedTaxes || []).map((taxId: string) => {
                                                       const tax = (taxSettings as any[])?.find((t: any) => t.id === taxId);
-                                                      return tax ? ` ${tax.name} (${tax.value}%)` : '';
+                                                      return tax ? ` ${tax.name} (${tax.rate}%)` : '';
                                                     }).join(', ')}
                                                     {(pkg.appliedFees || []).map((feeId: string) => {
                                                       const fee = (taxSettings as any[])?.find((f: any) => f.id === feeId);
-                                                      return fee ? ` ${fee.name} ($${fee.value})` : '';
+                                                      return fee ? ` ${fee.name} ($${fee.rate})` : '';
                                                     }).join(', ')}
                                                   </div>
                                                 )}
@@ -1629,7 +1629,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                                                 className="w-3 h-3"
                                                               />
                                                               <span className={isInherited ? "text-blue-600" : "text-slate-700"}>
-                                                                {tax.name} ({tax.value}%)
+                                                                {tax.name} ({tax.rate}%)
                                                                 {isInherited && " ✓"}
                                                               </span>
                                                             </label>
@@ -1690,7 +1690,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                                                 className="w-3 h-3"
                                                               />
                                                               <span className={isInherited ? "text-blue-600" : "text-slate-700"}>
-                                                                {fee.name} (${fee.value})
+                                                                {fee.name} (${fee.rate})
                                                                 {isInherited && " ✓"}
                                                               </span>
                                                             </label>
@@ -1889,11 +1889,11 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                                     <span className="font-medium">Inherited from service:</span>
                                                     {(service.appliedTaxes || []).map((taxId: string) => {
                                                       const tax = (taxSettings as any[])?.find((t: any) => t.id === taxId);
-                                                      return tax ? ` ${tax.name} (${tax.value}%)` : '';
+                                                      return tax ? ` ${tax.name} (${tax.rate}%)` : '';
                                                     }).join(', ')}
                                                     {(service.appliedFees || []).map((feeId: string) => {
                                                       const fee = (taxSettings as any[])?.find((f: any) => f.id === feeId);
-                                                      return fee ? ` ${fee.name} ($${fee.value})` : '';
+                                                      return fee ? ` ${fee.name} ($${fee.rate})` : '';
                                                     }).join(', ')}
                                                   </div>
                                                 )}
@@ -1949,7 +1949,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                                                 className="w-3 h-3"
                                                               />
                                                               <span className={isInherited ? "text-blue-600" : "text-slate-700"}>
-                                                                {tax.name} ({tax.value}%)
+                                                                {tax.name} ({tax.rate}%)
                                                                 {isInherited && " ✓"}
                                                               </span>
                                                             </label>
@@ -2010,7 +2010,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                                                 className="w-3 h-3"
                                                               />
                                                               <span className={isInherited ? "text-blue-600" : "text-slate-700"}>
-                                                                {fee.name} (${fee.value})
+                                                                {fee.name} (${fee.rate})
                                                                 {isInherited && " ✓"}
                                                               </span>
                                                             </label>
@@ -2311,9 +2311,9 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                       if (feeSetting && (feeSetting.type === 'fee' || feeSetting.type === 'service_charge')) {
                                         let feeAmount = 0;
                                         if (feeSetting.calculation === 'percentage') {
-                                          feeAmount = (packageSubtotal * parseFloat(feeSetting.value)) / 100;
+                                          feeAmount = (packageSubtotal * parseFloat(feeSetting.rate)) / 100;
                                         } else {
-                                          feeAmount = parseFloat(feeSetting.value);
+                                          feeAmount = parseFloat(feeSetting.rate);
                                         }
                                         
                                         const existing = feeMap.get(feeId) || {name: feeSetting.name, amount: 0};
@@ -2326,7 +2326,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                     (pkg.enabledTaxIds || []).forEach((taxId: string) => {
                                       const taxSetting = (taxSettings as any[])?.find((s: any) => s.id === taxId && s.isActive);
                                       if (taxSetting) {
-                                        const taxAmount = (packageSubtotal * parseFloat(taxSetting.value)) / 100;
+                                        const taxAmount = (packageSubtotal * parseFloat(taxSetting.rate)) / 100;
                                         
                                         const existing = taxMap.get(taxId) || {name: taxSetting.name, amount: 0};
                                         taxMap.set(taxId, {name: taxSetting.name, amount: existing.amount + taxAmount});
@@ -2383,9 +2383,9 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                       if (feeSetting && (feeSetting.type === 'fee' || feeSetting.type === 'service_charge')) {
                                         let feeAmount = 0;
                                         if (feeSetting.calculation === 'percentage') {
-                                          feeAmount = (serviceSubtotal * parseFloat(feeSetting.value)) / 100;
+                                          feeAmount = (serviceSubtotal * parseFloat(feeSetting.rate)) / 100;
                                         } else {
-                                          feeAmount = parseFloat(feeSetting.value);
+                                          feeAmount = parseFloat(feeSetting.rate);
                                         }
                                         
                                         const existing = feeMap.get(feeId) || {name: feeSetting.name, amount: 0};
@@ -2407,15 +2407,15 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                           if (feeSetting && feeSetting.isTaxable && (feeSetting.applicableTaxIds || []).includes(taxId)) {
                                             let feeAmount = 0;
                                             if (feeSetting.calculation === 'percentage') {
-                                              feeAmount = (serviceSubtotal * parseFloat(feeSetting.value)) / 100;
+                                              feeAmount = (serviceSubtotal * parseFloat(feeSetting.rate)) / 100;
                                             } else {
-                                              feeAmount = parseFloat(feeSetting.value);
+                                              feeAmount = parseFloat(feeSetting.rate);
                                             }
                                             taxableAmount += feeAmount;
                                           }
                                         });
                                         
-                                        const taxAmount = (taxableAmount * parseFloat(taxSetting.value)) / 100;
+                                        const taxAmount = (taxableAmount * parseFloat(taxSetting.rate)) / 100;
                                         
                                         const existing = taxMap.get(taxId) || {name: taxSetting.name, amount: 0};
                                         taxMap.set(taxId, {name: taxSetting.name, amount: existing.amount + taxAmount});
@@ -2959,9 +2959,9 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                           if (feeSetting && (feeSetting.type === 'fee' || feeSetting.type === 'service_charge')) {
                             let feeAmount = 0;
                             if (feeSetting.calculation === 'percentage') {
-                              feeAmount = (serviceSubtotal * parseFloat(feeSetting.value)) / 100;
+                              feeAmount = (serviceSubtotal * parseFloat(feeSetting.rate)) / 100;
                             } else {
-                              feeAmount = parseFloat(feeSetting.value);
+                              feeAmount = parseFloat(feeSetting.rate);
                             }
                             
                             const existing = feeBreakdown.find(f => f.name === feeSetting.name);
@@ -2990,15 +2990,15 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                               if (feeSetting && feeSetting.isTaxable && (feeSetting.applicableTaxIds || []).includes(taxId)) {
                                 let feeAmount = 0;
                                 if (feeSetting.calculation === 'percentage') {
-                                  feeAmount = (serviceSubtotal * parseFloat(feeSetting.value)) / 100;
+                                  feeAmount = (serviceSubtotal * parseFloat(feeSetting.rate)) / 100;
                                 } else {
-                                  feeAmount = parseFloat(feeSetting.value);
+                                  feeAmount = parseFloat(feeSetting.rate);
                                 }
                                 taxableAmount += feeAmount;
                               }
                             });
                             
-                            const taxAmount = (taxableAmount * parseFloat(taxSetting.value)) / 100;
+                            const taxAmount = (taxableAmount * parseFloat(taxSetting.rate)) / 100;
                             
                             const existing = taxBreakdown.find(t => t.name === taxSetting.name);
                             if (existing) {

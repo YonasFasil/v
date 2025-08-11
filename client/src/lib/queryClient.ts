@@ -12,13 +12,9 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
-
-  // Add dev admin header if role is set in localStorage
-  const devRole = localStorage.getItem('dev-admin-role');
-  if (devRole) {
-    headers['X-Dev-Admin'] = 'true';
-  }
+  const headers: HeadersInit = data ? { "Content-Type": "application/json" } : {};
+  
+  // Using session-based authentication with PostgreSQL
 
   const res = await fetch(url, {
     method,
@@ -37,13 +33,9 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const headers: Record<string, string> = {};
+    const headers: HeadersInit = {};
     
-    // Add dev admin header if role is set in localStorage
-    const devRole = localStorage.getItem('dev-admin-role');
-    if (devRole) {
-      headers['X-Dev-Admin'] = 'true';
-    }
+    // Using session-based authentication with PostgreSQL
 
     const res = await fetch(queryKey.join("/") as string, {
       credentials: "include",

@@ -1,11 +1,10 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { useQuery } from "@tanstack/react-query";
+import { useDashboardData } from "@/contexts/dashboard-context";
 import { Calendar, Clock, Users, Star, TrendingUp, AlertCircle } from "lucide-react";
 import { format, isToday, parseISO } from "date-fns";
 
 export function QuickStats() {
-  const { data: bookings } = useQuery({ queryKey: ["/api/bookings"] });
-  const { data: customers } = useQuery({ queryKey: ["/api/customers"] });
+  const { bookings, customers } = useDashboardData();
 
   const getQuickStats = () => {
     if (!bookings || !customers || !Array.isArray(bookings) || !Array.isArray(customers)) {
