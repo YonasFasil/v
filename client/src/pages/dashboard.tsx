@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
@@ -6,21 +6,25 @@ import { MobileNav } from "@/components/layout/mobile-nav";
 import { MetricsGrid } from "@/components/dashboard/metrics-grid";
 import { AdvancedCalendar } from "@/components/dashboard/advanced-calendar";
 import { RecentBookings } from "@/components/dashboard/recent-bookings";
-import { AIRecommendations } from "@/components/dashboard/ai-recommendations";
-import { ActiveLeads } from "@/components/dashboard/active-leads";
 import { QuickActions } from "@/components/dashboard/quick-actions";
-import { VenueUtilization } from "@/components/dashboard/venue-utilization";
-import { UpcomingEvents } from "@/components/dashboard/upcoming-events";
-import { RevenueChart } from "@/components/dashboard/revenue-chart";
-import { QuickStats } from "@/components/dashboard/quick-stats";
-import { TaskOverview } from "@/components/dashboard/task-overview";
-import { WeatherDate } from "@/components/dashboard/weather-date";
 import { EventEditFullModal } from "@/components/forms/event-edit-full-modal";
 import { EventSummaryModal } from "@/components/forms/event-summary-modal";
 import { CreateEventModal } from "@/components/forms/create-event-modal";
-import { VoiceBookingModal } from "@/components/ai/voice-booking-modal";
+
+// Lazy load non-critical components
+const AIRecommendations = lazy(() => import("@/components/dashboard/ai-recommendations").then(module => ({ default: module.AIRecommendations })));
+const ActiveLeads = lazy(() => import("@/components/dashboard/active-leads").then(module => ({ default: module.ActiveLeads })));
+const VenueUtilization = lazy(() => import("@/components/dashboard/venue-utilization").then(module => ({ default: module.VenueUtilization })));
+const UpcomingEvents = lazy(() => import("@/components/dashboard/upcoming-events").then(module => ({ default: module.UpcomingEvents })));
+const RevenueChart = lazy(() => import("@/components/dashboard/revenue-chart").then(module => ({ default: module.RevenueChart })));
+const QuickStats = lazy(() => import("@/components/dashboard/quick-stats").then(module => ({ default: module.QuickStats })));
+const TaskOverview = lazy(() => import("@/components/dashboard/task-overview").then(module => ({ default: module.TaskOverview })));
+const WeatherDate = lazy(() => import("@/components/dashboard/weather-date").then(module => ({ default: module.WeatherDate })));
+const VoiceBookingModal = lazy(() => import("@/components/ai/voice-booking-modal").then(module => ({ default: module.VoiceBookingModal })));
 
 export default function Dashboard() {
+  // TODO: This dashboard will be replaced with OptimizedDashboard
+  // For now, keeping both for gradual migration
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
@@ -110,7 +114,9 @@ export default function Dashboard() {
           
           {/* Quick Stats Section */}
           <div className="mb-6">
-            <QuickStats />
+            <Suspense fallback={<div className="h-32 bg-gray-100 rounded-lg animate-pulse" />}>
+              <QuickStats />
+            </Suspense>
           </div>
           
           {/* Full-width Calendar */}
@@ -127,14 +133,20 @@ export default function Dashboard() {
             
             {/* Right Column - Side Widgets */}
             <div className="lg:col-span-4 space-y-6">
-              <WeatherDate />
-              <ActiveLeads />
+              <Suspense fallback={<div className="h-32 bg-gray-100 rounded-lg animate-pulse" />}>
+                <WeatherDate />
+              </Suspense>
+              <Suspense fallback={<div className="h-32 bg-gray-100 rounded-lg animate-pulse" />}>
+                <ActiveLeads />
+              </Suspense>
             </div>
           </div>
           
           {/* AI Recommendations - Full Width */}
           <div className="mb-6">
-            <AIRecommendations />
+            <Suspense fallback={<div className="h-32 bg-gray-100 rounded-lg animate-pulse" />}>
+              <AIRecommendations />
+            </Suspense>
           </div>
         </main>
 
@@ -164,15 +176,17 @@ export default function Dashboard() {
         />
 
         {/* AI Voice Booking Modal */}
-        <VoiceBookingModal
-          open={showVoiceBookingModal}
-          onOpenChange={setShowVoiceBookingModal}
-          onEventCreated={() => {
-            setShowVoiceBookingModal(false);
-            // Refresh data
-            window.location.reload();
-          }}
-        />
+        <Suspense fallback={null}>
+          <VoiceBookingModal
+            open={showVoiceBookingModal}
+            onOpenChange={setShowVoiceBookingModal}
+            onEventCreated={() => {
+              setShowVoiceBookingModal(false);
+              // Refresh data
+              window.location.reload();
+            }}
+          />
+        </Suspense>
       </div>
     </div>
   );

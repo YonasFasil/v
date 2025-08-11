@@ -8,6 +8,7 @@ import { registerSuperAdminRoutes } from "./routes/superadmin";
 import { registerDevRoutes } from "./routes/dev";
 import { registerOnboardingRoutes } from "./routes/onboarding";
 import { registerTenantRoutes } from "./routes/tenant";
+import { registerDashboardRoutes } from "./routes/dashboard";
 import { EmailService } from "./services/email";
 import { gmailService } from "./services/gmail";
 import { NotificationService } from "./services/notification";
@@ -30,14 +31,7 @@ import {
   insertLeadTaskSchema,
   insertTourSchema
 } from "@shared/schema";
-import { 
-  generateAIInsights,
-  generateSmartScheduling,
-  generateEmailReply,
-  scoreLeadPriority,
-  generateProposal,
-  parseVoiceToBooking
-} from "./services/gemini";
+import { aiService } from "./services/ai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Add session middleware
@@ -71,6 +65,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register tenant management routes
   registerTenantRoutes(app);
+  
+  // Register optimized dashboard routes
+  registerDashboardRoutes(app);
 
   // Register development helper routes
   registerDevRoutes(app);
