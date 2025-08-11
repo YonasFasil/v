@@ -58,7 +58,12 @@ export default function Login() {
         if (result.user.isSuperAdmin) {
           setLocation('/super-admin');
         } else {
-          setLocation('/onboarding');
+          // Redirect to tenant dashboard or home page
+          if (result.user.currentTenant?.slug) {
+            setLocation(`/t/${result.user.currentTenant.slug}/app`);
+          } else {
+            setLocation('/');
+          }
         }
       } else {
         setError(result.message || "Login failed");

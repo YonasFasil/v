@@ -1480,7 +1480,7 @@ function StripePaymentSection() {
                     // Initialize the connection process
                     try {
                       await apiRequest("POST", "/api/stripe/connect/initialize");
-                      // Open the Stripe Connect onboarding
+                      // Open the Stripe Connect setup
                       window.open(
                         "https://connect.stripe.com/d/setup/s/_SqBRbOzYAs1NHOUIfHZJLBpBD4/YWNjdF8xUnVWNHlSQ1ROTFBEaDJ2/9f48a3151cb6a548c",
                         "_blank"

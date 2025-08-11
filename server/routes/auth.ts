@@ -118,12 +118,23 @@ export function registerAuthRoutes(app: Express) {
         isSuperAdmin: user.isSuperAdmin || false,
       };
 
+      // Get user's primary tenant for redirect
+      const primaryTenant = await storage.getUserPrimaryTenant(user.id);
+
       // Remove sensitive data from response
       const { passwordHash, ...userResponse } = user;
 
       res.json({
         message: "Login successful",
-        user: userResponse,
+        user: {
+          ...userResponse,
+          currentTenant: primaryTenant ? {
+            id: primaryTenant.tenant.id,
+            slug: primaryTenant.tenant.slug,
+            name: primaryTenant.tenant.name,
+            role: primaryTenant.role,
+          } : null,
+        },
         token,
       });
     } catch (error: any) {
