@@ -2655,7 +2655,7 @@ This is a test email from your Venuine venue management system.
       
       if (customer) {
         // Redirect to the customer-facing proposal view
-        return res.redirect(`/proposal/view/${customer.id}`);
+        return res.redirect(`/proposal/${proposalId}`);
       } else {
         // Fallback redirect
         return res.redirect('/');
@@ -2664,6 +2664,29 @@ This is a test email from your Venuine venue management system.
       console.error("Error tracking proposal click:", error);
       // Redirect to home page on error
       return res.redirect('/');
+    }
+  });
+
+  // Track proposal views
+  app.post("/api/proposals/:id/track-view", async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const proposal = await storage.getProposal(id);
+      if (!proposal) {
+        return res.status(404).json({ error: "Proposal not found" });
+      }
+
+      // Update proposal view tracking
+      await storage.updateProposal(id, {
+        status: proposal.status === 'sent' ? 'viewed' : proposal.status
+      });
+      
+      console.log(`Proposal ${id} view tracked`);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error tracking proposal view:", error);
+      res.status(500).json({ error: "Failed to track view" });
     }
   });
 

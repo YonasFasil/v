@@ -1,462 +1,396 @@
-import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useParams, useLocation } from "wouter";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, MapPin, Users, CheckCircle, CreditCard, Download, FileText } from "lucide-react";
-import { format } from "date-fns";
-import { useToast } from "@/hooks/use-toast";
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
-
-// Load Stripe
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || '');
-
-// Payment Form Component
-interface PaymentFormProps {
-  proposalId: string;
-  amount: number;
-  onSuccess: () => void;
-}
-
-function PaymentForm({ proposalId, amount, onSuccess }: PaymentFormProps) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const { toast } = useToast();
-  const [processing, setProcessing] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!stripe || !elements) {
-      return;
-    }
-
-    setProcessing(true);
-
-    try {
-      const { error } = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: window.location.href,
-        },
-        redirect: 'if_required'
-      });
-
-      if (error) {
-        toast({
-          title: "Payment Failed",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        // Payment succeeded, notify the backend
-        await fetch(`/api/proposals/${proposalId}/payment-completed`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            paymentAmount: amount,
-            paymentType: 'deposit',
-            paymentMethod: 'card',
-            transactionId: Date.now().toString()
-          }),
-        });
-
-        onSuccess();
-      }
-    } catch (err: any) {
-      toast({
-        title: "Payment Error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <PaymentElement />
-      <Button 
-        type="submit" 
-        disabled={!stripe || processing} 
-        className="w-full"
-      >
-        {processing ? "Processing..." : `Pay $${amount}`}
-      </Button>
-    </form>
-  );
-}
+import { CheckCircle, Calendar, Clock, MapPin, Users, Mail, Phone, ArrowRight, Sparkles } from "lucide-react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface ProposalData {
   id: string;
-  eventName: string;
-  customerName: string;
-  customerEmail: string;
-  totalAmount: number;
-  status: 'pending' | 'accepted' | 'declined';
-  proposalSentAt: string;
-  validUntil: string;
-  eventDates: Array<{
-    date: string;
-    startTime: string;
-    endTime: string;
-    venue: string;
-    space: string;
-    guestCount: number;
-    packageName?: string;
-    services?: Array<{
-      name: string;
-      price: number;
-    }>;
-  }>;
-  companyInfo: {
+  title: string;
+  content: string;
+  totalAmount: string;
+  depositAmount?: string;
+  status: string;
+  validUntil?: string;
+  eventType?: string;
+  eventDate?: string;
+  startTime?: string;
+  endTime?: string;
+  guestCount?: number;
+  customer?: {
+    id: string;
     name: string;
-    address: string;
-    phone: string;
     email: string;
+    phone?: string;
+    company?: string;
   };
+  venue?: {
+    name: string;
+    description?: string;
+  };
+  space?: {
+    name: string;
+    description?: string;
+  };
+  services?: Array<{
+    name: string;
+    description?: string;
+    price: string;
+  }>;
 }
 
 export default function ProposalView() {
+  const { customerId } = useParams();
   const [location] = useLocation();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [showPayment, setShowPayment] = useState(false);
-  const [signaturePad, setSignaturePad] = useState("");
-  const [clientSecret, setClientSecret] = useState("");
+  const [isAccepting, setIsAccepting] = useState(false);
   
-  // Extract proposal ID from URL
-  const proposalId = location.split('/').pop();
-
-  // Fetch proposal data
-  const { data: proposal, isLoading, error } = useQuery<ProposalData>({
-    queryKey: ['/api/proposals/view', proposalId],
-    enabled: !!proposalId,
-  });
-
-  // Accept proposal mutation
-  const acceptProposal = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(`/api/proposals/${proposal?.id}/accept`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ signature: signaturePad })
-      });
-      if (!response.ok) throw new Error('Failed to accept proposal');
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Proposal Accepted!",
-        description: "Thank you for accepting our proposal. You can now proceed with payment.",
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/proposals/view', proposalId] });
-      setShowPayment(true);
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to accept proposal. Please try again.",
-        variant: "destructive"
-      });
-    }
-  });
-
-  // Decline proposal mutation
-  const declineProposal = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(`/api/proposals/${proposal?.id}/decline`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      if (!response.ok) throw new Error('Failed to decline proposal');
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Proposal Declined",
-        description: "Thank you for your response. We'll be in touch soon.",
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/proposals/view', proposalId] });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to decline proposal. Please try again.",
-        variant: "destructive"
-      });
-    }
-  });
-
-  // Initialize payment when user accepts proposal
+  // Track proposal view automatically when page loads
   useEffect(() => {
-    if (showPayment && proposal && !clientSecret) {
-      fetch(`/api/proposals/${proposal.id}/create-payment-intent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      })
-      .then(res => res.json())
-      .then(data => setClientSecret(data.clientSecret))
-      .catch(err => {
-        toast({
-          title: "Payment Error",
-          description: "Failed to initialize payment. Please refresh and try again.",
-          variant: "destructive"
-        });
-      });
+    const proposalId = location.split('/').pop();
+    if (proposalId) {
+      // Track that this proposal was viewed
+      apiRequest("POST", `/api/proposals/${proposalId}/track-view`, {})
+        .catch(error => console.log("View tracking failed:", error));
     }
-  }, [showPayment, proposal, clientSecret, toast]);
+  }, [location]);
+
+  const { data: proposal, isLoading, error } = useQuery({
+    queryKey: ["/api/proposals/view", customerId],
+    queryFn: () => {
+      const proposalId = location.split('/').pop();
+      return apiRequest("GET", `/api/proposals/view/${proposalId}`);
+    },
+    enabled: !!customerId,
+  });
+
+  const acceptProposalMutation = useMutation({
+    mutationFn: async () => {
+      if (!proposal?.id) throw new Error("No proposal ID");
+      return apiRequest("POST", `/api/proposals/${proposal.id}/accept`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/proposals/view", customerId] });
+      // Redirect to payment page (we'll implement this later)
+      window.location.href = `/proposal/${customerId}/payment`;
+    }
+  });
+
+  const handleAcceptProposal = () => {
+    setIsAccepting(true);
+    acceptProposalMutation.mutate();
+  };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full"></div>
       </div>
     );
   }
 
   if (error || !proposal) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardHeader>
-            <CardTitle className="text-destructive">Proposal Not Found</CardTitle>
-            <CardDescription>
-              The proposal you're looking for doesn't exist or has expired.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto px-6">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Mail className="w-8 h-8 text-red-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Proposal Not Found</h1>
+          <p className="text-gray-600">The proposal you're looking for doesn't exist or may have expired.</p>
+        </div>
       </div>
     );
   }
 
-  const isExpired = new Date() > new Date(proposal.validUntil);
-  const isAccepted = proposal.status === 'accepted';
-  const isDeclined = proposal.status === 'declined';
+  const eventDate = proposal.eventDate ? new Date(proposal.eventDate) : null;
+  const validUntil = proposal.validUntil ? new Date(proposal.validUntil) : null;
+  const isExpired = validUntil && validUntil < new Date();
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">{proposal.eventName}</h1>
-              <p className="text-lg text-gray-600">Event Proposal for {proposal.customerName}</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+      {/* Hero Section */}
+      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800">
+        <div className="absolute inset-0 bg-black/20"></div>
+        <div className="relative max-w-7xl mx-auto px-6 py-24">
+          <div className="text-center">
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
+              <Sparkles className="w-4 h-4 text-yellow-300" />
+              <span className="text-white text-sm font-medium">Exclusive Event Proposal</span>
             </div>
-            <div className="text-right">
-              <Badge 
-                variant={isAccepted ? "default" : isDeclined ? "destructive" : isExpired ? "secondary" : "outline"}
-                className="text-sm"
+            <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 tracking-tight">
+              {proposal.title || "Your Event Proposal"}
+            </h1>
+            <p className="text-xl text-blue-100 max-w-2xl mx-auto mb-8">
+              We've crafted a personalized experience designed to make your event extraordinary.
+            </p>
+            {!isExpired && proposal.status !== 'accepted' && (
+              <Button 
+                onClick={handleAcceptProposal}
+                disabled={isAccepting || acceptProposalMutation.isPending}
+                className="bg-white text-blue-600 hover:bg-blue-50 px-8 py-4 text-lg font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
               >
-                {isAccepted ? "Accepted" : isDeclined ? "Declined" : isExpired ? "Expired" : "Pending Review"}
-              </Badge>
-            </div>
+                {isAccepting || acceptProposalMutation.isPending ? (
+                  <>
+                    <div className="animate-spin w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full mr-2"></div>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    Accept Proposal
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </>
+                )}
+              </Button>
+            )}
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div>
-              <span className="font-medium">Proposal Sent:</span> {format(new Date(proposal.proposalSentAt), 'MMMM d, yyyy')}
-            </div>
-            <div>
-              <span className="font-medium">Valid Until:</span> {format(new Date(proposal.validUntil), 'MMMM d, yyyy')}
-            </div>
-            <div>
-              <span className="font-medium">Total Investment:</span> 
-              <span className="text-2xl font-bold text-green-600 ml-2">${proposal.totalAmount.toLocaleString()}</span>
+        </div>
+      </div>
+
+      {/* Status Banner */}
+      {proposal.status === 'accepted' && (
+        <div className="bg-green-50 border-b border-green-200">
+          <div className="max-w-7xl mx-auto px-6 py-4">
+            <div className="flex items-center justify-center gap-2 text-green-700">
+              <CheckCircle className="w-5 h-5" />
+              <span className="font-medium">Proposal Accepted - Payment Processing Available</span>
             </div>
           </div>
         </div>
+      )}
 
-        {/* Event Details */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Event Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {proposal.eventDates.map((eventDate, index) => (
-              <div key={index} className="border rounded-lg p-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-blue-500" />
-                    <div>
-                      <p className="font-medium">Date</p>
-                      <p className="text-sm text-gray-600">{format(new Date(eventDate.date), 'MMMM d, yyyy')}</p>
+      {isExpired && (
+        <div className="bg-amber-50 border-b border-amber-200">
+          <div className="max-w-7xl mx-auto px-6 py-4">
+            <div className="flex items-center justify-center gap-2 text-amber-700">
+              <Clock className="w-5 h-5" />
+              <span className="font-medium">This proposal has expired. Please contact us for an updated quote.</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-6 py-16">
+        <div className="grid lg:grid-cols-3 gap-12">
+          {/* Event Details */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Event Information Card */}
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+              <CardContent className="p-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Event Details</h2>
+                <div className="grid md:grid-cols-2 gap-6">
+                  {eventDate && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                        <Calendar className="w-6 h-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Event Date</p>
+                        <p className="font-semibold text-gray-900">
+                          {eventDate.toLocaleDateString('en-US', { 
+                            weekday: 'long', 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-green-500" />
-                    <div>
-                      <p className="font-medium">Time</p>
-                      <p className="text-sm text-gray-600">{eventDate.startTime} - {eventDate.endTime}</p>
+                  )}
+
+                  {proposal.startTime && proposal.endTime && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                        <Clock className="w-6 h-6 text-purple-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Event Time</p>
+                        <p className="font-semibold text-gray-900">
+                          {proposal.startTime} - {proposal.endTime}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-red-500" />
-                    <div>
-                      <p className="font-medium">Location</p>
-                      <p className="text-sm text-gray-600">{eventDate.venue}</p>
-                      <p className="text-xs text-gray-500">{eventDate.space}</p>
+                  )}
+
+                  {proposal.venue && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                        <MapPin className="w-6 h-6 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Venue</p>
+                        <p className="font-semibold text-gray-900">{proposal.venue.name}</p>
+                        {proposal.space && (
+                          <p className="text-sm text-gray-600">{proposal.space.name}</p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-purple-500" />
-                    <div>
-                      <p className="font-medium">Guests</p>
-                      <p className="text-sm text-gray-600">{eventDate.guestCount} people</p>
+                  )}
+
+                  {proposal.guestCount && (
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+                        <Users className="w-6 h-6 text-orange-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Guest Count</p>
+                        <p className="font-semibold text-gray-900">{proposal.guestCount} guests</p>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
-                
-                {eventDate.packageName && (
-                  <div className="mt-4 pt-4 border-t">
-                    <p className="font-medium">Package: {eventDate.packageName}</p>
-                  </div>
-                )}
-                
-                {eventDate.services && eventDate.services.length > 0 && (
-                  <div className="mt-4 pt-4 border-t">
-                    <p className="font-medium mb-2">Additional Services:</p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {eventDate.services.map((service, serviceIndex) => (
-                        <div key={serviceIndex} className="flex justify-between items-center bg-gray-50 p-2 rounded">
-                          <span>{service.name}</span>
-                          <span className="font-medium">${service.price.toLocaleString()}</span>
+              </CardContent>
+            </Card>
+
+            {/* Proposal Content */}
+            {proposal.content && (
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+                <CardContent className="p-8">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-6">Proposal Details</h2>
+                  <div 
+                    className="prose prose-lg max-w-none text-gray-700 leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: proposal.content }}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Services */}
+            {proposal.services && proposal.services.length > 0 && (
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+                <CardContent className="p-8">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-6">Included Services</h2>
+                  <div className="space-y-4">
+                    {proposal.services.map((service, index) => (
+                      <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                        <div>
+                          <h3 className="font-semibold text-gray-900">{service.name}</h3>
+                          {service.description && (
+                            <p className="text-sm text-gray-600 mt-1">{service.description}</p>
+                          )}
                         </div>
-                      ))}
+                        <div className="text-right">
+                          <p className="font-bold text-gray-900">${service.price}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Investment Summary */}
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-purple-50 sticky top-6">
+              <CardContent className="p-8">
+                <h3 className="text-xl font-bold text-gray-900 mb-6">Investment Summary</h3>
+                
+                <div className="space-y-4 mb-6">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Total Investment</span>
+                    <span className="text-2xl font-bold text-gray-900">
+                      ${parseFloat(proposal.totalAmount).toLocaleString()}
+                    </span>
+                  </div>
+                  
+                  {proposal.depositAmount && (
+                    <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                      <span className="text-gray-600">Required Deposit</span>
+                      <span className="text-lg font-semibold text-blue-600">
+                        ${parseFloat(proposal.depositAmount).toLocaleString()}
+                      </span>
                     </div>
+                  )}
+                </div>
+
+                {validUntil && (
+                  <div className="mb-6">
+                    <p className="text-sm text-gray-500 mb-2">Proposal Valid Until</p>
+                    <p className="font-semibold text-gray-900">
+                      {validUntil.toLocaleDateString('en-US', { 
+                        month: 'long', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                      })}
+                    </p>
                   </div>
                 )}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
 
-        {/* Company Information */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Company Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <h4 className="font-medium">{proposal.companyInfo.name}</h4>
-                <p className="text-sm text-gray-600">{proposal.companyInfo.address}</p>
-              </div>
-              <div>
-                <p className="text-sm"><strong>Phone:</strong> {proposal.companyInfo.phone}</p>
-                <p className="text-sm"><strong>Email:</strong> {proposal.companyInfo.email}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                <Separator className="my-6" />
 
-        {/* Action Buttons */}
-        {!isExpired && !isAccepted && !isDeclined && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Proposal Response</CardTitle>
-              <CardDescription>
-                Please review the proposal details above and let us know your decision.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Digital Signature</label>
-                <input
-                  type="text"
-                  placeholder="Type your full name to sign"
-                  value={signaturePad}
-                  onChange={(e) => setSignaturePad(e.target.value)}
-                  className="w-full p-3 border rounded-lg"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  By typing your name above, you agree to the terms and conditions outlined in this proposal.
-                </p>
-              </div>
-              
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button 
-                  onClick={() => acceptProposal.mutate()}
-                  disabled={!signaturePad.trim() || acceptProposal.isPending}
-                  className="flex-1 bg-green-600 hover:bg-green-700"
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  {acceptProposal.isPending ? "Accepting..." : "Accept Proposal"}
-                </Button>
-                
-                <Button 
-                  variant="outline"
-                  onClick={() => declineProposal.mutate()}
-                  disabled={declineProposal.isPending}
-                  className="flex-1"
-                >
-                  {declineProposal.isPending ? "Declining..." : "Decline Proposal"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                {!isExpired && proposal.status !== 'accepted' && (
+                  <Button 
+                    onClick={handleAcceptProposal}
+                    disabled={isAccepting || acceptProposalMutation.isPending}
+                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    {isAccepting || acceptProposalMutation.isPending ? (
+                      <>
+                        <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        Accept & Continue to Payment
+                        <ArrowRight className="w-5 h-5 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                )}
 
-        {/* Payment Section */}
-        {isAccepted && showPayment && clientSecret && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                Secure Payment
-              </CardTitle>
-              <CardDescription>
-                Complete your booking by making a secure payment below.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Elements stripe={stripePromise} options={{ clientSecret }}>
-                <PaymentForm 
-                  proposalId={proposal.id}
-                  amount={proposal.totalAmount}
-                  onSuccess={() => {
-                    toast({
-                      title: "Payment Successful!",
-                      description: "Your booking is confirmed. You'll receive a confirmation email shortly.",
-                    });
-                    setShowPayment(false);
-                  }}
-                />
-              </Elements>
-            </CardContent>
-          </Card>
-        )}
+                {proposal.status === 'accepted' && (
+                  <Badge className="w-full justify-center py-3 bg-green-100 text-green-800 text-base">
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Proposal Accepted
+                  </Badge>
+                )}
+              </CardContent>
+            </Card>
 
-        {/* Actions */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button variant="outline" className="flex-1">
-                <Download className="h-4 w-4 mr-2" />
-                Download PDF
-              </Button>
-              <Button variant="outline" className="flex-1">
-                <FileText className="h-4 w-4 mr-2" />
-                Print Proposal
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            {/* Contact Information */}
+            {proposal.customer && (
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+                <CardContent className="p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Contact Information</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <Mail className="w-5 h-5 text-gray-400" />
+                      <span className="text-gray-700">{proposal.customer.email}</span>
+                    </div>
+                    {proposal.customer.phone && (
+                      <div className="flex items-center gap-3">
+                        <Phone className="w-5 h-5 text-gray-400" />
+                        <span className="text-gray-700">{proposal.customer.phone}</span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-12">
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <h3 className="text-2xl font-bold mb-4">Venuine Events</h3>
+          <p className="text-gray-400 mb-6">Creating memorable experiences, one event at a time</p>
+          <div className="flex justify-center gap-6 text-sm text-gray-400">
+            <span>Professional Event Management</span>
+            <span>•</span>
+            <span>Trusted by thousands</span>
+            <span>•</span>
+            <span>Excellence guaranteed</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
-
