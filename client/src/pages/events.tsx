@@ -17,6 +17,7 @@ import { AdvancedCalendar } from "@/components/dashboard/advanced-calendar";
 import { useBookings } from "@/hooks/use-bookings";
 import { Calendar, Clock, MapPin, Users, Table as TableIcon, Grid3X3, DollarSign, FileText, Plus, Search, Filter, MoreHorizontal } from "lucide-react";
 import { format } from "date-fns";
+import { getStatusConfig } from "@shared/status-utils";
 
 export default function Events() {
   const { data: bookings, isLoading } = useBookings();
@@ -50,24 +51,8 @@ export default function Events() {
   };
 
   const getStatusColor = (status: string, proposalStatus?: string) => {
-    // Show proposal colors when active for leads
-    if (status === "inquiry" && proposalStatus === "sent") return "bg-blue-100 text-blue-800";
-    if (status === "inquiry" && proposalStatus === "viewed") return "bg-indigo-100 text-indigo-800";
-    if (status === "inquiry" && proposalStatus === "accepted") return "bg-emerald-100 text-emerald-800";
-    if (status === "inquiry" && proposalStatus === "declined") return "bg-orange-100 text-orange-800";
-    
-    // Main business workflow colors
-    switch (status) {
-      case "inquiry": return "bg-purple-100 text-purple-800";
-      case "confirmed": return "bg-green-100 text-green-800";
-      case "completed": return "bg-gray-100 text-gray-800";
-      case "cancelled": return "bg-red-100 text-red-800";
-      // Legacy statuses for backwards compatibility
-      case "pending": return "bg-yellow-100 text-yellow-800";
-      case "tentative": return "bg-blue-100 text-blue-800";
-      case "quoted": return "bg-blue-100 text-blue-800"; // Legacy: redirect to proposal sent
-      default: return "bg-gray-100 text-gray-800";
-    }
+    // Use the centralized status utils for consistent coloring
+    return getStatusConfig(status).bgColor + " " + getStatusConfig(status).textColor;
   };
 
   if (isLoading) {

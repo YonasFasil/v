@@ -18,6 +18,7 @@ export default function Payments() {
   });
 
   const getStatusColor = (status: string) => {
+    // Payment statuses use different colors than event statuses
     switch (status) {
       case "completed": return "bg-green-100 text-green-800";
       case "pending": return "bg-yellow-100 text-yellow-800";

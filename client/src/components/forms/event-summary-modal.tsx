@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EnhancedBeoModal } from "./enhanced-beo-modal";
 import { CreateEventModal } from "./create-event-modal";
 import { StatusSelector } from "../events/status-selector";
-import { type EventStatus } from "@shared/status-utils";
+import { type EventStatus, getStatusConfig } from "@shared/status-utils";
 import { 
   X, 
   Edit3, 
@@ -91,14 +91,7 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
   const selectedCustomerData = booking.customerData || (customers as any[]).find((c: any) => c.id === booking.customerId);
   const selectedServicesData = (services as any[]).filter((s: any) => booking.serviceIds?.includes(s.id));
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -182,8 +175,8 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Status</span>
-                  <Badge className={getStatusColor(booking.status)}>
-                    {booking.status?.charAt(0).toUpperCase() + booking.status?.slice(1)}
+                  <Badge className={`${getStatusConfig(booking.status).bgColor} ${getStatusConfig(booking.status).textColor} ${getStatusConfig(booking.status).borderColor} border`}>
+                    {getStatusConfig(booking.status).label}
                   </Badge>
                 </div>
                 

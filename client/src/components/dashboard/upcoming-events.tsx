@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { Calendar, Clock, Users, MapPin, ArrowRight } from "lucide-react";
 import { format, parseISO, isToday, isTomorrow, addDays } from "date-fns";
+import { getStatusConfig } from "@shared/status-utils";
 
 export function UpcomingEvents() {
   const { data: bookings } = useQuery({ queryKey: ["/api/bookings"] });
@@ -18,7 +19,7 @@ export function UpcomingEvents() {
     return (bookings as any[])
       .filter(booking => {
         try {
-          if (booking.status === 'cancelled' || !booking.date) return false;
+          if (booking.status === 'cancelled_refunded' || !booking.date) return false;
           const eventDate = parseISO(booking.date);
           return eventDate >= now && eventDate <= nextWeek;
         } catch {
@@ -44,12 +45,8 @@ export function UpcomingEvents() {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "confirmed": return "bg-green-100 text-green-800";
-      case "pending": return "bg-yellow-100 text-yellow-800";
-      case "inquiry": return "bg-blue-100 text-blue-800";
-      default: return "bg-gray-100 text-gray-800";
-    }
+    // Use the centralized status utils for consistent coloring
+    return getStatusConfig(status).bgColor + " " + getStatusConfig(status).textColor;
   };
 
   return (
@@ -86,8 +83,8 @@ export function UpcomingEvents() {
               <div key={index} className="p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
                 <div className="flex items-start justify-between mb-2">
                   <h4 className="font-medium text-slate-900 text-sm">{event.eventName}</h4>
-                  <Badge className={`text-xs ${getStatusColor(event.status)}`}>
-                    {event.status}
+                  <Badge className={`text-xs ${getStatusConfig(event.status).bgColor} ${getStatusConfig(event.status).textColor} ${getStatusConfig(event.status).borderColor} border`}>
+                    {getStatusConfig(event.status).label}
                   </Badge>
                 </div>
                 

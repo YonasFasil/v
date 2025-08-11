@@ -34,6 +34,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { getStatusConfig } from "@shared/status-utils";
 
 interface Props {
   open: boolean;
@@ -215,12 +216,8 @@ export function EventDetailsModal({ open, onOpenChange, booking }: Props) {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "confirmed": return "bg-green-100 text-green-800";
-      case "pending": return "bg-yellow-100 text-yellow-800";
-      case "cancelled": return "bg-red-100 text-red-800";
-      default: return "bg-gray-100 text-gray-800";
-    }
+    // Use the centralized status utils for consistent coloring
+    return getStatusConfig(status).bgColor + " " + getStatusConfig(status).textColor;
   };
 
   const getPaymentStatusColor = (status: string) => {

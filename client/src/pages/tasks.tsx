@@ -60,6 +60,7 @@ export default function Tasks() {
   };
 
   const getStatusColor = (status: string) => {
+    // Task statuses use different colors than event statuses
     switch (status) {
       case "completed": return "bg-green-100 text-green-800";
       case "in_progress": return "bg-blue-100 text-blue-800";

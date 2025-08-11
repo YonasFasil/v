@@ -4,17 +4,14 @@ import { Badge } from "@/components/ui/badge";
 import { useBookings } from "@/hooks/use-bookings";
 import { Calendar, Clock, MapPin, Users } from "lucide-react";
 import { format } from "date-fns";
+import { getStatusConfig } from "@shared/status-utils";
 
 export function RecentBookings() {
   const { data: bookings, isLoading } = useBookings();
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "confirmed": return "bg-green-100 text-green-800";
-      case "pending": return "bg-yellow-100 text-yellow-800";
-      case "cancelled": return "bg-red-100 text-red-800";
-      default: return "bg-gray-100 text-gray-800";
-    }
+    // Use the centralized status utils for consistent coloring
+    return getStatusConfig(status).bgColor + " " + getStatusConfig(status).textColor;
   };
 
   if (isLoading) {
@@ -123,8 +120,8 @@ export function RecentBookings() {
                       </div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <Badge className={getStatusColor(booking.status)}>
-                        {booking.status}
+                      <Badge className={`${getStatusConfig(booking.status).bgColor} ${getStatusConfig(booking.status).textColor} ${getStatusConfig(booking.status).borderColor} border`}>
+                        {getStatusConfig(booking.status).label}
                       </Badge>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
