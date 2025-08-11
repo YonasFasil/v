@@ -45,6 +45,13 @@ export default function Onboarding() {
     queryKey: ["/api/auth/me"],
   });
 
+  // Super admin redirect - they should never see onboarding
+  useEffect(() => {
+    if (!userLoading && user?.isSuperAdmin) {
+      setLocation('/admin/dashboard');
+    }
+  }, [user, userLoading, setLocation]);
+
   const form = useForm<TenantSetupData>({
     resolver: zodResolver(tenantSetupSchema),
     defaultValues: {
