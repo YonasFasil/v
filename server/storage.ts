@@ -499,6 +499,27 @@ export class MemStorage implements IStorage {
           this.createBooking(booking);
         }
       });
+
+      // Create sample proposal for Wedding Reception booking (to test proposal tracking)
+      const weddingBooking = sampleBookings.find(b => b.eventName === "Wedding Reception");
+      if (weddingBooking && weddingBooking.customerId) {
+        const sampleProposal = {
+          customerId: weddingBooking.customerId,
+          eventName: weddingBooking.eventName,
+          eventDate: weddingBooking.eventDate,
+          startTime: weddingBooking.startTime,
+          endTime: weddingBooking.endTime,
+          guestCount: weddingBooking.guestCount,
+          venueId: weddingBooking.venueId,
+          spaceId: weddingBooking.spaceId,
+          totalAmount: weddingBooking.totalAmount,
+          depositAmount: weddingBooking.depositAmount,
+          status: "sent" as const,
+          sentAt: new Date(),
+          notes: "Wedding reception proposal with premium package options"
+        };
+        this.createProposal(sampleProposal);
+      }
     }
   }
 

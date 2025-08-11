@@ -13,14 +13,19 @@ import { CreateEventModal } from "@/components/forms/create-event-modal";
 import { EventSummaryModal } from "@/components/forms/event-summary-modal";
 import { EventEditFullModal } from "@/components/forms/event-edit-full-modal";
 import { StatusChangeModal } from "@/components/modals/status-change-modal";
+import { ProposalTrackingModal } from "@/components/proposals/proposal-tracking-modal";
 import { AdvancedCalendar } from "@/components/dashboard/advanced-calendar";
 import { useBookings } from "@/hooks/use-bookings";
-import { Calendar, Clock, MapPin, Users, Table as TableIcon, Grid3X3, DollarSign, FileText, Plus, Search, Filter, MoreHorizontal } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Calendar, Clock, MapPin, Users, Table as TableIcon, Grid3X3, DollarSign, FileText, Plus, Search, Filter, MoreHorizontal, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { getStatusConfig } from "@shared/status-utils";
 
 export default function Events() {
   const { data: bookings, isLoading } = useBookings();
+  
+  // Fetch proposals to check which events have proposals
+  const { data: proposals = [] } = useQuery({ queryKey: ["/api/proposals"] });
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -28,6 +33,8 @@ export default function Events() {
   const [viewMode, setViewMode] = useState<"calendar" | "cards" | "table">("cards");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showProposalModal, setShowProposalModal] = useState(false);
+  const [selectedProposalId, setSelectedProposalId] = useState("");
 
   const getDisplayStatus = (status: string, proposalStatus?: string) => {
     // Show proposal status when active for leads
@@ -248,7 +255,35 @@ export default function Events() {
                                 ${parseFloat(booking.totalAmount).toLocaleString()}
                               </div>
                             )}
-                            {/* Show proposal status */}
+                            {/* Show proposal button if proposal exists */}
+                            {(() => {
+                              const hasProposal = booking.proposalStatus === 'sent' || 
+                                                 proposals.some((p: any) => p.customerId === booking.customerId && p.eventName === booking.eventName);
+                              
+                              if (hasProposal) {
+                                const proposal = proposals.find((p: any) => p.customerId === booking.customerId && p.eventName === booking.eventName);
+                                return (
+                                  <div className="mt-3 pt-2 border-t">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="w-full text-xs"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (proposal) {
+                                          setSelectedProposalId(proposal.id);
+                                          setShowProposalModal(true);
+                                        }
+                                      }}
+                                    >
+                                      <Eye className="h-3 w-3 mr-1" />
+                                      View Proposal Status
+                                    </Button>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
 
                           </div>
                         </CardContent>
@@ -387,6 +422,13 @@ export default function Events() {
             // Refetch bookings to get updated data
             window.location.reload(); // Simple refresh for now
           }}
+        />
+
+        {/* Proposal Tracking Modal */}
+        <ProposalTrackingModal
+          open={showProposalModal}
+          onOpenChange={setShowProposalModal}
+          proposalId={selectedProposalId}
         />
       </div>
     </div>
