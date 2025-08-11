@@ -3118,6 +3118,75 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
             }))
           }}
           onProposalSent={() => {
+            // Create the event with proposal_shared status (pending)
+            if (selectedDates.length === 1) {
+              // Single event - use regular booking endpoint
+              const firstDate = selectedDates[0];
+              const bookingData = {
+                eventName,
+                eventType: "corporate",
+                eventDate: firstDate.date,
+                startTime: convertTimeToHours(firstDate.startTime),
+                endTime: convertTimeToHours(firstDate.endTime),
+                guestCount: firstDate.guestCount || 1,
+                status: 'pending', // This displays as "Proposal Shared"
+                customerId: selectedCustomer,
+                venueId: selectedVenue,
+                spaceId: firstDate.spaceId,
+                setupStyle: firstDate.setupStyle || null,
+                packageId: firstDate.packageId || null,
+                selectedServices: firstDate.selectedServices?.length ? firstDate.selectedServices : null,
+                pricingModel: selectedPackageData?.pricingModel || "fixed",
+                itemQuantities: firstDate.itemQuantities || {},
+                pricingOverrides: firstDate.pricingOverrides || null,
+                serviceTaxOverrides: firstDate.serviceTaxOverrides || null,
+                totalAmount: totalPrice.toString(),
+                notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${firstDate.selectedServices?.length || 0} selected`,
+                proposalStatus: 'sent',
+                proposalSentAt: new Date().toISOString()
+              };
+
+              createBooking.mutate(bookingData);
+            } else {
+              // Multiple events - create contract with multiple bookings
+              const contractData = {
+                customerId: selectedCustomer,
+                contractName: eventName,
+                description: `Multi-date event with ${selectedDates.length} dates`,
+                status: 'pending'
+              };
+
+              const bookingsData = selectedDates.map((date, index) => {
+                const datePrice = calculateDateTotal(date);
+
+                return {
+                  eventName: `${eventName} - Day ${index + 1}`,
+                  eventType: "corporate",
+                  eventDate: date.date,
+                  startTime: convertTimeToHours(date.startTime),
+                  endTime: convertTimeToHours(date.endTime),
+                  guestCount: date.guestCount || 1,
+                  status: 'pending', // This displays as "Proposal Shared"
+                  customerId: selectedCustomer,
+                  venueId: selectedVenue,
+                  spaceId: date.spaceId,
+                  setupStyle: date.setupStyle || null,
+                  packageId: date.packageId || null,
+                  selectedServices: date.selectedServices?.length ? date.selectedServices : null,
+                  pricingModel: selectedPackageData?.pricingModel || "fixed",
+                  itemQuantities: date.itemQuantities || {},
+                  pricingOverrides: date.pricingOverrides || null,
+                  serviceTaxOverrides: date.serviceTaxOverrides || null,
+                  totalAmount: datePrice.toString(),
+                  notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${date.selectedServices?.length || 0} selected`,
+                  proposalStatus: 'sent',
+                  proposalSentAt: new Date().toISOString()
+                };
+              });
+
+              createContract.mutate({ contractData, bookingsData });
+            }
+            
             // Close both modals and refresh data
             setShowProposalEmail(false);
             onOpenChange(false);
