@@ -53,7 +53,9 @@ VENUIN is built with a modern, scalable architecture designed for high performan
 
 **Security & Role Management:**
 - Session-based authentication with PostgreSQL session store.
-- Role-based access control with an initial "manager" role and future extensibility for multi-role systems.
+- Unified authentication system for all user types (super admin, tenant owners, tenant users).
+- Role-based access control with clear hierarchy: super_admin > owner > admin > manager > staff > viewer.
+- Clean URL structure: /admin/* for platform management, /t/:slug/* for tenant access.
 - Secure session handling with HTTP-only cookies and environment-based secret management.
 
 ## External Dependencies
@@ -87,6 +89,7 @@ VENUIN is built with a modern, scalable architecture designed for high performan
 - **Enhanced Permission System**: Added granular permission middleware with role presets (owner, admin, manager, staff, viewer) and plan enforcement capabilities following industry best practices
 - **Clean Database State**: Reset database to clean state with only the protected super admin account (eyosiasyimer@gmail.com) for fresh platform start
 - **Frontend Security Fix**: Fixed critical security vulnerability where regular users could access super admin interface - added proper authentication checks and automatic redirects
+- **Authentication Architecture Reform**: Implemented clean, manageable authentication structure with unified login system, professional admin URLs (/admin/*), and smart role-based routing eliminating confusing multiple authentication flows
 
 ### Performance & Optimization Improvements (August 2025)
 - **Dashboard Performance Optimization**: Reduced API calls from 12+ to 3-4 essential calls using optimized endpoints

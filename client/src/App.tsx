@@ -74,9 +74,12 @@ function Router() {
       <Route path="/t/:slug/app/proposal/:proposalId" component={ProposalView} />
       <Route path="/t/:slug/app/plan" component={PlanManagement} />
       
-      {/* Superadmin routes - secure hidden URLs */}
-      <Route path="/sys-admin-x7k9p2w4" component={SuperAdminDashboard} />
-      <Route path="/sys-admin-login-x7k9p2w4" component={SuperAdminLogin} />
+      {/* Platform admin routes - clean professional URLs */}
+      <Route path="/admin" component={SuperAdminDashboard} />
+      <Route path="/admin/dashboard" component={SuperAdminDashboard} />
+      <Route path="/admin/tenants" component={SuperAdminDashboard} />
+      <Route path="/admin/users" component={SuperAdminDashboard} />
+      <Route path="/admin/analytics" component={SuperAdminDashboard} />
       
       {/* Legacy routes removed for security - all tenant routes must use /t/:slug/app/* pattern */}
       

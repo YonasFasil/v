@@ -172,26 +172,30 @@ export function registerAuthRoutes(app: Express) {
     });
   });
 
-  // GET /api/auth/me - Get current user
+  // GET /api/auth/me - Get current user with unified session structure
   app.get('/api/auth/me', async (req, res) => {
     if (!(req.session as any).userId) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
 
-    // Verify user still exists and get current super admin status
     try {
+      const userId = (req.session as any).userId;
+      
+      // Get user data
       const userResult = await db
         .select()
         .from(users)
-        .where(eq(users.id, (req.session as any).userId))
+        .where(eq(users.id, userId))
         .limit(1);
 
       if (userResult.length === 0) {
-        // User was deleted, clear session
         req.session.destroy(() => {});
         return res.status(401).json({ message: 'User no longer exists' });
       }
 
+      const user = userResult[0];
+
+      // Check super admin status
       const superAdminCheck = await db.execute(sql`
         SELECT user_id FROM super_admins WHERE user_id = ${(req.session as any).userId}
       `);
