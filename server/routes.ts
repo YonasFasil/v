@@ -9,6 +9,7 @@ import { registerSuperAdminRoutes } from "./routes/superadmin";
 import { registerDevRoutes } from "./routes/dev";
 import { registerOnboardingRoutes } from "./routes/onboarding";
 import { registerTenantRoutes } from "./routes/tenant";
+import { registerTenantInfoRoutes } from "./routes/tenant-info";
 import { registerDashboardRoutes } from "./routes/dashboard";
 import { EmailService } from "./services/email";
 import { gmailService } from "./services/gmail";
@@ -49,6 +50,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register onboarding routes (after auth, before tenant middleware)
   registerOnboardingRoutes(app);
+  
+  // Register tenant info routes (after auth)
+  registerTenantInfoRoutes(app);
 
   // Register superadmin routes (before tenant middleware to avoid conflicts)
   registerSuperAdminRoutes(app);

@@ -127,6 +127,31 @@ export const serverFirebaseOps = {
       console.error('Error deleting user:', error);
       throw error;
     }
+  },
+
+  // Tenants
+  async getTenantBySlug(slug: string) {
+    try {
+      const snapshot = await adminDb.collection('tenants').where('slug', '==', slug).get();
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0];
+        return { id: doc.id, ...doc.data() };
+      }
+      return null;
+    } catch (error) {
+      console.error('Error getting tenant by slug:', error);
+      return null;
+    }
+  },
+
+  async verifyIdToken(idToken: string) {
+    try {
+      const { adminAuth } = await import('./firebase-admin.js');
+      return await adminAuth.verifyIdToken(idToken);
+    } catch (error) {
+      console.error('Error verifying ID token:', error);
+      throw error;
+    }
   }
 };
 

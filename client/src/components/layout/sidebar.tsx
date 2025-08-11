@@ -19,30 +19,85 @@ import {
   ChevronRight,
   Grid3X3,
   Crown,
-  LogOut
+  LogOut,
+  Brain,
+  Lightbulb
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { useTenantFeatures } from "@/hooks/useTenantFeatures";
 
-const navigationItems = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Events & Bookings", href: "/events", icon: Calendar },
-  { name: "Customers", href: "/customers", icon: Users },
-  { name: "Leads", href: "/leads", icon: UserPlus },
-  { name: "Proposals", href: "/proposals", icon: FileText },
-  { name: "Payments", href: "/payments", icon: CreditCard },
-  { name: "Tasks & Team", href: "/tasks", icon: CheckSquare },
-  { name: "Venues", href: "/venues", icon: MapPin },
-  { name: "Setup Styles", href: "/setup-styles", icon: Grid3X3 },
-  { name: "Packages & Services", href: "/packages", icon: Package },
-];
+// Define all possible navigation items with their required features
+const getAllNavigationItems = (hasFeature: (feature: string) => boolean) => {
+  const items = [];
+  
+  // Always available items
+  items.push({ name: "Dashboard", href: "/", icon: LayoutDashboard, feature: "dashboard-analytics" });
+  
+  // Core features
+  if (hasFeature("event-management")) {
+    items.push({ name: "Events & Bookings", href: "/events", icon: Calendar, feature: "event-management" });
+  }
+  
+  if (hasFeature("customer-management")) {
+    items.push({ name: "Customers", href: "/customers", icon: Users, feature: "customer-management" });
+  }
+  
+  if (hasFeature("lead-management")) {
+    items.push({ name: "Leads", href: "/leads", icon: UserPlus, feature: "lead-management" });
+  }
+  
+  if (hasFeature("proposal-system")) {
+    items.push({ name: "Proposals", href: "/proposals", icon: FileText, feature: "proposal-system" });
+  }
+  
+  if (hasFeature("stripe-payments")) {
+    items.push({ name: "Payments", href: "/payments", icon: CreditCard, feature: "stripe-payments" });
+  }
+  
+  if (hasFeature("task-management")) {
+    items.push({ name: "Tasks & Team", href: "/tasks", icon: CheckSquare, feature: "task-management" });
+  }
+  
+  if (hasFeature("venue-management")) {
+    items.push({ name: "Venues", href: "/venues", icon: MapPin, feature: "venue-management" });
+  }
+  
+  if (hasFeature("floor-plan-designer")) {
+    items.push({ name: "Setup Styles", href: "/setup-styles", icon: Grid3X3, feature: "floor-plan-designer" });
+  }
+  
+  if (hasFeature("service-packages")) {
+    items.push({ name: "Packages & Services", href: "/packages", icon: Package, feature: "service-packages" });
+  }
+  
+  return items;
+};
 
-const aiFeatures = [
-  { name: "AI Analytics & Reports", href: "/ai-analytics", icon: BarChart3 },
-  { name: "Voice Booking", href: "/voice-booking", icon: Mic },
-];
+// AI Features with feature gates
+const getAIFeatures = (hasFeature: (feature: string) => boolean) => {
+  const items = [];
+  
+  if (hasFeature("ai-insights") || hasFeature("advanced-reporting")) {
+    items.push({ name: "AI Analytics & Reports", href: "/ai-analytics", icon: BarChart3, feature: "ai-insights" });
+  }
+  
+  if (hasFeature("ai-voice-booking")) {
+    items.push({ name: "Voice Booking", href: "/voice-booking", icon: Mic, feature: "ai-voice-booking" });
+  }
+  
+  if (hasFeature("ai-scheduling")) {
+    items.push({ name: "Smart Scheduling", href: "/ai-scheduling", icon: Brain, feature: "ai-scheduling" });
+  }
+  
+  if (hasFeature("ai-proposal-generation")) {
+    items.push({ name: "AI Proposal Generator", href: "/ai-proposals", icon: Lightbulb, feature: "ai-proposal-generation" });
+  }
+  
+  return items;
+};
 
 const analyticsItems = [
   { name: "Reports & Analytics", href: "/reports", icon: BarChart3 },
@@ -59,6 +114,28 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed = false }: SidebarProps) {
   const [location] = useLocation();
+  const { hasFeature, tenantInfo, isLoading } = useTenantFeatures();
+  
+  // Get navigation items based on features - default to showing all if loading
+  const navigationItems = isLoading ? [
+    { name: "Dashboard", href: "/", icon: LayoutDashboard },
+    { name: "Events & Bookings", href: "/events", icon: Calendar },
+    { name: "Customers", href: "/customers", icon: Users },
+    { name: "Leads", href: "/leads", icon: UserPlus },
+    { name: "Proposals", href: "/proposals", icon: FileText },
+    { name: "Payments", href: "/payments", icon: CreditCard },
+    { name: "Tasks & Team", href: "/tasks", icon: CheckSquare },
+    { name: "Venues", href: "/venues", icon: MapPin },
+    { name: "Setup Styles", href: "/setup-styles", icon: Grid3X3 },
+    { name: "Packages & Services", href: "/packages", icon: Package },
+  ] : getAllNavigationItems(hasFeature);
+  
+  const aiFeatures = isLoading ? [
+    { name: "AI Analytics & Reports", href: "/ai-analytics", icon: BarChart3 },
+    { name: "Voice Booking", href: "/voice-booking", icon: Mic },
+    { name: "Smart Scheduling", href: "/ai-scheduling", icon: Brain },
+    { name: "AI Proposal Generator", href: "/ai-proposals", icon: Lightbulb },
+  ] : getAIFeatures(hasFeature);
   
   // Logout mutation
   const logoutMutation = useMutation({
@@ -132,7 +209,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         </div>
 
         {/* AI Features Section */}
-        {!collapsed && (
+        {!collapsed && aiFeatures.length > 0 && (
           <div className="pt-4">
             <div className="px-3 mb-2">
               <div className="flex items-center">

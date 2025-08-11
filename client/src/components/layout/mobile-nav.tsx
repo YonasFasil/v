@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useTenantFeatures } from "@/hooks/useTenantFeatures";
 import { 
   LayoutDashboard, 
   Calendar, 
@@ -19,19 +20,47 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const navigationItems = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Events & Bookings", href: "/events", icon: Calendar },
-  { name: "Customers", href: "/customers", icon: Users },
-  { name: "Leads", href: "/leads", icon: UserPlus },
-  { name: "Proposals & Contracts", href: "/proposals", icon: FileText },
-  { name: "Payments", href: "/payments", icon: CreditCard },
-  { name: "Tasks & Team", href: "/tasks", icon: CheckSquare },
-  { name: "Venues", href: "/venues", icon: Building },
-  { name: "Packages & Services", href: "/packages", icon: Package },
-  { name: "Reports & Insights", href: "/reports", icon: BarChart3 },
-  { name: "Settings", href: "/settings", icon: Settings },
-];
+// Dynamic navigation based on tenant features
+const getDynamicNavigationItems = (hasFeature: (feature: string) => boolean, isLoading: boolean) => {
+  const items = [];
+  
+  // Always show Dashboard
+  items.push({ name: "Dashboard", href: "/", icon: LayoutDashboard });
+  
+  // Enterprise features
+  if (isLoading || hasFeature("event-management")) {
+    items.push({ name: "Events & Bookings", href: "/events", icon: Calendar });
+  }
+  if (isLoading || hasFeature("customer-management")) {
+    items.push({ name: "Customers", href: "/customers", icon: Users });
+  }
+  if (isLoading || hasFeature("lead-management")) {
+    items.push({ name: "Leads", href: "/leads", icon: UserPlus });
+  }
+  if (isLoading || hasFeature("proposal-system")) {
+    items.push({ name: "Proposals", href: "/proposals", icon: FileText });
+  }
+  if (isLoading || hasFeature("stripe-payments")) {
+    items.push({ name: "Payments", href: "/payments", icon: CreditCard });
+  }
+  if (isLoading || hasFeature("task-management")) {
+    items.push({ name: "Tasks & Team", href: "/tasks", icon: CheckSquare });
+  }
+  if (isLoading || hasFeature("venue-management")) {
+    items.push({ name: "Venues", href: "/venues", icon: Building });
+  }
+  if (isLoading || hasFeature("service-packages")) {
+    items.push({ name: "Packages & Services", href: "/packages", icon: Package });
+  }
+  if (isLoading || hasFeature("ai-insights") || hasFeature("advanced-reporting")) {
+    items.push({ name: "Reports & Insights", href: "/reports", icon: BarChart3 });
+  }
+  
+  // Always show Settings
+  items.push({ name: "Settings", href: "/settings", icon: Settings });
+  
+  return items;
+};
 
 interface MobileNavProps {
   isOpen: boolean;
@@ -41,6 +70,9 @@ interface MobileNavProps {
 export function MobileNav({ isOpen, onClose }: MobileNavProps) {
   const [location] = useLocation();
   const { toast } = useToast();
+  const { hasFeature, isLoading } = useTenantFeatures();
+  
+  const navigationItems = getDynamicNavigationItems(hasFeature, isLoading);
   
   // Logout mutation
   const logoutMutation = useMutation({
