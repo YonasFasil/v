@@ -59,6 +59,35 @@ export interface IStorage {
   updateSpace(id: string, updates: Partial<Space>): Promise<Space>;
   deleteSpace(id: string): Promise<void>;
 
+  // Service operations  
+  getServices(tenantId: string): Promise<any[]>;
+  createService(insertService: any): Promise<any>;
+  
+  // Package operations (service packages)
+  getPackages(tenantId: string): Promise<any[]>;
+  createPackage(insertPackage: any): Promise<any>;
+  
+  // Tax settings operations
+  getTaxSettings(tenantId: string): Promise<any[]>;
+  createTaxSettings(insertTaxSettings: any): Promise<any>;
+  
+  // Setup styles operations
+  getSetupStyles(tenantId: string): Promise<any[]>;
+  createSetupStyles(insertSetupStyles: any): Promise<any>;
+  
+  // Settings operations
+  getSettings(tenantId: string): Promise<any[]>;
+  createSettings(insertSettings: any): Promise<any>;
+  
+  // Payment operations
+  getPayments(tenantId: string): Promise<any[]>;
+  
+  // Tag operations
+  getTags(tenantId: string): Promise<any[]>;
+  
+  // Campaign source operations
+  getCampaignSources(tenantId: string): Promise<any[]>;
+
   // Customer operations
   getCustomers(tenantId: string): Promise<Customer[]>;
   getCustomer(id: string): Promise<Customer | undefined>;
@@ -374,6 +403,79 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSpace(id: string): Promise<void> {
     await db.delete(spaces).where(eq(spaces.id, id));
+  }
+
+  // Service operations  
+  async getServices(tenantId: string): Promise<any[]> {
+    // Return empty array for now - table doesn't exist yet
+    return [];
+  }
+
+  async createService(insertService: any): Promise<any> {
+    // Return mock service for now - table doesn't exist yet  
+    return { id: `service_${Date.now()}`, ...insertService };
+  }
+  
+  // Package operations (service packages)
+  async getPackages(tenantId: string): Promise<any[]> {
+    // Return empty array for now - table doesn't exist yet
+    return [];
+  }
+
+  async createPackage(insertPackage: any): Promise<any> {
+    // Return mock package for now - table doesn't exist yet
+    return { id: `package_${Date.now()}`, ...insertPackage };
+  }
+  
+  // Tax settings operations
+  async getTaxSettings(tenantId: string): Promise<any[]> {
+    // Return empty array for now - table doesn't exist yet
+    return [];
+  }
+
+  async createTaxSettings(insertTaxSettings: any): Promise<any> {
+    // Return mock tax settings for now - table doesn't exist yet
+    return { id: `tax_${Date.now()}`, ...insertTaxSettings };
+  }
+  
+  // Setup styles operations
+  async getSetupStyles(tenantId: string): Promise<any[]> {
+    // Return empty array for now - table doesn't exist yet
+    return [];
+  }
+
+  async createSetupStyles(insertSetupStyles: any): Promise<any> {
+    // Return mock setup styles for now - table doesn't exist yet
+    return { id: `style_${Date.now()}`, ...insertSetupStyles };
+  }
+  
+  // Settings operations
+  async getSettings(tenantId: string): Promise<any[]> {
+    // Return empty array for now - table doesn't exist yet
+    return [];
+  }
+
+  async createSettings(insertSettings: any): Promise<any> {
+    // Return mock settings for now - table doesn't exist yet
+    return { id: `settings_${Date.now()}`, ...insertSettings };
+  }
+  
+  // Payment operations
+  async getPayments(tenantId: string): Promise<any[]> {
+    // Return empty array for now - table doesn't exist yet
+    return [];
+  }
+  
+  // Tag operations
+  async getTags(tenantId: string): Promise<any[]> {
+    // Return empty array for now - table doesn't exist yet
+    return [];
+  }
+  
+  // Campaign source operations
+  async getCampaignSources(tenantId: string): Promise<any[]> {
+    // Return empty array for now - table doesn't exist yet
+    return [];
   }
 
   // Customer operations

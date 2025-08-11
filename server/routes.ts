@@ -281,6 +281,210 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Services
+  app.get("/api/services", requireAuth, async (req: any, res) => {
+    try {
+      const services = await storage.getServices(req.user.currentTenant.id);
+      res.json(services);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch services" });
+    }
+  });
+
+  app.post("/api/services", requireAuth, async (req: any, res) => {
+    try {
+      const serviceData = {
+        ...req.body,
+        tenantId: req.user.currentTenant.id,
+      };
+      const service = await storage.createService(serviceData);
+      res.status(201).json(service);
+    } catch (error: any) {
+      console.error('Service creation error:', error);
+      res.status(500).json({ message: "Failed to create service" });
+    }
+  });
+
+  // Packages (service packages)
+  app.get("/api/packages", requireAuth, async (req: any, res) => {
+    try {
+      const packages = await storage.getPackages(req.user.currentTenant.id);
+      res.json(packages);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch packages" });
+    }
+  });
+
+  app.post("/api/packages", requireAuth, async (req: any, res) => {
+    try {
+      const packageData = {
+        ...req.body,
+        tenantId: req.user.currentTenant.id,
+      };
+      const pkg = await storage.createPackage(packageData);
+      res.status(201).json(pkg);
+    } catch (error: any) {
+      console.error('Package creation error:', error);
+      res.status(500).json({ message: "Failed to create package" });
+    }
+  });
+
+  // Tax Settings
+  app.get("/api/tax-settings", requireAuth, async (req: any, res) => {
+    try {
+      const taxSettings = await storage.getTaxSettings(req.user.currentTenant.id);
+      res.json(taxSettings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tax settings" });
+    }
+  });
+
+  app.post("/api/tax-settings", requireAuth, async (req: any, res) => {
+    try {
+      const taxData = {
+        ...req.body,
+        tenantId: req.user.currentTenant.id,
+      };
+      const taxSettings = await storage.createTaxSettings(taxData);
+      res.status(201).json(taxSettings);
+    } catch (error: any) {
+      console.error('Tax settings creation error:', error);
+      res.status(500).json({ message: "Failed to create tax settings" });
+    }
+  });
+
+  // Setup Styles
+  app.get("/api/setup-styles", requireAuth, async (req: any, res) => {
+    try {
+      const setupStyles = await storage.getSetupStyles(req.user.currentTenant.id);
+      res.json(setupStyles);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch setup styles" });
+    }
+  });
+
+  app.post("/api/setup-styles", requireAuth, async (req: any, res) => {
+    try {
+      const styleData = {
+        ...req.body,
+        tenantId: req.user.currentTenant.id,
+      };
+      const setupStyles = await storage.createSetupStyles(styleData);
+      res.status(201).json(setupStyles);
+    } catch (error: any) {
+      console.error('Setup styles creation error:', error);
+      res.status(500).json({ message: "Failed to create setup styles" });
+    }
+  });
+
+  // Settings
+  app.get("/api/settings", requireAuth, async (req: any, res) => {
+    try {
+      const settings = await storage.getSettings(req.user.currentTenant.id);
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+
+  app.post("/api/settings", requireAuth, async (req: any, res) => {
+    try {
+      const settingsData = {
+        ...req.body,
+        tenantId: req.user.currentTenant.id,
+      };
+      const settings = await storage.createSettings(settingsData);
+      res.status(201).json(settings);
+    } catch (error: any) {
+      console.error('Settings creation error:', error);
+      res.status(500).json({ message: "Failed to create settings" });
+    }
+  });
+
+  // Payments
+  app.get("/api/payments", requireAuth, async (req: any, res) => {
+    try {
+      const payments = await storage.getPayments(req.user.currentTenant.id);
+      res.json(payments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch payments" });
+    }
+  });
+
+  // Tags
+  app.get("/api/tags", requireAuth, async (req: any, res) => {
+    try {
+      const tags = await storage.getTags(req.user.currentTenant.id);
+      res.json(tags);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tags" });
+    }
+  });
+
+  // Campaign Sources
+  app.get("/api/campaign-sources", requireAuth, async (req: any, res) => {
+    try {
+      const sources = await storage.getCampaignSources(req.user.currentTenant.id);
+      res.json(sources);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch campaign sources" });
+    }
+  });
+
+  // Tasks
+  app.get("/api/tasks", requireAuth, async (req: any, res) => {
+    try {
+      const tasks = await storage.getTasks(req.user.currentTenant.id);
+      res.json(tasks);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tasks" });
+    }
+  });
+
+  app.post("/api/tasks", requireAuth, async (req: any, res) => {
+    try {
+      const taskData = insertTaskSchema.parse({
+        ...req.body,
+        tenantId: req.user.currentTenant.id,
+      });
+      const task = await storage.createTask(taskData);
+      res.status(201).json(task);
+    } catch (error: any) {
+      console.error('Task creation error:', error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create task" });
+    }
+  });
+
+  // Proposals
+  app.get("/api/proposals", requireAuth, async (req: any, res) => {
+    try {
+      const proposals = await storage.getProposals(req.user.currentTenant.id);
+      res.json(proposals);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch proposals" });
+    }
+  });
+
+  app.post("/api/proposals", requireAuth, async (req: any, res) => {
+    try {
+      const proposalData = insertProposalSchema.parse({
+        ...req.body,
+        tenantId: req.user.currentTenant.id,
+      });
+      const proposal = await storage.createProposal(proposalData);
+      res.status(201).json(proposal);
+    } catch (error: any) {
+      console.error('Proposal creation error:', error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create proposal" });
+    }
+  });
+
   // Dashboard stats
   app.get("/api/dashboard/stats", requireAuth, async (req: any, res) => {
     try {
