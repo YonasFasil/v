@@ -103,9 +103,9 @@ const getAIFeatures = (hasFeature: (feature: string) => boolean, tenantInfo?: an
   return items;
 };
 
-const analyticsItems = [
-  { name: "Reports & Analytics", href: "/reports", icon: BarChart3 },
-  { name: "Settings", href: "/settings", icon: Settings },
+const getAnalyticsItems = (tenantSlug: string) => [
+  { name: "Reports & Analytics", href: `/t/${tenantSlug}/app/reports`, icon: BarChart3 },
+  { name: "Settings", href: `/t/${tenantSlug}/app/settings`, icon: Settings },
 ];
 
 const planItems = [
@@ -286,7 +286,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
                 Analytics
               </span>
             </div>
-            {analyticsItems.map((item) => {
+            {getAnalyticsItems(tenantSlug).map((item: any) => {
               const Icon = item.icon;
               const active = isActive(item.href);
               
@@ -311,7 +311,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         {/* Analytics Section - Collapsed */}
         {collapsed && (
           <div className="pt-4 space-y-1">
-            {analyticsItems.map((item) => {
+            {getAnalyticsItems(tenantSlug).map((item: any) => {
               const Icon = item.icon;
               const active = isActive(item.href);
               
