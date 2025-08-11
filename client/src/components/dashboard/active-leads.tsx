@@ -1,22 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useLeads } from "@/hooks/use-leads";
-import { useQuery } from "@tanstack/react-query";
+import { useDashboardData } from "@/contexts/dashboard-context";
 import { MessageCircle, Star, Building } from "lucide-react";
 
 export function ActiveLeads() {
-  // Use optimized dashboard data instead of separate API call
-  const { data: dashboardData, isLoading: dashboardLoading } = useQuery({ 
-    queryKey: ["/api/dashboard/overview"],
-    staleTime: 5 * 60 * 1000 
-  });
+  const { activeLeads, isLoading } = useDashboardData();
   
-  // Fallback to individual API if dashboard data not available
-  const { data: fallbackLeads, isLoading: fallbackLoading } = useLeads();
-  
-  const leads = dashboardData?.activeLeads || fallbackLeads;
-  const isLoading = dashboardLoading || (fallbackLoading && !dashboardData);
+  const leads = activeLeads;
 
   const getPriorityColor = (score: number) => {
     if (score >= 80) return "bg-red-100 text-red-800";

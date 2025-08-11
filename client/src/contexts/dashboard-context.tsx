@@ -15,14 +15,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useQuery({
     queryKey: ["/api/dashboard/overview"],
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    refetchInterval: 2 * 60 * 1000, // Refresh every 2 minutes
+    refetchInterval: false, // Disabled automatic refetching
   });
 
   // Quick stats for real-time updates
   const { data: quickStats, isLoading: statsLoading } = useQuery({
     queryKey: ["/api/dashboard/quick-stats"],
-    refetchInterval: 30000, // Update every 30 seconds
-    staleTime: 30000,
+    refetchInterval: false, // Disabled automatic refetching  
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   const value = {
