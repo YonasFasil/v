@@ -120,14 +120,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
   const [location] = useLocation();
   const { hasFeature, tenantInfo, isLoading } = useTenantFeatures();
   
-  // Debug logging
-  console.log('Sidebar Debug:', { 
-    isLoading, 
-    tenantInfo, 
-    features: tenantInfo?.features,
-    contactEmail: tenantInfo?.contactEmail,
-    isDemoAccount: tenantInfo?.contactEmail === 'demo@venuin.com'
-  });
+  // Remove debug logging for cleaner console
   
   // Show all navigation items with tenant-specific URLs
   const tenantSlug = tenantInfo?.slug || 'demo-venue-company';

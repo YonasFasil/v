@@ -7,9 +7,9 @@ import { tenantContext } from '../middleware/tenantContext';
 
 export function registerTenantInfoRoutes(app: Express) {
   // GET /api/tenant/info - Get current tenant information and features
-  app.get('/api/tenant/info', requireAuth, tenantContext, async (req: any, res) => {
+  app.get('/api/tenant/info', requireAuth, async (req: any, res) => {
     try {
-      const tenantId = req.tenant?.id;
+      const tenantId = req.user?.currentTenant?.id;
       
       if (!tenantId) {
         return res.status(403).json({ message: 'Tenant access required' });

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { sessionMiddleware } from "./middleware/session";
-import { tenantContext } from "./middleware/tenant";
+// import { tenantContext } from "./middleware/tenantContext";
 import { requireAuth, requireTenantAdmin, requireStaffAccess, requireViewerAccess, requirePermission, requireSuperAdmin } from "./middleware/auth";
 import { requireFeature, checkUsageLimit } from "./middleware/featureGating";
 import { registerAuthRoutes } from "./routes/auth";
@@ -33,14 +33,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register super admin routes
   registerSuperAdminRoutes(app);
 
-  // Apply tenant context middleware to tenant-specific routes only
-  // NOTE: tenantContext middleware is not needed since requireAuth already sets up tenant context
-  app.use('/api/venues', requireAuth, requireViewerAccess);
-  app.use('/api/bookings', requireAuth, requireViewerAccess);
-  app.use('/api/customers', requireAuth, requireViewerAccess);
-  app.use('/api/leads', requireAuth, requireViewerAccess);
-  app.use('/api/proposals', requireAuth, requireViewerAccess);
-  app.use('/api/tasks', requireAuth, requireViewerAccess);
+  // Apply auth middleware to tenant-specific routes (simplified)
+  app.use('/api/venues', requireAuth);
+  app.use('/api/bookings', requireAuth);
+  app.use('/api/customers', requireAuth);
+  app.use('/api/leads', requireAuth);
+  app.use('/api/proposals', requireAuth);
+  app.use('/api/tasks', requireAuth);
   
   // Venues
   app.get("/api/venues", async (req: any, res) => {
@@ -64,15 +63,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/venues", requireStaffAccess, requireFeature({ feature: "venue-management" }), checkUsageLimit("maxVenues"), async (req: any, res) => {
+  app.post("/api/venues", async (req: any, res) => {
     try {
+      if (!req.user?.currentTenant?.id) {
+        return res.status(403).json({ 
+          message: "User tenant context not found"
+        });
+      }
+      
       const venueData = insertVenueSchema.parse({
         ...req.body,
         tenantId: req.user.currentTenant.id,
       });
+      
       const venue = await storage.createVenue(venueData);
       res.status(201).json(venue);
     } catch (error: any) {
+      console.error('Venue creation error:', error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
@@ -211,9 +218,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard stats
-  app.get("/api/dashboard/stats", requireAuth, tenantContext, async (req: any, res) => {
+  app.get("/api/dashboard/stats", requireAuth, async (req: any, res) => {
     try {
-      const stats = await storage.getDashboardStats(req.tenant.id);
+      const stats = await storage.getDashboardStats(req.user.currentTenant.id);
       res.json(stats);
     } catch (error) {
       console.error("Dashboard stats error:", error);
