@@ -1,52 +1,25 @@
-// Client-side Firebase operations to bypass Firebase Admin SDK issues
-import { initializeApp } from 'firebase/app';
-import { 
-  getFirestore, 
-  collection, 
-  doc, 
-  addDoc, 
-  setDoc, 
-  getDoc, 
-  getDocs, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where,
-  orderBy,
-  connectFirestoreEmulator 
-} from 'firebase/firestore';
+// Server-side Firebase operations using Admin SDK (fixed DECODER issue)
+import { adminDb } from './firebase-admin.js';
+import { randomUUID } from 'crypto';
 
-const firebaseConfig = {
-  apiKey: process.env.VITE_FIREBASE_API_KEY,
-  authDomain: `${process.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
-  projectId: process.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: `${process.env.VITE_FIREBASE_PROJECT_ID}.firebasestorage.app`,
-  messagingSenderId: "948784074321",
-  appId: process.env.VITE_FIREBASE_APP_ID
-};
+console.log('Using Firebase Admin SDK for server operations');
 
-// Initialize Firebase client SDK for server-side operations
-const serverApp = initializeApp(firebaseConfig, 'server-client');
-const serverDb = getFirestore(serverApp);
-
-console.log('Firebase Client SDK initialized for server operations');
-
-// Server-side Firebase operations using client SDK
+// Server-side Firebase operations using Admin SDK
 export const serverFirebaseOps = {
   // Feature Packages
   async createFeaturePackage(data: any) {
     try {
-      const docRef = doc(collection(serverDb, 'featurePackages'));
+      const id = randomUUID();
       const packageData = {
         ...data,
-        id: docRef.id,
+        id,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
       
-      await setDoc(docRef, packageData);
-      console.log('Feature package created:', docRef.id);
-      return { id: docRef.id, ...packageData };
+      await adminDb.collection('featurePackages').doc(id).set(packageData);
+      console.log('Feature package created:', id);
+      return { id, ...packageData };
     } catch (error) {
       console.error('Error creating feature package:', error);
       throw error;
@@ -55,8 +28,8 @@ export const serverFirebaseOps = {
 
   async getFeaturePackages() {
     try {
-      const querySnapshot = await getDocs(collection(serverDb, 'featurePackages'));
-      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const snapshot = await adminDb.collection('featurePackages').get();
+      return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
       console.error('Error getting feature packages:', error);
       return [];
@@ -65,9 +38,9 @@ export const serverFirebaseOps = {
 
   async getFeaturePackage(id: string) {
     try {
-      const docSnapshot = await getDoc(doc(serverDb, 'featurePackages', id));
-      if (docSnapshot.exists()) {
-        return { id: docSnapshot.id, ...docSnapshot.data() };
+      const doc = await adminDb.collection('featurePackages').doc(id).get();
+      if (doc.exists) {
+        return { id: doc.id, ...doc.data() };
       }
       return null;
     } catch (error) {
@@ -83,11 +56,11 @@ export const serverFirebaseOps = {
         updatedAt: new Date()
       };
       
-      await updateDoc(doc(serverDb, 'featurePackages', id), updateData);
+      await adminDb.collection('featurePackages').doc(id).update(updateData);
       
-      const updatedDoc = await getDoc(doc(serverDb, 'featurePackages', id));
-      if (updatedDoc.exists()) {
-        return { id: updatedDoc.id, ...updatedDoc.data() };
+      const doc = await adminDb.collection('featurePackages').doc(id).get();
+      if (doc.exists) {
+        return { id: doc.id, ...doc.data() };
       }
       return null;
     } catch (error) {
@@ -98,7 +71,7 @@ export const serverFirebaseOps = {
 
   async deleteFeaturePackage(id: string) {
     try {
-      await deleteDoc(doc(serverDb, 'featurePackages', id));
+      await adminDb.collection('featurePackages').doc(id).delete();
       return true;
     } catch (error) {
       console.error('Error deleting feature package:', error);
@@ -109,18 +82,18 @@ export const serverFirebaseOps = {
   // Analytics
   async getAnalytics() {
     try {
-      // Get counts from different collections
-      const [tenantsSnap, usersSnap, packagesSnap] = await Promise.all([
-        getDocs(collection(serverDb, 'tenants')),
-        getDocs(collection(serverDb, 'users')),
-        getDocs(collection(serverDb, 'featurePackages'))
-      ]);
-
+      const tenantsSnapshot = await adminDb.collection('tenants').get();
+      const usersSnapshot = await adminDb.collection('users').get();
+      const packagesSnapshot = await adminDb.collection('featurePackages').get();
+      
+      const tenants = tenantsSnapshot.docs.map((doc: any) => doc.data());
+      const activeTenants = tenants.filter((t: any) => t.status === 'active');
+      
       return {
-        totalTenants: tenantsSnap.size,
-        totalUsers: usersSnap.size,
-        totalFeaturePackages: packagesSnap.size,
-        activeTenants: 0, // We'll calculate this based on active status
+        totalTenants: tenants.length,
+        totalUsers: usersSnapshot.size,
+        totalFeaturePackages: packagesSnapshot.size,
+        activeTenants: activeTenants.length,
         lastUpdated: new Date()
       };
     } catch (error) {
@@ -138,17 +111,17 @@ export const serverFirebaseOps = {
   // Users
   async getUsers() {
     try {
-      const querySnapshot = await getDocs(collection(serverDb, 'users'));
-      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const snapshot = await adminDb.collection('users').get();
+      return snapshot.docs.map((doc: any) => ({ uid: doc.id, ...doc.data() }));
     } catch (error) {
       console.error('Error getting users:', error);
       return [];
     }
   },
 
-  async deleteUser(id: string) {
+  async deleteUser(uid: string) {
     try {
-      await deleteDoc(doc(serverDb, 'users', id));
+      await adminDb.collection('users').doc(uid).delete();
       return true;
     } catch (error) {
       console.error('Error deleting user:', error);
