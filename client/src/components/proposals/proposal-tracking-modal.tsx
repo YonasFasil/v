@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -28,6 +27,77 @@ import {
   Users
 } from "lucide-react";
 
+interface Proposal {
+  id: string;
+  title: string;
+  customerId: string;
+  totalAmount: string;
+  depositAmount?: string;
+  status: string;
+  sentAt?: string;
+  viewedAt?: string;
+  emailOpened: boolean;
+  emailOpenedAt?: string;
+  openCount: number;
+  depositPaid: boolean;
+  depositPaidAt?: string;
+  createdAt: string;
+  eventType?: string;
+  eventDate?: string;
+  startTime?: string;
+  endTime?: string;
+  guestCount?: number;
+  venueId?: string;
+  spaceId?: string;
+}
+
+interface Booking {
+  id: string;
+  eventName: string;
+  eventType: string;
+  customerId: string;
+  venueId: string;
+  spaceId: string;
+  eventDate: string;
+  startTime: string;
+  endTime: string;
+  guestCount: number;
+  status: string;
+  totalAmount: string;
+  notes?: string;
+  proposalId?: string;
+  proposalStatus?: string;
+  proposalSentAt?: string;
+  contractEvents?: Booking[];
+}
+
+interface Customer {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  company?: string;
+  address?: string;
+}
+
+interface Venue {
+  id: string;
+  name: string;
+  spaces?: Array<{
+    id: string;
+    name: string;
+  }>;
+}
+
+interface Communication {
+  id: string;
+  type: string;
+  direction: string;
+  subject?: string;
+  content: string;
+  createdAt: string;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -40,89 +110,94 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
   const [newMessage, setNewMessage] = useState("");
   const [messageType, setMessageType] = useState("email");
 
-  // Fetch proposal details with refreshing when modal opens
-  const { data: proposal, isLoading, refetch } = useQuery({
+  // Fetch proposal details
+  const { data: proposal, isLoading, refetch } = useQuery<Proposal>({
     queryKey: [`/api/proposals/${proposalId}`],
     enabled: !!proposalId && open && !proposalId?.startsWith('booking-')
   });
 
-  // Refresh proposal data when modal opens to get latest tracking info
+  // Refresh proposal data when modal opens
   useEffect(() => {
     if (open && proposalId && !proposalId?.startsWith('booking-')) {
       refetch();
     }
   }, [open, proposalId, refetch]);
 
-  // Handle placeholder proposals (created from bookings with sent status)
-  const isPlaceholderProposal = proposalId?.startsWith('booking-');
-  const placeholderProposal = isPlaceholderProposal ? {
-    id: proposalId,
-    eventName: "Event Proposal",
-    status: "sent",
-    sentAt: new Date().toISOString(),
-    emailOpened: false,
-    openCount: 0,
-    totalAmount: "0"
-  } : null;
-
   // Fetch communications
-  const { data: communications = [] } = useQuery({
+  const { data: communications = [] } = useQuery<Communication[]>({
     queryKey: [`/api/proposals/${proposalId}/communications`],
     enabled: !!proposalId && open
   });
 
-  // Fetch related events/bookings for this proposal
-  const { data: bookings = [] } = useQuery({
+  // Fetch related events/bookings
+  const { data: bookings = [] } = useQuery<Booking[]>({
     queryKey: ["/api/bookings"],
     enabled: !!proposalId && open
   });
 
-  // Fetch customers data
-  const { data: customers = [] } = useQuery({
+  // Fetch customers
+  const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ["/api/customers"],
     enabled: !!proposalId && open
   });
 
-  // Fetch venues data
-  const { data: venues = [] } = useQuery({
+  // Fetch venues
+  const { data: venues = [] } = useQuery<Venue[]>({
     queryKey: ["/api/venues-with-spaces"],
     enabled: !!proposalId && open
   });
 
-  // Find the events/bookings associated with this specific proposal
+  // Find related events
   const relatedEvents = proposal ? (() => {
-    // If this proposal was created from the proposals tab directly, match by exact title/name
-    if (proposal.source === 'proposal' || !proposal.sentAt) {
-      return bookings.filter((booking: any) => 
-        booking.customerId === proposal.customerId && 
-        (booking.eventName === proposal.title || booking.eventName === proposal.eventName)
-      ).flatMap((booking: any) => {
+    // For direct proposals with event data
+    if (proposal.eventDate && proposal.guestCount) {
+      return [{
+        id: `proposal-event-${proposal.id}`,
+        eventName: proposal.title,
+        eventType: proposal.eventType || 'corporate',
+        customerId: proposal.customerId,
+        venueId: proposal.venueId || '',
+        spaceId: proposal.spaceId || '',
+        eventDate: proposal.eventDate,
+        startTime: proposal.startTime || '09:00',
+        endTime: proposal.endTime || '17:00',
+        guestCount: proposal.guestCount,
+        status: 'proposal_shared',
+        totalAmount: proposal.totalAmount,
+        notes: `Proposal: ${proposal.title}`
+      }];
+    }
+
+    // For proposals from booking flow
+    if (proposal.sentAt) {
+      const proposalTime = new Date(proposal.sentAt).getTime();
+      
+      const filtered = bookings.filter((booking) => {
+        if (booking.customerId !== proposal.customerId) return false;
+        if (booking.proposalId) return booking.proposalId === proposal.id;
+        
+        if (booking.proposalStatus === 'sent' && booking.proposalSentAt) {
+          const bookingProposalTime = new Date(booking.proposalSentAt).getTime();
+          const timeDiff = Math.abs(proposalTime - bookingProposalTime);
+          return timeDiff < 30000; // 30 second window
+        }
+        
+        return false;
+      });
+      
+      return filtered.flatMap((booking) => {
         if (booking.contractEvents && booking.contractEvents.length > 0) {
           return booking.contractEvents;
         }
         return [booking];
       });
     }
-    
-    // For proposals created from booking flow, use very strict timing match
-    const proposalTime = new Date(proposal.sentAt).getTime();
-    
-    const filtered = bookings.filter((booking: any) => {
-      if (booking.customerId !== proposal.customerId) return false;
-      if (booking.proposalId) return booking.proposalId === proposal.id;
-      
-      if (booking.proposalStatus === 'sent' && booking.proposalSentAt) {
-        const bookingProposalTime = new Date(booking.proposalSentAt).getTime();
-        const timeDiff = Math.abs(proposalTime - bookingProposalTime);
-        
-        // Only match if sent within 10 seconds (extremely tight)
-        return timeDiff < 10000;
-      }
-      
-      return false;
-    });
-    
-    return filtered.flatMap((booking: any) => {
+
+    // Fallback
+    return bookings.filter((booking) => 
+      booking.customerId === proposal.customerId && 
+      booking.eventName === proposal.title
+    ).flatMap((booking) => {
       if (booking.contractEvents && booking.contractEvents.length > 0) {
         return booking.contractEvents;
       }
@@ -130,8 +205,8 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     });
   })() : [];
 
-  // Get customer information
-  const customer = proposal ? customers.find((c: any) => c.id === proposal.customerId) : null;
+  // Get customer
+  const customer = proposal ? customers.find((c) => c.id === proposal.customerId) : null;
 
   // Send message mutation
   const sendMessageMutation = useMutation({
@@ -156,178 +231,122 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     }
   });
 
-  // Process deposit payment
-  const processDepositMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", `/api/proposals/${proposalId}/process-deposit`);
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Payment Processed",
-        description: "Deposit payment has been processed successfully"
-      });
-      queryClient.invalidateQueries({ queryKey: [`/api/proposals/${proposalId}`] });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to process payment",
-        variant: "destructive"
-      });
-    }
-  });
-
   const handleSendMessage = () => {
     if (!newMessage.trim()) return;
-
+    
     sendMessageMutation.mutate({
       type: messageType,
-      direction: "outbound",
-      subject: messageType === "email" ? "Re: Your Event Proposal" : undefined,
-      content: newMessage
+      direction: 'outbound',
+      subject: messageType === 'email' ? 'Follow-up on your event proposal' : null,
+      content: newMessage,
+      customerId: proposal?.customerId
     });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'sent': return 'bg-blue-100 text-blue-800';
-      case 'viewed': return 'bg-purple-100 text-purple-800';
-      case 'accepted': return 'bg-green-100 text-green-800';
-      case 'rejected': return 'bg-red-100 text-red-800';
-      case 'converted': return 'bg-emerald-100 text-emerald-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'sent': return <Mail className="h-4 w-4" />;
-      case 'viewed': return <Eye className="h-4 w-4" />;
-      case 'accepted': return <CheckCircle2 className="h-4 w-4" />;
-      case 'rejected': return <XCircle className="h-4 w-4" />;
-      case 'converted': return <CheckCircle2 className="h-4 w-4" />;
-      default: return <FileText className="h-4 w-4" />;
-    }
-  };
-
-  const currentProposal = proposal || placeholderProposal;
-
-  // Early return if no proposal data available
-  if (!currentProposal) {
+  if (isLoading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-6xl">
-          <DialogHeader>
-            <DialogTitle>Loading Proposal...</DialogTitle>
-          </DialogHeader>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <div className="flex items-center justify-center p-8">
-            <div className="text-center">
-              <div className="text-gray-400 mb-2">Loading proposal data...</div>
-            </div>
+            <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+            <span className="ml-2">Loading proposal details...</span>
           </div>
         </DialogContent>
       </Dialog>
     );
   }
 
-  if (isLoading && !isPlaceholderProposal) {
+  if (!proposal) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl">
-          <div className="flex items-center justify-center h-48">
-            <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+        <DialogContent className="max-w-md">
+          <div className="text-center p-6">
+            <XCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Proposal Not Found</h3>
+            <p className="text-gray-500">The proposal you're looking for could not be found.</p>
           </div>
         </DialogContent>
       </Dialog>
     );
   }
-
-  if (!currentProposal) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Proposal Tracking: {currentProposal.eventName || currentProposal.title}
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
+        <DialogHeader className="border-b pb-4">
+          <DialogTitle className="flex items-center gap-3">
+            <FileText className="h-5 w-5 text-blue-500" />
+            <span>{proposal.title || proposal.eventName}</span>
+            <Badge variant={proposal.status === 'sent' ? 'default' : 'secondary'}>
+              {proposal.status}
+            </Badge>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Proposal Details */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-y-auto max-h-[calc(90vh-8rem)]">
+          {/* Left Column - Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Status Overview */}
+            {/* Proposal Status & Tracking */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Proposal Status</CardTitle>
+                <CardTitle className="text-lg">Proposal Status & Tracking</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center">
-                    <div className="bg-blue-100 rounded-full p-3 w-12 h-12 mx-auto mb-2 flex items-center justify-center">
-                      <Mail className="h-6 w-6 text-blue-600" />
-                    </div>
-                    <div className="text-sm font-medium">Sent</div>
-                    <div className="text-xs text-gray-500">
-                      {currentProposal.sentAt && !isNaN(new Date(currentProposal.sentAt).getTime()) 
-                        ? format(new Date(currentProposal.sentAt), "MMM d") 
-                        : "Not sent"}
+                  <div className="flex items-center space-x-2">
+                    <div className={`w-3 h-3 rounded-full ${proposal.sentAt ? 'bg-green-500' : 'bg-gray-300'}`} />
+                    <div>
+                      <div className="text-sm font-medium">Sent</div>
+                      <div className="text-xs text-gray-500">
+                        {proposal.sentAt ? format(new Date(proposal.sentAt), "MMM d, h:mm a") : 'Not sent'}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-center">
-                    <div className={`rounded-full p-3 w-12 h-12 mx-auto mb-2 flex items-center justify-center ${
-                      currentProposal.emailOpened ? 'bg-purple-100' : 'bg-gray-100'
-                    }`}>
-                      <Eye className={`h-6 w-6 ${currentProposal.emailOpened ? 'text-purple-600' : 'text-gray-400'}`} />
-                    </div>
-                    <div className="text-sm font-medium">Opened</div>
-                    <div className="text-xs text-gray-500">
-                      {currentProposal.emailOpenedAt && !isNaN(new Date(currentProposal.emailOpenedAt).getTime()) 
-                        ? format(new Date(currentProposal.emailOpenedAt), "MMM d") 
-                        : "Not opened"}
+                  
+                  <div className="flex items-center space-x-2">
+                    <div className={`w-3 h-3 rounded-full ${proposal.emailOpened ? 'bg-blue-500' : 'bg-gray-300'}`} />
+                    <div>
+                      <div className="text-sm font-medium">Opened</div>
+                      <div className="text-xs text-gray-500">
+                        {proposal.emailOpenedAt ? format(new Date(proposal.emailOpenedAt), "MMM d, h:mm a") : 'Not opened'}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-center">
-                    <div className={`rounded-full p-3 w-12 h-12 mx-auto mb-2 flex items-center justify-center ${
-                      currentProposal.status === 'accepted' ? 'bg-green-100' : 'bg-gray-100'
-                    }`}>
-                      <CheckCircle2 className={`h-6 w-6 ${currentProposal.status === 'accepted' ? 'text-green-600' : 'text-gray-400'}`} />
-                    </div>
-                    <div className="text-sm font-medium">Accepted</div>
-                    <div className="text-xs text-gray-500">
-                      {currentProposal.status === 'accepted' && (currentProposal.viewedAt || currentProposal.createdAt) 
-                        ? format(new Date(currentProposal.viewedAt || currentProposal.createdAt), "MMM d") 
-                        : "Pending"}
+
+                  <div className="flex items-center space-x-2">
+                    <div className={`w-3 h-3 rounded-full ${proposal.status === 'viewed' ? 'bg-purple-500' : 'bg-gray-300'}`} />
+                    <div>
+                      <div className="text-sm font-medium">Viewed</div>
+                      <div className="text-xs text-gray-500">
+                        {proposal.viewedAt ? format(new Date(proposal.viewedAt), "MMM d, h:mm a") : 'Not viewed'}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-center">
-                    <div className={`rounded-full p-3 w-12 h-12 mx-auto mb-2 flex items-center justify-center ${
-                      currentProposal.depositPaid ? 'bg-emerald-100' : 'bg-gray-100'
-                    }`}>
-                      <CreditCard className={`h-6 w-6 ${currentProposal.depositPaid ? 'text-emerald-600' : 'text-gray-400'}`} />
-                    </div>
-                    <div className="text-sm font-medium">Paid</div>
-                    <div className="text-xs text-gray-500">
-                      {currentProposal.depositPaidAt && !isNaN(new Date(currentProposal.depositPaidAt).getTime()) 
-                        ? format(new Date(currentProposal.depositPaidAt), "MMM d") 
-                        : "Not paid"}
+
+                  <div className="flex items-center space-x-2">
+                    <div className={`w-3 h-3 rounded-full ${proposal.depositPaid ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+                    <div>
+                      <div className="text-sm font-medium">Paid</div>
+                      <div className="text-xs text-gray-500">
+                        {proposal.depositPaidAt ? format(new Date(proposal.depositPaidAt), "MMM d, h:mm a") : 'Not paid'}
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <Badge className={getStatusColor(currentProposal.status)}>
-                      {getStatusIcon(currentProposal.status)}
-                      <span className="ml-1">{currentProposal.status.charAt(0).toUpperCase() + currentProposal.status.slice(1)}</span>
-                    </Badge>
-                    <div className="text-sm text-gray-600">
-                      Created {currentProposal.createdAt && !isNaN(new Date(currentProposal.createdAt).getTime()) 
-                        ? format(new Date(currentProposal.createdAt), "MMM d, yyyy") 
-                        : "Unknown"}
-                    </div>
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <div className="flex items-center gap-2 text-blue-800">
+                    <Eye className="h-4 w-4" />
+                    <span className="text-sm font-medium">Email Opens: {proposal.openCount || 0}</span>
+                  </div>
+                  <div className="text-xs text-blue-600 mt-1">
+                    Status: {proposal.status === 'sent' && !proposal.emailOpened ? 'Waiting for customer to open' : 
+                            proposal.status === 'viewed' ? 'Customer has viewed the proposal' :
+                            proposal.status === 'accepted' ? 'Proposal accepted!' :
+                            proposal.status === 'declined' ? 'Proposal declined' : 'Draft'}
+                  </div>
+                  <div className="text-xs text-gray-600 mt-2">
+                    Created: {format(new Date(proposal.createdAt), "MMM d, yyyy 'at' h:mm a")}
                   </div>
                 </div>
               </CardContent>
@@ -336,21 +355,20 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
             {/* Event Details */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">
-                  Event Details {relatedEvents.length > 1 && `(${relatedEvents.length} Events)`}
-                </CardTitle>
+                <CardTitle className="text-lg">Event Details</CardTitle>
               </CardHeader>
               <CardContent>
                 {relatedEvents.length === 0 ? (
-                  <div className="text-gray-500 text-center py-4">
-                    <Calendar className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                  <div className="text-center py-8 text-gray-500">
+                    <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                     <p>No events found for this proposal</p>
+                    <p className="text-sm mt-2">Events may take a moment to appear after sending a proposal</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {relatedEvents.map((event: any, index: number) => {
-                      const venue = venues.find((v: any) => v.id === event.venueId);
-                      const space = venue?.spaces?.find((s: any) => s.id === event.spaceId);
+                    {relatedEvents.map((event, index) => {
+                      const venue = venues.find((v) => v.id === event.venueId);
+                      const space = venue?.spaces?.find((s) => s.id === event.spaceId);
                       
                       return (
                         <div key={event.id} className={`${index > 0 ? 'border-t pt-4' : ''}`}>
@@ -395,17 +413,17 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span>Total Amount</span>
-                    <span className="font-medium">${parseFloat((proposal && proposal.totalAmount) || 0).toFixed(2)}</span>
+                    <span className="font-medium">${parseFloat(proposal.totalAmount || '0').toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-green-600">
                     <span>Required Deposit</span>
-                    <span className="font-medium">${parseFloat((proposal && proposal.depositAmount) || 0).toFixed(2)}</span>
+                    <span className="font-medium">${parseFloat(proposal.depositAmount || '0').toFixed(2)}</span>
                   </div>
-                  {proposal && proposal.depositPaid && (
+                  {proposal.depositPaid && (
                     <div className="flex justify-between text-emerald-600">
                       <span>✓ Deposit Paid</span>
                       <span className="font-medium">
-                        {(proposal && proposal.depositPaidAt && !isNaN(new Date(proposal.depositPaidAt).getTime())) 
+                        {proposal.depositPaidAt && !isNaN(new Date(proposal.depositPaidAt).getTime()) 
                         ? format(new Date(proposal.depositPaidAt), "MMM d, yyyy") 
                         : 'N/A'}
                       </span>
@@ -428,7 +446,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                       <p>No communications yet</p>
                     </div>
                   ) : (
-                    communications.map((comm: any) => (
+                    communications.map((comm) => (
                       <div key={comm.id} className="border-l-4 border-blue-200 pl-4 py-2">
                         <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-2">
