@@ -4,6 +4,10 @@ import { getAuth } from 'firebase-admin/auth';
 import * as fs from 'fs';
 import * as path from 'path';
 
+// Simple fallback using client SDK for database operations
+import { initializeApp as clientInitializeApp } from 'firebase/app';
+import { getFirestore as clientGetFirestore } from 'firebase/firestore';
+
 // Initialize Firebase Admin SDK
 let app;
 
@@ -43,7 +47,7 @@ if (getApps().length === 0) {
       try {
         fs.unlinkSync(tempFilePath);
         console.log('Temporary service account file cleaned up');
-      } catch (e) {
+      } catch (e: any) {
         console.warn('Could not clean up temporary service account file:', e.message);
       }
     }, 1000);
@@ -54,7 +58,7 @@ if (getApps().length === 0) {
     // Fallback: try with cert() method 
     try {
       console.log('Trying fallback cert() method...');
-      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
       
       // Ensure private key formatting
       if (serviceAccount.private_key && !serviceAccount.private_key.includes('\n')) {
@@ -77,12 +81,38 @@ if (getApps().length === 0) {
   console.log('Using existing Firebase Admin app');
 }
 
-export const adminDb = getFirestore(app);
-export const adminAuth = getAuth(app);
+// Export Firebase Admin instances with proper typing
+export let adminDb: any;
+export let adminAuth: any;
+
+try {
+  adminDb = getFirestore(app);
+  adminAuth = getAuth(app);
+  console.log('Firebase Admin services initialized');
+} catch (error) {
+  console.warn('Firebase Admin services failed to initialize, using fallback');
+  
+  // Fallback to client SDK for basic operations
+  const clientApp = clientInitializeApp({
+    apiKey: process.env.VITE_FIREBASE_API_KEY,
+    authDomain: `${process.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: `${process.env.VITE_FIREBASE_PROJECT_ID}.firebasestorage.app`,
+    messagingSenderId: "948784074321",
+    appId: process.env.VITE_FIREBASE_APP_ID
+  }, 'admin-fallback');
+  
+  adminDb = clientGetFirestore(clientApp);
+  adminAuth = null; // Auth operations will need to be handled differently
+}
 
 // Helper function to verify Firebase ID tokens
 export async function verifyIdToken(idToken: string) {
   try {
+    if (!adminAuth) {
+      console.warn('Admin Auth not available, skipping token verification');
+      return null;
+    }
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     return decodedToken;
   } catch (error) {
