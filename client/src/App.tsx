@@ -41,8 +41,7 @@ import Proposals from "@/pages/proposals";
 import Onboarding from "@/pages/onboarding";
 import PlanManagement from "@/pages/plan-management";
 import NotFound from "@/pages/not-found";
-import FirebaseLogin from "@/pages/firebase-login";
-import FirebaseDashboard from "@/pages/firebase-dashboard";
+// Removed deprecated Firebase components
 
 function Router() {
   // TODO: Update authentication system to work with Firebase
@@ -88,9 +87,7 @@ function Router() {
       <Route path="/admin/users" component={SuperAdminDashboard} />
       <Route path="/admin/analytics" component={SuperAdminDashboard} />
       
-      {/* Firebase Authentication Routes */}
-      <Route path="/firebase-login" component={FirebaseLogin} />
-      <Route path="/firebase-dashboard" component={FirebaseDashboard} />
+      {/* Removed deprecated Firebase routes - use /login and /signup instead */}
       
       {/* Legacy routes removed for security - all tenant routes must use /t/:slug/app/* pattern */}
       

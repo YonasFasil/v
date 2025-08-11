@@ -27,7 +27,6 @@ export function useFirebaseAuth() {
         }
       } catch (error) {
         console.error('Error syncing user with Firestore:', error);
-        console.error('Full error:', error);
         setUser(null);
       } finally {
         setIsLoading(false);

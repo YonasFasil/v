@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { signInWithGoogle, handleAuthRedirect } from '@/lib/firebase';
+import { signInWithEmailPassword } from '@/lib/firebase';
 import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
 import { Calendar, LogIn } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -11,27 +11,7 @@ export default function FirebaseLogin() {
   const [, setLocation] = useLocation();
   const { user, isLoading } = useFirebaseAuth();
 
-  // Handle redirect result on page load
-  useEffect(() => {
-    handleAuthRedirect()
-      .then((result) => {
-        if (result?.user) {
-          toast({
-            title: "Welcome!",
-            description: `Signed in as ${result.user.displayName || result.user.email}`,
-          });
-          setLocation('/firebase-dashboard');
-        }
-      })
-      .catch((error) => {
-        console.error('Auth redirect error:', error);
-        toast({
-          title: "Sign in failed",
-          description: error.message,
-          variant: "destructive",
-        });
-      });
-  }, [setLocation]);
+  // This component is deprecated - use /login instead
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -40,9 +20,10 @@ export default function FirebaseLogin() {
     }
   }, [user, isLoading, setLocation]);
 
-  const handleGoogleSignIn = async () => {
+  const handleEmailSignIn = async () => {
     try {
-      await signInWithGoogle();
+      // This is a deprecated component - redirect to new login
+      setLocation('/login');
     } catch (error: any) {
       toast({
         title: "Sign in failed",
