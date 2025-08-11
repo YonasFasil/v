@@ -73,7 +73,20 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
   const { toast } = useToast();
   const { hasFeature, isLoading, tenantInfo } = useTenantFeatures();
   
-  const navigationItems = getDynamicNavigationItems(hasFeature, isLoading, tenantInfo);
+  // Show all navigation items - simplified approach
+  const navigationItems = [
+    { name: "Dashboard", href: "/", icon: LayoutDashboard },
+    { name: "Events & Bookings", href: "/events", icon: Calendar },
+    { name: "Customers", href: "/customers", icon: Users },
+    { name: "Leads", href: "/leads", icon: UserPlus },
+    { name: "Proposals", href: "/proposals", icon: FileText },
+    { name: "Payments", href: "/payments", icon: CreditCard },
+    { name: "Tasks & Team", href: "/tasks", icon: CheckSquare },
+    { name: "Venues", href: "/venues", icon: Building },
+    { name: "Packages & Services", href: "/packages", icon: Package },
+    { name: "Reports & Insights", href: "/reports", icon: BarChart3 },
+    { name: "Settings", href: "/settings", icon: Settings },
+  ];
   
   // Logout mutation
   const logoutMutation = useMutation({

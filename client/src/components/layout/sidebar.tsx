@@ -120,8 +120,17 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
   const [location] = useLocation();
   const { hasFeature, tenantInfo, isLoading } = useTenantFeatures();
   
-  // Get navigation items based on features - default to showing all if loading
-  const navigationItems = isLoading ? [
+  // Debug logging
+  console.log('Sidebar Debug:', { 
+    isLoading, 
+    tenantInfo, 
+    features: tenantInfo?.features,
+    contactEmail: tenantInfo?.contactEmail,
+    isDemoAccount: tenantInfo?.contactEmail === 'demo@venuin.com'
+  });
+  
+  // Show all navigation items for demo account - simplified approach
+  const navigationItems = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
     { name: "Events & Bookings", href: "/events", icon: Calendar },
     { name: "Customers", href: "/customers", icon: Users },
@@ -132,14 +141,14 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
     { name: "Venues", href: "/venues", icon: MapPin },
     { name: "Setup Styles", href: "/setup-styles", icon: Grid3X3 },
     { name: "Packages & Services", href: "/packages", icon: Package },
-  ] : getAllNavigationItems(hasFeature, tenantInfo);
+  ];
   
-  const aiFeatures = isLoading ? [
+  const aiFeatures = [
     { name: "AI Analytics & Reports", href: "/ai-analytics", icon: BarChart3 },
     { name: "Voice Booking", href: "/voice-booking", icon: Mic },
     { name: "Smart Scheduling", href: "/ai-scheduling", icon: Brain },
     { name: "AI Proposal Generator", href: "/ai-proposals", icon: Lightbulb },
-  ] : getAIFeatures(hasFeature, tenantInfo);
+  ];
   
   // Logout mutation
   const logoutMutation = useMutation({
