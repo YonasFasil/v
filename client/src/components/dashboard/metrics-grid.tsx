@@ -10,25 +10,18 @@ export function MetricsGrid() {
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
   const { formatAmount } = useFormattedCurrency();
   
-  const { data: metrics, isLoading } = useQuery({
-    queryKey: ["/api/dashboard/metrics"],
+  // Use single optimized dashboard endpoint instead of multiple API calls
+  const { data: dashboardData, isLoading } = useQuery({
+    queryKey: ["/api/dashboard/overview"],
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
-  const { data: bookings = [] } = useQuery({
-    queryKey: ["/api/bookings"],
-  });
-
-  const { data: customers = [] } = useQuery({
-    queryKey: ["/api/customers"],
-  });
-
-  const { data: venues = [] } = useQuery({
-    queryKey: ["/api/venues"],
-  });
-
-  const { data: payments = [] } = useQuery({
-    queryKey: ["/api/payments"],
-  });
+  // Extract data from unified response with proper typing
+  const metrics = (dashboardData as any)?.metrics || {};
+  const bookings = (dashboardData as any)?.upcomingBookings || [];
+  const customers = (dashboardData as any)?.activeLeads || []; // Using activeLeads as customer proxy
+  const venues = (dashboardData as any)?.venues || [];
+  const payments = (dashboardData as any)?.recentPayments || [];
 
   if (isLoading) {
     return (

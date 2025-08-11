@@ -110,14 +110,10 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <MetricsGrid />
-          
-          {/* Quick Stats Section */}
-          <div className="mb-6">
-            <Suspense fallback={<div className="h-32 bg-gray-100 rounded-lg animate-pulse" />}>
-              <QuickStats />
-            </Suspense>
-          </div>
+          {/* Use optimized dashboard data instead of multiple components */}
+          <Suspense fallback={<div className="h-32 bg-gray-100 rounded-lg animate-pulse" />}>
+            <MetricsGrid />
+          </Suspense>
           
           {/* Full-width Calendar */}
           <div className="mb-6">

@@ -2,11 +2,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useBookings } from "@/hooks/use-bookings";
+import { useQuery } from "@tanstack/react-query";
 import { Calendar, Clock, MapPin, Users } from "lucide-react";
 import { format } from "date-fns";
 
 export function RecentBookings() {
-  const { data: bookings, isLoading } = useBookings();
+  // Use optimized dashboard data instead of separate API call
+  const { data: dashboardData, isLoading: dashboardLoading } = useQuery({ 
+    queryKey: ["/api/dashboard/overview"],
+    staleTime: 5 * 60 * 1000 
+  });
+  
+  // Fallback to individual API if dashboard data not available
+  const { data: fallbackBookings, isLoading: fallbackLoading } = useBookings();
+  
+  const bookings = dashboardData?.upcomingBookings || fallbackBookings;
+  const isLoading = dashboardLoading || (fallbackLoading && !dashboardData);
 
   const getStatusColor = (status: string) => {
     switch (status) {
