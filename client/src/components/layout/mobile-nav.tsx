@@ -20,39 +20,39 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// Dynamic navigation based on tenant features
+// Dynamic navigation based on tenant features - matching database feature names
 const getDynamicNavigationItems = (hasFeature: (feature: string) => boolean, isLoading: boolean) => {
   const items = [];
   
   // Always show Dashboard
   items.push({ name: "Dashboard", href: "/", icon: LayoutDashboard });
   
-  // Enterprise features
-  if (isLoading || hasFeature("event-management")) {
+  // Core features with correct database feature names
+  if (isLoading || hasFeature("booking_management")) {
     items.push({ name: "Events & Bookings", href: "/events", icon: Calendar });
   }
-  if (isLoading || hasFeature("customer-management")) {
+  if (isLoading || hasFeature("customer_management")) {
     items.push({ name: "Customers", href: "/customers", icon: Users });
   }
-  if (isLoading || hasFeature("lead-management")) {
+  if (isLoading || hasFeature("customer_management")) { // Using same feature for leads
     items.push({ name: "Leads", href: "/leads", icon: UserPlus });
   }
-  if (isLoading || hasFeature("proposal-system")) {
+  if (isLoading || hasFeature("basic_proposals") || hasFeature("advanced_proposals")) {
     items.push({ name: "Proposals", href: "/proposals", icon: FileText });
   }
-  if (isLoading || hasFeature("stripe-payments")) {
+  if (isLoading || hasFeature("stripe_payments")) {
     items.push({ name: "Payments", href: "/payments", icon: CreditCard });
   }
-  if (isLoading || hasFeature("task-management")) {
+  if (isLoading || hasFeature("team_management")) {
     items.push({ name: "Tasks & Team", href: "/tasks", icon: CheckSquare });
   }
-  if (isLoading || hasFeature("venue-management")) {
+  if (isLoading || hasFeature("multi_venues")) {
     items.push({ name: "Venues", href: "/venues", icon: Building });
   }
-  if (isLoading || hasFeature("service-packages")) {
+  if (isLoading || hasFeature("booking_management")) { // Using same feature for packages
     items.push({ name: "Packages & Services", href: "/packages", icon: Package });
   }
-  if (isLoading || hasFeature("ai-insights") || hasFeature("advanced-reporting")) {
+  if (isLoading || hasFeature("ai_features") || hasFeature("advanced_analytics")) {
     items.push({ name: "Reports & Insights", href: "/reports", icon: BarChart3 });
   }
   

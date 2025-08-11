@@ -34,66 +34,66 @@ const getAllNavigationItems = (hasFeature: (feature: string) => boolean) => {
   const items = [];
   
   // Always available items
-  items.push({ name: "Dashboard", href: "/", icon: LayoutDashboard, feature: "dashboard-analytics" });
+  items.push({ name: "Dashboard", href: "/", icon: LayoutDashboard, feature: "advanced_analytics" });
   
-  // Core features
-  if (hasFeature("event-management")) {
-    items.push({ name: "Events & Bookings", href: "/events", icon: Calendar, feature: "event-management" });
+  // Core features - matching the actual database feature names
+  if (hasFeature("booking_management")) {
+    items.push({ name: "Events & Bookings", href: "/events", icon: Calendar, feature: "booking_management" });
   }
   
-  if (hasFeature("customer-management")) {
-    items.push({ name: "Customers", href: "/customers", icon: Users, feature: "customer-management" });
+  if (hasFeature("customer_management")) {
+    items.push({ name: "Customers", href: "/customers", icon: Users, feature: "customer_management" });
   }
   
-  if (hasFeature("lead-management")) {
-    items.push({ name: "Leads", href: "/leads", icon: UserPlus, feature: "lead-management" });
+  if (hasFeature("customer_management")) { // Using same feature for leads
+    items.push({ name: "Leads", href: "/leads", icon: UserPlus, feature: "customer_management" });
   }
   
-  if (hasFeature("proposal-system")) {
-    items.push({ name: "Proposals", href: "/proposals", icon: FileText, feature: "proposal-system" });
+  if (hasFeature("basic_proposals") || hasFeature("advanced_proposals")) {
+    items.push({ name: "Proposals", href: "/proposals", icon: FileText, feature: "basic_proposals" });
   }
   
-  if (hasFeature("stripe-payments")) {
-    items.push({ name: "Payments", href: "/payments", icon: CreditCard, feature: "stripe-payments" });
+  if (hasFeature("stripe_payments")) {
+    items.push({ name: "Payments", href: "/payments", icon: CreditCard, feature: "stripe_payments" });
   }
   
-  if (hasFeature("task-management")) {
-    items.push({ name: "Tasks & Team", href: "/tasks", icon: CheckSquare, feature: "task-management" });
+  if (hasFeature("team_management")) {
+    items.push({ name: "Tasks & Team", href: "/tasks", icon: CheckSquare, feature: "team_management" });
   }
   
-  if (hasFeature("venue-management")) {
-    items.push({ name: "Venues", href: "/venues", icon: MapPin, feature: "venue-management" });
+  if (hasFeature("multi_venues")) {
+    items.push({ name: "Venues", href: "/venues", icon: MapPin, feature: "multi_venues" });
   }
   
-  if (hasFeature("floor-plan-designer")) {
-    items.push({ name: "Setup Styles", href: "/setup-styles", icon: Grid3X3, feature: "floor-plan-designer" });
+  if (hasFeature("floor_plans")) {
+    items.push({ name: "Setup Styles", href: "/setup-styles", icon: Grid3X3, feature: "floor_plans" });
   }
   
-  if (hasFeature("service-packages")) {
-    items.push({ name: "Packages & Services", href: "/packages", icon: Package, feature: "service-packages" });
+  if (hasFeature("booking_management")) { // Using same feature for packages
+    items.push({ name: "Packages & Services", href: "/packages", icon: Package, feature: "booking_management" });
   }
   
   return items;
 };
 
-// AI Features with feature gates
+// AI Features with feature gates - matching database feature names
 const getAIFeatures = (hasFeature: (feature: string) => boolean) => {
   const items = [];
   
-  if (hasFeature("ai-insights") || hasFeature("advanced-reporting")) {
-    items.push({ name: "AI Analytics & Reports", href: "/ai-analytics", icon: BarChart3, feature: "ai-insights" });
+  if (hasFeature("ai_features") || hasFeature("advanced_analytics")) {
+    items.push({ name: "AI Analytics & Reports", href: "/ai-analytics", icon: BarChart3, feature: "ai_features" });
   }
   
-  if (hasFeature("ai-voice-booking")) {
-    items.push({ name: "Voice Booking", href: "/voice-booking", icon: Mic, feature: "ai-voice-booking" });
+  if (hasFeature("ai_features")) {
+    items.push({ name: "Voice Booking", href: "/voice-booking", icon: Mic, feature: "ai_features" });
   }
   
-  if (hasFeature("ai-scheduling")) {
-    items.push({ name: "Smart Scheduling", href: "/ai-scheduling", icon: Brain, feature: "ai-scheduling" });
+  if (hasFeature("ai_features")) {
+    items.push({ name: "Smart Scheduling", href: "/ai-scheduling", icon: Brain, feature: "ai_features" });
   }
   
-  if (hasFeature("ai-proposal-generation")) {
-    items.push({ name: "AI Proposal Generator", href: "/ai-proposals", icon: Lightbulb, feature: "ai-proposal-generation" });
+  if (hasFeature("ai_features")) {
+    items.push({ name: "AI Proposal Generator", href: "/ai-proposals", icon: Lightbulb, feature: "ai_features" });
   }
   
   return items;
