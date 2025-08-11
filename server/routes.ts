@@ -2588,6 +2588,63 @@ This is a test email from your Venuine venue management system.
     }
   });
 
+  // Resend proposal endpoint
+  app.post("/api/proposals/:id/resend", async (req, res) => {
+    try {
+      const proposal = await storage.getProposal(req.params.id);
+      if (!proposal) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+
+      const customer = await storage.getCustomer(proposal.customerId);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      // Re-send the proposal email
+      const emailService = new EmailService();
+      const baseUrl = process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000';
+      const proposalViewLink = `${baseUrl}/proposal/view/${customer.id}`;
+      
+      try {
+        await emailService.sendProposalEmail({
+          to: customer.email,
+          subject: `Proposal for ${proposal.title}`,
+          htmlContent: proposal.content,
+          proposalViewLink
+        });
+      } catch (error) {
+        console.error('Failed to resend proposal email:', error);
+        return res.status(500).json({ message: "Failed to send proposal email" });
+      }
+
+      // Update proposal with new sent timestamp
+      const updatedProposal = await storage.updateProposal(proposal.id, {
+        sentAt: new Date(),
+        status: 'sent'
+      });
+
+      // Record communication
+      await storage.createCommunication({
+        customerId: customer.id,
+        type: 'email',
+        direction: 'outbound',
+        subject: `Proposal for ${proposal.title}`,
+        content: 'Proposal has been resent to customer',
+        timestamp: new Date()
+      });
+
+      res.json({ 
+        success: true, 
+        message: "Proposal resent successfully",
+        proposal: updatedProposal
+      });
+    } catch (error) {
+      console.error('Error resending proposal:', error);
+      res.status(500).json({ message: "Failed to resend proposal" });
+    }
+  });
+
   // Email tracking endpoint - tracks when customers open proposal emails
   app.get("/api/proposals/:id/track-open", async (req, res) => {
     try {

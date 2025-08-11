@@ -149,13 +149,8 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
 
   // Find related events
   const relatedEvents = proposal ? (() => {
-    console.log('Finding related events for proposal:', proposal.id, 'customer:', proposal.customerId);
-    console.log('Proposal sentAt:', proposal.sentAt);
-    console.log('Available bookings:', bookings.length);
-    
     // For direct proposals with event data embedded in the proposal
     if (proposal.eventDate && proposal.guestCount) {
-      console.log('Using embedded event data from proposal');
       return [{
         id: `proposal-event-${proposal.id}`,
         eventName: proposal.title,
@@ -176,17 +171,13 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     // For proposals created from booking flow - match by timing and customer
     if (proposal.sentAt) {
       const proposalTime = new Date(proposal.sentAt).getTime();
-      console.log('Searching for bookings around proposal time:', proposalTime);
       
       const matchedBookings = bookings.filter((booking) => {
-        console.log('Checking booking:', booking.eventName, 'customer:', booking.customerId, 'proposalStatus:', booking.proposalStatus, 'proposalSentAt:', booking.proposalSentAt);
-        
         // Must be same customer
         if (booking.customerId !== proposal.customerId) return false;
         
         // Direct proposal ID link (if exists)
         if (booking.proposalId === proposal.id) {
-          console.log('Found booking with direct proposalId match');
           return true;
         }
         
@@ -194,19 +185,15 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
         if (booking.proposalStatus === 'sent' && booking.proposalSentAt) {
           const bookingProposalTime = new Date(booking.proposalSentAt).getTime();
           const timeDiff = Math.abs(proposalTime - bookingProposalTime);
-          console.log('Time difference:', timeDiff, 'ms');
           
           // 60-second window to be more generous
           if (timeDiff < 60000) {
-            console.log('Found booking within time window');
             return true;
           }
         }
         
         return false;
       });
-      
-      console.log('Matched bookings:', matchedBookings.length);
       
       return matchedBookings.flatMap((booking) => {
         if (booking.contractEvents && booking.contractEvents.length > 0) {
@@ -217,19 +204,8 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     }
 
     // Fallback: match by customer and title/name similarity
-    console.log('Using fallback matching by customer and name');
     const matchedBookings = bookings.filter((booking) => {
       if (booking.customerId !== proposal.customerId) return false;
-      
-      console.log('Checking booking for customer match:', {
-        bookingId: booking.id,
-        bookingName: booking.eventName,
-        proposalTitle: proposal.title,
-        isContract: !!booking.contractId,
-        contractId: booking.contractId,
-        hasContractEvents: !!(booking.contractEvents && booking.contractEvents.length > 0),
-        contractEventsCount: booking.contractEvents?.length || 0
-      });
       
       // Extract event name from proposal title (remove "Proposal for " prefix)
       const proposalEventName = proposal.title.replace(/^Proposal for\s+/i, '').trim();
@@ -245,7 +221,6 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
         });
         
         if (contractMatches) {
-          console.log('Found contract event match!');
           return true;
         }
       }
@@ -256,11 +231,8 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
              booking.eventName.includes(proposalEventName);
     });
     
-    console.log('Fallback matched bookings:', matchedBookings.length);
-    
     return matchedBookings.flatMap((booking) => {
       if (booking.contractEvents && booking.contractEvents.length > 0) {
-        console.log('Returning contract events:', booking.contractEvents.length);
         return booking.contractEvents;
       }
       return [booking];
@@ -293,6 +265,28 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     }
   });
 
+  // Resend proposal mutation
+  const resendProposalMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/proposals/${proposalId}/resend`);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Proposal Resent",
+        description: "The proposal has been resent to the customer"
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/proposals/${proposalId}`] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to resend proposal",
+        variant: "destructive"
+      });
+    }
+  });
+
   const handleSendMessage = () => {
     if (!newMessage.trim()) return;
     
@@ -303,6 +297,10 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
       content: newMessage,
       customerId: proposal?.customerId
     });
+  };
+
+  const handleResendProposal = () => {
+    resendProposalMutation.mutate();
   };
 
   if (isLoading) {
@@ -568,9 +566,14 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                 <CardTitle className="text-lg">Quick Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full">
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={handleResendProposal}
+                  disabled={resendProposalMutation.isPending}
+                >
                   <Send className="h-4 w-4 mr-2" />
-                  Resend Proposal
+                  {resendProposalMutation.isPending ? 'Sending...' : 'Resend Proposal'}
                 </Button>
                 
                 <div className="text-xs text-gray-500 text-center mt-4 p-2 bg-green-50 rounded">
