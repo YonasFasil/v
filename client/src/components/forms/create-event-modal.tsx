@@ -984,7 +984,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                   </Button>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-6">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-slate-600">Status:</span>
                   <StatusSelector
@@ -992,7 +992,8 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                     onStatusChange={(newStatus) => setEventStatus(newStatus)}
                   />
                 </div>
-                {/* Close button space */}
+                {/* Extra space before close button */}
+                <div className="w-8" />
               </div>
             </div>
 
