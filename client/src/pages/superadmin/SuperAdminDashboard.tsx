@@ -29,7 +29,7 @@ import { useLocation } from "wouter";
 import { useEffect } from "react";
 import { FeaturePackageForm } from './FeaturePackageForm';
 import UsersManagement from './UsersManagement';
-import { useSuperAdmin } from "@/hooks/useSuperAdmin";
+import { AdminAuthGuard } from "@/components/AdminAuthGuard";
 
 interface Tenant {
   id: string;
@@ -62,8 +62,7 @@ interface Analytics {
   recentActivity: any[];
 }
 
-export default function SuperAdminDashboard() {
-  const { isSuperAdmin, isLoading, hasAccess } = useSuperAdmin();
+function SuperAdminDashboardContent() {
   const [activeTab, setActiveTab] = useState("overview");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -71,20 +70,6 @@ export default function SuperAdminDashboard() {
   const [isCreatePackageOpen, setIsCreatePackageOpen] = useState(false);
   const [isEditPackageOpen, setIsEditPackageOpen] = useState(false);
   const [editingPackage, setEditingPackage] = useState<any>(null);
-
-  // Show loading while checking super admin status
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
-  }
-
-  // Don't render anything if not super admin (useSuperAdmin hook handles redirect)
-  if (!hasAccess) {
-    return null;
-  }
   
   const generateSlug = (name: string) => {
     return name
@@ -95,23 +80,7 @@ export default function SuperAdminDashboard() {
       .replace(/^-|-$/g, '') // Remove leading/trailing hyphens
       .trim();
   };
-  const [, navigate] = useLocation();
-  
   const queryClient = useQueryClient();
-
-  // Check authentication status first
-  const { data: authUser, isLoading: authLoading, error: authError } = useQuery({
-    queryKey: ['/api/auth/me'],
-    retry: false,
-  });
-
-  // Redirect to superadmin login if not authenticated
-  useEffect(() => {
-    if (!authLoading && (!authUser || authError)) {
-      navigate('/sys-admin-login-x7k9p2w4');
-      return;
-    }
-  }, [authUser, authLoading, authError, navigate]);
 
   // Logout mutation
   const logoutMutation = useMutation({
@@ -133,25 +102,22 @@ export default function SuperAdminDashboard() {
     }
   });
 
-  // Analytics query - only run if authenticated
+  // Analytics query
   const { data: analytics, isLoading: analyticsLoading } = useQuery<Analytics>({
     queryKey: ['/api/superadmin/analytics'],
-    enabled: !!authUser,
   });
 
-  // Tenants query with search and filter - only run if authenticated
+  // Tenants query with search and filter
   const { data: tenantsResponse, isLoading: tenantsLoading } = useQuery<{
     data: Tenant[];
     pagination: any;
   }>({
     queryKey: ['/api/superadmin/tenants', searchTerm, statusFilter],
-    enabled: !!authUser,
   });
 
-  // Feature packages query - only run if authenticated
+  // Feature packages query
   const { data: featurePackages = [], isLoading: packagesLoading } = useQuery<FeaturePackage[]>({
     queryKey: ['/api/superadmin/feature-packages'],
-    enabled: !!authUser,
   });
 
   // Create tenant mutation
@@ -692,5 +658,14 @@ export default function SuperAdminDashboard() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+// Main component with authentication guard
+export default function SuperAdminDashboard() {
+  return (
+    <AdminAuthGuard>
+      <SuperAdminDashboardContent />
+    </AdminAuthGuard>
   );
 }
