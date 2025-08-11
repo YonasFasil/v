@@ -20,39 +20,40 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// Dynamic navigation based on tenant features - matching database feature names
-const getDynamicNavigationItems = (hasFeature: (feature: string) => boolean, isLoading: boolean) => {
+// Dynamic navigation based on tenant features - with demo account override
+const getDynamicNavigationItems = (hasFeature: (feature: string) => boolean, isLoading: boolean, tenantInfo?: any) => {
   const items = [];
+  const isDemoAccount = tenantInfo?.contactEmail === 'demo@venuin.com';
   
   // Always show Dashboard
   items.push({ name: "Dashboard", href: "/", icon: LayoutDashboard });
   
-  // Core features with correct database feature names
-  if (isLoading || hasFeature("booking_management")) {
+  // Core features with demo account override
+  if (isLoading || isDemoAccount || hasFeature("booking_management")) {
     items.push({ name: "Events & Bookings", href: "/events", icon: Calendar });
   }
-  if (isLoading || hasFeature("customer_management")) {
+  if (isLoading || isDemoAccount || hasFeature("customer_management")) {
     items.push({ name: "Customers", href: "/customers", icon: Users });
   }
-  if (isLoading || hasFeature("customer_management")) { // Using same feature for leads
+  if (isLoading || isDemoAccount || hasFeature("customer_management")) {
     items.push({ name: "Leads", href: "/leads", icon: UserPlus });
   }
-  if (isLoading || hasFeature("basic_proposals") || hasFeature("advanced_proposals")) {
+  if (isLoading || isDemoAccount || hasFeature("basic_proposals") || hasFeature("advanced_proposals")) {
     items.push({ name: "Proposals", href: "/proposals", icon: FileText });
   }
-  if (isLoading || hasFeature("stripe_payments")) {
+  if (isLoading || isDemoAccount || hasFeature("stripe_payments")) {
     items.push({ name: "Payments", href: "/payments", icon: CreditCard });
   }
-  if (isLoading || hasFeature("team_management")) {
+  if (isLoading || isDemoAccount || hasFeature("team_management")) {
     items.push({ name: "Tasks & Team", href: "/tasks", icon: CheckSquare });
   }
-  if (isLoading || hasFeature("multi_venues")) {
+  if (isLoading || isDemoAccount || hasFeature("multi_venues")) {
     items.push({ name: "Venues", href: "/venues", icon: Building });
   }
-  if (isLoading || hasFeature("booking_management")) { // Using same feature for packages
+  if (isLoading || isDemoAccount || hasFeature("booking_management")) {
     items.push({ name: "Packages & Services", href: "/packages", icon: Package });
   }
-  if (isLoading || hasFeature("ai_features") || hasFeature("advanced_analytics")) {
+  if (isLoading || isDemoAccount || hasFeature("ai_features") || hasFeature("advanced_analytics")) {
     items.push({ name: "Reports & Insights", href: "/reports", icon: BarChart3 });
   }
   
@@ -70,9 +71,9 @@ interface MobileNavProps {
 export function MobileNav({ isOpen, onClose }: MobileNavProps) {
   const [location] = useLocation();
   const { toast } = useToast();
-  const { hasFeature, isLoading } = useTenantFeatures();
+  const { hasFeature, isLoading, tenantInfo } = useTenantFeatures();
   
-  const navigationItems = getDynamicNavigationItems(hasFeature, isLoading);
+  const navigationItems = getDynamicNavigationItems(hasFeature, isLoading, tenantInfo);
   
   // Logout mutation
   const logoutMutation = useMutation({
