@@ -18,11 +18,11 @@ import {
 interface User {
   id: string;
   email: string;
-  first_name: string;
-  last_name: string;
-  email_verified: boolean;
-  is_super_admin: boolean;
-  created_at: string;
+  firstName: string;
+  lastName: string;
+  emailVerified: boolean;
+  isSuperAdmin: boolean;
+  createdAt: string;
 }
 
 interface Tenant {
@@ -57,7 +57,32 @@ export default function SuperAdmin() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [packages, setPackages] = useState<FeaturePackage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
   const { toast } = useToast();
+
+  // Check authentication on component mount
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const response = await fetch('/api/auth/user', {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const user = await response.json();
+        if (user.isSuperAdmin) {
+          setCurrentUser(user);
+          setIsAuthenticated(true);
+          loadData();
+        }
+      }
+    } catch (error) {
+      console.log('Not authenticated or error checking auth');
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,11 +95,13 @@ export default function SuperAdmin() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include'
       });
 
       const data = await response.json();
 
-      if (data.user && data.user.is_super_admin) {
+      if (response.ok && data.user && data.user.isSuperAdmin) {
+        setCurrentUser(data.user);
         setIsAuthenticated(true);
         toast({
           title: "Login successful",
@@ -84,7 +111,7 @@ export default function SuperAdmin() {
       } else {
         toast({
           title: "Access denied",
-          description: "Super admin access required",
+          description: response.ok ? "Super admin access required" : data.message,
           variant: "destructive",
         });
       }
@@ -102,20 +129,32 @@ export default function SuperAdmin() {
   const loadData = async () => {
     try {
       const [usersRes, tenantsRes, packagesRes] = await Promise.all([
-        fetch('/api/admin/users'),
-        fetch('/api/admin/tenants'),
-        fetch('/api/admin/packages'),
+        fetch('/api/admin/users', { credentials: 'include' }),
+        fetch('/api/admin/tenants', { credentials: 'include' }),
+        fetch('/api/admin/packages', { credentials: 'include' }),
       ]);
       
-      const usersData = await usersRes.json();
-      const tenantsData = await tenantsRes.json();
-      const packagesData = await packagesRes.json();
+      if (usersRes.ok) {
+        const usersData = await usersRes.json();
+        setUsers(usersData);
+      }
       
-      setUsers(usersData);
-      setTenants(tenantsData);
-      setPackages(packagesData);
+      if (tenantsRes.ok) {
+        const tenantsData = await tenantsRes.json();
+        setTenants(tenantsData);
+      }
+      
+      if (packagesRes.ok) {
+        const packagesData = await packagesRes.json();
+        setPackages(packagesData);
+      }
     } catch (error) {
       console.error('Failed to load data:', error);
+      toast({
+        title: "Load failed", 
+        description: "Failed to load admin data",
+        variant: "destructive"
+      });
     }
   };
 
@@ -123,12 +162,25 @@ export default function SuperAdmin() {
     if (!confirm('Are you sure you want to delete this user?')) return;
     
     try {
-      await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
-      toast({
-        title: "User deleted",
-        description: "User has been removed successfully",
+      const response = await fetch(`/api/admin/users/${userId}`, { 
+        method: 'DELETE',
+        credentials: 'include'
       });
-      loadData();
+      
+      if (response.ok) {
+        toast({
+          title: "User deleted",
+          description: "User has been removed successfully",
+        });
+        loadData();
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Delete failed",
+          description: error.message || "Failed to delete user",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       toast({
         title: "Delete failed",
@@ -142,12 +194,25 @@ export default function SuperAdmin() {
     if (!confirm('Are you sure you want to delete this tenant? This will remove all their data.')) return;
     
     try {
-      await fetch(`/api/admin/tenants/${tenantId}`, { method: 'DELETE' });
-      toast({
-        title: "Tenant deleted",
-        description: "Tenant has been removed successfully",
+      const response = await fetch(`/api/admin/tenants/${tenantId}`, { 
+        method: 'DELETE',
+        credentials: 'include'
       });
-      loadData();
+      
+      if (response.ok) {
+        toast({
+          title: "Tenant deleted",
+          description: "Tenant has been removed successfully",
+        });
+        loadData();
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Delete failed",
+          description: error.message || "Failed to delete tenant",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       toast({
         title: "Delete failed",
@@ -247,28 +312,28 @@ export default function SuperAdmin() {
                   {users.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell>
-                        {user.first_name} {user.last_name}
+                        {user.firstName} {user.lastName}
                       </TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
-                        <Badge variant={user.email_verified ? 'default' : 'secondary'}>
-                          {user.email_verified ? 'Verified' : 'Unverified'}
+                        <Badge variant={user.emailVerified ? 'default' : 'secondary'}>
+                          {user.emailVerified ? 'Verified' : 'Unverified'}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={user.is_super_admin ? 'destructive' : 'outline'}>
-                          {user.is_super_admin ? 'Super Admin' : 'User'}
+                        <Badge variant={user.isSuperAdmin ? 'destructive' : 'outline'}>
+                          {user.isSuperAdmin ? 'Super Admin' : 'User'}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {new Date(user.created_at).toLocaleDateString()}
+                        {new Date(user.createdAt).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
                         <Button
                           variant="destructive"
                           size="sm"
                           onClick={() => deleteUser(user.id)}
-                          disabled={user.is_super_admin}
+                          disabled={user.isSuperAdmin}
                         >
                           Delete
                         </Button>

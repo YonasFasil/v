@@ -17,7 +17,8 @@ export interface IStorage {
   getUsers(): Promise<User[]>;
   createUser(insertUser: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User>;
-  deleteUser(id: string): Promise<void>;
+  deleteUser(id: string): Promise<boolean>;
+  verifyPassword(email: string, password: string): Promise<User | null>;
   verifyPassword(email: string, password: string): Promise<User | null>;
 
   // Tenant operations
@@ -123,6 +124,16 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async verifyPassword(email: string, password: string): Promise<User | null> {
+    const user = await this.getUserByEmail(email);
+    if (!user || !user.passwordHash) {
+      return null;
+    }
+
+    const isValid = await bcrypt.compare(password, user.passwordHash);
+    return isValid ? user : null;
+  }
+
   async updateUser(id: string, updates: Partial<User>): Promise<User> {
     // Hash password if being updated
     if (updates.passwordHash) {
@@ -137,17 +148,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async deleteUser(id: string): Promise<void> {
-    await db.delete(users).where(eq(users.id, id));
-  }
 
-  async verifyPassword(email: string, password: string): Promise<User | null> {
-    const user = await this.getUserByEmail(email);
-    if (!user || !user.passwordHash) return null;
-    
-    const isValid = await bcrypt.compare(password, user.passwordHash);
-    return isValid ? user : null;
-  }
 
   // Tenant operations
   async getTenant(id: string): Promise<Tenant | undefined> {
@@ -562,12 +563,12 @@ export class DatabaseStorage implements IStorage {
 
   async deleteUser(id: string): Promise<boolean> {
     const result = await db.delete(users).where(eq(users.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async deleteTenant(id: string): Promise<boolean> {
     const result = await db.delete(tenants).where(eq(tenants.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 }
 

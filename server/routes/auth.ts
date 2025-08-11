@@ -47,7 +47,7 @@ export function registerAuthRoutes(app: Express) {
         user: userResponse,
         token,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Register error:", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ 
@@ -78,7 +78,7 @@ export function registerAuthRoutes(app: Express) {
       const token = generateToken(user);
 
       // Store user in session
-      req.session.user = {
+      (req.session as any).user = {
         id: user.id,
         email: user.email,
         isSuperAdmin: user.isSuperAdmin || false,
@@ -92,7 +92,7 @@ export function registerAuthRoutes(app: Express) {
         user: userResponse,
         token,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error);
       res.status(500).json({ message: "Login failed" });
     }

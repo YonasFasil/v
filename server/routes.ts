@@ -275,6 +275,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Super Admin routes (PostgreSQL-based)
+  app.get('/api/admin/users', requireAuth, async (req: any, res) => {
+    try {
+      // Check if user is super admin
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.isSuperAdmin) {
+        return res.status(403).json({ message: 'Super admin access required' });
+      }
+
+      const users = await storage.getUsers();
+      res.json(users);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      res.status(500).json({ message: 'Failed to fetch users' });
+    }
+  });
+
+  app.get('/api/admin/tenants', requireAuth, async (req: any, res) => {
+    try {
+      // Check if user is super admin
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.isSuperAdmin) {
+        return res.status(403).json({ message: 'Super admin access required' });
+      }
+
+      const tenants = await storage.getTenants();
+      res.json(tenants);
+    } catch (error) {
+      console.error('Error fetching tenants:', error);
+      res.status(500).json({ message: 'Failed to fetch tenants' });
+    }
+  });
+
+  app.get('/api/admin/packages', requireAuth, async (req: any, res) => {
+    try {
+      // Check if user is super admin
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.isSuperAdmin) {
+        return res.status(403).json({ message: 'Super admin access required' });
+      }
+
+      const packages = await storage.getFeaturePackages();
+      res.json(packages);
+    } catch (error) {
+      console.error('Error fetching packages:', error);
+      res.status(500).json({ message: 'Failed to fetch packages' });
+    }
+  });
+
+  app.delete('/api/admin/users/:id', requireAuth, async (req: any, res) => {
+    try {
+      // Check if user is super admin
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.isSuperAdmin) {
+        return res.status(403).json({ message: 'Super admin access required' });
+      }
+
+      const success = await storage.deleteUser(req.params.id);
+      if (success) {
+        res.json({ message: 'User deleted successfully' });
+      } else {
+        res.status(404).json({ message: 'User not found' });
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      res.status(500).json({ message: 'Failed to delete user' });
+    }
+  });
+
+  app.delete('/api/admin/tenants/:id', requireAuth, async (req: any, res) => {
+    try {
+      // Check if user is super admin
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.isSuperAdmin) {
+        return res.status(403).json({ message: 'Super admin access required' });
+      }
+
+      const success = await storage.deleteTenant(req.params.id);
+      if (success) {
+        res.json({ message: 'Tenant deleted successfully' });
+      } else {
+        res.status(404).json({ message: 'Tenant not found' });
+      }
+    } catch (error) {
+      console.error('Error deleting tenant:', error);
+      res.status(500).json({ message: 'Failed to delete tenant' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
