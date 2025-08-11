@@ -43,6 +43,7 @@ import {
   type AuthenticatedRequest 
 } from "./middleware/rbac";
 import { approvalService } from "./services/approvalService";
+import nodemailer from "nodemailer";
 import { RESOURCES, ACTIONS } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -4736,8 +4737,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
         return res.status(400).json({ error: 'Email setting is not active' });
       }
       
-      // Import nodemailer for email sending
-      const nodemailer = require('nodemailer');
+      // Create transporter with nodemailer
       
       // Create transporter with the email settings
       const transporter = nodemailer.createTransporter({
