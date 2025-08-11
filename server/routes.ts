@@ -34,9 +34,8 @@ import {
 import { aiService } from "./services/ai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Add session middleware
-  const { sessionMiddleware } = await import('./middleware/session');
-  app.use(sessionMiddleware);
+  // Apply Firebase authentication middleware globally for protected routes
+  // Public routes don't need authentication, but protected routes will check for Firebase tokens
 
   // Register public routes (no auth required)
   registerPublicRoutes(app);

@@ -14,10 +14,15 @@ export async function apiRequest(
 ): Promise<Response> {
   const headers: HeadersInit = data ? { "Content-Type": "application/json" } : {};
   
-  // Add dev user ID header in development
-  if (import.meta.env.MODE === 'development') {
-    const devUserId = localStorage.getItem('devUserId') || 'dev-user-123';
-    headers['x-dev-user-id'] = devUserId;
+  // Add Firebase ID token if user is authenticated
+  try {
+    const { auth } = await import('@/lib/firebase');
+    if (auth.currentUser) {
+      const token = await auth.currentUser.getIdToken();
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  } catch (error) {
+    console.warn('Failed to get Firebase token:', error);
   }
 
   const res = await fetch(url, {
@@ -39,10 +44,15 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     const headers: HeadersInit = {};
     
-    // Add dev user ID header in development
-    if (import.meta.env.MODE === 'development') {
-      const devUserId = localStorage.getItem('devUserId') || 'dev-user-123';
-      headers['x-dev-user-id'] = devUserId;
+    // Add Firebase ID token if user is authenticated
+    try {
+      const { auth } = await import('@/lib/firebase');
+      if (auth.currentUser) {
+        const token = await auth.currentUser.getIdToken();
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.warn('Failed to get Firebase token:', error);
     }
 
     const res = await fetch(queryKey.join("/") as string, {

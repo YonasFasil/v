@@ -1,43 +1,28 @@
 import type { Express } from "express";
-import { db } from "../db";
-import { featurePackages } from "@shared/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { firestoreStorage } from '../storage/firestore';
 
 export function registerPublicRoutes(app: Express) {
   // GET /api/public/plans - Get active pricing plans
   app.get('/api/public/plans', async (req, res) => {
     try {
-      // Use correct column names from the new schema
-      const result = await db.execute(sql`
-        SELECT id, name, slug, description, billing_modes, limits, features, price_monthly, price_yearly, trial_days
-        FROM feature_packages 
-        WHERE status = 'active' 
-        ORDER BY sort_order, price_monthly
-      `);
-      
-      const activePlans = result.rows;
+      // Get all active feature packages from Firestore
+      const allPackages = await firestoreStorage.getFeaturePackages();
+      const activePackages = allPackages.filter((pkg: any) => 
+        pkg.isActive === true && pkg.status === 'active'
+      );
 
       // Transform to expected format for frontend
-      const transformedPlans = activePlans.map(plan => ({
+      const transformedPlans = activePackages.map((plan: any) => ({
         id: plan.id,
         name: plan.name,
-        slug: plan.slug,
+        slug: plan.slug || plan.name?.toLowerCase().replace(/\s+/g, '-'),
         description: plan.description,
-        billingModes: typeof plan.billing_modes === 'string' 
-          ? JSON.parse(plan.billing_modes) 
-          : plan.billing_modes,
-        limits: typeof plan.limits === 'string'
-          ? JSON.parse(plan.limits)
-          : plan.limits,
-        flags: typeof plan.features === 'string'
-          ? JSON.parse(plan.features)
-          : plan.features,
-        trialDays: plan.trial_days || 14,
-        features: Object.keys(
-          typeof plan.features === 'string' 
-            ? JSON.parse(plan.features) 
-            : plan.features || {}
-        )
+        billingModes: plan.billingModes || ['monthly'],
+        limits: plan.limits || { staff: 5, venues: 1 },
+        flags: plan.features || {},
+        trialDays: plan.trialDays || 14,
+        features: Object.keys(plan.features || {}),
+        priceMonthly: plan.priceMonthly || plan.price_monthly || 0
       }));
 
       res.json(transformedPlans);
@@ -50,127 +35,18 @@ export function registerPublicRoutes(app: Express) {
   // GET /api/public/features - Get curated feature list
   app.get('/api/public/features', async (req, res) => {
     try {
-      // Curated list of features from the current app capabilities
+      // Return a standard feature list for now
       const features = [
-        {
-          id: 'smart-booking',
-          title: 'Smart Booking Management',
-          description: 'Automated scheduling with conflict detection, multi-date event support, and intelligent calendar management.',
-          icon: 'Calendar',
-          category: 'booking',
-          benefits: [
-            'Automated conflict detection',
-            'Multi-date event support',
-            'Interactive calendar interface',
-            'Booking status tracking'
-          ]
-        },
-        {
-          id: 'customer-management',
-          title: 'Customer & Lead Management',
-          description: 'Complete CRM with lead scoring, UTM tracking, and automated customer lifecycle management.',
-          icon: 'Users',
-          category: 'crm',
-          benefits: [
-            'Lead capture & scoring',
-            'Customer relationship tracking',
-            'Communication history',
-            'UTM campaign tracking'
-          ]
-        },
-        {
-          id: 'proposal-system',
-          title: 'Professional Proposals',
-          description: 'Generate, send, and track professional proposals with digital signatures and auto-conversion.',
-          icon: 'FileText',
-          category: 'proposals',
-          benefits: [
-            'Professional proposal generation',
-            'Email delivery & tracking',
-            'Digital signature collection',
-            'Auto-conversion to bookings'
-          ]
-        },
-        {
-          id: 'payment-processing',
-          title: 'Secure Payment Processing',
-          description: 'Integrated Stripe Connect for secure payments, automated invoicing, and deposit management.',
-          icon: 'CreditCard',
-          category: 'payments',
-          benefits: [
-            'Secure Stripe integration',
-            'Automated invoicing',
-            'Deposit management',
-            'Payment tracking'
-          ]
-        },
-        {
-          id: 'venue-management',
-          title: 'Multi-Venue Management',
-          description: 'Manage multiple venues and spaces with capacity tracking, amenity management, and flexible pricing.',
-          icon: 'Building',
-          category: 'venues',
-          benefits: [
-            'Multi-venue support',
-            'Space capacity management',
-            'Amenity tracking',
-            'Flexible pricing models'
-          ]
-        },
-        {
-          id: 'ai-automation',
-          title: 'AI-Powered Automation',
-          description: 'Voice-to-text booking capture, smart scheduling, automated emails, and predictive analytics.',
-          icon: 'Zap',
-          category: 'ai',
-          benefits: [
-            'Voice-to-text booking',
-            'Smart scheduling suggestions',
-            'Automated email responses',
-            'Predictive analytics'
-          ]
-        },
-        {
-          id: 'analytics-insights',
-          title: 'Advanced Analytics',
-          description: 'Real-time business insights, booking pipeline visualization, and comprehensive reporting.',
-          icon: 'BarChart3',
-          category: 'analytics',
-          benefits: [
-            'Real-time dashboards',
-            'Pipeline visualization',
-            'Performance metrics',
-            'Custom reports'
-          ]
-        },
-        {
-          id: 'team-collaboration',
-          title: 'Team Management',
-          description: 'Task assignment, role-based access, team collaboration tools, and activity tracking.',
-          icon: 'Users2',
-          category: 'team',
-          benefits: [
-            'Task assignment & tracking',
-            'Role-based permissions',
-            'Team collaboration',
-            'Activity monitoring'
-          ]
-        },
-        {
-          id: 'communication',
-          title: 'Automated Communications',
-          description: 'Gmail integration, automated workflows, custom email templates, and notification management.',
-          icon: 'Mail',
-          category: 'communication',
-          benefits: [
-            'Gmail integration',
-            'Automated workflows',
-            'Custom email templates',
-            'Notification center'
-          ]
-        }
+        { id: 'venues', name: 'Multi-Venue Management', category: 'venues' },
+        { id: 'bookings', name: 'Event Booking System', category: 'bookings' },
+        { id: 'customers', name: 'Customer Management', category: 'customers' },
+        { id: 'leads', name: 'Lead Tracking', category: 'leads' },
+        { id: 'proposals', name: 'Proposal Generation', category: 'proposals' },
+        { id: 'payments', name: 'Payment Processing', category: 'payments' },
+        { id: 'ai_insights', name: 'AI-Powered Insights', category: 'ai' },
+        { id: 'reporting', name: 'Advanced Reporting', category: 'reporting' }
       ];
-
+      
       res.json(features);
     } catch (error) {
       console.error('Error fetching features:', error);
