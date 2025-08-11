@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { sessionMiddleware } from "./middleware/session";
 import { tenantContext } from "./middleware/tenant";
-import { requireAuth, requireTenantAdmin, requireStaffAccess, requireViewerAccess, requirePermission } from "./middleware/auth";
+import { requireAuth, requireTenantAdmin, requireStaffAccess, requireViewerAccess, requirePermission, requireSuperAdmin } from "./middleware/auth";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerPublicRoutes } from "./routes/public";
 // Onboarding routes removed
@@ -216,6 +216,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Dashboard stats error:", error);
       res.status(500).json({ message: "Failed to fetch dashboard stats" });
+    }
+  });
+
+  // Super Admin Routes - moved from superadmin.ts
+  app.get("/api/admin/users", requireAuth, requireSuperAdmin, async (req: any, res) => {
+    try {
+      const users = await storage.getUsers();
+      const usersWithTenants = await Promise.all(
+        users.map(async (user) => {
+          const tenants = await storage.getUserTenants(user.id);
+          const { passwordHash, emailVerificationToken, passwordResetToken, ...userResponse } = user;
+          return {
+            ...userResponse,
+            tenants: tenants.map(t => ({
+              id: t.tenant.id,
+              name: t.tenant.name,
+              slug: t.tenant.slug,
+              role: t.role,
+              planId: t.tenant.planId,
+              status: t.tenant.status,
+            })),
+            tenantCount: tenants.length,
+          };
+        })
+      );
+      
+      res.json(usersWithTenants);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.get("/api/admin/tenants", requireAuth, requireSuperAdmin, async (req: any, res) => {
+    try {
+      const tenants = await storage.getAllTenantsWithOwners();
+      res.json(tenants);
+    } catch (error) {
+      console.error("Error fetching tenants:", error);
+      res.status(500).json({ message: "Failed to fetch tenants" });
+    }
+  });
+
+  app.get("/api/admin/packages", requireAuth, requireSuperAdmin, async (req, res) => {
+    try {
+      const packages = await storage.getFeaturePackages();
+      res.json(packages);
+    } catch (error) {
+      console.error("Error fetching packages:", error);
+      res.status(500).json({ message: "Failed to fetch packages" });
+    }
+  });
+
+  app.get("/api/admin/analytics", requireAuth, requireSuperAdmin, async (req, res) => {
+    try {
+      const users = await storage.getUsers();
+      const tenants = await storage.getAllTenants();
+      const packages = await storage.getFeaturePackages();
+      
+      const totalUsers = users.filter(u => !u.isSuperAdmin).length;
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const recentSignups = users.filter(u => 
+        u.createdAt && new Date(u.createdAt) > thirtyDaysAgo && !u.isSuperAdmin
+      ).length;
+
+      const analytics = {
+        totalUsers,
+        recentSignups,
+        totalTenants: tenants.length,
+        totalPackages: packages.length,
+        totalRevenue: 0, // Would need Stripe integration
+        recentActivity: [], // Would need activity tracking
+      };
+
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+      res.status(500).json({ message: "Failed to fetch analytics" });
+    }
+  });
+
+  app.delete("/api/admin/users/:userId", requireAuth, requireSuperAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      const user = await storage.getUser(userId);
+      if (user?.isSuperAdmin) {
+        return res.status(403).json({ message: "Cannot delete super admin user" });
+      }
+
+      const success = await storage.deleteUser(userId);
+      if (success) {
+        res.json({ message: "User deleted successfully" });
+      } else {
+        res.status(404).json({ message: "User not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ message: "Failed to delete user" });
     }
   });
 

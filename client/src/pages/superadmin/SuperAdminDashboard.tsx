@@ -107,30 +107,32 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
 
   // Analytics query
   const { data: analytics, isLoading: analyticsLoading } = useQuery<Analytics>({
-    queryKey: ['/api/superadmin/analytics'],
+    queryKey: ['/api/admin/analytics'],
   });
 
   // Tenants query with search and filter
-  const { data: tenantsResponse, isLoading: tenantsLoading } = useQuery<{
-    data: Tenant[];
-    pagination: any;
-  }>({
-    queryKey: ['/api/superadmin/tenants', searchTerm, statusFilter],
+  const { data: tenants = [], isLoading: tenantsLoading } = useQuery<Tenant[]>({
+    queryKey: ['/api/admin/tenants', searchTerm, statusFilter],
+  });
+
+  // Users query
+  const { data: users = [], isLoading: usersLoading } = useQuery<any[]>({
+    queryKey: ['/api/admin/users'],
   });
 
   // Feature packages query
   const { data: featurePackages = [], isLoading: packagesLoading } = useQuery<FeaturePackage[]>({
-    queryKey: ['/api/superadmin/feature-packages'],
+    queryKey: ['/api/admin/packages'],
   });
 
   // Create tenant mutation
   const createTenantMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest('POST', '/api/superadmin/tenants', data);
+      return await apiRequest('POST', '/api/admin/tenants', data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/tenants'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/analytics'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/tenants'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/analytics'] });
       setIsCreateTenantOpen(false);
       toast({ title: "Success", description: "Tenant created successfully" });
     },
@@ -142,10 +144,10 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
   // Create feature package mutation
   const createPackageMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest('POST', '/api/superadmin/feature-packages', data);
+      return await apiRequest('POST', '/api/admin/packages', data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/feature-packages'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/packages'] });
       setIsCreatePackageOpen(false);
       toast({ title: "Success", description: "Feature package created successfully" });
     },
@@ -157,10 +159,10 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
   // Update feature package mutation
   const updatePackageMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      return await apiRequest('PUT', `/api/superadmin/feature-packages/${id}`, data);
+      return await apiRequest('PUT', `/api/admin/packages/${id}`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/feature-packages'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/packages'] });
       setIsEditPackageOpen(false);
       setEditingPackage(null);
       toast({ title: "Success", description: "Feature package updated successfully" });
@@ -177,16 +179,35 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
   // Delete feature package mutation
   const deletePackageMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest('DELETE', `/api/superadmin/feature-packages/${id}`);
+      return await apiRequest('DELETE', `/api/admin/packages/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/feature-packages'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/packages'] });
       toast({ title: "Success", description: "Feature package deleted successfully" });
     },
     onError: (error: any) => {
       toast({ 
         title: "Error", 
         description: error.message || "Failed to delete feature package", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  // Delete user mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return await apiRequest('DELETE', `/api/admin/users/${userId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/analytics'] });
+      toast({ title: "Success", description: "User deleted successfully" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to delete user", 
         variant: "destructive" 
       });
     },
@@ -437,7 +458,78 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
           </TabsContent>
 
         <TabsContent value="users" className="space-y-4">
-          <UsersManagement />
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold">Users Management</h2>
+          </div>
+
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Tenants</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {usersLoading ? (
+                  [...Array(5)].map((_, i) => (
+                    <TableRow key={i}>
+                      {[...Array(5)].map((_, j) => (
+                        <TableCell key={j}>
+                          <div className="animate-pulse bg-gray-300 h-4 rounded"></div>
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : users && users.length > 0 ? (
+                  users.map((user: any) => (
+                    <TableRow key={user.id}>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{user.firstName} {user.lastName}</div>
+                          <div className="text-sm text-muted-foreground">{user.email}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {user.isSuperAdmin ? (
+                          <Badge variant="destructive">Super Admin</Badge>
+                        ) : (
+                          <Badge variant="outline">User</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {user.tenantCount || 0} tenants
+                      </TableCell>
+                      <TableCell>
+                        {new Date(user.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        {!user.isSuperAdmin && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => deleteUserMutation.mutate(user.id)}
+                            disabled={deleteUserMutation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center">
+                      No users found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </Card>
         </TabsContent>
 
         <TabsContent value="tenants" className="space-y-4">
@@ -565,8 +657,8 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
                       ))}
                     </TableRow>
                   ))
-                ) : tenantsResponse?.data && tenantsResponse.data.length > 0 ? (
-                  tenantsResponse.data.map((tenant: Tenant) => (
+                ) : tenants && tenants.length > 0 ? (
+                  tenants.map((tenant: Tenant) => (
                     <TableRow key={tenant.id}>
                       <TableCell>
                         <div>
@@ -582,7 +674,7 @@ function SuperAdminDashboardContent({ user }: { user: any }) {
                       </TableCell>
                       <TableCell>{getStatusBadge(tenant.status)}</TableCell>
                       <TableCell>
-                        {tenant.featurePackageId ? (
+                        {tenant.planId ? (
                           <Badge variant="outline">Package Assigned</Badge>
                         ) : (
                           <span className="text-muted-foreground">No package</span>

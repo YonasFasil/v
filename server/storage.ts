@@ -150,15 +150,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async deleteUser(id: string): Promise<boolean> {
-    try {
-      await db.delete(users).where(eq(users.id, id));
-      return true;
-    } catch (error) {
-      console.error("Error deleting user:", error);
-      return false;
-    }
-  }
+
 
 
 
@@ -190,9 +182,7 @@ export class DatabaseStorage implements IStorage {
     return tenant;
   }
 
-  async deleteTenant(id: string): Promise<void> {
-    await db.delete(tenants).where(eq(tenants.id, id));
-  }
+
 
   async getUserTenants(userId: string): Promise<(TenantUser & { tenant: Tenant })[]> {
     const userTenants = await db
