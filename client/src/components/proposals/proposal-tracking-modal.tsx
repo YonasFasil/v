@@ -177,6 +177,24 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
 
   const currentProposal = proposal || placeholderProposal;
 
+  // Early return if no proposal data available
+  if (!currentProposal) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-6xl">
+          <DialogHeader>
+            <DialogTitle>Loading Proposal...</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center p-8">
+            <div className="text-center">
+              <div className="text-gray-400 mb-2">Loading proposal data...</div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   if (isLoading && !isPlaceholderProposal) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -217,7 +235,9 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                     </div>
                     <div className="text-sm font-medium">Sent</div>
                     <div className="text-xs text-gray-500">
-                      {currentProposal.sentAt ? format(new Date(currentProposal.sentAt), "MMM d") : "Not sent"}
+                      {currentProposal.sentAt && !isNaN(new Date(currentProposal.sentAt).getTime()) 
+                        ? format(new Date(currentProposal.sentAt), "MMM d") 
+                        : "Not sent"}
                     </div>
                   </div>
                   <div className="text-center">
@@ -228,7 +248,9 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                     </div>
                     <div className="text-sm font-medium">Opened</div>
                     <div className="text-xs text-gray-500">
-                      {currentProposal.emailOpenedAt ? format(new Date(currentProposal.emailOpenedAt), "MMM d") : "Not opened"}
+                      {currentProposal.emailOpenedAt && !isNaN(new Date(currentProposal.emailOpenedAt).getTime()) 
+                        ? format(new Date(currentProposal.emailOpenedAt), "MMM d") 
+                        : "Not opened"}
                     </div>
                   </div>
                   <div className="text-center">
@@ -239,7 +261,9 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                     </div>
                     <div className="text-sm font-medium">Accepted</div>
                     <div className="text-xs text-gray-500">
-                      {currentProposal.status === 'accepted' ? format(new Date(currentProposal.viewedAt || currentProposal.createdAt), "MMM d") : "Pending"}
+                      {currentProposal.status === 'accepted' && (currentProposal.viewedAt || currentProposal.createdAt) 
+                        ? format(new Date(currentProposal.viewedAt || currentProposal.createdAt), "MMM d") 
+                        : "Pending"}
                     </div>
                   </div>
                   <div className="text-center">
@@ -250,7 +274,9 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                     </div>
                     <div className="text-sm font-medium">Paid</div>
                     <div className="text-xs text-gray-500">
-                      {currentProposal.depositPaidAt ? format(new Date(currentProposal.depositPaidAt), "MMM d") : "Not paid"}
+                      {currentProposal.depositPaidAt && !isNaN(new Date(currentProposal.depositPaidAt).getTime()) 
+                        ? format(new Date(currentProposal.depositPaidAt), "MMM d") 
+                        : "Not paid"}
                     </div>
                   </div>
                 </div>
@@ -262,7 +288,9 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                       <span className="ml-1">{currentProposal.status.charAt(0).toUpperCase() + currentProposal.status.slice(1)}</span>
                     </Badge>
                     <div className="text-sm text-gray-600">
-                      Created {format(new Date(currentProposal.createdAt), "MMM d, yyyy")}
+                      Created {currentProposal.createdAt && !isNaN(new Date(currentProposal.createdAt).getTime()) 
+                        ? format(new Date(currentProposal.createdAt), "MMM d, yyyy") 
+                        : "Unknown"}
                     </div>
                   </div>
                 </div>
@@ -296,7 +324,9 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                               <div className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4 text-gray-400" />
-                                <span>{event.eventDate ? format(new Date(event.eventDate), "MMMM d, yyyy") : "Date TBD"}</span>
+                                <span>{event.eventDate && !isNaN(new Date(event.eventDate).getTime()) 
+                                  ? format(new Date(event.eventDate), "MMMM d, yyyy") 
+                                  : "Date TBD"}</span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <Clock className="h-4 w-4 text-gray-400" />
@@ -329,17 +359,19 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span>Total Amount</span>
-                    <span className="font-medium">${parseFloat(proposal.totalAmount || 0).toFixed(2)}</span>
+                    <span className="font-medium">${parseFloat((proposal && proposal.totalAmount) || 0).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-green-600">
                     <span>Required Deposit</span>
-                    <span className="font-medium">${parseFloat(proposal.depositAmount || 0).toFixed(2)}</span>
+                    <span className="font-medium">${parseFloat((proposal && proposal.depositAmount) || 0).toFixed(2)}</span>
                   </div>
-                  {proposal.depositPaid && (
+                  {proposal && proposal.depositPaid && (
                     <div className="flex justify-between text-emerald-600">
                       <span>✓ Deposit Paid</span>
                       <span className="font-medium">
-                        {proposal.depositPaidAt ? format(new Date(proposal.depositPaidAt), "MMM d, yyyy") : 'N/A'}
+                        {(proposal && proposal.depositPaidAt && !isNaN(new Date(proposal.depositPaidAt).getTime())) 
+                        ? format(new Date(proposal.depositPaidAt), "MMM d, yyyy") 
+                        : 'N/A'}
                       </span>
                     </div>
                   )}
@@ -375,7 +407,9 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                             </Badge>
                           </div>
                           <span className="text-xs text-gray-500">
-                            {format(new Date(comm.createdAt), "MMM d, h:mm a")}
+                            {comm.createdAt && !isNaN(new Date(comm.createdAt).getTime()) 
+                              ? format(new Date(comm.createdAt), "MMM d, h:mm a")
+                              : "Unknown"}
                           </span>
                         </div>
                         {comm.subject && (
