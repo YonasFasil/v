@@ -153,6 +153,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/spaces/:id", async (req, res) => {
+    try {
+      const space = await storage.updateSpace(req.params.id, req.body);
+      if (!space) {
+        return res.status(404).json({ message: "Space not found" });
+      }
+      res.json(space);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update space" });
+    }
+  });
+
   // Enhanced venues API that includes spaces
   app.get("/api/venues-with-spaces", async (req, res) => {
     try {
