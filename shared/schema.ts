@@ -96,6 +96,7 @@ export const bookings = pgTable("bookings", {
   setupStyle: text("setup_style"), // round-tables, u-shape, classroom, theater, cocktail, banquet, conference, custom
   packageId: varchar("package_id").references(() => packages.id),
   // Proposal integration
+  proposalId: varchar("proposal_id").references(() => proposals.id), // Direct link to proposal
   proposalStatus: text("proposal_status").default("none"), // none, sent, viewed, accepted, declined
   proposalSentAt: timestamp("proposal_sent_at"),
   proposalViewedAt: timestamp("proposal_viewed_at"),
