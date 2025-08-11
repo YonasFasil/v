@@ -123,13 +123,19 @@ export default function Onboarding() {
   
   // Use useEffect to avoid setState during render
   useEffect(() => {
-    if (watchTenantName && !form.getValues("tenantSlug")) {
+    if (watchTenantName && watchTenantName.length > 0) {
       const slug = watchTenantName
         .toLowerCase()
         .replace(/[^a-z0-9\s-]/g, "")
         .replace(/\s+/g, "-")
+        .replace(/^-+|-+$/g, "") // Remove leading/trailing hyphens
         .substring(0, 30);
-      form.setValue("tenantSlug", slug);
+      
+      // Only update if it's different and meets minimum length
+      const currentSlug = form.getValues("tenantSlug");
+      if (slug !== currentSlug && slug.length >= 3) {
+        form.setValue("tenantSlug", slug);
+      }
     }
   }, [watchTenantName, form]);
 
@@ -167,9 +173,18 @@ export default function Onboarding() {
       window.location.href = `/t/${data.tenantSlug}/app`;
     },
     onError: (error: Error) => {
+      console.error('Tenant creation error:', error);
+      let description = "Please try again";
+      
+      if (error.message.includes("409")) {
+        description = "Business name or URL is already taken";
+      } else if (error.message.includes("Validation error")) {
+        description = "Please check all fields are filled out correctly";
+      }
+      
       toast({
         title: "Setup failed",
-        description: error.message.includes("409") ? "Business name or URL is already taken" : "Please try again",
+        description: description,
         variant: "destructive",
       });
     },
@@ -531,7 +546,19 @@ export default function Onboarding() {
                       Back
                     </Button>
                     <Button 
-                      onClick={() => onSubmit(form.getValues())}
+                      onClick={async () => {
+                        const isValid = await form.trigger();
+                        if (isValid) {
+                          onSubmit(form.getValues());
+                        } else {
+                          console.log('Form validation errors:', form.formState.errors);
+                          toast({
+                            title: "Please check your information",
+                            description: "Some fields need to be completed correctly before proceeding.",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
                       disabled={createTenantMutation.isPending}
                       className="h-12 px-8"
                     >
