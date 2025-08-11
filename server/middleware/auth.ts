@@ -1,4 +1,4 @@
-import type { Request, Response, NextFunction, RequestHandler } from "express";
+import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { storage } from "../storage";
 
@@ -77,23 +77,19 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
 };
 
 // Super admin middleware - Platform Owner (Level 1)
-export const requireSuperAdmin: RequestHandler = async (req, res, next) => {
-  try {
+export const requireSuperAdmin = async (req: Request, res: Response, next: NextFunction) => {
+  // Ensure user is authenticated first
+  if (!req.user) {
+    await requireAuth(req, res, () => {});
     if (!req.user) {
       return res.status(401).json({ message: 'Authentication required' });
     }
-    
-    if (!req.user.isSuperAdmin) {
-      return res.status(403).json({ message: 'Super admin access required' });
-    }
-    
-    next();
-  } catch (error) {
-    console.error("Super admin check error:", error);
-    if (!res.headersSent) {
-      res.status(500).json({ message: "Authentication check failed" });
-    }
   }
+  
+  if (!req.user.isSuperAdmin) {
+    return res.status(403).json({ message: 'Super admin access required' });
+  }
+  next();
 };
 
 // Tenant admin middleware - Account Owner (Level 2)
