@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { DevTools } from "@/components/DevTools";
+import { useAuthRedirect } from "@/hooks/useAuthRedirect";
 
 // Public pages
 import Home from "@/pages/public/Home";
@@ -41,6 +42,9 @@ import PlanManagement from "@/pages/plan-management";
 import NotFound from "@/pages/not-found";
 
 function Router() {
+  // Handle authentication-based redirects
+  useAuthRedirect();
+  
   return (
     <Switch>
       {/* Public marketing site */}
