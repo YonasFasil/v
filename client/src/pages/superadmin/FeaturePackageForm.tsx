@@ -74,15 +74,18 @@ export function FeaturePackageForm({ onSubmit, isPending, onCancel, initialData 
       maxSpacesPerVenue: parseInt(formData.get('maxSpaces') as string) || 0
     };
 
+    const packageName = formData.get('name') as string;
+    const packageId = initialData?.id || packageName.toLowerCase().replace(/\s+/g, '-');
+    
     onSubmit({
-      name: formData.get('name'),
-      slug: (formData.get('name') as string).toLowerCase().replace(/\s+/g, '-'),
+      id: packageId,
+      name: packageName,
       description: formData.get('description'),
+      price: formData.get('priceMonthly') as string,
+      billingCycle: 'monthly',
       features,
       limits,
-      priceMonthly: parseFloat(formData.get('priceMonthly') as string),
-      priceYearly: parseFloat(formData.get('priceYearly') as string),
-      status: 'active'
+      isActive: true
     });
   };
 
