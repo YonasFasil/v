@@ -1,6 +1,8 @@
 import type { Express } from 'express';
 import { authenticateFirebase, requireSuperAdmin, type AuthenticatedRequest } from '../middleware/firebase-auth';
-import { firestoreStorage } from '../storage/firestore';
+import { db } from '../db';
+import { featurePackages, tenants, users, tenantUsers } from '@shared/schema';
+import { eq, sql, like, and } from 'drizzle-orm';
 
 export function registerSuperAdminRoutes(app: Express) {
   // Apply Firebase authentication middleware to all super admin routes
@@ -9,14 +11,24 @@ export function registerSuperAdminRoutes(app: Express) {
   // GET /api/superadmin/users - Get all users with pagination
   app.get('/api/superadmin/users', async (req: AuthenticatedRequest, res) => {
     try {
-      const users = await firestoreStorage.getUsers();
+      const allUsers = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          emailVerified: users.emailVerified,
+          createdAt: users.createdAt
+        })
+        .from(users)
+        .where(sql`${users.email} != 'yonasfasil.sl@gmail.com'`);
       
       res.json({
-        data: users.filter(user => user.email !== 'yonasfasil.sl@gmail.com'),
+        data: allUsers,
         pagination: {
-          total: users.length,
+          total: allUsers.length,
           page: 1,
-          limit: users.length,
+          limit: allUsers.length,
           totalPages: 1
         }
       });
@@ -30,7 +42,13 @@ export function registerSuperAdminRoutes(app: Express) {
   app.delete('/api/superadmin/users/:id', async (req: AuthenticatedRequest, res) => {
     try {
       const { id } = req.params;
-      await firestoreStorage.deleteUser(id);
+      
+      // Delete user's tenant associations first
+      await db.delete(tenantUsers).where(eq(tenantUsers.userId, id));
+      
+      // Delete the user
+      await db.delete(users).where(eq(users.id, id));
+      
       res.json({ message: 'User deleted successfully' });
     } catch (error) {
       console.error('Error deleting user:', error);
@@ -41,7 +59,19 @@ export function registerSuperAdminRoutes(app: Express) {
   // GET /api/superadmin/analytics - Get platform analytics
   app.get('/api/superadmin/analytics', async (req: AuthenticatedRequest, res) => {
     try {
-      const analytics = await firestoreStorage.getAnalytics();
+      // Get counts from PostgreSQL database
+      const [userCount] = await db.select({ count: sql<number>`count(*)` }).from(users);
+      const [tenantCount] = await db.select({ count: sql<number>`count(*)` }).from(tenants);
+      const [packageCount] = await db.select({ count: sql<number>`count(*)` }).from(featurePackages);
+      
+      const analytics = {
+        totalUsers: userCount.count,
+        totalTenants: tenantCount.count,
+        totalPackages: packageCount.count,
+        activeUsers: userCount.count, // All users are considered active for now
+        activeTenants: tenantCount.count
+      };
+      
       res.json(analytics);
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -55,14 +85,24 @@ export function registerSuperAdminRoutes(app: Express) {
       const searchTerm = req.query.search as string;
       const statusFilter = req.query.status as string;
       
-      const tenants = await firestoreStorage.getTenants(searchTerm, statusFilter);
+      let query = db.select().from(tenants);
+      
+      if (searchTerm) {
+        query = query.where(like(tenants.name, `%${searchTerm}%`));
+      }
+      
+      if (statusFilter) {
+        query = query.where(eq(tenants.status, statusFilter));
+      }
+      
+      const allTenants = await query;
       
       res.json({
-        data: tenants,
+        data: allTenants,
         pagination: {
-          total: tenants.length,
+          total: allTenants.length,
           page: 1,
-          limit: tenants.length,
+          limit: allTenants.length,
           totalPages: 1
         }
       });
@@ -87,7 +127,10 @@ export function registerSuperAdminRoutes(app: Express) {
   // GET /api/superadmin/feature-packages - Get all feature packages
   app.get('/api/superadmin/feature-packages', async (req: AuthenticatedRequest, res) => {
     try {
-      const packages = await firestoreStorage.getFeaturePackages();
+      const packages = await db
+        .select()
+        .from(featurePackages)
+        .orderBy(featurePackages.sortOrder, featurePackages.createdAt);
       res.json(packages);
     } catch (error) {
       console.error('Error fetching feature packages:', error);
@@ -101,33 +144,45 @@ export function registerSuperAdminRoutes(app: Express) {
       const packageData = req.body;
       
       // Convert features array to features object for compatibility
+      let featuresObj = packageData.features || {};
       if (Array.isArray(packageData.features)) {
-        const featuresObj: any = {};
+        featuresObj = {};
         packageData.features.forEach((feature: string) => {
           featuresObj[feature] = true;
         });
-        packageData.features = featuresObj;
       }
       
-      // Set up package structure
-      const newPackage = await firestoreStorage.createFeaturePackage({
-        name: packageData.name,
-        description: packageData.description,
-        features: packageData.features || {},
-        limits: {
-          staff: packageData.maxUsers || packageData.limits?.staff || 5,
-          venues: packageData.limits?.venues || 1
-        },
-        price_monthly: packageData.priceMonthly || packageData.price_monthly || 0,
-        priceMonthly: packageData.priceMonthly || packageData.price_monthly || 0,
-        status: packageData.isActive ? 'active' : 'inactive',
-        isActive: packageData.isActive !== false
-      });
+      // Generate slug from name
+      const slug = packageData.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
       
-      res.status(201).json(newPackage);
+      const newPackage = await db
+        .insert(featurePackages)
+        .values({
+          name: packageData.name,
+          slug: slug,
+          description: packageData.description || null,
+          features: featuresObj,
+          limits: {
+            maxUsers: packageData.maxUsers || packageData.limits?.staff || 5,
+            maxVenues: packageData.limits?.venues || 1,
+            maxSpacesPerVenue: packageData.limits?.maxSpacesPerVenue || 10
+          },
+          billingModes: {
+            monthly: {
+              amount: Math.round((packageData.priceMonthly || 0) * 100), // Convert to cents
+              currency: 'usd'
+            }
+          },
+          priceMonthly: (packageData.priceMonthly || 0).toString(),
+          status: packageData.isActive ? 'active' : 'draft',
+          sortOrder: 0
+        })
+        .returning();
+      
+      res.status(201).json(newPackage[0]);
     } catch (error) {
       console.error('Error creating feature package:', error);
-      res.status(500).json({ message: 'Failed to create feature package' });
+      res.status(500).json({ message: 'Failed to create feature package', details: (error as Error).message });
     }
   });
 
