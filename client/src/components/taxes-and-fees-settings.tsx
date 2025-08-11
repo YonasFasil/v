@@ -130,11 +130,22 @@ export function TaxesAndFeesSettings() {
       return;
     }
 
+    // Ensure the value is a valid number and convert to string for decimal field
+    const rateValue = parseFloat(formData.value);
+    if (isNaN(rateValue) || rateValue < 0) {
+      toast({
+        title: "Error", 
+        description: "Please enter a valid positive number for the rate",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const data: InsertTaxSetting = {
       name: formData.name,
       type: formData.type,
       calculation: formData.calculation,
-      rate: formData.value, // Map 'value' to 'rate' field  
+      rate: formData.value.toString(), // Ensure it's a string for decimal field  
       applyTo: formData.applyTo,
       description: formData.description || null,
       isActive: formData.isActive,
@@ -142,6 +153,8 @@ export function TaxesAndFeesSettings() {
       isTaxable: formData.isTaxable,
       applicableTaxIds: formData.applicableTaxIds,
     };
+
+    console.log("Submitting tax setting data:", data);
 
     if (editingItem) {
       updateMutation.mutate({ id: editingItem.id, data });
