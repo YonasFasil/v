@@ -4731,18 +4731,94 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
       if (!setting) {
         return res.status(404).json({ error: 'Email setting not found' });
       }
+
+      if (!setting.isActive) {
+        return res.status(400).json({ error: 'Email setting is not active' });
+      }
       
-      // TODO: Implement actual email sending logic here
-      // For now, we'll just mark it as tested
+      // Import nodemailer for email sending
+      const nodemailer = require('nodemailer');
+      
+      // Create transporter with the email settings
+      const transporter = nodemailer.createTransporter({
+        host: setting.smtpHost,
+        port: setting.smtpPort,
+        secure: setting.smtpSecure, // true for 465, false for other ports
+        auth: {
+          user: setting.smtpUsername,
+          pass: setting.smtpPassword,
+        },
+      });
+
+      // Send test email
+      const info = await transporter.sendMail({
+        from: setting.fromEmail,
+        to: testEmail,
+        subject: 'VENUIN Test Email - Email Settings Configuration',
+        text: `This is a test email from VENUIN platform.
+
+Email Settings Configuration:
+- Configuration Name: ${setting.configName}
+- From Email: ${setting.fromEmail}
+- SMTP Host: ${setting.smtpHost}
+- SMTP Port: ${setting.smtpPort}
+- Secure Connection: ${setting.smtpSecure ? 'Yes' : 'No'}
+
+If you received this email, your email configuration is working correctly!
+
+Time sent: ${new Date().toISOString()}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #333;">VENUIN Test Email</h2>
+            <p>This is a test email from the VENUIN platform to verify your email configuration.</p>
+            
+            <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <h3 style="margin-top: 0;">Email Settings Configuration:</h3>
+              <ul style="margin: 0;">
+                <li><strong>Configuration Name:</strong> ${setting.configName}</li>
+                <li><strong>From Email:</strong> ${setting.fromEmail}</li>
+                <li><strong>SMTP Host:</strong> ${setting.smtpHost}</li>
+                <li><strong>SMTP Port:</strong> ${setting.smtpPort}</li>
+                <li><strong>Secure Connection:</strong> ${setting.smtpSecure ? 'Yes' : 'No'}</li>
+              </ul>
+            </div>
+            
+            <p style="color: #28a745; font-weight: bold;">✅ If you received this email, your email configuration is working correctly!</p>
+            
+            <p style="color: #666; font-size: 12px;">Time sent: ${new Date().toISOString()}</p>
+          </div>
+        `
+      });
+
+      console.log('Test email sent:', info.messageId);
+      
+      // Update setting with test results
       await storage.updateEmailSetting(id, { 
         testEmailSent: true, 
         lastTestAt: new Date() 
       });
       
-      res.json({ message: 'Test email sent successfully', testEmail });
+      res.json({ 
+        message: 'Test email sent successfully', 
+        testEmail,
+        messageId: info.messageId 
+      });
     } catch (error) {
       console.error('Error sending test email:', error);
-      res.status(500).json({ error: 'Failed to send test email' });
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to send test email';
+      if (error.code === 'ECONNREFUSED') {
+        errorMessage = 'Could not connect to SMTP server. Check your host and port settings.';
+      } else if (error.code === 'EAUTH') {
+        errorMessage = 'Authentication failed. Check your username and password.';
+      } else if (error.responseCode === 535) {
+        errorMessage = 'Authentication failed. Check your email and password/app password.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      res.status(500).json({ error: errorMessage });
     }
   });
 
