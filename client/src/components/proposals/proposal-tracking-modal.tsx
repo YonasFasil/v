@@ -218,14 +218,49 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
 
     // Fallback: match by customer and title/name similarity
     console.log('Using fallback matching by customer and name');
-    return bookings.filter((booking) => {
+    const matchedBookings = bookings.filter((booking) => {
       if (booking.customerId !== proposal.customerId) return false;
       
+      console.log('Checking booking for customer match:', {
+        bookingId: booking.id,
+        bookingName: booking.eventName,
+        proposalTitle: proposal.title,
+        isContract: !!booking.contractId,
+        contractId: booking.contractId,
+        hasContractEvents: !!(booking.contractEvents && booking.contractEvents.length > 0),
+        contractEventsCount: booking.contractEvents?.length || 0
+      });
+      
       // Extract event name from proposal title (remove "Proposal for " prefix)
-      const proposalEventName = proposal.title.replace(/^Proposal for\s+/i, '');
-      return booking.eventName === proposalEventName || booking.eventName === proposal.title;
-    }).flatMap((booking) => {
+      const proposalEventName = proposal.title.replace(/^Proposal for\s+/i, '').trim();
+      
+      // For contract bookings, check if the contract name or any event name matches
+      if (booking.contractId && booking.contractEvents && booking.contractEvents.length > 0) {
+        // Check contract name match
+        const contractMatches = booking.contractEvents.some(event => {
+          const eventBaseName = event.eventName.replace(/\s+-\s+Day\s+\d+$/i, '').trim();
+          return eventBaseName === proposalEventName || 
+                 event.eventName === proposal.title ||
+                 eventBaseName === proposal.title.replace(/^Proposal for\s+/i, '').trim();
+        });
+        
+        if (contractMatches) {
+          console.log('Found contract event match!');
+          return true;
+        }
+      }
+      
+      // For regular bookings
+      return booking.eventName === proposalEventName || 
+             booking.eventName === proposal.title ||
+             booking.eventName.includes(proposalEventName);
+    });
+    
+    console.log('Fallback matched bookings:', matchedBookings.length);
+    
+    return matchedBookings.flatMap((booking) => {
       if (booking.contractEvents && booking.contractEvents.length > 0) {
+        console.log('Returning contract events:', booking.contractEvents.length);
         return booking.contractEvents;
       }
       return [booking];
