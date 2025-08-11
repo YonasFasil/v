@@ -31,22 +31,13 @@ export function useAuthRedirect() {
     // Not authenticated - stay on current page (login/signup/public)
     if (!user) return;
 
-    // Handle super admin routing
+    // Handle super admin routing - they get redirected immediately to admin dashboard
     if (user.isSuperAdmin) {
       const currentPath = window.location.pathname;
       
-      // Super admins should NEVER see onboarding or tenant routes
-      if (currentPath.startsWith('/t/') || 
-          currentPath === '/' || 
-          currentPath.startsWith('/onboarding') ||
-          currentPath === '/login' ||
-          currentPath === '/signup') {
-        setLocation('/admin/dashboard');
-        return;
-      }
-      
-      // If super admin accessed old hidden URLs, redirect to clean URLs
-      if (currentPath.includes('sys-admin')) {
+      // Super admins should NEVER see onboarding, tenant routes, or public pages
+      if (!currentPath.startsWith('/admin')) {
+        console.log('Super admin redirected from:', currentPath, 'to /admin/dashboard');
         setLocation('/admin/dashboard');
         return;
       }

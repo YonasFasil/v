@@ -87,16 +87,12 @@ export default function Onboarding() {
 
   const user = authResponse?.user;
 
-  // Super admin redirect - they should never see onboarding
+  // Super admin should NEVER reach onboarding - this is for tenant setup only
   useEffect(() => {
-    console.log('Onboarding page useEffect:', { userLoading, user, isSuperAdmin: user?.isSuperAdmin });
-    
-    if (!userLoading && user) {
-      if (user.isSuperAdmin) {
-        console.log('Super admin detected, redirecting to /admin/dashboard');
-        setLocation('/admin/dashboard');
-        return;
-      }
+    if (!userLoading && user?.isSuperAdmin) {
+      console.log('Super admin incorrectly reached onboarding, redirecting immediately');
+      setLocation('/admin/dashboard');
+      return;
     }
   }, [user, userLoading, setLocation]);
 
