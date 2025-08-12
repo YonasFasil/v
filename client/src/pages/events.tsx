@@ -282,22 +282,30 @@ export default function Events() {
                                   }
                                 }
                               } else {
-                                // For regular bookings, use existing logic
-                                hasProposal = booking.proposalStatus === 'sent' || 
-                                            proposals.some((p: any) => 
-                                              p.customerId === booking.customerId && 
-                                              (p.eventName === booking.eventName || 
-                                               p.eventDate === booking.eventDate ||
-                                               (p.guestCount === booking.guestCount && p.venueId === booking.venueId))
-                                            );
+                                // For regular bookings, check proposalId first
+                                if (booking.proposalId) {
+                                  proposal = proposals.find((p: any) => p.id === booking.proposalId);
+                                  hasProposal = !!proposal;
+                                }
                                 
-                                if (hasProposal && !proposal) {
-                                  proposal = proposals.find((p: any) => 
-                                    p.customerId === booking.customerId && 
-                                    (p.eventName === booking.eventName || 
-                                     p.eventDate === booking.eventDate ||
-                                     (p.guestCount === booking.guestCount && p.venueId === booking.venueId))
-                                  );
+                                // If not found by proposalId, use existing logic
+                                if (!hasProposal) {
+                                  hasProposal = booking.proposalStatus === 'sent' || 
+                                              proposals.some((p: any) => 
+                                                p.customerId === booking.customerId && 
+                                                (p.eventName === booking.eventName || 
+                                                 p.eventDate === booking.eventDate ||
+                                                 (p.guestCount === booking.guestCount && p.venueId === booking.venueId))
+                                              );
+                                  
+                                  if (hasProposal && !proposal) {
+                                    proposal = proposals.find((p: any) => 
+                                      p.customerId === booking.customerId && 
+                                      (p.eventName === booking.eventName || 
+                                       p.eventDate === booking.eventDate ||
+                                       (p.guestCount === booking.guestCount && p.venueId === booking.venueId))
+                                    );
+                                  }
                                 }
                               }
                               

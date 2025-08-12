@@ -68,9 +68,7 @@ export default function ProposalView() {
     enabled: !!proposalId,
   });
 
-  // Debug logging
-  console.log('Proposal data:', proposal);
-  console.log('Event dates:', proposal?.eventDates);
+
 
   const acceptProposalMutation = useMutation({
     mutationFn: async () => {
