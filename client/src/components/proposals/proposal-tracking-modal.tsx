@@ -28,7 +28,8 @@ import {
   Paperclip,
   X,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  MessageCircle
 } from "lucide-react";
 
 interface Proposal {
@@ -117,6 +118,9 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
   const [attachments, setAttachments] = useState<File[]>([]);
   const [showEmailComposer, setShowEmailComposer] = useState(false);
   const [expandedComms, setExpandedComms] = useState<Set<string>>(new Set());
+  const [showReplyModal, setShowReplyModal] = useState(false);
+  const [replySubject, setReplySubject] = useState('');
+  const [replyMessage, setReplyMessage] = useState('');
 
   // Fetch proposal details
   const { data: proposal, isLoading, refetch } = useQuery<Proposal>({
@@ -318,6 +322,54 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     resendProposalMutation.mutate();
   };
 
+  // Record customer reply mutation
+  const recordReplyMutation = useMutation({
+    mutationFn: async (replyData: {
+      subject: string;
+      message: string;
+      customerEmail?: string;
+      receivedAt?: string;
+    }) => {
+      return await apiRequest("POST", `/api/proposals/${proposalId}/communications/reply`, replyData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Reply Recorded",
+        description: "Customer reply has been recorded successfully",
+      });
+      setShowReplyModal(false);
+      setReplySubject('');
+      setReplyMessage('');
+      queryClient.invalidateQueries({ queryKey: [`/api/proposals/${proposalId}/communications`] });
+    },
+    onError: (error) => {
+      console.error('Failed to record reply:', error);
+      toast({
+        title: "Error",
+        description: "Failed to record customer reply. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleRecordReply = () => {
+    if (!replyMessage.trim()) {
+      toast({
+        title: "Error", 
+        description: "Please enter the customer's message",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    recordReplyMutation.mutate({
+      subject: replySubject.trim() || "Re: Your Proposal",
+      message: replyMessage.trim(),
+      customerEmail: proposal?.customer?.email,
+      receivedAt: new Date().toISOString(),
+    });
+  };
+
   if (isLoading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -517,7 +569,18 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
             {/* Communication Log */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Communication History</CardTitle>
+                <CardTitle className="text-lg flex items-center justify-between">
+                  <span>Communication History</span>
+                  <Button
+                    onClick={() => setShowReplyModal(true)}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                  >
+                    <MessageCircle className="h-3 w-3 mr-1" />
+                    Record Reply
+                  </Button>
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4 max-h-64 overflow-y-auto">
@@ -812,6 +875,67 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
           </div>
         </div>
       </DialogContent>
+
+      {/* Customer Reply Modal */}
+      {showReplyModal && (
+        <Dialog open={showReplyModal} onOpenChange={setShowReplyModal}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Record Customer Reply</DialogTitle>
+              <p className="text-sm text-gray-600">
+                Record a response you received from the customer
+              </p>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="reply-subject">Subject</Label>
+                <Textarea
+                  id="reply-subject"
+                  placeholder="Re: Your Proposal"
+                  value={replySubject}
+                  onChange={(e) => setReplySubject(e.target.value)}
+                  className="min-h-[40px] max-h-[60px]"
+                />
+              </div>
+              <div>
+                <Label htmlFor="reply-message">Customer's Message</Label>
+                <Textarea
+                  id="reply-message"
+                  placeholder="Enter the customer's reply here..."
+                  value={replyMessage}
+                  onChange={(e) => setReplyMessage(e.target.value)}
+                  className="min-h-[120px]"
+                  required
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setShowReplyModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleRecordReply}
+                disabled={recordReplyMutation.isPending || !replyMessage.trim()}
+              >
+                {recordReplyMutation.isPending ? (
+                  <>
+                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                    Recording...
+                  </>
+                ) : (
+                  <>
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Record Reply
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </Dialog>
   );
 }

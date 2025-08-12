@@ -3312,6 +3312,43 @@ This is a test email from your Venuine venue management system.
     }
   });
 
+  // Manual endpoint to record customer email replies
+  app.post("/api/proposals/:id/communications/reply", async (req, res) => {
+    try {
+      console.log('Recording customer reply for proposal:', req.params.id);
+      console.log('Reply data:', req.body);
+
+      const { subject, message, customerEmail, receivedAt } = req.body;
+      
+      // Get the proposal to find the customer
+      const proposal = await storage.getProposal(req.params.id);
+      if (!proposal) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+
+      // Create inbound communication record
+      const communicationData = {
+        proposalId: req.params.id,
+        customerId: proposal.customerId,
+        type: "email" as const,
+        direction: "inbound" as const,
+        subject: subject || "Re: Your Proposal",
+        message: message || "",
+        sentBy: customerEmail || "customer",
+        status: "received" as const,
+        sentAt: new Date(receivedAt || Date.now()),
+      };
+
+      const communication = await storage.createCommunication(communicationData);
+      console.log('Customer reply recorded:', communication.id);
+      
+      res.status(201).json(communication);
+    } catch (error) {
+      console.error("Error recording customer reply:", error);
+      res.status(500).json({ message: "Failed to record customer reply" });
+    }
+  });
+
   app.post("/api/proposals/:id/process-deposit", async (req, res) => {
     try {
       const proposal = await storage.getProposal(req.params.id);
