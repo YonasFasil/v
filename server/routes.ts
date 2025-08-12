@@ -2798,7 +2798,7 @@ This is a test email from your Venuine venue management system.
       // Generate fresh proposal content with current event data 
       const updatedProposalContent = `
         <h2>Updated Proposal for ${eventData.eventName}</h2>
-        <p><strong>Event Date:</strong> ${new Date(eventData.eventDate).toLocaleDateString()}</p>
+        <p><strong>Event Date:</strong> ${eventData.eventDate ? (typeof eventData.eventDate === 'string' ? new Date(eventData.eventDate).toLocaleDateString() : eventData.eventDate.toLocaleDateString()) : 'Date TBD'}</p>
         <p><strong>Event Time:</strong> ${eventData.startTime} - ${eventData.endTime}</p>
         <p><strong>Guest Count:</strong> ${eventData.guestCount}</p>
         <p><strong>Venue:</strong> ${eventData.venueName || 'To be determined'}</p>
@@ -3016,7 +3016,7 @@ This is a test email from your Venuine venue management system.
           }
           
           eventDates = [{
-            date: linkedBooking.eventDate ? linkedBooking.eventDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            date: linkedBooking.eventDate ? (typeof linkedBooking.eventDate === 'string' ? linkedBooking.eventDate : new Date(linkedBooking.eventDate).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
             startTime: linkedBooking.startTime || "TBD",
             endTime: linkedBooking.endTime || "TBD",
             venue: bookingVenue?.name || "Venue Location",

@@ -318,10 +318,11 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
       });
       queryClient.invalidateQueries({ queryKey: [`/api/proposals/${proposalId}`] });
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error('Resend proposal error:', error);
       toast({
         title: "Error",
-        description: "Failed to resend proposal",
+        description: error?.message || "Failed to resend proposal. Please check server logs.",
         variant: "destructive"
       });
     }
