@@ -88,8 +88,10 @@ Venuine Events Team
 This proposal is valid for 30 days from the date of this email.`);
 
   // Generate the HTML version of the email
-  const generateHtmlContent = () => {
-    const proposalUrl = `${window.location.origin}/proposal/view/${eventData.customerId}`;
+  const generateHtmlContent = (proposalId?: string) => {
+    const proposalUrl = proposalId ? 
+      `${window.location.origin}/proposal/${proposalId}` : 
+      `${window.location.origin}/proposal/PLACEHOLDER_ID`;
     
     return `
       <!DOCTYPE html>
@@ -171,11 +173,11 @@ This proposal is valid for 30 days from the date of this email.`);
         ((settings as any)?.deposits?.defaultDepositPercentage || 25);
       const depositAmount = (eventData.totalAmount * depositPercentage) / 100;
 
-      // Create proposal in the proposals table
+      // Create proposal in the proposals table first
       const proposalData = {
         customerId: eventData.customerId,
         title: `Proposal for ${eventData.eventName}`,
-        content: generateHtmlContent(),
+        content: generateHtmlContent(), // Generate without ID first, will be updated
         totalAmount: eventData.totalAmount.toString(),
         validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
         status: 'sent',
@@ -204,17 +206,28 @@ This proposal is valid for 30 days from the date of this email.`);
       
       const proposal = await proposalResponse.json();
       
-      // Then send the email via Gmail
+      // Now update the proposal with the correct content including the proposal ID
+      const updatedContent = generateHtmlContent(proposal.id);
+      await fetch(`/api/proposals/${proposal.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: updatedContent
+        })
+      });
+      
+      // Then send the email via Gmail with the correct proposal ID
       await fetch("/api/gmail/send-proposal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to: emailTo,
           customerName: eventData.customerName,
-          proposalContent: generateHtmlContent(),
+          proposalContent: updatedContent,
           totalAmount: eventData.totalAmount.toString(),
           validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
-          companyName: 'Venuine Events'
+          companyName: 'Venuine Events',
+          proposalId: proposal.id
         })
       }).then(res => res.json());
       

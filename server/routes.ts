@@ -2868,6 +2868,17 @@ This is a test email from your Venuine venue management system.
     }
   });
 
+  app.patch("/api/proposals/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      const proposal = await storage.updateProposal(id, updateData);
+      res.json(proposal);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
   app.post("/api/proposals/send", async (req, res) => {
     try {
       const validatedData = insertProposalSchema.parse(req.body);
