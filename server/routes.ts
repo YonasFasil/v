@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { EmailService } from "./services/email";
 import { gmailService } from "./services/gmail";
+import { emailMonitorService } from "./services/email-monitor";
 import { NotificationService } from "./services/notification";
 import { 
   insertBookingSchema, 
@@ -4435,6 +4436,98 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     } catch (error: any) {
       console.error('Notification stats error:', error);
       res.status(500).json({ message: "Failed to get notification stats" });
+    }
+  });
+
+  // Email monitoring and reply detection endpoints
+  // Webhook endpoint for incoming email replies (for third-party services)
+  app.post("/api/emails/webhook", async (req, res) => {
+    try {
+      const { from, subject, content, receivedAt } = req.body;
+      
+      if (!from || !subject || !content) {
+        return res.status(400).json({ message: "Missing required email fields" });
+      }
+
+      const processed = await emailMonitorService.processWebhookEmail({
+        from,
+        subject,
+        content,
+        receivedAt: receivedAt || new Date().toISOString()
+      });
+
+      if (processed) {
+        res.json({ success: true, message: "Email reply processed and recorded" });
+      } else {
+        res.json({ success: false, message: "No matching proposal found for this email" });
+      }
+    } catch (error: any) {
+      console.error("Webhook email processing error:", error);
+      res.status(500).json({ message: `Failed to process email: ${error.message}` });
+    }
+  });
+
+  // Manual endpoint to record customer reply
+  app.post("/api/emails/record-reply", async (req, res) => {
+    try {
+      const { proposalId, customerEmail, subject, content, receivedAt } = req.body;
+      
+      if (!proposalId || !customerEmail || !subject || !content) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const recorded = await emailMonitorService.recordManualReply({
+        proposalId,
+        customerEmail,
+        subject,
+        content,
+        receivedAt
+      });
+
+      if (recorded) {
+        res.json({ success: true, message: "Customer reply recorded successfully" });
+      } else {
+        res.status(400).json({ message: "Failed to record customer reply" });
+      }
+    } catch (error: any) {
+      console.error("Manual reply recording error:", error);
+      res.status(500).json({ message: `Failed to record reply: ${error.message}` });
+    }
+  });
+
+  // Start email monitoring service
+  app.post("/api/emails/start-monitoring", async (req, res) => {
+    try {
+      const { email, appPassword } = req.body;
+      
+      if (!email || !appPassword) {
+        return res.status(400).json({ message: "Email and app password are required" });
+      }
+
+      emailMonitorService.configure({ email, appPassword });
+      await emailMonitorService.startMonitoring();
+      
+      res.json({ 
+        success: true, 
+        message: "Email monitoring started successfully",
+        monitoring: emailMonitorService.isMonitoring()
+      });
+    } catch (error: any) {
+      console.error("Email monitoring start error:", error);
+      res.status(400).json({ message: `Failed to start monitoring: ${error.message}` });
+    }
+  });
+
+  // Get email monitoring status
+  app.get("/api/emails/monitoring-status", async (req, res) => {
+    try {
+      res.json({
+        configured: emailMonitorService.isConfigured(),
+        monitoring: emailMonitorService.isMonitoring()
+      });
+    } catch (error: any) {
+      console.error("Email monitoring status error:", error);
+      res.status(500).json({ message: "Failed to get monitoring status" });
     }
   });
 

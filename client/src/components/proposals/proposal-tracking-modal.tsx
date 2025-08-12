@@ -818,6 +818,57 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                   <Send className="h-4 w-4 mr-2" />
                   {resendProposalMutation.isPending ? 'Sending...' : 'Resend Proposal'}
                 </Button>
+
+                {/* Test Button for Customer Reply Simulation */}
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={async () => {
+                    try {
+                      if (!customer?.email) {
+                        toast({
+                          title: "Error",
+                          description: "Customer email not found",
+                          variant: "destructive"
+                        });
+                        return;
+                      }
+
+                      const response = await fetch('/api/emails/record-reply', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          proposalId: proposal.id,
+                          customerEmail: customer.email,
+                          subject: `Re: Event Proposal from Venuine Events`,
+                          content: `Thank you for the proposal! I'm interested in moving forward with the event. Could we schedule a call to discuss the details further?\n\nBest regards,\n${customer.name}`,
+                          receivedAt: new Date().toISOString()
+                        })
+                      });
+
+                      const result = await response.json();
+                      if (result.success) {
+                        // Refresh communications
+                        queryClient.invalidateQueries({ queryKey: ['/api/proposals', proposal.id, 'communications'] });
+                        toast({
+                          title: "Success",
+                          description: "Customer reply recorded successfully!",
+                        });
+                      } else {
+                        throw new Error(result.message);
+                      }
+                    } catch (error) {
+                      console.error('Error simulating customer reply:', error);
+                      toast({
+                        title: "Error",
+                        description: "Failed to simulate customer reply",
+                        variant: "destructive"
+                      });
+                    }
+                  }}
+                >
+                  🧪 Simulate Customer Reply
+                </Button>
                 
                 <div className="text-xs text-gray-500 text-center mt-4 p-2 bg-green-50 rounded">
                   <strong>Email Tracking Active:</strong><br/>
