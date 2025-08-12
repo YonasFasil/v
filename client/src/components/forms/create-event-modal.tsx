@@ -3117,7 +3117,9 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
               guestCount: d.guestCount || 1
             }))
           }}
-          onProposalSent={() => {
+          onProposalSent={async (proposalId: string) => {
+            console.log('Proposal sent with ID:', proposalId);
+            
             // Create the event with proposal_shared status (pending)
             if (selectedDates.length === 1) {
               // Single event - use regular booking endpoint
@@ -3143,17 +3145,19 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                 totalAmount: totalPrice.toString(),
                 notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${firstDate.selectedServices?.length || 0} selected`,
                 proposalStatus: 'sent',
-                proposalSentAt: new Date().toISOString()
+                proposalSentAt: new Date().toISOString(),
+                proposalId: proposalId // Link the proposal to the booking
               };
 
               createBooking.mutate(bookingData);
             } else {
-              // Multiple events - create contract with multiple bookings
+              // Multiple events - create contract with multiple bookings  
               const contractData = {
                 customerId: selectedCustomer,
                 contractName: eventName,
                 description: `Multi-date event with ${selectedDates.length} dates`,
-                status: 'pending'
+                status: 'pending',
+                proposalId: proposalId // CRITICAL: Pass proposalId to link with contract
               };
 
               const bookingsData = selectedDates.map((date, index) => {
@@ -3184,6 +3188,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                 };
               });
 
+              console.log('Creating contract with proposalId:', proposalId);
               createContract.mutate({ contractData, bookingsData });
             }
             

@@ -636,6 +636,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { contractData, bookingsData } = req.body;
       
+      console.log('Creating contract with data:', contractData);
+      console.log('Creating bookings with data:', bookingsData);
+      
       // Check for conflicts in any of the bookings first
       const existingBookings = await storage.getBookings();
       
@@ -699,6 +702,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }, 0);
       
       await storage.updateContract(contract.id, { totalAmount: totalAmount.toString() });
+
+      // CRITICAL FIX: If a proposal ID was passed in contractData, link it to the contract
+      if (contractData.proposalId) {
+        console.log('Linking proposal to contract:', contractData.proposalId, '-> contract:', contract.id);
+        try {
+          // Update the proposal to reference the contract's first booking
+          const firstBooking = bookings[0];
+          if (firstBooking) {
+            await storage.updateProposal(contractData.proposalId, {
+              bookingId: firstBooking.id,
+              status: 'sent',
+              sentAt: new Date()
+            });
+            console.log('✅ Proposal linked to booking:', contractData.proposalId, '-> booking:', firstBooking.id);
+            
+            // Also update all bookings to reference the proposal
+            for (const booking of bookings) {
+              await storage.updateBooking(booking.id, {
+                proposalId: contractData.proposalId,
+                proposalStatus: 'sent',
+                proposalSentAt: new Date()
+              });
+            }
+            console.log('✅ All contract bookings linked to proposal:', contractData.proposalId);
+          }
+        } catch (linkError) {
+          console.error('Failed to link proposal to contract:', linkError);
+          // Don't fail the contract creation if proposal linking fails
+        }
+      }
       
       res.json({ contract, bookings });
     } catch (error) {

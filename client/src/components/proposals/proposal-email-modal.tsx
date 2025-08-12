@@ -29,7 +29,7 @@ interface ProposalEmailModalProps {
       guestCount: number;
     }>;
   };
-  onProposalSent: () => void;
+  onProposalSent: (proposalId: string) => void;
 }
 
 export function ProposalEmailModal({
@@ -195,7 +195,7 @@ This proposal is valid for 30 days from the date of this email.`);
       
       return proposal;
     },
-    onSuccess: () => {
+    onSuccess: (proposal) => {
       toast({
         title: "Proposal Sent!",
         description: `Proposal email sent successfully to ${emailTo}`,
@@ -203,7 +203,8 @@ This proposal is valid for 30 days from the date of this email.`);
       });
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/proposals"] });
-      onProposalSent();
+      console.log('Calling onProposalSent with proposal ID:', proposal.id);
+      onProposalSent(proposal.id);
       onOpenChange(false);
     },
     onError: (error: any) => {
