@@ -24,7 +24,9 @@ import {
   CreditCard,
   Calendar,
   MapPin,
-  Users
+  Users,
+  Paperclip,
+  X
 } from "lucide-react";
 
 interface Proposal {
@@ -109,6 +111,9 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
   const queryClient = useQueryClient();
   const [newMessage, setNewMessage] = useState("");
   const [messageType, setMessageType] = useState("email");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [showEmailComposer, setShowEmailComposer] = useState(false);
 
   // Fetch proposal details
   const { data: proposal, isLoading, refetch } = useQuery<Proposal>({
@@ -248,6 +253,8 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
         description: "Your message has been sent to the customer"
       });
       setNewMessage("");
+      setEmailSubject("");
+      setAttachments([]);
       queryClient.invalidateQueries({ queryKey: [`/api/proposals/${proposalId}/communications`] });
     },
     onError: () => {
@@ -287,10 +294,21 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     sendMessageMutation.mutate({
       type: messageType,
       direction: 'outbound',
-      subject: messageType === 'email' ? 'Follow-up on your event proposal' : null,
+      subject: messageType === 'email' ? emailSubject || 'Follow-up on your event proposal' : null,
       content: newMessage,
       customerId: proposal?.customerId
     });
+  };
+
+  const handleFileAttachment = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      setAttachments(prev => [...prev, ...Array.from(files)]);
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleResendProposal = () => {
@@ -337,9 +355,9 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-y-auto max-h-[calc(90vh-8rem)]">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 overflow-y-auto max-h-[calc(90vh-8rem)]">
           {/* Left Column - Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-3 space-y-6">
             {/* Proposal Status & Tracking */}
             <Card>
               <CardHeader>
@@ -538,8 +556,8 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
             </Card>
           </div>
 
-          {/* Right Column - Actions */}
-          <div className="space-y-6">
+          {/* Right Column - Customer & Communication */}
+          <div className="lg:col-span-2 space-y-6">
             {/* Customer Information */}
             <Card>
               <CardHeader>
@@ -584,44 +602,139 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
               </CardContent>
             </Card>
 
-            {/* Send Message */}
-            <Card>
+            {/* Enhanced Communication Section */}
+            <Card className="h-fit">
               <CardHeader>
-                <CardTitle className="text-lg">Send Message</CardTitle>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5" />
+                  Customer Communication
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Message Type Selection */}
                 <div>
                   <Label htmlFor="messageType">Message Type</Label>
                   <select
                     id="messageType"
                     value={messageType}
-                    onChange={(e) => setMessageType(e.target.value)}
-                    className="w-full mt-1 p-2 border rounded-md"
+                    onChange={(e) => {
+                      setMessageType(e.target.value);
+                      if (e.target.value === 'email') {
+                        setShowEmailComposer(true);
+                      } else {
+                        setShowEmailComposer(false);
+                      }
+                    }}
+                    className="w-full mt-1 p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="email">Email</option>
-                    <option value="note">Internal Note</option>
+                    <option value="email">📧 Email Customer</option>
+                    <option value="note">📝 Internal Note</option>
                   </select>
                 </div>
+
+                {/* Email Subject (only for emails) */}
+                {messageType === 'email' && (
+                  <div>
+                    <Label htmlFor="emailSubject">Subject Line</Label>
+                    <input
+                      id="emailSubject"
+                      type="text"
+                      value={emailSubject}
+                      onChange={(e) => setEmailSubject(e.target.value)}
+                      placeholder="Re: Your Event Proposal"
+                      className="w-full mt-1 p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                )}
                 
+                {/* Message Content */}
                 <div>
-                  <Label htmlFor="message">Message</Label>
+                  <Label htmlFor="message">
+                    {messageType === 'email' ? 'Email Content' : 'Note Content'}
+                  </Label>
                   <Textarea
                     id="message"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Type your message..."
-                    rows={4}
+                    placeholder={messageType === 'email' 
+                      ? "Hi [Customer Name],\n\nI wanted to follow up on your event proposal...\n\nBest regards,\nYour Name" 
+                      : "Internal note about this proposal..."}
+                    rows={messageType === 'email' ? 8 : 4}
+                    className="w-full resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
+                  <div className="text-xs text-gray-500 mt-1">
+                    {newMessage.length}/2000 characters
+                  </div>
                 </div>
-                
+
+                {/* File Attachments (only for emails) */}
+                {messageType === 'email' && (
+                  <div>
+                    <Label>File Attachments</Label>
+                    <div className="mt-2 space-y-2">
+                      <input
+                        type="file"
+                        multiple
+                        onChange={handleFileAttachment}
+                        className="hidden"
+                        id="file-attachment"
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
+                      />
+                      <label
+                        htmlFor="file-attachment"
+                        className="flex items-center gap-2 p-2 border-2 border-dashed border-gray-300 rounded-md cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                      >
+                        <Paperclip className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm text-gray-600">
+                          Click to attach files (PDF, DOC, JPG, PNG)
+                        </span>
+                      </label>
+                      
+                      {/* Attachment List */}
+                      {attachments.length > 0 && (
+                        <div className="space-y-1">
+                          {attachments.map((file, index) => (
+                            <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                              <div className="flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-gray-500" />
+                                <span className="text-sm text-gray-700">{file.name}</span>
+                                <span className="text-xs text-gray-500">
+                                  ({(file.size / 1024).toFixed(1)} KB)
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => removeAttachment(index)}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Send Button */}
                 <Button
                   onClick={handleSendMessage}
                   disabled={!newMessage.trim() || sendMessageMutation.isPending}
-                  className="w-full"
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                  size="lg"
                 >
                   <Send className="h-4 w-4 mr-2" />
-                  Send {messageType === 'email' ? 'Email' : 'Note'}
+                  {sendMessageMutation.isPending 
+                    ? 'Sending...' 
+                    : `Send ${messageType === 'email' ? 'Email' : 'Note'}`
+                  }
                 </Button>
+
+                {messageType === 'email' && (
+                  <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded">
+                    💡 <strong>Tip:</strong> Professional email communication is automatically tracked in the communication history below.
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
