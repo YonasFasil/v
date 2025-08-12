@@ -42,7 +42,8 @@ import {
   ExternalLink,
   Check,
   XCircle,
-  RefreshCw
+  RefreshCw,
+  Play
 } from "lucide-react";
 
 export default function Settings() {
@@ -642,16 +643,19 @@ export default function Settings() {
 
                     {/* Gmail Configuration - Show when Gmail is selected */}
                     {formData.integrations.emailProvider === "gmail" && (
-                      <div className="p-4 border rounded-lg bg-blue-50">
-                        <div className="flex items-center gap-3 mb-4">
-                          <Mail className="w-5 h-5 text-blue-600" />
-                          <div>
-                            <h4 className="font-medium text-blue-900">Gmail Configuration</h4>
-                            <p className="text-sm text-blue-700">Set up Gmail to send proposals directly from your system</p>
+                      <div className="space-y-4">
+                        {/* Gmail Setup */}
+                        <div className="p-4 border rounded-lg bg-blue-50">
+                          <div className="flex items-center gap-3 mb-4">
+                            <Mail className="w-5 h-5 text-blue-600" />
+                            <div>
+                              <h4 className="font-medium text-blue-900">Gmail Configuration</h4>
+                              <p className="text-sm text-blue-700">Set up Gmail to send proposals directly from your system</p>
+                            </div>
+                            <Badge variant={formData.integrations.gmailSettings?.isConfigured ? "default" : "secondary"}>
+                              {formData.integrations.gmailSettings?.isConfigured ? "Configured" : "Not Configured"}
+                            </Badge>
                           </div>
-                          <Badge variant={formData.integrations.gmailSettings?.isConfigured ? "default" : "secondary"}>
-                            {formData.integrations.gmailSettings?.isConfigured ? "Configured" : "Not Configured"}
-                          </Badge>
                         </div>
                         
                         <div className="space-y-4">
@@ -767,6 +771,105 @@ export default function Settings() {
                                 Send Test Email
                               </Button>
                             )}
+                          </div>
+                        </div>
+                        
+                        {/* Email Monitoring Configuration */}
+                        <div className="p-4 border rounded-lg bg-green-50">
+                          <div className="flex items-center gap-3 mb-4">
+                            <Bell className="w-5 h-5 text-green-600" />
+                            <div>
+                              <h4 className="font-medium text-green-900">Automatic Customer Reply Detection</h4>
+                              <p className="text-sm text-green-700">Monitor Gmail for customer replies to proposals and automatically record them</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div className="text-sm space-y-3 p-3 bg-green-100 rounded-md border border-green-200">
+                              <p className="font-semibold text-green-800">✨ How it works:</p>
+                              <div className="space-y-1 text-green-700">
+                                <p>• When you send proposals via email, they're tracked automatically</p>
+                                <p>• Customer replies to those emails are detected in real-time</p>
+                                <p>• Replies automatically appear in the proposal's communication history</p>
+                                <p>• No manual entry needed - everything happens automatically!</p>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Button 
+                                variant="default" 
+                                size="sm"
+                                onClick={async () => {
+                                  if (!formData.integrations.gmailSettings?.isConfigured) {
+                                    toast({
+                                      title: "Gmail Not Configured",
+                                      description: "Please configure your Gmail settings first before starting email monitoring.",
+                                      variant: "destructive"
+                                    });
+                                    return;
+                                  }
+
+                                  try {
+                                    const response = await fetch('/api/emails/start-monitoring', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({
+                                        email: formData.integrations.gmailSettings.email,
+                                        appPassword: formData.integrations.gmailSettings.appPassword
+                                      })
+                                    });
+
+                                    const result = await response.json();
+                                    if (result.success) {
+                                      toast({
+                                        title: "Email Monitoring Started!",
+                                        description: "Now monitoring for customer replies to proposals. They'll appear automatically in communication history.",
+                                      });
+                                    } else {
+                                      throw new Error(result.message);
+                                    }
+                                  } catch (error: any) {
+                                    toast({
+                                      title: "Failed to Start Monitoring",
+                                      description: error.message || "Unable to start email monitoring",
+                                      variant: "destructive"
+                                    });
+                                  }
+                                }}
+                                disabled={!formData.integrations.gmailSettings?.isConfigured}
+                              >
+                                <Play className="w-4 h-4 mr-2" />
+                                Start Monitoring
+                              </Button>
+                              
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={async () => {
+                                  try {
+                                    const response = await fetch('/api/emails/monitoring-status');
+                                    const status = await response.json();
+                                    
+                                    toast({
+                                      title: "Monitoring Status",
+                                      description: status.isActive ? 
+                                        `Active since ${new Date(status.startedAt).toLocaleString()}. Checking every 30 seconds.` :
+                                        "Email monitoring is not currently active.",
+                                      variant: status.isActive ? "default" : "secondary"
+                                    });
+                                  } catch (error: any) {
+                                    toast({
+                                      title: "Error",
+                                      description: "Unable to check monitoring status",
+                                      variant: "destructive"
+                                    });
+                                  }
+                                }}
+                              >
+                                <Eye className="w-4 h-4 mr-2" />
+                                Check Status
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </div>

@@ -1,4 +1,6 @@
 import { storage } from '../storage';
+import { gmailService } from './gmail';
+import { ImapFlow } from 'imapflow';
 
 interface EmailMonitorConfig {
   email: string;
@@ -18,6 +20,8 @@ interface ParsedEmailReply {
 export class EmailMonitorService {
   private config: EmailMonitorConfig | null = null;
   private monitoringActive = false;
+  private monitoringInterval: NodeJS.Timeout | null = null;
+  private lastCheckTime: Date = new Date();
 
   constructor(config?: EmailMonitorConfig) {
     if (config) {
@@ -27,6 +31,8 @@ export class EmailMonitorService {
 
   configure(config: EmailMonitorConfig) {
     this.config = config;
+    // Configure Gmail service with the same credentials for monitoring
+    gmailService.configure({ email: config.email, appPassword: config.appPassword });
     console.log('Email monitoring configured for:', config.email);
   }
 
@@ -40,8 +46,169 @@ export class EmailMonitorService {
       return;
     }
 
-    console.log('✅ Email monitoring service ready (manual reply recording available)');
+    // Test Gmail connection first
+    const isConnected = await gmailService.testConnection();
+    if (!isConnected) {
+      throw new Error('Gmail connection failed. Please check your credentials.');
+    }
+
+    console.log('✅ Email monitoring started - checking for new customer replies every 30 seconds');
     this.monitoringActive = true;
+    this.lastCheckTime = new Date();
+    
+    // Start periodic monitoring
+    this.startPeriodicCheck();
+  }
+
+  private startPeriodicCheck(): void {
+    if (this.monitoringInterval) {
+      clearInterval(this.monitoringInterval);
+    }
+
+    // Check for new emails every 30 seconds
+    this.monitoringInterval = setInterval(async () => {
+      if (this.monitoringActive) {
+        await this.checkForNewReplies();
+      }
+    }, 30000);
+
+    // Also check immediately
+    setTimeout(() => this.checkForNewReplies(), 1000);
+  }
+
+  private async checkForNewReplies(): Promise<void> {
+    if (!this.config || !gmailService.isConfigured()) {
+      return;
+    }
+
+    try {
+      console.log('🔍 Checking for new customer email replies...');
+      
+      // Get all recent inbound emails since last check
+      const recentEmails = await this.fetchRecentInboundEmails();
+      
+      if (recentEmails.length > 0) {
+        console.log(`Found ${recentEmails.length} recent emails to process`);
+        
+        for (const email of recentEmails) {
+          await this.processIncomingEmail(email);
+        }
+      }
+      
+      this.lastCheckTime = new Date();
+      
+    } catch (error) {
+      console.error('Error checking for email replies:', error);
+    }
+  }
+
+  private async fetchRecentInboundEmails(): Promise<any[]> {
+    if (!this.config) return [];
+
+    let client: ImapFlow | null = null;
+    
+    try {
+      // Connect to Gmail using IMAP
+      client = new ImapFlow({
+        host: 'imap.gmail.com',
+        port: 993,
+        secure: true,
+        auth: {
+          user: this.config.email,
+          pass: this.config.appPassword
+        }
+      });
+
+      await client.connect();
+      
+      // Open inbox
+      await client.mailboxOpen('INBOX');
+      
+      // Search for emails received since last check that are NOT from our own email
+      const searchCriteria = {
+        since: this.lastCheckTime,
+        not: {
+          from: this.config.email // Exclude emails from our own address
+        }
+      };
+      
+      const messageList = await client.search(searchCriteria);
+      const emails = [];
+      
+      for await (const message of client.fetch(messageList, { 
+        envelope: true, 
+        bodyStructure: true,
+        bodyParts: ['TEXT'] 
+      })) {
+        try {
+          if (!message.envelope) continue;
+          
+          const envelope = message.envelope;
+          const from = envelope.from?.[0]?.address;
+          const subject = envelope.subject;
+          const date = envelope.date;
+          
+          if (!from || !subject || !date) continue;
+          
+          // Get text content
+          let content = '';
+          if (message.bodyParts && message.bodyParts.get('TEXT')) {
+            content = message.bodyParts.get('TEXT')?.toString('utf8') || '';
+          } else {
+            content = 'Customer replied to proposal'; // fallback
+          }
+          
+          emails.push({
+            from,
+            subject,
+            content,
+            date
+          });
+          
+        } catch (msgError) {
+          console.error('Error processing message:', msgError);
+          continue;
+        }
+      }
+      
+      return emails;
+      
+    } catch (error) {
+      console.error('Error fetching emails from Gmail:', error);
+      return [];
+    } finally {
+      if (client) {
+        try {
+          await client.logout();
+        } catch (logoutError) {
+          console.error('Error closing IMAP connection:', logoutError);
+        }
+      }
+    }
+  }
+
+  private async processIncomingEmail(email: any): Promise<void> {
+    try {
+      const parsedReply: ParsedEmailReply = {
+        from: email.from,
+        subject: email.subject,
+        content: this.cleanEmailContent(email.content),
+        receivedDate: new Date(email.date)
+      };
+
+      // Try to match this reply to a proposal
+      const proposalId = await this.findProposalForReply(parsedReply);
+      if (!proposalId) {
+        console.log('No matching proposal found for email reply from:', parsedReply.from);
+        return;
+      }
+
+      console.log(`📧 Customer reply detected! Recording for proposal ${proposalId}`);
+      await this.recordCustomerReply(proposalId, parsedReply);
+      
+    } catch (error) {
+      console.error('Error processing incoming email:', error);
+    }
   }
 
   // Webhook endpoint to receive email notifications
@@ -184,7 +351,19 @@ export class EmailMonitorService {
 
   async stopMonitoring(): Promise<void> {
     this.monitoringActive = false;
+    if (this.monitoringInterval) {
+      clearInterval(this.monitoringInterval);
+      this.monitoringInterval = null;
+    }
     console.log('Email monitoring stopped');
+  }
+
+  isMonitoring(): boolean {
+    return this.monitoringActive;
+  }
+
+  isConfigured(): boolean {
+    return this.config !== null;
   }
 
   isMonitoring(): boolean {
