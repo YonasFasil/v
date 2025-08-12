@@ -1,6 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { emailMonitorService } from "./services/email-monitor";
+import { storage } from "./storage";
 
 const app = express();
 app.use(express.json());
@@ -65,7 +67,24 @@ app.use((req, res, next) => {
     port,
     host: "0.0.0.0",
     reusePort: true,
-  }, () => {
+  }, async () => {
     log(`serving on port ${port}`);
+    
+    // Auto-start email monitoring if configured
+    try {
+      const emailSettings = await storage.getSetting('email');
+      if (emailSettings && emailSettings.value) {
+        const config = emailSettings.value;
+        if (config.email && config.appPassword && !emailMonitorService.isMonitoring()) {
+          await emailMonitorService.startMonitoring({
+            email: config.email,
+            appPassword: config.appPassword
+          });
+          log(`📧 Email monitoring auto-started for ${config.email}`);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to auto-start email monitoring:', error);
+    }
   });
 })();
