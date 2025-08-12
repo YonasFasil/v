@@ -130,10 +130,15 @@ export default function Settings() {
   // Initialize form data when settings load
   useEffect(() => {
     if (settings) {
-      setFormData(prev => ({
-        ...prev,
-        ...settings
-      }));
+      console.log('Settings loaded:', settings);
+      setFormData(prev => {
+        const newData = {
+          ...prev,
+          ...settings
+        };
+        console.log('Form data updated:', newData);
+        return newData;
+      });
     }
   }, [settings]);
 
@@ -162,6 +167,7 @@ export default function Settings() {
 
   const handleSaveSection = (section: string) => {
     const sectionData = { [section]: formData[section as keyof typeof formData] };
+    console.log('Saving section:', section, 'with data:', sectionData);
     saveSettingsMutation.mutate(sectionData);
   };
 
@@ -170,6 +176,7 @@ export default function Settings() {
   };
 
   const updateFormData = (section: string, field: string, value: any) => {
+    console.log('Updating form data:', section, field, value);
     setFormData(prev => ({
       ...prev,
       [section]: {
