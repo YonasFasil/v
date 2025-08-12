@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, getDay } from "date-fns";
 import { ChevronLeft, ChevronRight, X, Plus, RotateCcw, Trash2, Save, Edit, Minus, FileText, Send, MessageSquare, Mail, Phone, Users, Grid3X3, MapPin, Calendar as CalendarIcon } from "lucide-react";
-import { EmailPreviewModal } from "@/components/proposals/email-preview-modal";
+import { ProposalEmailModal } from "@/components/proposals/proposal-email-modal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -86,8 +86,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   const [communicationMessage, setCommunicationMessage] = useState("");
   const [communicationType, setCommunicationType] = useState("email");
   
-  // Email preview modal state
-  const [showEmailPreview, setShowEmailPreview] = useState(false);
+  // Proposal email modal state
+  const [showProposalEmailModal, setShowProposalEmailModal] = useState(false);
   const [proposalEmailData, setProposalEmailData] = useState<any>(null);
   
   // Customer creation
@@ -2802,16 +2802,13 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                             setProposalEmailData({
                               eventName,
                               customerId: selectedCustomer,
-                              eventDates,
+                              customerEmail: customer?.email || '',
+                              customerName: customer?.name || 'Valued Customer',
                               totalAmount: currentTotal,
-                              customerData: customer ? {
-                                name: customer.name,
-                                email: customer.email,
-                                company: customer.company
-                              } : null
+                              eventDates
                             });
                             
-                            setShowEmailPreview(true);
+                            setShowProposalEmailModal(true);
                           } catch (error) {
                             toast({
                               title: "Error",
@@ -2902,13 +2899,13 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
         </DialogContent>
       </Dialog>
       
-      {/* Email Preview Modal */}
+      {/* Proposal Email Modal */}
       {proposalEmailData && (
-        <EmailPreviewModal
-          open={showEmailPreview}
-          onOpenChange={setShowEmailPreview}
+        <ProposalEmailModal
+          open={showProposalEmailModal}
+          onOpenChange={setShowProposalEmailModal}
           eventData={proposalEmailData}
-          onSend={async (proposalId: string) => {
+          onProposalSent={async (proposalId: string) => {
             try {
               // Update booking status to "pending" (Proposal Shared)
               await apiRequest("PATCH", `/api/bookings/${booking.id}`, {
@@ -2922,7 +2919,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                 description: "The proposal has been sent to the customer successfully.",
               });
               
-              setShowEmailPreview(false);
+              setShowProposalEmailModal(false);
               onOpenChange(false);
               queryClient.invalidateQueries({ queryKey: ['/api/proposals'] });
               queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
