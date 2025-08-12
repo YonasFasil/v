@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { 
   Users, Mail, Phone, Building, Star, DollarSign, Calendar, 
   TrendingUp, Search, Filter, Plus, Eye, Edit2, MoreHorizontal,
-  Crown, Award, Medal, Trophy
+  Crown, Award, Medal, Trophy, Trash2
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -94,8 +94,35 @@ export default function Customers() {
     },
   });
 
+  // Delete customer mutation
+  const deleteCustomerMutation = useMutation({
+    mutationFn: async (customerId: string) => {
+      return apiRequest("DELETE", `/api/customers/${customerId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers/analytics"] });
+      toast({
+        title: "Success",
+        description: "Customer deleted successfully!",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to delete customer. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = async (data: any) => {
     createCustomerMutation.mutate(data);
+  };
+
+  const handleDeleteCustomer = (customer: CustomerAnalytics) => {
+    if (confirm(`Are you sure you want to delete "${customer.name}"? This action cannot be undone.`)) {
+      deleteCustomerMutation.mutate(customer.id);
+    }
   };
 
   // Filter customers
@@ -505,13 +532,26 @@ export default function Customers() {
                           </TableCell>
                           
                           <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setSelectedCustomer(customer)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center gap-1 justify-end">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setSelectedCustomer(customer)}
+                                data-testid={`button-view-customer-${customer.id}`}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteCustomer(customer)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                disabled={deleteCustomerMutation.isPending}
+                                data-testid={`button-delete-customer-${customer.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
