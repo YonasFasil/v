@@ -11,7 +11,7 @@ import { Save, X, Grid3X3, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
-import { FloorPlanDesigner } from "../venues/floor-plan-designer";
+
 
 interface EditSpaceModalProps {
   open: boolean;
@@ -43,11 +43,12 @@ export function EditSpaceModal({ open, onOpenChange, space, venueId }: EditSpace
     pricePerHour: '',
     amenities: [] as string[],
     availableSetupStyles: [] as string[],
-    floorPlan: null as any,
+
   });
 
   useEffect(() => {
-    if (space) {
+    if (space && open) {
+      console.log('Loading space data:', space);
       setFormData({
         name: space.name || '',
         description: space.description || '',
@@ -55,10 +56,10 @@ export function EditSpaceModal({ open, onOpenChange, space, venueId }: EditSpace
         pricePerHour: space.pricePerHour?.toString() || '',
         amenities: space.amenities || [],
         availableSetupStyles: space.availableSetupStyles || [],
-        floorPlan: space.floorPlan || null,
       });
+      setActiveTab("details"); // Reset to details tab when modal opens
     }
-  }, [space]);
+  }, [space, open]);
 
   const handleSave = async () => {
     if (!formData.name || !formData.capacity) {
@@ -72,17 +73,23 @@ export function EditSpaceModal({ open, onOpenChange, space, venueId }: EditSpace
 
     setIsSaving(true);
     try {
-      await apiRequest("PATCH", `/api/spaces/${space.id}`, {
+      const updateData = {
         name: formData.name,
         description: formData.description,
         capacity: parseInt(formData.capacity),
         pricePerHour: parseFloat(formData.pricePerHour) || 0,
         amenities: formData.amenities,
         availableSetupStyles: formData.availableSetupStyles,
-        floorPlan: formData.floorPlan,
-      });
+      };
+      
+      console.log('Updating space with data:', updateData);
+      const response = await apiRequest("PATCH", `/api/spaces/${space.id}`, updateData);
+      console.log('Update response:', response);
 
+      // Invalidate multiple relevant queries to ensure UI updates
       await queryClient.invalidateQueries({ queryKey: ["/api/venues"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/venues-with-spaces"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/spaces"] });
       
       toast({
         title: "Space updated",
@@ -119,13 +126,7 @@ export function EditSpaceModal({ open, onOpenChange, space, venueId }: EditSpace
     }));
   };
 
-  const handleFloorPlanSave = (floorPlan: any) => {
-    setFormData(prev => ({ ...prev, floorPlan }));
-    toast({
-      title: "Floor plan updated",
-      description: "Floor plan has been saved to the space configuration"
-    });
-  };
+
 
   const commonAmenities = [
     'WiFi', 'Projector', 'Sound System', 'Microphone', 'Whiteboard', 'Piano',
@@ -166,16 +167,7 @@ export function EditSpaceModal({ open, onOpenChange, space, venueId }: EditSpace
               >
                 Setup Styles
               </button>
-              <button
-                onClick={() => setActiveTab("floorplan")}
-                className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === "floorplan"
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                Floor Plan Designer
-              </button>
+
             </nav>
           </div>
 
@@ -312,31 +304,7 @@ export function EditSpaceModal({ open, onOpenChange, space, venueId }: EditSpace
             </div>
           )}
 
-          {activeTab === "floorplan" && (
-            <div className="max-h-[60vh] overflow-y-auto pt-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold">Interactive Floor Plan Designer</h3>
-                    <p className="text-sm text-slate-600">
-                      Design the layout for this space with drag-and-drop furniture placement
-                    </p>
-                  </div>
-                  {formData.floorPlan && (
-                    <Badge variant="outline">
-                      {formData.floorPlan.elements?.length || 0} elements
-                    </Badge>
-                  )}
-                </div>
 
-                <FloorPlanDesigner
-                  spaceId={space?.id}
-                  initialFloorPlan={formData.floorPlan}
-                  onSave={handleFloorPlanSave}
-                />
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t">
