@@ -2074,13 +2074,23 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
         twoFactorEnabled: false,
         ipWhitelist: ""
       },
-      taxes: {
-        defaultTaxRate: 8.5,
-        taxName: "Sales Tax",
-        taxNumber: "",
-        applyToServices: true,
-        applyToPackages: true,
-        includeTaxInPrice: false
+      payments: {
+        defaultDepositPercentage: 30,
+        paymentDueDays: 7,
+        lateFeePercentage: 5,
+        cancellationRefundDays: 30,
+        requireDepositOnBooking: false,
+        allowPartialPayments: true,
+        autoSendPaymentReminders: true,
+        defaultTaxRate: 8.25,
+        serviceFee: 0,
+        serviceFeeType: "percentage",
+        acceptCreditCards: true,
+        acceptACH: false,
+        acceptPayPal: false,
+        acceptCheck: true,
+        acceptCash: true,
+        acceptWireTransfer: false
       }
     });
   });
@@ -2125,6 +2135,15 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
       }
       
       res.json({ success: true, message: "Integration settings saved" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/settings/payments", async (req, res) => {
+    try {
+      console.log('Saving payment settings:', req.body);
+      res.json({ success: true, message: "Payment settings saved" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

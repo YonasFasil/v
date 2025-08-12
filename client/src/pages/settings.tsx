@@ -108,13 +108,23 @@ export default function Settings() {
       customHeader: "",
       customFooter: ""
     },
-    taxes: {
-      defaultTaxRate: 8.5,
-      taxName: "Sales Tax",
-      taxNumber: "",
-      applyToServices: true,
-      applyToPackages: true,
-      includeTaxInPrice: false
+    payments: {
+      defaultDepositPercentage: 30,
+      paymentDueDays: 7,
+      lateFeePercentage: 5,
+      cancellationRefundDays: 30,
+      requireDepositOnBooking: false,
+      allowPartialPayments: true,
+      autoSendPaymentReminders: true,
+      defaultTaxRate: 8.25,
+      serviceFee: 0,
+      serviceFeeType: "percentage",
+      acceptCreditCards: true,
+      acceptACH: false,
+      acceptPayPal: false,
+      acceptCheck: true,
+      acceptCash: true,
+      acceptWireTransfer: false
     }
   });
 
@@ -259,9 +269,9 @@ export default function Settings() {
                   <FileOutput className="w-4 h-4" />
                   <span className="text-xs">BEO</span>
                 </TabsTrigger>
-                <TabsTrigger value="taxes" className="data-[state=active]:bg-white flex flex-col gap-1 py-3 px-2">
+                <TabsTrigger value="payments" className="data-[state=active]:bg-white flex flex-col gap-1 py-3 px-2">
                   <CreditCard className="w-4 h-4" />
-                  <span className="text-xs">Taxes</span>
+                  <span className="text-xs">Payments</span>
                 </TabsTrigger>
                 <TabsTrigger value="security" className="data-[state=active]:bg-white flex flex-col gap-1 py-3 px-2">
                   <Shield className="w-4 h-4" />
@@ -1277,8 +1287,286 @@ export default function Settings() {
               </TabsContent>
 
               {/* Taxes and Fees Settings */}
-              <TabsContent value="taxes" className="space-y-6">
-                <TaxesAndFeesSettings />
+              <TabsContent value="payments" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CreditCard className="w-5 h-5 text-blue-600" />
+                      Payment Settings
+                    </CardTitle>
+                    <p className="text-sm text-slate-600 mt-2">
+                      Configure payment processing, deposits, and billing preferences
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    
+                    {/* Stripe Payment Integration */}
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-slate-900">Payment Processing</h4>
+                      <StripePaymentSection />
+                    </div>
+
+                    {/* Deposit Settings */}
+                    <div className="space-y-4 border-t pt-6">
+                      <h4 className="font-medium text-slate-900">Deposit & Payment Terms</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label htmlFor="defaultDepositPercentage">Default Deposit Percentage</Label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              id="defaultDepositPercentage"
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={formData.payments?.defaultDepositPercentage || 30}
+                              onChange={(e) => updateFormData("payments", "defaultDepositPercentage", parseInt(e.target.value) || 0)}
+                              className="w-20"
+                            />
+                            <span className="text-sm text-slate-600">% of total amount</span>
+                          </div>
+                          <p className="text-xs text-slate-500">Percentage required as deposit for new bookings</p>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="paymentDueDays">Payment Due (Days)</Label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              id="paymentDueDays"
+                              type="number"
+                              min="1"
+                              max="365"
+                              value={formData.payments?.paymentDueDays || 7}
+                              onChange={(e) => updateFormData("payments", "paymentDueDays", parseInt(e.target.value) || 7)}
+                              className="w-20"
+                            />
+                            <span className="text-sm text-slate-600">days before event</span>
+                          </div>
+                          <p className="text-xs text-slate-500">Final payment due deadline</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label htmlFor="lateFeePercentage">Late Payment Fee</Label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              id="lateFeePercentage"
+                              type="number"
+                              min="0"
+                              max="50"
+                              step="0.1"
+                              value={formData.payments?.lateFeePercentage || 5}
+                              onChange={(e) => updateFormData("payments", "lateFeePercentage", parseFloat(e.target.value) || 0)}
+                              className="w-20"
+                            />
+                            <span className="text-sm text-slate-600">% fee for late payments</span>
+                          </div>
+                          <p className="text-xs text-slate-500">Additional charge for overdue payments</p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="cancellationRefundDays">Cancellation Policy</Label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              id="cancellationRefundDays"
+                              type="number"
+                              min="0"
+                              max="365"
+                              value={formData.payments?.cancellationRefundDays || 30}
+                              onChange={(e) => updateFormData("payments", "cancellationRefundDays", parseInt(e.target.value) || 0)}
+                              className="w-20"
+                            />
+                            <span className="text-sm text-slate-600">days for full refund</span>
+                          </div>
+                          <p className="text-xs text-slate-500">Full refund period before event</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <Label>Deposit Collection Options</Label>
+                        <div className="space-y-3">
+                          <div className="flex items-center space-x-2">
+                            <input 
+                              type="checkbox"
+                              id="requireDepositOnBooking"
+                              checked={formData.payments?.requireDepositOnBooking || false}
+                              onChange={(e) => updateFormData("payments", "requireDepositOnBooking", e.target.checked)}
+                              className="rounded border-slate-300"
+                            />
+                            <Label htmlFor="requireDepositOnBooking" className="text-sm">
+                              Require deposit payment on booking confirmation
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <input 
+                              type="checkbox"
+                              id="allowPartialPayments"
+                              checked={formData.payments?.allowPartialPayments || true}
+                              onChange={(e) => updateFormData("payments", "allowPartialPayments", e.target.checked)}
+                              className="rounded border-slate-300"
+                            />
+                            <Label htmlFor="allowPartialPayments" className="text-sm">
+                              Allow multiple partial payments before final due date
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <input 
+                              type="checkbox"
+                              id="autoSendPaymentReminders"
+                              checked={formData.payments?.autoSendPaymentReminders || true}
+                              onChange={(e) => updateFormData("payments", "autoSendPaymentReminders", e.target.checked)}
+                              className="rounded border-slate-300"
+                            />
+                            <Label htmlFor="autoSendPaymentReminders" className="text-sm">
+                              Automatically send payment reminder emails
+                            </Label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Currency and Tax Settings */}
+                    <div className="space-y-4 border-t pt-6">
+                      <h4 className="font-medium text-slate-900">Taxes & Fees</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label htmlFor="defaultTaxRate">Default Tax Rate</Label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              id="defaultTaxRate"
+                              type="number"
+                              min="0"
+                              max="50"
+                              step="0.01"
+                              value={formData.payments?.defaultTaxRate || 8.25}
+                              onChange={(e) => updateFormData("payments", "defaultTaxRate", parseFloat(e.target.value) || 0)}
+                              className="w-20"
+                            />
+                            <span className="text-sm text-slate-600">% sales tax</span>
+                          </div>
+                          <p className="text-xs text-slate-500">Applied to all services and packages</p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="serviceFee">Service Fee</Label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              id="serviceFee"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={formData.payments?.serviceFee || 0}
+                              onChange={(e) => updateFormData("payments", "serviceFee", parseFloat(e.target.value) || 0)}
+                              className="w-20"
+                            />
+                            <Select 
+                              value={formData.payments?.serviceFeeType || "percentage"} 
+                              onValueChange={(value) => updateFormData("payments", "serviceFeeType", value)}
+                            >
+                              <SelectTrigger className="w-32">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="percentage">%</SelectItem>
+                                <SelectItem value="fixed">$ Fixed</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <p className="text-xs text-slate-500">Additional service or convenience fee</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Payment Methods */}
+                    <div className="space-y-4 border-t pt-6">
+                      <h4 className="font-medium text-slate-900">Accepted Payment Methods</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-3">
+                          <Label>Online Payments</Label>
+                          <div className="space-y-2">
+                            <div className="flex items-center space-x-2">
+                              <input 
+                                type="checkbox"
+                                id="acceptCreditCards"
+                                checked={formData.payments?.acceptCreditCards || true}
+                                onChange={(e) => updateFormData("payments", "acceptCreditCards", e.target.checked)}
+                                className="rounded border-slate-300"
+                              />
+                              <Label htmlFor="acceptCreditCards" className="text-sm">Credit/Debit Cards</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <input 
+                                type="checkbox"
+                                id="acceptACH"
+                                checked={formData.payments?.acceptACH || false}
+                                onChange={(e) => updateFormData("payments", "acceptACH", e.target.checked)}
+                                className="rounded border-slate-300"
+                              />
+                              <Label htmlFor="acceptACH" className="text-sm">Bank Transfers (ACH)</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <input 
+                                type="checkbox"
+                                id="acceptPayPal"
+                                checked={formData.payments?.acceptPayPal || false}
+                                onChange={(e) => updateFormData("payments", "acceptPayPal", e.target.checked)}
+                                className="rounded border-slate-300"
+                              />
+                              <Label htmlFor="acceptPayPal" className="text-sm">PayPal</Label>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <Label>Offline Payments</Label>
+                          <div className="space-y-2">
+                            <div className="flex items-center space-x-2">
+                              <input 
+                                type="checkbox"
+                                id="acceptCheck"
+                                checked={formData.payments?.acceptCheck || true}
+                                onChange={(e) => updateFormData("payments", "acceptCheck", e.target.checked)}
+                                className="rounded border-slate-300"
+                              />
+                              <Label htmlFor="acceptCheck" className="text-sm">Checks</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <input 
+                                type="checkbox"
+                                id="acceptCash"
+                                checked={formData.payments?.acceptCash || true}
+                                onChange={(e) => updateFormData("payments", "acceptCash", e.target.checked)}
+                                className="rounded border-slate-300"
+                              />
+                              <Label htmlFor="acceptCash" className="text-sm">Cash</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <input 
+                                type="checkbox"
+                                id="acceptWireTransfer"
+                                checked={formData.payments?.acceptWireTransfer || false}
+                                onChange={(e) => updateFormData("payments", "acceptWireTransfer", e.target.checked)}
+                                className="rounded border-slate-300"
+                              />
+                              <Label htmlFor="acceptWireTransfer" className="text-sm">Wire Transfer</Label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t">
+                      <Button 
+                        onClick={() => handleSaveSection("payments")}
+                        disabled={saveSettingsMutation.isPending}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Save className="w-4 h-4 mr-2" />
+                        Save Payment Settings
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               {/* Security Settings */}
