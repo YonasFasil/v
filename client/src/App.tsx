@@ -4,7 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QuickActions } from "@/components/dashboard/quick-actions";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, AuthProvider } from "@/hooks/useAuth";
 import Dashboard from "@/pages/dashboard";
 import Events from "@/pages/events";
 import Customers from "@/pages/customers";
@@ -25,6 +25,7 @@ import PaymentSuccess from "@/pages/payment-success";
 import AuditLogs from "@/pages/audit-logs";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
+import AuthPage from "@/pages/auth-page";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -40,7 +41,10 @@ function Router() {
   return (
     <Switch>
       {!isAuthenticated ? (
-        <Route path="/" component={Landing} />
+        <>
+          <Route path="/" component={Landing} />
+          <Route path="/auth" component={AuthPage} />
+        </>
       ) : (
         <>
           <Route path="/" component={Dashboard} />
@@ -73,9 +77,11 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Router />
-        <QuickActions />
+        <AuthProvider>
+          <Router />
+          <Toaster />
+          <QuickActions />
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
