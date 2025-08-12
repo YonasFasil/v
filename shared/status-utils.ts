@@ -97,7 +97,7 @@ export const STATUS_CONFIGS: Record<EventStatus, StatusConfig> = {
   },
   cancelled: {
     label: "Cancelled",
-    description: "Event cancelled and refunds processed",
+    description: "Event has been cancelled",
     color: "#dc2626", // red-600
     bgColor: "bg-red-50",
     borderColor: "border-red-200", 
