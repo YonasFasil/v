@@ -24,7 +24,6 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
   const [description, setDescription] = useState("");
   const [capacity, setCapacity] = useState("");
   const [address, setAddress] = useState("");
-  const [amenities, setAmenities] = useState("");
   const [showCreateSpaceModal, setShowCreateSpaceModal] = useState(false);
   const [editingSpace, setEditingSpace] = useState<any>(null);
   const [editSpaceName, setEditSpaceName] = useState("");
@@ -43,7 +42,6 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
       setDescription(venue.description || "");
       setCapacity(venue.capacity?.toString() || "");
       setAddress(venue.address || "");
-      setAmenities(venue.amenities || "");
     }
   }, [venue, open]);
 
@@ -84,8 +82,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
       name,
       description,
       capacity: capacity ? parseInt(capacity) : null,
-      address,
-      amenities
+      address
     });
   };
 
@@ -203,15 +200,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
               />
             </div>
             
-            <div>
-              <Label className="text-sm">Amenities & Features</Label>
-              <Input 
-                value={amenities}
-                onChange={(e) => setAmenities(e.target.value)}
-                className="mt-1 text-sm"
-                placeholder="Parking, WiFi, AV equipment, etc."
-              />
-            </div>
+
           </div>
 
           {/* Spaces Section */}

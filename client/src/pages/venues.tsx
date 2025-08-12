@@ -286,11 +286,7 @@ export default function Venues() {
                     </div>
                   )}
                   
-                  {venue.amenities && (
-                    <div className="text-xs text-gray-500">
-                      <strong>Amenities:</strong> {venue.amenities}
-                    </div>
-                  )}
+
                 </CardContent>
               </Card>
             ))}
