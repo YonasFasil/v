@@ -2822,6 +2822,14 @@ This is a test email from your Venuine venue management system.
       });
       
       try {
+        // Check if Gmail credentials are configured first
+        if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+          return res.status(500).json({ 
+            message: "Email not configured. Please set up Gmail credentials in environment variables.",
+            error: "Missing GMAIL_USER or GMAIL_APP_PASSWORD"
+          });
+        }
+
         await emailService.sendProposalEmail({
           to: customer.email,
           subject: `Updated Proposal for ${eventData.eventName}`,
@@ -2830,7 +2838,10 @@ This is a test email from your Venuine venue management system.
         });
       } catch (error) {
         console.error('Failed to resend proposal email:', error);
-        return res.status(500).json({ message: "Failed to send proposal email. Please check your email configuration." });
+        return res.status(500).json({ 
+          message: "Failed to send proposal email. Please check your Gmail configuration and credentials.",
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
       }
 
       // Record communication
