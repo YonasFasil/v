@@ -258,39 +258,50 @@ export default function Events() {
                             {/* Show proposal button if proposal exists */}
                             {(() => {
                               // Check multiple criteria to find a matching proposal
-                              const hasProposal = booking.proposalStatus === 'sent' || 
-                                                 proposals.some((p: any) => 
-                                                   p.customerId === booking.customerId && 
-                                                   (p.eventName === booking.eventName || 
-                                                    p.eventDate === booking.eventDate ||
-                                                    (p.guestCount === booking.guestCount && p.venueId === booking.venueId))
-                                                 );
-                              
-                              if (hasProposal) {
-                                // For bookings with proposalStatus = 'sent', try to find the matching proposal
-                                // If not found, create a placeholder proposal for the tracking modal
-                                let proposal = proposals.find((p: any) => 
-                                  p.customerId === booking.customerId && 
-                                  (p.eventName === booking.eventName || 
-                                   p.eventDate === booking.eventDate ||
-                                   (p.guestCount === booking.guestCount && p.venueId === booking.venueId))
-                                );
+                              let hasProposal = false;
+                              let proposal = null;
 
-                                // If no proposal found but booking has proposalStatus = 'sent', create a placeholder
-                                if (!proposal && booking.proposalStatus === 'sent') {
-                                  proposal = {
-                                    id: `booking-${booking.id}`, // Use booking ID as proposal ID
-                                    customerId: booking.customerId,
-                                    eventName: booking.eventName,
-                                    eventDate: booking.eventDate,
-                                    guestCount: booking.guestCount,
-                                    totalAmount: booking.totalAmount,
-                                    status: 'sent',
-                                    sentAt: booking.proposalSentAt,
-                                    emailOpened: false,
-                                    openCount: 0
-                                  };
+                              // For contract events, check if any of the contract events have a proposal
+                              if ((booking as any).isContract) {
+                                // Look for proposal linked to the contract via contractInfo.proposalId
+                                if ((booking as any).contractInfo?.proposalId) {
+                                  proposal = proposals.find((p: any) => p.id === (booking as any).contractInfo.proposalId);
+                                  hasProposal = !!proposal;
                                 }
+                                
+                                // If not found, check contract events for proposal links
+                                if (!proposal && (booking as any).contractEvents) {
+                                  for (const event of (booking as any).contractEvents) {
+                                    if (event.proposalId) {
+                                      proposal = proposals.find((p: any) => p.id === event.proposalId);
+                                      if (proposal) {
+                                        hasProposal = true;
+                                        break;
+                                      }
+                                    }
+                                  }
+                                }
+                              } else {
+                                // For regular bookings, use existing logic
+                                hasProposal = booking.proposalStatus === 'sent' || 
+                                            proposals.some((p: any) => 
+                                              p.customerId === booking.customerId && 
+                                              (p.eventName === booking.eventName || 
+                                               p.eventDate === booking.eventDate ||
+                                               (p.guestCount === booking.guestCount && p.venueId === booking.venueId))
+                                            );
+                                
+                                if (hasProposal && !proposal) {
+                                  proposal = proposals.find((p: any) => 
+                                    p.customerId === booking.customerId && 
+                                    (p.eventName === booking.eventName || 
+                                     p.eventDate === booking.eventDate ||
+                                     (p.guestCount === booking.guestCount && p.venueId === booking.venueId))
+                                  );
+                                }
+                              }
+                              
+                              if (hasProposal && proposal) {
                                 return (
                                   <div className="mt-3 pt-2 border-t border-gray-100">
                                     <Button
