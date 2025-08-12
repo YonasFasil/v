@@ -19,6 +19,8 @@ import Reports from "@/pages/reports";
 import VoiceBooking from "@/pages/voice-booking";
 import ProposalView from "@/pages/proposal-view";
 import Proposals from "@/pages/proposals";
+import PaymentCheckout from "@/pages/payment-checkout";
+import PaymentSuccess from "@/pages/payment-success";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -39,6 +41,8 @@ function Router() {
       <Route path="/settings" component={Settings} />
       <Route path="/proposals" component={Proposals} />
       <Route path="/proposal/:proposalId" component={ProposalView} />
+      <Route path="/proposal/:proposalId/payment" component={PaymentCheckout} />
+      <Route path="/proposal/:proposalId/success" component={PaymentSuccess} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -2228,14 +2228,16 @@ This is a test email from your Venuine venue management system.
         apiVersion: '2023-10-16',
       });
       
-      const { amount, currency = 'usd', metadata = {} } = req.body;
+      const { amount, currency = 'usd', metadata = {}, connectAccountId } = req.body;
       
       if (!amount || amount <= 0) {
         return res.status(400).json({ message: "Valid amount is required" });
       }
 
-      // Create payment intent
-      const paymentIntent = await stripe.paymentIntents.create({
+      // Calculate application fee (10% for platform)
+      const applicationFeeAmount = Math.round((amount * 100) * 0.10);
+
+      const paymentIntentData: any = {
         amount: Math.round(amount * 100), // Convert to cents
         currency,
         metadata: {
@@ -2245,14 +2247,71 @@ This is a test email from your Venuine venue management system.
         automatic_payment_methods: {
           enabled: true,
         },
-      });
+      };
+
+      // If we have a connected account ID, set up the transfer for venue payout
+      if (connectAccountId) {
+        paymentIntentData.transfer_data = {
+          destination: connectAccountId,
+        };
+        paymentIntentData.application_fee_amount = applicationFeeAmount;
+        console.log(`Setting up Connect transfer to ${connectAccountId} with fee ${applicationFeeAmount/100}`);
+      }
+
+      const paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
 
       res.json({
         clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id
+        paymentIntentId: paymentIntent.id,
+        applicationFee: connectAccountId ? applicationFeeAmount / 100 : 0
       });
     } catch (error: any) {
+      console.error('Stripe payment intent error:', error);
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Alternative payment intent endpoint for proposal payments
+  app.post("/api/create-payment-intent", async (req, res) => {
+    try {
+      const Stripe = await import('stripe');
+      const stripe = new Stripe.default(process.env.STRIPE_SECRET_KEY!, {
+        apiVersion: '2023-10-16',
+      });
+      
+      const { proposalId, amount, connectAccountId } = req.body;
+      
+      // Calculate application fee (10% of total)
+      const applicationFeeAmount = Math.round((amount * 100) * 0.10);
+      
+      const paymentIntentData: any = {
+        amount: Math.round(amount * 100), // Convert to cents
+        currency: "usd",
+        metadata: {
+          proposalId: proposalId || 'unknown'
+        },
+        automatic_payment_methods: {
+          enabled: true,
+        },
+      };
+
+      // If we have a connected account ID, set up the transfer
+      if (connectAccountId) {
+        paymentIntentData.transfer_data = {
+          destination: connectAccountId,
+        };
+        paymentIntentData.application_fee_amount = applicationFeeAmount;
+      }
+
+      const paymentIntent = await stripe.paymentIntents.create(paymentIntentData);
+      
+      res.json({ 
+        clientSecret: paymentIntent.client_secret,
+        applicationFee: applicationFeeAmount / 100 // Return fee in dollars
+      });
+    } catch (error: any) {
+      console.error("Stripe payment intent error:", error);
+      res.status(500).json({ message: "Error creating payment intent: " + error.message });
     }
   });
 
