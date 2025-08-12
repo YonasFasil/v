@@ -1,5 +1,5 @@
 import { 
-  type User, type InsertUser,
+  type User, type InsertUser, type UpsertUser,
   type Venue, type InsertVenue,
   type Space, type InsertSpace,
   type SetupStyle, type InsertSetupStyle,
@@ -40,11 +40,12 @@ interface InsertSetting {
 import { randomUUID } from "crypto";
 
 export interface IStorage {
-  // Users
+  // Users (including Replit Auth methods)
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
 
   // Venues
   getVenues(): Promise<Venue[]>;
@@ -862,7 +863,14 @@ export class MemStorage implements IStorage {
     const user: User = { 
       ...insertUser, 
       id,
-      role: insertUser.role || "manager",
+      role: insertUser.role || "viewer",
+      isActive: insertUser.isActive ?? true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      // Legacy fields for backwards compatibility
+      username: insertUser.username || null,
+      password: insertUser.password || null,
+      name: insertUser.name || null,
       stripeAccountId: insertUser.stripeAccountId || null,
       stripeAccountStatus: insertUser.stripeAccountStatus || null,
       stripeOnboardingCompleted: insertUser.stripeOnboardingCompleted || false,
@@ -877,9 +885,48 @@ export class MemStorage implements IStorage {
   async updateUser(id: string, updateData: Partial<InsertUser>): Promise<User | undefined> {
     const existing = this.users.get(id);
     if (!existing) return undefined;
-    const updated = { ...existing, ...updateData };
+    const updated = { ...existing, ...updateData, updatedAt: new Date() };
     this.users.set(id, updated);
     return updated;
+  }
+
+  // Upsert user (for Replit Auth)
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const existing = this.users.get(userData.id);
+    if (existing) {
+      // Update existing user
+      const updated = {
+        ...existing,
+        ...userData,
+        updatedAt: new Date(),
+      };
+      this.users.set(userData.id, updated);
+      return updated;
+    } else {
+      // Create new user with admin role if this is the first user and email matches admin
+      const isFirstUser = this.users.size === 0;
+      const isAdminEmail = userData.email === "yonasfasil.sl@gmail.com";
+      
+      const user: User = {
+        ...userData,
+        role: isAdminEmail ? 'admin' : userData.role || 'viewer',
+        isActive: userData.isActive ?? true,
+        createdAt: userData.createdAt || new Date(),
+        updatedAt: new Date(),
+        // Legacy fields
+        username: userData.username || null,
+        password: userData.password || null,
+        name: userData.name || null,
+        stripeAccountId: userData.stripeAccountId || null,
+        stripeAccountStatus: userData.stripeAccountStatus || null,
+        stripeOnboardingCompleted: userData.stripeOnboardingCompleted || false,
+        stripeChargesEnabled: userData.stripeChargesEnabled || false,
+        stripePayoutsEnabled: userData.stripePayoutsEnabled || false,
+        stripeConnectedAt: userData.stripeConnectedAt || null,
+      };
+      this.users.set(userData.id, user);
+      return user;
+    }
   }
 
   // Venues

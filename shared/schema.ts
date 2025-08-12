@@ -1,17 +1,39 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, decimal, timestamp, boolean, jsonb, pgEnum, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// User roles enum
+export const userRoleEnum = pgEnum('user_role', ['admin', 'staff', 'viewer']);
+
+// Session storage table (required for Replit Auth)
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+// Users table (updated for Replit Auth and role management)
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  name: text("name").notNull(),
-  email: text("email").notNull(),
-  role: text("role").notNull().default("manager"),
-  stripeAccountId: text("stripe_account_id"), // Stripe Connect account ID
-  stripeAccountStatus: text("stripe_account_status"), // pending, active, restricted, etc.
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
+  role: userRoleEnum("role").notNull().default('viewer'),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  // Keep legacy fields for backwards compatibility
+  username: text("username"),
+  password: text("password"),
+  name: text("name"),
+  stripeAccountId: text("stripe_account_id"),
+  stripeAccountStatus: text("stripe_account_status"),
   stripeOnboardingCompleted: boolean("stripe_onboarding_completed").default(false),
   stripeChargesEnabled: boolean("stripe_charges_enabled").default(false),
   stripePayoutsEnabled: boolean("stripe_payouts_enabled").default(false),
@@ -416,7 +438,7 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: tru
 
 // Types
 export type User = typeof users.$inferSelect;
-
+export type UpsertUser = typeof users.$inferInsert;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Venue = typeof venues.$inferSelect;

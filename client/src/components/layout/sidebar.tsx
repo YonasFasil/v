@@ -20,6 +20,7 @@ import {
   Grid3X3,
   Shield
 } from "lucide-react";
+import { AuthHeader } from "./auth-header";
 
 const navigationItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
