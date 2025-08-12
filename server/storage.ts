@@ -1402,6 +1402,7 @@ export class MemStorage implements IStorage {
       id: randomUUID(),
       bookingId: communication.bookingId || null,
       customerId: communication.customerId || null,
+      proposalId: (communication as any).proposalId || null,
       type: communication.type,
       direction: communication.direction,
       subject: communication.subject || null,

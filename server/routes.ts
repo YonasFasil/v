@@ -2153,6 +2153,37 @@ This is a test email from your Venuine venue management system.
         baseUrl: `${req.protocol}://${req.get('host')}`
       });
 
+      // Track the initial proposal email in communications history and update proposal status
+      if (req.body.proposalId) {
+        try {
+          const subject = `Event Proposal from ${companyName || 'Venuine Events'}`;
+          const proposalUrl = `${req.protocol}://${req.get('host')}/proposal/${req.body.proposalId}`;
+          const emailBody = `New event proposal has been sent to ${customerName}.\n\nProposal includes:\n${proposalContent}\n\nTotal Amount: $${totalAmount}\n${validUntil ? `Valid Until: ${validUntil}` : ''}\n\nProposal Link: ${proposalUrl}`;
+
+          await storage.createCommunication({
+            proposalId: req.body.proposalId,
+            type: "email",
+            direction: "outbound",
+            subject: subject,
+            message: emailBody,
+            sentBy: gmailService.getConfiguredEmail() || "system",
+            sentAt: new Date(),
+            status: "sent"
+          });
+
+          // Update proposal status to "sent"
+          await storage.updateProposal(req.body.proposalId, { 
+            status: "sent",
+            sentAt: new Date()
+          });
+
+          console.log(`Communication tracked and proposal status updated for ${req.body.proposalId}`);
+        } catch (commError) {
+          console.error('Failed to track communication:', commError);
+          // Don't fail the proposal sending if communication tracking fails
+        }
+      }
+
       // Create a tentative booking if event data is provided
       if (eventData) {
         try {
