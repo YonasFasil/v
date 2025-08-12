@@ -2321,23 +2321,6 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                         </Card>
                       )}
                     </div>
-
-                    <div>
-                      <Label className="text-base font-medium">Event Status</Label>
-                      <Select value={eventStatus} onValueChange={setEventStatus}>
-                        <SelectTrigger className="mt-2">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="inquiry">Inquiry</SelectItem>
-                          <SelectItem value="proposal">Proposal Sent</SelectItem>
-                          <SelectItem value="confirmed">Confirmed</SelectItem>
-                          <SelectItem value="cancelled">Cancelled</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-
                   </div>
 
                   {/* Event Summary */}
@@ -2356,10 +2339,6 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                         <div>
                           <span className="text-slate-600">Venue:</span>
                           <div className="font-medium">{selectedVenueData?.name || "No venue selected"}</div>
-                        </div>
-                        <div>
-                          <span className="text-slate-600">Status:</span>
-                          <Badge className="ml-2">{eventStatus}</Badge>
                         </div>
                       </div>
                       
