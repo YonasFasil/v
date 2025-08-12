@@ -609,10 +609,12 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                           comm.content.split('\n')[0]) : '';
 
                       return (
-                        <div key={comm.id} className="border-l-4 border-blue-200 pl-4 py-2 bg-white hover:bg-gray-50 rounded-r transition-colors">
+                        <div key={comm.id} className={`border-l-4 pl-4 py-3 bg-white hover:bg-gray-50 rounded-r transition-colors ${
+                          comm.direction === 'inbound' ? 'border-green-300 bg-green-50' : 'border-blue-300'
+                        }`}>
                           {/* Clickable Header */}
                           <div 
-                            className="flex items-center justify-between mb-1 cursor-pointer"
+                            className="flex items-center justify-between mb-2 cursor-pointer"
                             onClick={toggleExpanded}
                           >
                             <div className="flex items-center gap-2">
@@ -642,19 +644,27 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                                 </Badge>
                               )}
                             </div>
-                            <span className="text-xs text-gray-500">
-                              {comm.createdAt && !isNaN(new Date(comm.createdAt).getTime()) 
-                                ? format(new Date(comm.createdAt), "MMM d, h:mm a")
-                                : "Unknown"}
-                            </span>
+                            <div className="flex flex-col items-end text-xs text-gray-500">
+                              <span>
+                                {comm.direction === 'outbound' ? 'Sent' : 'Received'}:
+                              </span>
+                              <span className="font-medium">
+                                {comm.sentAt && !isNaN(new Date(comm.sentAt).getTime()) 
+                                  ? format(new Date(comm.sentAt), "MMM d, h:mm a")
+                                  : comm.createdAt && !isNaN(new Date(comm.createdAt).getTime())
+                                    ? format(new Date(comm.createdAt), "MMM d, h:mm a")
+                                    : "Unknown"}
+                              </span>
+                            </div>
                           </div>
 
-                          {/* Subject Line */}
+                          {/* Subject Line - Always show if exists */}
                           {comm.subject && (
                             <div 
-                              className="text-sm font-medium mb-1 cursor-pointer hover:text-blue-600"
+                              className="text-sm font-medium mb-2 cursor-pointer hover:text-blue-600 text-gray-800"
                               onClick={toggleExpanded}
                             >
+                              <span className="text-xs text-gray-500 mr-2">Subject:</span>
                               {comm.subject}
                             </div>
                           )}
@@ -662,11 +672,91 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                           {/* Content Preview/Full */}
                           <div className="text-sm text-gray-600">
                             {isExpanded ? (
-                              <div className="bg-gray-50 p-3 rounded border mt-2">
-                                <div className="whitespace-pre-wrap">{comm.content}</div>
-                                {comm.sentBy && (
-                                  <div className="mt-2 pt-2 border-t text-xs text-gray-500">
-                                    Sent by: {comm.sentBy}
+                              <div className="space-y-3">
+                                {/* Full Message Content */}
+                                <div className="bg-gray-50 p-3 rounded border">
+                                  <div className="text-xs text-gray-500 mb-2 font-medium">Message Content:</div>
+                                  <div className="whitespace-pre-wrap text-gray-800">{comm.message || comm.content}</div>
+                                </div>
+
+                                {/* Detailed Information */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                                  {/* Sender/Recipient Info */}
+                                  <div className="space-y-1">
+                                    {comm.direction === 'outbound' ? (
+                                      <>
+                                        <div><span className="font-medium text-gray-700">From:</span> {comm.sentBy || comm.sender || 'Venue Team'}</div>
+                                        <div><span className="font-medium text-gray-700">To:</span> {comm.recipient || 'Customer'}</div>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <div><span className="font-medium text-gray-700">From:</span> {comm.sender || comm.sentBy || 'Customer'}</div>
+                                        <div><span className="font-medium text-gray-700">To:</span> {comm.recipient || 'Venue Team'}</div>
+                                      </>
+                                    )}
+                                  </div>
+
+                                  {/* Timing & Status */}
+                                  <div className="space-y-1">
+                                    <div><span className="font-medium text-gray-700">Status:</span> 
+                                      <Badge variant={comm.status === 'failed' ? 'destructive' : comm.direction === 'inbound' ? 'secondary' : 'outline'} className="ml-1 text-xs">
+                                        {comm.status === 'failed' ? 'Failed' : 
+                                         comm.status === 'received' ? 'Received' :
+                                         comm.status === 'delivered' ? 'Delivered' :
+                                         comm.status || (comm.direction === 'inbound' ? 'Received' : 'Sent')}
+                                      </Badge>
+                                    </div>
+                                    {(comm.sentAt || comm.createdAt) && (
+                                      <div><span className="font-medium text-gray-700">
+                                        {comm.direction === 'outbound' ? 'Sent' : 'Received'}:</span> {
+                                        comm.sentAt 
+                                          ? format(new Date(comm.sentAt), "MMM d, yyyy 'at' h:mm a")
+                                          : format(new Date(comm.createdAt), "MMM d, yyyy 'at' h:mm a")
+                                      }</div>
+                                    )}
+                                    {comm.direction === 'outbound' && comm.deliveredAt && (
+                                      <div><span className="font-medium text-gray-700">Delivered:</span> {format(new Date(comm.deliveredAt), "h:mm a")}</div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Attachments (if any) */}
+                                {comm.attachments && comm.attachments.length > 0 && (
+                                  <div className={`p-3 rounded border ${comm.direction === 'inbound' ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'}`}>
+                                    <div className={`text-xs font-medium mb-2 ${comm.direction === 'inbound' ? 'text-green-700' : 'text-blue-700'}`}>
+                                      Attachments ({comm.attachments.length}):
+                                    </div>
+                                    <div className="space-y-1">
+                                      {comm.attachments.map((attachment: any, idx: number) => (
+                                        <div key={idx} className="flex items-center gap-2 text-xs">
+                                          <Paperclip className={`h-3 w-3 ${comm.direction === 'inbound' ? 'text-green-500' : 'text-blue-500'}`} />
+                                          <span className={comm.direction === 'inbound' ? 'text-green-700' : 'text-blue-700'}>
+                                            {attachment.name || `Attachment ${idx + 1}`}
+                                          </span>
+                                          {attachment.size && (
+                                            <span className="text-gray-500">({Math.round(attachment.size / 1024)} KB)</span>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Email tracking info for outbound emails */}
+                                {comm.direction === 'outbound' && comm.type === 'email' && (
+                                  <div className="bg-blue-50 p-2 rounded border border-blue-200">
+                                    <div className="text-xs text-blue-600">
+                                      <Clock className="h-3 w-3 inline mr-1" />
+                                      Email tracking: {comm.openCount > 0 
+                                        ? `Opened ${comm.openCount} time${comm.openCount > 1 ? 's' : ''}`
+                                        : 'Not yet opened'
+                                      }
+                                      {comm.lastOpenedAt && (
+                                        <span className="block mt-1">
+                                          Last opened: {format(new Date(comm.lastOpenedAt), "MMM d 'at' h:mm a")}
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                 )}
                               </div>
@@ -675,9 +765,9 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                                 className="cursor-pointer hover:text-gray-800"
                                 onClick={toggleExpanded}
                               >
-                                {preview}
-                                {comm.content && comm.content.length > 100 && (
-                                  <span className="text-blue-500 ml-1">Click to expand</span>
+                                {preview || (comm.message || comm.content)?.substring(0, 100) + '...'}
+                                {(comm.message || comm.content) && (comm.message || comm.content).length > 100 && (
+                                  <span className="text-blue-500 ml-1 text-xs">Click to expand</span>
                                 )}
                               </div>
                             )}
