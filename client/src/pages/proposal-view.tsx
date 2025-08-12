@@ -68,6 +68,10 @@ export default function ProposalView() {
     enabled: !!proposalId,
   });
 
+  // Debug logging
+  console.log('Proposal data:', proposal);
+  console.log('Event dates:', proposal?.eventDates);
+
   const acceptProposalMutation = useMutation({
     mutationFn: async () => {
       if (!proposal?.id) throw new Error("No proposal ID");
