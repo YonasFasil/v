@@ -708,8 +708,25 @@ export default function Settings() {
                                 </div>
                               </div>
                               
-                              <div className="text-red-600 dark:text-red-400 font-medium bg-red-50 dark:bg-red-950/20 p-2 rounded border border-red-200 dark:border-red-800">
+                              <div className="text-red-600 dark:text-red-400 font-medium bg-red-50 dark:bg-red-950/20 p-3 rounded border border-red-200 dark:border-red-800">
                                 ⚠️ NEVER use your regular Gmail password - only 16-character App Passwords work!
+                                <div className="mt-2 text-xs">
+                                  <strong>Getting "Authentication Failed"?</strong>
+                                  <br />→ Generate a NEW App Password right now and try again
+                                  <br />→ Old App Passwords expire and stop working
+                                </div>
+                              </div>
+                              
+                              <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded p-3">
+                                <p className="text-green-800 dark:text-green-200 font-semibold text-xs mb-1">
+                                  🔑 Quick Fix for Authentication Errors:
+                                </p>
+                                <div className="text-green-700 dark:text-green-300 text-xs space-y-1">
+                                  <p>1. <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="underline hover:text-green-900 dark:hover:text-green-100">Click here to generate a fresh App Password</a></p>
+                                  <p>2. Delete your old App Password from Google first</p>
+                                  <p>3. Create new one → Copy the 16 characters exactly</p>
+                                  <p>4. Paste it here and test connection</p>
+                                </div>
                               </div>
                             </div>
                           </div>
