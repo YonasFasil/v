@@ -75,6 +75,18 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
     pricingModel: "fixed"
   });
   
+  // Generate time slots for dropdowns
+  const timeSlots = useMemo(() => {
+    const slots = [];
+    for (let hour = 0; hour < 24; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        slots.push(timeString);
+      }
+    }
+    return slots;
+  }, []);
+  
   // Step 3: Final Details
   const [eventName, setEventName] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState("");
@@ -1101,31 +1113,49 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                                       <span className="text-red-500 text-xs">*</span>
                                     </Label>
                                     <div className="flex items-center gap-2">
-                                      <Input
-                                        type="time"
+                                      <Select
                                         value={slot.startTime}
-                                        onChange={(e) => updateDateSlot(index, 'startTime', e.target.value)}
-                                        className={cn(
+                                        onValueChange={(value) => updateDateSlot(index, 'startTime', value)}
+                                      >
+                                        <SelectTrigger className={cn(
                                           "flex-1 h-9 text-sm transition-colors",
                                           !slot.startTime 
                                             ? "border-red-200 bg-red-50/30" 
                                             : "border-slate-200 hover:border-slate-300"
-                                        )}
-                                      />
+                                        )}>
+                                          <SelectValue placeholder="Start time" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {timeSlots.map((time) => (
+                                            <SelectItem key={time} value={time}>
+                                              {time}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
                                       
                                       <span className="text-slate-400 font-medium px-1">→</span>
                                       
-                                      <Input
-                                        type="time"
+                                      <Select
                                         value={slot.endTime}
-                                        onChange={(e) => updateDateSlot(index, 'endTime', e.target.value)}
-                                        className={cn(
+                                        onValueChange={(value) => updateDateSlot(index, 'endTime', value)}
+                                      >
+                                        <SelectTrigger className={cn(
                                           "flex-1 h-9 text-sm transition-colors",
                                           !slot.endTime 
                                             ? "border-red-200 bg-red-50/30" 
                                             : "border-slate-200 hover:border-slate-300"
-                                        )}
-                                      />
+                                        )}>
+                                          <SelectValue placeholder="End time" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {timeSlots.map((time) => (
+                                            <SelectItem key={time} value={time}>
+                                              {time}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
                                     </div>
                                   </div>
                                   
