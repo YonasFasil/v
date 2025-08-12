@@ -524,6 +524,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const booking = await storage.createBooking(validatedData);
       
       // Send booking confirmation notification if enabled
+      // Skip booking confirmation emails for bookings created from proposals (tentative bookings)
       try {
         const settings = await storage.getSettings();
         const notificationPrefs = {
@@ -534,13 +535,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           maintenanceAlerts: settings.notifications?.maintenanceAlerts ?? true
         };
 
-        if (notificationPrefs.emailNotifications && notificationPrefs.bookingConfirmations && booking.customerId) {
+        // Only send booking confirmation for manually created bookings, not proposal-generated ones
+        if (notificationPrefs.emailNotifications && notificationPrefs.bookingConfirmations && booking.customerId && !booking.proposalId) {
           const customer = await storage.getCustomer(booking.customerId);
           if (customer && customer.email) {
             const notificationService = new NotificationService(gmailService, notificationPrefs);
             await notificationService.sendBookingConfirmation(booking, customer);
             console.log(`Booking confirmation sent to ${customer.email}`);
           }
+        } else if (booking.proposalId) {
+          console.log(`Skipping booking confirmation email for proposal-generated booking ${booking.id}`);
         }
       } catch (notificationError) {
         console.error('Failed to send booking confirmation:', notificationError);
