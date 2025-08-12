@@ -100,7 +100,20 @@ interface Communication {
   direction: string;
   subject?: string;
   content: string;
+  message?: string;
   createdAt: string;
+  sentAt?: string;
+  sentBy?: string;
+  sender?: string;
+  recipient?: string;
+  status?: string;
+  deliveredAt?: string;
+  attachments?: Array<{
+    name: string;
+    size?: number;
+  }>;
+  openCount?: number;
+  lastOpenedAt?: string;
 }
 
 interface Props {
@@ -118,9 +131,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
   const [attachments, setAttachments] = useState<File[]>([]);
   const [showEmailComposer, setShowEmailComposer] = useState(false);
   const [expandedComms, setExpandedComms] = useState<Set<string>>(new Set());
-  const [showReplyModal, setShowReplyModal] = useState(false);
-  const [replySubject, setReplySubject] = useState('');
-  const [replyMessage, setReplyMessage] = useState('');
+
 
   // Fetch proposal details
   const { data: proposal, isLoading, refetch } = useQuery<Proposal>({
@@ -342,53 +353,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     resendProposalMutation.mutate();
   };
 
-  // Record customer reply mutation
-  const recordReplyMutation = useMutation({
-    mutationFn: async (replyData: {
-      subject: string;
-      message: string;
-      customerEmail?: string;
-      receivedAt?: string;
-    }) => {
-      return await apiRequest("POST", `/api/proposals/${proposalId}/communications/reply`, replyData);
-    },
-    onSuccess: () => {
-      toast({
-        title: "Reply Recorded",
-        description: "Customer reply has been recorded successfully",
-      });
-      setShowReplyModal(false);
-      setReplySubject('');
-      setReplyMessage('');
-      queryClient.invalidateQueries({ queryKey: [`/api/proposals/${proposalId}/communications`] });
-    },
-    onError: (error) => {
-      console.error('Failed to record reply:', error);
-      toast({
-        title: "Error",
-        description: "Failed to record customer reply. Please try again.",
-        variant: "destructive",
-      });
-    }
-  });
 
-  const handleRecordReply = () => {
-    if (!replyMessage.trim()) {
-      toast({
-        title: "Error", 
-        description: "Please enter the customer's message",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    recordReplyMutation.mutate({
-      subject: replySubject.trim() || "Re: Your Proposal",
-      message: replyMessage.trim(),
-      customerEmail: proposal?.customer?.email,
-      receivedAt: new Date().toISOString(),
-    });
-  };
 
   if (isLoading) {
     return (
@@ -465,7 +430,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                     <div>
                       <div className="text-sm font-medium">Accepted</div>
                       <div className="text-xs text-gray-500">
-                        {proposal.acceptedAt ? format(new Date(proposal.acceptedAt), "MMM d, h:mm a") : 'Not accepted'}
+                        {proposal.status === 'accepted' ? 'Accepted' : 'Not accepted'}
                       </div>
                     </div>
                   </div>
@@ -589,18 +554,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
             {/* Communication Log */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg flex items-center justify-between">
-                  <span>Communication History</span>
-                  <Button
-                    onClick={() => setShowReplyModal(true)}
-                    variant="outline"
-                    size="sm"
-                    className="text-xs"
-                  >
-                    <MessageCircle className="h-3 w-3 mr-1" />
-                    Record Reply
-                  </Button>
-                </CardTitle>
+                <CardTitle className="text-lg">Communication History</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4 max-h-64 overflow-y-auto">
@@ -767,8 +721,8 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                                   <div className="bg-blue-50 p-2 rounded border border-blue-200">
                                     <div className="text-xs text-blue-600">
                                       <Clock className="h-3 w-3 inline mr-1" />
-                                      Email tracking: {comm.openCount > 0 
-                                        ? `Opened ${comm.openCount} time${comm.openCount > 1 ? 's' : ''}`
+                                      Email tracking: {(comm.openCount || 0) > 0 
+                                        ? `Opened ${comm.openCount} time${(comm.openCount || 0) > 1 ? 's' : ''}`
                                         : 'Not yet opened'
                                       }
                                       {comm.lastOpenedAt && (
@@ -839,62 +793,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                   {resendProposalMutation.isPending ? 'Sending...' : 'Resend Proposal'}
                 </Button>
 
-                {/* Test Button for Customer Reply Simulation */}
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={async () => {
-                    try {
-                      if (!customer?.email) {
-                        toast({
-                          title: "Error",
-                          description: "Customer email not found",
-                          variant: "destructive"
-                        });
-                        return;
-                      }
 
-                      const response = await fetch('/api/emails/record-reply', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          proposalId: proposal.id,
-                          customerEmail: customer.email,
-                          subject: `Re: Event Proposal from Venuine Events`,
-                          content: `Thank you for the proposal! I'm interested in moving forward with the event. Could we schedule a call to discuss the details further?\n\nBest regards,\n${customer.name}`,
-                          receivedAt: new Date().toISOString()
-                        })
-                      });
-
-                      const result = await response.json();
-                      if (result.success) {
-                        // Refresh communications
-                        queryClient.invalidateQueries({ queryKey: ['/api/proposals', proposal.id, 'communications'] });
-                        toast({
-                          title: "Success",
-                          description: "Customer reply recorded successfully!",
-                        });
-                      } else {
-                        throw new Error(result.message);
-                      }
-                    } catch (error) {
-                      console.error('Error simulating customer reply:', error);
-                      toast({
-                        title: "Error",
-                        description: "Failed to simulate customer reply",
-                        variant: "destructive"
-                      });
-                    }
-                  }}
-                >
-                  🧪 Simulate Customer Reply
-                </Button>
-                
-                <div className="text-xs text-gray-500 text-center mt-4 p-2 bg-green-50 rounded">
-                  <strong>Email Tracking Active:</strong><br/>
-                  Tracking pixels are embedded in proposal emails.<br/>
-                  Status updates automatically when emails are opened.
-                </div>
               </CardContent>
             </Card>
 
@@ -1037,66 +936,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
         </div>
       </DialogContent>
 
-      {/* Customer Reply Modal */}
-      {showReplyModal && (
-        <Dialog open={showReplyModal} onOpenChange={setShowReplyModal}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Record Customer Reply</DialogTitle>
-              <p className="text-sm text-gray-600">
-                Record a response you received from the customer
-              </p>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="reply-subject">Subject</Label>
-                <Textarea
-                  id="reply-subject"
-                  placeholder="Re: Your Proposal"
-                  value={replySubject}
-                  onChange={(e) => setReplySubject(e.target.value)}
-                  className="min-h-[40px] max-h-[60px]"
-                />
-              </div>
-              <div>
-                <Label htmlFor="reply-message">Customer's Message</Label>
-                <Textarea
-                  id="reply-message"
-                  placeholder="Enter the customer's reply here..."
-                  value={replyMessage}
-                  onChange={(e) => setReplyMessage(e.target.value)}
-                  className="min-h-[120px]"
-                  required
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <Button
-                variant="outline"
-                onClick={() => setShowReplyModal(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleRecordReply}
-                disabled={recordReplyMutation.isPending || !replyMessage.trim()}
-              >
-                {recordReplyMutation.isPending ? (
-                  <>
-                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
-                    Recording...
-                  </>
-                ) : (
-                  <>
-                    <MessageCircle className="h-4 w-4 mr-2" />
-                    Record Reply
-                  </>
-                )}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+
     </Dialog>
   );
 }
