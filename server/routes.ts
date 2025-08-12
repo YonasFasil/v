@@ -560,6 +560,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/bookings/:id", async (req, res) => {
     try {
       const updateData = { ...req.body };
+      
+      console.log('PATCH /api/bookings/:id - Received data:', JSON.stringify(updateData, null, 2));
+
+      // Convert date strings to Date objects if they exist
+      if (updateData.proposalSentAt && typeof updateData.proposalSentAt === 'string') {
+        updateData.proposalSentAt = new Date(updateData.proposalSentAt);
+      }
+      if (updateData.proposalViewedAt && typeof updateData.proposalViewedAt === 'string') {
+        updateData.proposalViewedAt = new Date(updateData.proposalViewedAt);
+      }
+      if (updateData.proposalRespondedAt && typeof updateData.proposalRespondedAt === 'string') {
+        updateData.proposalRespondedAt = new Date(updateData.proposalRespondedAt);
+      }
 
       // Auto-complete booking if status is being set to completed and event date has passed
       if (updateData.status === "completed" && !updateData.completedAt) {
@@ -570,10 +583,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!booking) {
         return res.status(404).json({ message: "Booking not found" });
       }
+      
+      console.log('PATCH /api/bookings/:id - Updated booking:', JSON.stringify(booking, null, 2));
       res.json(booking);
     } catch (error) {
       console.error('Booking update error:', error);
-      res.status(500).json({ message: "Failed to update booking" });
+      res.status(500).json({ message: "Failed to update booking", error: error.message });
     }
   });
 
