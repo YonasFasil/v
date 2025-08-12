@@ -90,7 +90,9 @@ const TEMPLATES = [
 
 export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSave }: SetupStyleFloorPlanModalProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [elements, setElements] = useState<FloorPlanElement[]>(setupStyle?.floorPlan?.elements || []);
+  const [elements, setElements] = useState<FloorPlanElement[]>(
+    setupStyle?.floorPlan?.elements || setupStyle?.floorPlan?.objects || []
+  );
   const [selectedElements, setSelectedElements] = useState<string[]>([]);
   const [mode, setMode] = useState<'select' | 'add' | 'pan'>('select');
   const [selectedType, setSelectedType] = useState(ELEMENT_TYPES[0]);
@@ -513,7 +515,9 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
   const handleSave = () => {
     const floorPlan = {
       elements,
-      dimensions: canvasSize
+      objects: elements, // Keep both formats for compatibility
+      dimensions: canvasSize,
+      canvasSize
     };
     onSave(floorPlan);
     onOpenChange(false);

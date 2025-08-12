@@ -1491,7 +1491,13 @@ export class MemStorage implements IStorage {
     const existing = this.setupStyles.get(id);
     if (!existing) return undefined;
     
-    const updated = { ...existing, ...setupStyle };
+    // Deep clone the existing setup style to avoid reference sharing
+    const updated = { 
+      ...existing, 
+      ...setupStyle,
+      // If floorPlan is being updated, ensure it's a deep clone
+      floorPlan: setupStyle.floorPlan ? JSON.parse(JSON.stringify(setupStyle.floorPlan)) : existing.floorPlan
+    };
     this.setupStyles.set(id, updated);
     return updated;
   }
