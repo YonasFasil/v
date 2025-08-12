@@ -525,12 +525,40 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span>Total Amount</span>
-                    <span className="font-medium">${parseFloat(proposal.totalAmount || '0').toFixed(2)}</span>
+                    <span className="font-medium">${parseFloat(
+                      relatedEvents.length > 0 && relatedEvents[0].totalAmount 
+                        ? relatedEvents[0].totalAmount 
+                        : proposal.totalAmount || '0'
+                    ).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-green-600">
                     <span>Required Deposit</span>
-                    <span className="font-medium">${parseFloat(proposal.depositAmount || '0').toFixed(2)}</span>
+                    <span className="font-medium">${(() => {
+                      const currentTotal = relatedEvents.length > 0 && relatedEvents[0].totalAmount 
+                        ? relatedEvents[0].totalAmount 
+                        : proposal.totalAmount || '0';
+                      const currentDeposit = (parseFloat(currentTotal) * 0.3).toString();
+                      return parseFloat(currentDeposit).toFixed(2);
+                    })()}</span>
                   </div>
+                  {/* Show pricing update indicator if amounts have changed */}
+                  {(() => {
+                    const currentTotal = relatedEvents.length > 0 && relatedEvents[0].totalAmount 
+                      ? relatedEvents[0].totalAmount 
+                      : proposal.totalAmount || '0';
+                    const originalTotal = proposal.totalAmount || '0';
+                    const hasChanged = currentTotal !== originalTotal;
+                    
+                    return hasChanged ? (
+                      <div className="bg-blue-50 p-2 rounded-lg border border-blue-200">
+                        <div className="text-xs text-blue-600 flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          Pricing updated from original proposal (was ${parseFloat(originalTotal).toFixed(2)})
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
+
                   {proposal.depositPaid && (
                     <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-200">
                       <div className="flex justify-between text-emerald-700 mb-2">
@@ -540,7 +568,13 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                       <div className="flex justify-between text-emerald-600 text-sm">
                         <span>Remaining Balance:</span>
                         <span className="font-medium">
-                          ${(parseFloat(proposal.totalAmount || '0') - parseFloat(proposal.depositAmount || '0')).toFixed(2)}
+                          ${(() => {
+                            const currentTotal = relatedEvents.length > 0 && relatedEvents[0].totalAmount 
+                              ? relatedEvents[0].totalAmount 
+                              : proposal.totalAmount || '0';
+                            const paidDeposit = parseFloat(proposal.depositAmount || '0');
+                            return (parseFloat(currentTotal) - paidDeposit).toFixed(2);
+                          })()}
                         </span>
                       </div>
                       <div className="text-xs text-emerald-600 mt-1">
