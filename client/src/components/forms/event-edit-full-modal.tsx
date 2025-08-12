@@ -1790,6 +1790,14 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                                             <div className="flex-1">
                                               <div className="font-medium text-sm">{service.name}</div>
                                               <div className="text-xs text-slate-600 mt-1">{service.description}</div>
+                                              <div className="flex items-center gap-2 mt-2">
+                                                <span className="text-sm font-medium text-green-600">
+                                                  ${displayPrice}
+                                                </span>
+                                                <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                                                  {service.pricingModel === 'per_person' ? 'Per Person' : 'Fixed Price'}
+                                                </span>
+                                              </div>
                                             </div>
                                           </div>
                                           
