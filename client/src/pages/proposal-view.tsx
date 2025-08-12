@@ -60,8 +60,6 @@ export default function ProposalView() {
   const [isAccepting, setIsAccepting] = useState(false);
   const proposalId = location.split('/').pop();
   
-  // View tracking is now automatic in the API endpoint
-
   const { data: proposal, isLoading, error } = useQuery({
     queryKey: ["/api/proposals/public", proposalId],
     queryFn: async () => {
@@ -71,8 +69,6 @@ export default function ProposalView() {
     enabled: !!proposalId,
   });
 
-
-
   const acceptProposalMutation = useMutation({
     mutationFn: async () => {
       if (!proposal?.id) throw new Error("No proposal ID");
@@ -81,7 +77,6 @@ export default function ProposalView() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/proposals/public", proposalId] });
-      // Redirect to payment page (we'll implement this later)
       window.location.href = `/proposal/${proposalId}/payment`;
     }
   });
@@ -93,7 +88,7 @@ export default function ProposalView() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 flex items-center justify-center">
         <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full"></div>
       </div>
     );
@@ -101,7 +96,7 @@ export default function ProposalView() {
 
   if (error || !proposal) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto px-6">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Mail className="w-8 h-8 text-red-600" />
@@ -118,40 +113,61 @@ export default function ProposalView() {
   const isExpired = validUntil && validUntil < new Date();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30">
+      {/* Floating Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-gradient-to-br from-purple-400/20 to-pink-400/20 blur-3xl"></div>
+        <div className="absolute top-1/2 -left-40 w-96 h-96 rounded-full bg-gradient-to-br from-blue-400/20 to-cyan-400/20 blur-3xl"></div>
+        <div className="absolute -bottom-40 right-1/3 w-64 h-64 rounded-full bg-gradient-to-br from-amber-400/20 to-orange-400/20 blur-3xl"></div>
+      </div>
+
       {/* Hero Section */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800">
-        <div className="absolute inset-0 bg-black/20"></div>
-        <div className="relative max-w-7xl mx-auto px-6 py-24">
+      <div className="relative">
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.03)_1px,transparent_1px)] bg-[size:20px_20px]"></div>
+        
+        <div className="relative max-w-6xl mx-auto px-6 pt-20 pb-16">
           <div className="text-center">
-            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
-              <Sparkles className="w-4 h-4 text-yellow-300" />
-              <span className="text-white text-sm font-medium">Exclusive Event Proposal</span>
+            <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-full px-5 py-2.5 mb-8 shadow-sm">
+              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+              <span className="text-gray-700 text-sm font-medium">Venuine Events</span>
+              <Badge variant="secondary" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">Premium</Badge>
             </div>
-            <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 tracking-tight">
+            
+            <h1 className="text-5xl md:text-7xl font-extrabold bg-gradient-to-r from-gray-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent mb-6 tracking-tight leading-tight">
               {proposal.title || "Your Event Proposal"}
             </h1>
-            <p className="text-xl text-blue-100 max-w-2xl mx-auto mb-8">
-              We've crafted a personalized experience designed to make your event extraordinary.
+            
+            <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-12 font-light leading-relaxed">
+              A bespoke event experience crafted exclusively for you, with every detail thoughtfully curated to exceed your expectations.
             </p>
+            
             {!isExpired && proposal.status !== 'accepted' && (
-              <Button 
-                onClick={handleAcceptProposal}
-                disabled={isAccepting || acceptProposalMutation.isPending}
-                className="bg-white text-blue-600 hover:bg-blue-50 px-8 py-4 text-lg font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-              >
-                {isAccepting || acceptProposalMutation.isPending ? (
-                  <>
-                    <div className="animate-spin w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full mr-2"></div>
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    Accept Proposal
-                    <ArrowRight className="w-5 h-5 ml-2" />
-                  </>
-                )}
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <Button 
+                  onClick={handleAcceptProposal}
+                  disabled={isAccepting || acceptProposalMutation.isPending}
+                  size="lg"
+                  className="group bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-10 py-4 rounded-full font-semibold shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-1"
+                >
+                  {isAccepting || acceptProposalMutation.isPending ? (
+                    <>
+                      <div className="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full mr-2"></div>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+                      Accept This Proposal
+                      <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
+                </Button>
+                
+                <div className="flex items-center gap-2 text-gray-600">
+                  <span className="text-sm">Total Investment:</span>
+                  <span className="text-2xl font-bold text-gray-900">${proposal.totalAmount}</span>
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -181,141 +197,146 @@ export default function ProposalView() {
       )}
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 py-16">
-        <div className="grid lg:grid-cols-3 gap-12">
-          {/* Event Details */}
-          <div className="lg:col-span-2 space-y-8">
-            
-            {/* Event Overview */}
-            {proposal.eventDates && proposal.eventDates.length > 0 && (
-              <div className="space-y-6">
-                {proposal.eventDates.map((eventDate, index) => (
-                  <Card key={index} className="border-0 shadow-xl bg-gradient-to-br from-white to-gray-50/50 backdrop-blur-sm overflow-hidden">
-                    <CardContent className="p-0">
-                      {/* Event Header */}
-                      <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 p-8 text-white relative overflow-hidden">
-                        <div className="absolute inset-0 bg-black/10"></div>
-                        <div className="relative z-10">
-                          <div className="flex items-center gap-3 mb-4">
-                            <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
-                              <Star className="w-6 h-6 text-yellow-300" />
-                            </div>
-                            <div>
-                              <h2 className="text-2xl font-bold">Your Event Experience</h2>
-                              <p className="text-blue-100">Carefully curated for your special day</p>
-                            </div>
+      <div className="relative max-w-7xl mx-auto px-6 py-20">
+        {proposal.eventDates && proposal.eventDates.length > 0 && (
+          <div className="space-y-16">
+            {proposal.eventDates.map((eventDate, index) => (
+              <div key={index} className="space-y-12">
+                <Card className="group border-0 shadow-2xl bg-white/70 backdrop-blur-xl hover:bg-white/80 transition-all duration-500 overflow-hidden">
+                  <CardContent className="p-0">
+                    {/* Elegant Header */}
+                    <div className="bg-gradient-to-r from-slate-900 via-gray-900 to-slate-900 p-12 text-white relative overflow-hidden">
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.1),transparent_70%)]"></div>
+                      <div className="relative z-10 flex items-center justify-between">
+                        <div>
+                          <h2 className="text-4xl font-light mb-2 tracking-wide">Your Event Experience</h2>
+                          <p className="text-gray-300 text-lg font-light">Meticulously planned, elegantly executed</p>
+                        </div>
+                        <div className="hidden md:block">
+                          <div className="w-20 h-20 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20">
+                            <Sparkles className="w-10 h-10 text-amber-300" />
                           </div>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Event Details Grid */}
-                      <div className="p-8">
-                        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                          <div className="group">
-                            <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-300">
-                              <Calendar className="w-8 h-8 text-blue-600" />
-                            </div>
-                            <p className="text-sm text-gray-500 mb-1">Event Date</p>
-                            <p className="font-bold text-gray-900 text-lg">
-                              {new Date(eventDate.date).toLocaleDateString('en-US', { 
-                                weekday: 'long', 
-                                month: 'short', 
-                                day: 'numeric',
-                                year: 'numeric'
-                              })}
-                            </p>
+                    {/* Event Details Grid */}
+                    <div className="p-12">
+                      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+                        {/* Date */}
+                        <div className="group text-center">
+                          <div className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300 border border-blue-100">
+                            <Calendar className="w-10 h-10 text-blue-600" />
                           </div>
-
-                          <div className="group">
-                            <div className="w-16 h-16 bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-300">
-                              <Clock className="w-8 h-8 text-purple-600" />
-                            </div>
-                            <p className="text-sm text-gray-500 mb-1">Event Time</p>
-                            <p className="font-bold text-gray-900 text-lg">
-                              {eventDate.startTime} - {eventDate.endTime}
-                            </p>
-                          </div>
-
-                          <div className="group">
-                            <div className="w-16 h-16 bg-gradient-to-br from-green-100 to-green-200 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-300">
-                              <MapPin className="w-8 h-8 text-green-600" />
-                            </div>
-                            <p className="text-sm text-gray-500 mb-1">Venue</p>
-                            <p className="font-bold text-gray-900 text-lg">{eventDate.venue}</p>
-                            <p className="text-sm text-gray-600">{eventDate.space}</p>
-                          </div>
-
-                          <div className="group">
-                            <div className="w-16 h-16 bg-gradient-to-br from-orange-100 to-orange-200 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-300">
-                              <Users className="w-8 h-8 text-orange-600" />
-                            </div>
-                            <p className="text-sm text-gray-500 mb-1">Guest Count</p>
-                            <p className="font-bold text-gray-900 text-lg">{eventDate.guestCount}</p>
-                            <p className="text-sm text-gray-600">guests</p>
-                          </div>
+                          <p className="text-sm text-gray-500 mb-2 uppercase tracking-wider font-medium">Date</p>
+                          <p className="font-bold text-gray-900 text-lg">
+                            {new Date(eventDate.date).toLocaleDateString('en-US', { 
+                              weekday: 'long', 
+                              month: 'long', 
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </p>
                         </div>
 
-                        {/* Package Information */}
-                        {eventDate.packageName && (
-                          <div className="mb-8">
-                            <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-2xl p-6">
-                              <div className="flex items-center gap-3 mb-3">
-                                <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-                                  <Award className="w-5 h-5 text-amber-600" />
+                        {/* Time */}
+                        <div className="group text-center">
+                          <div className="w-20 h-20 mx-auto bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300 border border-purple-100">
+                            <Clock className="w-10 h-10 text-purple-600" />
+                          </div>
+                          <p className="text-sm text-gray-500 mb-2 uppercase tracking-wider font-medium">Time</p>
+                          <p className="font-bold text-gray-900 text-lg">
+                            {eventDate.startTime} - {eventDate.endTime}
+                          </p>
+                        </div>
+
+                        {/* Venue */}
+                        <div className="group text-center">
+                          <div className="w-20 h-20 mx-auto bg-gradient-to-br from-emerald-50 to-green-100 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300 border border-emerald-100">
+                            <MapPin className="w-10 h-10 text-emerald-600" />
+                          </div>
+                          <p className="text-sm text-gray-500 mb-2 uppercase tracking-wider font-medium">Venue</p>
+                          <p className="font-bold text-gray-900 text-lg">{eventDate.venue}</p>
+                          <p className="text-sm text-gray-600">{eventDate.space}</p>
+                        </div>
+
+                        {/* Guest Count */}
+                        <div className="group text-center">
+                          <div className="w-20 h-20 mx-auto bg-gradient-to-br from-amber-50 to-orange-100 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300 border border-amber-100">
+                            <Users className="w-10 h-10 text-amber-600" />
+                          </div>
+                          <p className="text-sm text-gray-500 mb-2 uppercase tracking-wider font-medium">Guests</p>
+                          <p className="font-bold text-gray-900 text-lg">{eventDate.guestCount}</p>
+                          <p className="text-sm text-gray-600">attendees</p>
+                        </div>
+                      </div>
+
+                      {/* Package Information */}
+                      {eventDate.packageName && (
+                        <div className="mb-12">
+                          <Card className="bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-200 shadow-lg">
+                            <CardContent className="p-8">
+                              <div className="flex items-center gap-4">
+                                <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center">
+                                  <Award className="w-8 h-8 text-amber-600" />
                                 </div>
                                 <div>
-                                  <h3 className="font-bold text-gray-900">Selected Package</h3>
-                                  <p className="text-amber-700 font-semibold">{eventDate.packageName}</p>
+                                  <h3 className="text-xl font-bold text-gray-900 mb-1">Selected Package</h3>
+                                  <p className="text-amber-700 font-semibold text-lg">{eventDate.packageName}</p>
                                 </div>
                               </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      )}
+
+                      {/* Services */}
+                      {eventDate.services && eventDate.services.length > 0 && (
+                        <div className="mb-12">
+                          <div className="flex items-center gap-4 mb-8">
+                            <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl flex items-center justify-center">
+                              <Sparkles className="w-8 h-8 text-blue-600" />
+                            </div>
+                            <div>
+                              <h3 className="text-2xl font-bold text-gray-900">Included Services</h3>
+                              <p className="text-gray-600">Professional services tailored to your event</p>
                             </div>
                           </div>
-                        )}
+                          
+                          <div className="grid md:grid-cols-2 gap-6">
+                            {eventDate.services.map((service, serviceIndex) => {
+                              const getServiceIcon = (serviceName: string) => {
+                                const name = serviceName.toLowerCase();
+                                if (name.includes('bar') || name.includes('drink')) return <Utensils className="w-6 h-6" />;
+                                if (name.includes('dj') || name.includes('music') || name.includes('sound')) return <Music className="w-6 h-6" />;
+                                if (name.includes('photo') || name.includes('camera')) return <Camera className="w-6 h-6" />;
+                                if (name.includes('food') || name.includes('catering') || name.includes('cake')) return <ChefHat className="w-6 h-6" />;
+                                return <Star className="w-6 h-6" />;
+                              };
 
-                        {/* Services */}
-                        {eventDate.services && eventDate.services.length > 0 && (
-                          <div>
-                            <div className="flex items-center gap-3 mb-6">
-                              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                                <Sparkles className="w-5 h-5 text-blue-600" />
-                              </div>
-                              <h3 className="text-xl font-bold text-gray-900">Included Services</h3>
-                            </div>
-                            <div className="grid md:grid-cols-2 gap-4">
-                              {eventDate.services.map((service, serviceIndex) => {
-                                const getServiceIcon = (serviceName: string) => {
-                                  const name = serviceName.toLowerCase();
-                                  if (name.includes('bar') || name.includes('drink')) return <Utensils className="w-5 h-5" />;
-                                  if (name.includes('dj') || name.includes('music') || name.includes('sound')) return <Music className="w-5 h-5" />;
-                                  if (name.includes('photo') || name.includes('camera')) return <Camera className="w-5 h-5" />;
-                                  if (name.includes('food') || name.includes('catering') || name.includes('cake')) return <ChefHat className="w-5 h-5" />;
-                                  return <Star className="w-5 h-5" />;
-                                };
+                              const getServiceColor = (index: number) => {
+                                const colors = [
+                                  'from-blue-50 to-blue-100 border-blue-200 text-blue-700',
+                                  'from-purple-50 to-purple-100 border-purple-200 text-purple-700',
+                                  'from-green-50 to-green-100 border-green-200 text-green-700',
+                                  'from-pink-50 to-pink-100 border-pink-200 text-pink-700',
+                                  'from-indigo-50 to-indigo-100 border-indigo-200 text-indigo-700',
+                                  'from-orange-50 to-orange-100 border-orange-200 text-orange-700'
+                                ];
+                                return colors[index % colors.length];
+                              };
 
-                                const getServiceColor = (index: number) => {
-                                  const colors = [
-                                    'from-blue-50 to-blue-100 border-blue-200 text-blue-700',
-                                    'from-purple-50 to-purple-100 border-purple-200 text-purple-700',
-                                    'from-green-50 to-green-100 border-green-200 text-green-700',
-                                    'from-pink-50 to-pink-100 border-pink-200 text-pink-700',
-                                    'from-indigo-50 to-indigo-100 border-indigo-200 text-indigo-700',
-                                    'from-orange-50 to-orange-100 border-orange-200 text-orange-700'
-                                  ];
-                                  return colors[index % colors.length];
-                                };
-
-                                return (
-                                  <div
-                                    key={serviceIndex}
-                                    className={`group bg-gradient-to-br ${getServiceColor(serviceIndex)} border rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]`}
-                                  >
-                                    <div className="flex items-start justify-between mb-3">
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-white/50 backdrop-blur-sm rounded-full flex items-center justify-center">
+                              return (
+                                <Card key={serviceIndex} className={`group bg-gradient-to-br ${getServiceColor(serviceIndex)} border-2 hover:shadow-xl transition-all duration-300 hover:scale-[1.02] overflow-hidden`}>
+                                  <CardContent className="p-8">
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex items-center gap-4">
+                                        <div className="w-14 h-14 bg-white/70 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-lg">
                                           {getServiceIcon(service.name)}
                                         </div>
                                         <div>
-                                          <h4 className="font-bold text-gray-900">{service.name}</h4>
+                                          <h4 className="text-lg font-bold text-gray-900 mb-1">{service.name}</h4>
+                                          <p className="text-sm text-gray-600">Professional service</p>
                                         </div>
                                       </div>
                                       <div className="text-right">
@@ -324,250 +345,78 @@ export default function ProposalView() {
                                         </p>
                                       </div>
                                     </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-
-            {/* Fallback Event Details - if no eventDates array */}
-            {(!proposal.eventDates || proposal.eventDates.length === 0) && (
-              <Card className="border-0 shadow-xl bg-gradient-to-br from-white to-gray-50/50 backdrop-blur-sm overflow-hidden">
-                <CardContent className="p-0">
-                  {/* Event Header */}
-                  <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 p-8 text-white relative overflow-hidden">
-                    <div className="absolute inset-0 bg-black/10"></div>
-                    <div className="relative z-10">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
-                          <Star className="w-6 h-6 text-yellow-300" />
-                        </div>
-                        <div>
-                          <h2 className="text-2xl font-bold">Your Event Experience</h2>
-                          <p className="text-blue-100">Carefully curated for your special day</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Event Details Grid */}
-                  <div className="p-8">
-                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                      {proposal.eventDate && (
-                        <div className="group">
-                          <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-300">
-                            <Calendar className="w-8 h-8 text-blue-600" />
-                          </div>
-                          <p className="text-sm text-gray-500 mb-1">Event Date</p>
-                          <p className="font-bold text-gray-900 text-lg">
-                            {new Date(proposal.eventDate).toLocaleDateString('en-US', { 
-                              weekday: 'long', 
-                              month: 'short', 
-                              day: 'numeric',
-                              year: 'numeric'
+                                  </CardContent>
+                                </Card>
+                              );
                             })}
-                          </p>
+                          </div>
                         </div>
                       )}
 
-                      {proposal.startTime && proposal.endTime && (
-                        <div className="group">
-                          <div className="w-16 h-16 bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-300">
-                            <Clock className="w-8 h-8 text-purple-600" />
-                          </div>
-                          <p className="text-sm text-gray-500 mb-1">Event Time</p>
-                          <p className="font-bold text-gray-900 text-lg">
-                            {proposal.startTime} - {proposal.endTime}
-                          </p>
-                        </div>
-                      )}
-
-                      {proposal.venue && (
-                        <div className="group">
-                          <div className="w-16 h-16 bg-gradient-to-br from-green-100 to-green-200 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-300">
-                            <MapPin className="w-8 h-8 text-green-600" />
-                          </div>
-                          <p className="text-sm text-gray-500 mb-1">Venue</p>
-                          <p className="font-bold text-gray-900 text-lg">{proposal.venue.name}</p>
-                          {proposal.venue.description && (
-                            <p className="text-sm text-gray-600">{proposal.venue.description}</p>
-                          )}
-                        </div>
-                      )}
-
-                      {proposal.guestCount && (
-                        <div className="group">
-                          <div className="w-16 h-16 bg-gradient-to-br from-orange-100 to-orange-200 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-300">
-                            <Users className="w-8 h-8 text-orange-600" />
-                          </div>
-                          <p className="text-sm text-gray-500 mb-1">Guest Count</p>
-                          <p className="font-bold text-gray-900 text-lg">{proposal.guestCount}</p>
-                          <p className="text-sm text-gray-600">guests</p>
-                        </div>
-                      )}
+                      {/* Total Investment */}
+                      <div className="mt-12">
+                        <Card className="bg-gradient-to-r from-slate-900 to-gray-900 text-white shadow-2xl overflow-hidden">
+                          <CardContent className="p-10">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h3 className="text-2xl font-light mb-2">Total Investment</h3>
+                                <p className="text-gray-300">Complete event experience</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-5xl font-bold text-white">
+                                  ${proposal.totalAmount}
+                                </p>
+                                {proposal.depositAmount && (
+                                  <p className="text-gray-300 mt-2">
+                                    Deposit: ${proposal.depositAmount}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Proposal Content */}
-            {proposal.content && (
-              <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
-                <CardContent className="p-8">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <Mail className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <h2 className="text-2xl font-bold text-gray-900">Proposal Details</h2>
-                  </div>
-                  <div 
-                    className="prose prose-lg max-w-none text-gray-700 leading-relaxed"
-                    dangerouslySetInnerHTML={{ __html: proposal.content }}
-                  />
-                </CardContent>
-              </Card>
-            )}
+                  </CardContent>
+                </Card>
+              </div>
+            ))}
           </div>
+        )}
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Investment Summary */}
-            <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-purple-50 sticky top-6">
-              <CardContent className="p-8">
-                <h3 className="text-xl font-bold text-gray-900 mb-6">Investment Summary</h3>
-                
-                <div className="space-y-4 mb-6">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Total Investment</span>
-                    <span className="text-2xl font-bold text-gray-900">
-                      ${parseFloat(proposal.totalAmount).toLocaleString()}
-                    </span>
+        {/* Company Information */}
+        {proposal.companyInfo && (
+          <div className="mt-20">
+            <Card className="bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-xl">
+              <CardContent className="p-12">
+                <div className="text-center max-w-2xl mx-auto">
+                  <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Sparkles className="w-10 h-10 text-blue-600" />
                   </div>
-                  
-                  {proposal.depositAmount && (
-                    <div className="flex justify-between items-center pt-2 border-t border-gray-200">
-                      <span className="text-gray-600">Required Deposit</span>
-                      <span className="text-lg font-semibold text-blue-600">
-                        ${parseFloat(proposal.depositAmount).toLocaleString()}
-                      </span>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">{proposal.companyInfo.name}</h3>
+                  <p className="text-gray-600 mb-6 leading-relaxed">
+                    Thank you for considering us for your special event. We're committed to making your celebration extraordinary.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-6 justify-center text-sm text-gray-600">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4" />
+                      <span>{proposal.companyInfo.address}</span>
                     </div>
-                  )}
-                </div>
-
-                {validUntil && (
-                  <div className="mb-6">
-                    <p className="text-sm text-gray-500 mb-2">Proposal Valid Until</p>
-                    <p className="font-semibold text-gray-900">
-                      {validUntil.toLocaleDateString('en-US', { 
-                        month: 'long', 
-                        day: 'numeric', 
-                        year: 'numeric' 
-                      })}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-4 h-4" />
+                      <span>{proposal.companyInfo.phone}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-4 h-4" />
+                      <span>{proposal.companyInfo.email}</span>
+                    </div>
                   </div>
-                )}
-
-                <Separator className="my-6" />
-
-                {!isExpired && proposal.status !== 'accepted' && (
-                  <Button 
-                    onClick={handleAcceptProposal}
-                    disabled={isAccepting || acceptProposalMutation.isPending}
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-                  >
-                    {isAccepting || acceptProposalMutation.isPending ? (
-                      <>
-                        <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        Accept & Continue to Payment
-                        <ArrowRight className="w-5 h-5 ml-2" />
-                      </>
-                    )}
-                  </Button>
-                )}
-
-                {proposal.status === 'accepted' && (
-                  <Badge className="w-full justify-center py-3 bg-green-100 text-green-800 text-base">
-                    <CheckCircle className="w-5 h-5 mr-2" />
-                    Proposal Accepted
-                  </Badge>
-                )}
+                </div>
               </CardContent>
             </Card>
-
-            {/* Contact Information */}
-            {proposal.companyInfo && (
-              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">Contact Us</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <Mail className="w-5 h-5 text-blue-600" />
-                      <span className="text-gray-700">{proposal.companyInfo.email}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Phone className="w-5 h-5 text-blue-600" />
-                      <span className="text-gray-700">{proposal.companyInfo.phone}</span>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <MapPin className="w-5 h-5 text-blue-600 mt-0.5" />
-                      <span className="text-gray-700 leading-relaxed">{proposal.companyInfo.address}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
-        </div>
+        )}
       </div>
-
-      {/* Footer */}
-      <footer className="bg-gradient-to-r from-gray-900 via-blue-900 to-gray-900 text-white py-16">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid md:grid-cols-3 gap-8 mb-8">
-            <div className="text-center md:text-left">
-              <h3 className="text-3xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                {proposal.companyInfo?.name || 'Venuine Events'}
-              </h3>
-              <p className="text-gray-300 leading-relaxed">Creating unforgettable experiences, one event at a time</p>
-            </div>
-            <div className="text-center">
-              <h4 className="text-lg font-semibold mb-4 text-blue-300">Contact Information</h4>
-              <div className="space-y-2 text-gray-300">
-                <p>{proposal.companyInfo?.phone || '(555) 123-4567'}</p>
-                <p>{proposal.companyInfo?.email || 'hello@venuine-events.com'}</p>
-              </div>
-            </div>
-            <div className="text-center md:text-right">
-              <h4 className="text-lg font-semibold mb-4 text-blue-300">Location</h4>
-              <p className="text-gray-300 leading-relaxed">
-                {proposal.companyInfo?.address || '123 Celebration Drive, Event City, EC 12345'}
-              </p>
-            </div>
-          </div>
-          <div className="border-t border-gray-700 pt-8 text-center">
-            <p className="text-gray-400 mb-6">Creating memorable experiences, one event at a time</p>
-            <div className="flex justify-center gap-6 text-sm text-gray-400">
-              <span>Professional Event Management</span>
-              <span>•</span>
-              <span>Trusted by thousands</span>
-              <span>•</span>
-              <span>Excellence guaranteed</span>
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
