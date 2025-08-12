@@ -2908,6 +2908,13 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
           onProposalSent={async (proposalId: string) => {
             try {
               console.log('onProposalSent called with proposalId:', proposalId);
+              console.log('Booking object:', booking);
+              console.log('Booking ID:', booking?.id);
+              
+              if (!booking || !booking.id) {
+                throw new Error('Booking or booking ID is missing');
+              }
+              
               console.log('Updating booking with ID:', booking.id);
               console.log('Sending PATCH request to:', `/api/bookings/${booking.id}`);
               
@@ -2934,7 +2941,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
               console.error('Error updating booking status:', error);
               toast({
                 title: "Error",
-                description: `Failed to update booking status: ${error.message}`,
+                description: `Failed to update booking status: ${error?.message || 'Unknown error'}`,
                 variant: "destructive",
               });
             }
