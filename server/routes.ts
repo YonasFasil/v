@@ -2825,6 +2825,10 @@ This is a test email from your Venuine venue management system.
       const baseUrl = process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000';
       const proposalViewLink = `${baseUrl}/proposal/${proposal.id}`;
       
+      // Calculate updated amounts first to use in content
+      const updatedTotalAmount = eventData.totalAmount || proposal.totalAmount;
+      const updatedDepositAmount = (parseFloat(updatedTotalAmount) * 0.3).toString(); // 30% deposit
+
       // Generate fresh proposal content with current event data 
       const updatedProposalContent = `
         <h2>Updated Proposal for ${eventData.eventName}</h2>
@@ -2832,9 +2836,10 @@ This is a test email from your Venuine venue management system.
         <p><strong>Event Time:</strong> ${eventData.startTime} - ${eventData.endTime}</p>
         <p><strong>Guest Count:</strong> ${eventData.guestCount}</p>
         <p><strong>Venue:</strong> ${eventData.venueName || 'To be determined'}</p>
-        <p><strong>Total Amount:</strong> $${eventData.totalAmount || proposal.totalAmount}</p>
+        <p><strong>Total Amount:</strong> $${updatedTotalAmount}</p>
+        <p><strong>Deposit Required:</strong> $${updatedDepositAmount} (30% of total)</p>
         <br/>
-        <p>This proposal has been updated with the latest event details. Please review and let us know if you have any questions.</p>
+        <p>This proposal has been updated with the latest event details and pricing. Please review and let us know if you have any questions.</p>
         <br/>
         <p><a href="${proposalViewLink}" style="background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px;">View Full Proposal</a></p>
       `;
@@ -2847,8 +2852,8 @@ This is a test email from your Venuine venue management system.
         // Update title if event name changed
         title: `Proposal for ${eventData.eventName}`,
         // Update amounts if they've changed from the event
-        totalAmount: eventData.totalAmount || proposal.totalAmount,
-        depositAmount: proposal.depositAmount
+        totalAmount: updatedTotalAmount,
+        depositAmount: updatedDepositAmount
       });
       
       try {
@@ -2881,7 +2886,7 @@ This is a test email from your Venuine venue management system.
         type: 'email',
         direction: 'outbound',
         subject: `Updated Proposal for ${eventData.eventName} (RESENT)`,
-        message: `✉️ Proposal resent with updated event details\n\nEvent: ${eventData.eventName}\nDate: ${new Date(eventData.eventDate).toLocaleDateString()}\nTime: ${eventData.startTime} - ${eventData.endTime}\nGuests: ${eventData.guestCount}\nTotal Amount: $${eventData.totalAmount || proposal.totalAmount}\n\nNote: This is a resent proposal with current event information.`,
+        message: `✉️ Proposal resent with updated event details\n\nEvent: ${eventData.eventName}\nDate: ${new Date(eventData.eventDate).toLocaleDateString()}\nTime: ${eventData.startTime} - ${eventData.endTime}\nGuests: ${eventData.guestCount}\n\n💰 Pricing Updates:\nTotal Amount: $${updatedTotalAmount}${proposal.totalAmount !== updatedTotalAmount ? ` (was $${proposal.totalAmount})` : ''}\nDeposit Required: $${updatedDepositAmount}${proposal.depositAmount !== updatedDepositAmount ? ` (was $${proposal.depositAmount})` : ''}\n\nNote: This is a resent proposal with current event information and updated pricing.`,
         sentBy: process.env.GMAIL_USER || "system",
         sentAt: new Date(),
         status: "sent"
