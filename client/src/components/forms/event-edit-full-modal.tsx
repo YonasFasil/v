@@ -2907,12 +2907,19 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
           eventData={proposalEmailData}
           onProposalSent={async (proposalId: string) => {
             try {
+              console.log('onProposalSent called with proposalId:', proposalId);
+              console.log('Updating booking with ID:', booking.id);
+              console.log('Sending PATCH request to:', `/api/bookings/${booking.id}`);
+              
               // Update booking status to "pending" (Proposal Shared)
-              await apiRequest("PATCH", `/api/bookings/${booking.id}`, {
+              const response = await apiRequest("PATCH", `/api/bookings/${booking.id}`, {
                 status: "pending",
                 proposalStatus: "sent",
-                proposalSentAt: new Date()
+                proposalSentAt: new Date(),
+                proposalId: proposalId
               });
+              
+              console.log('PATCH request successful:', response);
               
               toast({
                 title: "Proposal Sent",
@@ -2924,9 +2931,10 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
               queryClient.invalidateQueries({ queryKey: ['/api/proposals'] });
               queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
             } catch (error) {
+              console.error('Error updating booking status:', error);
               toast({
                 title: "Error",
-                description: "Failed to update booking status. Please try again.",
+                description: `Failed to update booking status: ${error.message}`,
                 variant: "destructive",
               });
             }
