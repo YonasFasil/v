@@ -10,8 +10,7 @@ import {
   getStatusConfig, 
   getNextStatuses, 
   canEditStatus,
-  getAllStatuses,
-  getUserSelectableStatuses,
+  getAllStatuses, 
   type EventStatus 
 } from "@shared/status-utils";
 
@@ -41,8 +40,8 @@ export function StatusSelector({
     );
   }
 
-  // Determine available statuses - use user-selectable statuses to exclude auto-assigned ones
-  const availableStatuses = getUserSelectableStatuses();
+  // Determine available statuses - show all statuses for easy selection in modal
+  const availableStatuses = getAllStatuses();
 
   return (
     <Select

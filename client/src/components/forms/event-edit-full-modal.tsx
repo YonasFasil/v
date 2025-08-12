@@ -10,7 +10,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, getDay } from "date-fns";
 import { ChevronLeft, ChevronRight, X, Plus, RotateCcw, Trash2, Save, Edit, Minus, FileText, Send, MessageSquare, Mail, Phone, Users, Grid3X3, MapPin, Calendar as CalendarIcon } from "lucide-react";
-import { ProposalEmailModal } from "@/components/proposals/proposal-email-modal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -85,10 +84,6 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   const [showCommunication, setShowCommunication] = useState(false);
   const [communicationMessage, setCommunicationMessage] = useState("");
   const [communicationType, setCommunicationType] = useState("email");
-  
-  // Proposal email modal state
-  const [showProposalEmailModal, setShowProposalEmailModal] = useState(false);
-  const [proposalEmailData, setProposalEmailData] = useState<any>(null);
   
   // Customer creation
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
@@ -2731,109 +2726,14 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                     {currentStep === 1 ? `Configure ${selectedDates.length} Event Slot(s)` : 'Next'}
                   </Button>
                 ) : (
-                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                    {/* Show Send Proposal button only if no proposal exists yet */}
-                    {booking?.proposalStatus === 'none' && (
-                      <Button 
-                        onClick={async () => {
-                          try {
-                            // First save the changes
-                            await handleSubmit();
-                            
-                            // Calculate current total for proposal
-                            const currentTotal = (() => {
-                              let subtotal = 0;
-                              let totalFees = 0;
-                              let totalTaxes = 0;
-
-                              selectedDates.forEach(date => {
-                                // Package price
-                                if (date.packageId) {
-                                  const pkg = (packages as any[])?.find((p: any) => p.id === date.packageId);
-                                  if (pkg) {
-                                    const packagePrice = date.pricingOverrides?.packagePrice ?? parseFloat(pkg.price || 0);
-                                    let packageSubtotal = 0;
-                                    if (pkg.pricingModel === 'per_person') {
-                                      packageSubtotal = packagePrice * (date.guestCount || 1);
-                                    } else {
-                                      packageSubtotal = packagePrice;
-                                    }
-                                    subtotal += packageSubtotal;
-                                  }
-                                }
-                                
-                                // Services price
-                                date.selectedServices?.forEach(serviceId => {
-                                  const service = (services as any[]).find((s: any) => s.id === serviceId);
-                                  if (service) {
-                                    const servicePrice = date.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
-                                    let serviceSubtotal = 0;
-                                    if (service.pricingModel === 'per_person') {
-                                      serviceSubtotal = servicePrice * (date.guestCount || 1);
-                                    } else {
-                                      const quantity = date.itemQuantities?.[serviceId] || 1;
-                                      serviceSubtotal = servicePrice * quantity;
-                                    }
-                                    subtotal += serviceSubtotal;
-                                  }
-                                });
-                              });
-
-                              return subtotal + totalFees + totalTaxes;
-                            })();
-                            
-                            // Prepare email data and show email preview modal
-                            const customer = (customers as any[])?.find(c => c.id === selectedCustomer);
-                            const venue = (venues as any[])?.find(v => v.id === selectedVenue);
-                            
-                            const eventDates = selectedDates.map(date => {
-                              const space = venue?.spaces?.find((s: any) => s.id === date.spaceId);
-                              return {
-                                date: date.date,
-                                startTime: date.startTime,
-                                endTime: date.endTime,
-                                venue: venue?.name || 'Venue',
-                                space: space?.name || 'Main Space',
-                                guestCount: date.guestCount || 50,
-                                totalAmount: currentTotal
-                              };
-                            });
-                            
-                            setProposalEmailData({
-                              eventName,
-                              customerId: selectedCustomer,
-                              customerEmail: customer?.email || '',
-                              customerName: customer?.name || 'Valued Customer',
-                              totalAmount: currentTotal,
-                              eventDates
-                            });
-                            
-                            setShowProposalEmailModal(true);
-                          } catch (error) {
-                            toast({
-                              title: "Error",
-                              description: "Failed to prepare proposal. Please try again.",
-                              variant: "destructive",
-                            });
-                          }
-                        }}
-                        variant="outline"
-                        className="border-green-200 text-green-700 hover:bg-green-50"
-                        disabled={updateBooking.isPending}
-                      >
-                        <Send className="h-4 w-4 mr-2" />
-                        Send Proposal
-                      </Button>
-                    )}
-                    <Button 
-                      onClick={handleSubmit}
-                      className="bg-blue-600 hover:bg-blue-700"
-                      disabled={updateBooking.isPending}
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      {updateBooking.isPending ? 'Saving...' : 'Save Changes'}
-                    </Button>
-                  </div>
+                  <Button 
+                    onClick={handleSubmit}
+                    className="bg-blue-600 hover:bg-blue-700"
+                    disabled={updateBooking.isPending}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {updateBooking.isPending ? 'Saving...' : 'Save Changes'}
+                  </Button>
                 )}
               </div>
             </div>
@@ -2898,56 +2798,6 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
           </div>
         </DialogContent>
       </Dialog>
-      
-      {/* Proposal Email Modal */}
-      {proposalEmailData && (
-        <ProposalEmailModal
-          open={showProposalEmailModal}
-          onOpenChange={setShowProposalEmailModal}
-          eventData={proposalEmailData}
-          onProposalSent={async (proposalId: string) => {
-            try {
-              console.log('onProposalSent called with proposalId:', proposalId);
-              console.log('Booking object:', booking);
-              console.log('Booking ID:', booking?.id);
-              
-              if (!booking || !booking.id) {
-                throw new Error('Booking or booking ID is missing');
-              }
-              
-              console.log('Updating booking with ID:', booking.id);
-              console.log('Sending PATCH request to:', `/api/bookings/${booking.id}`);
-              
-              // Update booking status to "pending" (Proposal Shared)
-              const response = await apiRequest("PATCH", `/api/bookings/${booking.id}`, {
-                status: "pending",
-                proposalStatus: "sent",
-                proposalSentAt: new Date(),
-                proposalId: proposalId
-              });
-              
-              console.log('PATCH request successful:', response);
-              
-              toast({
-                title: "Proposal Sent",
-                description: "The proposal has been sent to the customer successfully.",
-              });
-              
-              setShowProposalEmailModal(false);
-              onOpenChange(false);
-              queryClient.invalidateQueries({ queryKey: ['/api/proposals'] });
-              queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
-            } catch (error) {
-              console.error('Error updating booking status:', error);
-              toast({
-                title: "Error",
-                description: `Failed to update booking status: ${error?.message || 'Unknown error'}`,
-                variant: "destructive",
-              });
-            }
-          }}
-        />
-      )}
     </Dialog>
   );
 }
