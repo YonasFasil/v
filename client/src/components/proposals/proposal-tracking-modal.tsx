@@ -559,6 +559,29 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                     ) : null;
                   })()}
 
+                  {/* Resend Indicator */}
+                  {communications.filter(c => c.type === 'email' && c.direction === 'outbound' && c.subject?.includes('Proposal')).length > 1 && (
+                    <div className="bg-amber-50 p-2 rounded-lg border border-amber-200">
+                      <div className="text-xs text-amber-600 flex items-center gap-1">
+                        <Send className="h-3 w-3" />
+                        Proposal has been resent {communications.filter(c => c.type === 'email' && c.direction === 'outbound' && c.subject?.includes('Proposal')).length - 1} time(s)
+                      </div>
+                      <div className="text-xs text-amber-500 mt-1">
+                        Last resent: {communications
+                          .filter(c => c.type === 'email' && c.direction === 'outbound' && c.subject?.includes('Proposal'))
+                          .sort((a, b) => new Date(b.sentAt || b.createdAt).getTime() - new Date(a.sentAt || a.createdAt).getTime())[1] // Get second most recent (first resend)
+                          ? format(new Date(communications
+                            .filter(c => c.type === 'email' && c.direction === 'outbound' && c.subject?.includes('Proposal'))
+                            .sort((a, b) => new Date(b.sentAt || b.createdAt).getTime() - new Date(a.sentAt || a.createdAt).getTime())[0].sentAt || 
+                            communications
+                            .filter(c => c.type === 'email' && c.direction === 'outbound' && c.subject?.includes('Proposal'))
+                            .sort((a, b) => new Date(b.sentAt || b.createdAt).getTime() - new Date(a.sentAt || a.createdAt).getTime())[0].createdAt), "MMM d 'at' h:mm a")
+                          : 'Unknown'
+                        }
+                      </div>
+                    </div>
+                  )}
+
                   {proposal.depositPaid && (
                     <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-200">
                       <div className="flex justify-between text-emerald-700 mb-2">
