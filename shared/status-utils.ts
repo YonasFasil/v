@@ -4,6 +4,7 @@ export type EventStatus =
   | "inquiry" 
   | "pending" 
   | "tentative" 
+  | "confirmed" 
   | "confirmed_deposit_paid" 
   | "confirmed_fully_paid" 
   | "completed" 
@@ -55,6 +56,18 @@ export const STATUS_CONFIGS: Record<EventStatus, StatusConfig> = {
     borderColor: "border-blue-200",
     textColor: "text-blue-700",
     nextStatuses: ["confirmed_deposit_paid", "cancelled"],
+    canEdit: true,
+    isCompleted: false,
+    isActive: true
+  },
+  confirmed: {
+    label: "Confirmed",
+    description: "Booking confirmed by client",
+    color: "#10b981", // emerald-500
+    bgColor: "bg-emerald-50",
+    borderColor: "border-emerald-200",
+    textColor: "text-emerald-700",
+    nextStatuses: ["completed", "cancelled"],
     canEdit: true,
     isCompleted: false,
     isActive: true
@@ -113,14 +126,15 @@ export const STATUS_CONFIGS: Record<EventStatus, StatusConfig> = {
 export function getStatusConfig(status: EventStatus | string): StatusConfig {
   // Handle legacy statuses by mapping them to new ones
   const statusMap: Record<string, EventStatus> = {
-    'confirmed': 'tentative',
-    'confirmed_fully_paid': 'confirmed',
-    'confirmed_deposit_paid': 'confirmed',
+    'confirmed': 'confirmed',
+    'confirmed_fully_paid': 'confirmed_fully_paid',
+    'confirmed_deposit_paid': 'confirmed_deposit_paid',
     'pending': 'pending',
     'proposal_shared': 'pending',
     'completed': 'completed',
     'cancelled': 'cancelled',
-    'inquiry': 'inquiry'
+    'inquiry': 'inquiry',
+    'tentative': 'tentative'
   };
   
   const mappedStatus = statusMap[status] || status as EventStatus;
@@ -131,14 +145,15 @@ export function getStatusConfig(status: EventStatus | string): StatusConfig {
 export function getStatusColor(status: EventStatus | string): string {
   // Handle legacy statuses by mapping them to new ones
   const statusMap: Record<string, EventStatus> = {
-    'confirmed': 'tentative',
-    'confirmed_fully_paid': 'confirmed',
-    'confirmed_deposit_paid': 'confirmed',
+    'confirmed': 'confirmed',
+    'confirmed_fully_paid': 'confirmed_fully_paid',
+    'confirmed_deposit_paid': 'confirmed_deposit_paid',
     'pending': 'pending',
     'proposal_shared': 'pending',
     'completed': 'completed',
     'cancelled': 'cancelled',
-    'inquiry': 'inquiry'
+    'inquiry': 'inquiry',
+    'tentative': 'tentative'
   };
   
   const mappedStatus = statusMap[status] || status as EventStatus;
@@ -149,13 +164,15 @@ export function getStatusColor(status: EventStatus | string): string {
 export function getStatusLabel(status: EventStatus | string): string {
   // Handle legacy statuses by mapping them to new ones
   const statusMap: Record<string, EventStatus> = {
-    'confirmed': 'tentative',
-    'confirmed_fully_paid': 'confirmed',
-    'confirmed_deposit_paid': 'confirmed',
+    'confirmed': 'confirmed',
+    'confirmed_fully_paid': 'confirmed_fully_paid',
+    'confirmed_deposit_paid': 'confirmed_deposit_paid',
     'pending': 'pending',
     'proposal_shared': 'pending',
     'completed': 'completed',
-    'cancelled': 'cancelled'
+    'cancelled': 'cancelled',
+    'inquiry': 'inquiry',
+    'tentative': 'tentative'
   };
   
   const mappedStatus = statusMap[status] || status as EventStatus;
@@ -166,13 +183,15 @@ export function getStatusLabel(status: EventStatus | string): string {
 export function getNextStatuses(currentStatus: EventStatus | string): EventStatus[] {
   // Handle legacy statuses by mapping them to new ones
   const statusMap: Record<string, EventStatus> = {
-    'confirmed': 'tentative',
-    'confirmed_fully_paid': 'confirmed',
-    'confirmed_deposit_paid': 'confirmed',
+    'confirmed': 'confirmed',
+    'confirmed_fully_paid': 'confirmed_fully_paid',
+    'confirmed_deposit_paid': 'confirmed_deposit_paid',
     'pending': 'pending',
     'proposal_shared': 'pending',
     'completed': 'completed',
-    'cancelled': 'cancelled'
+    'cancelled': 'cancelled',
+    'inquiry': 'inquiry',
+    'tentative': 'tentative'
   };
   
   const mappedStatus = statusMap[currentStatus] || currentStatus as EventStatus;
