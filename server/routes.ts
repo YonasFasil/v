@@ -3374,6 +3374,28 @@ This is a test email from your Venuine venue management system.
     }
   });
 
+  // Deposits Settings - Specific endpoint for managing deposit configurations
+  app.put("/api/settings/deposits", async (req, res) => {
+    try {
+      const depositsData = req.body;
+      
+      // Store each deposit setting with a structured key
+      const promises = [
+        storage.updateSetting("deposits.defaultDepositPercentage", depositsData.defaultDepositPercentage),
+        storage.updateSetting("deposits.requireDepositForBooking", depositsData.requireDepositForBooking),
+        storage.updateSetting("deposits.allowDepositAmendment", depositsData.allowDepositAmendment),
+        storage.updateSetting("deposits.depositDueDays", depositsData.depositDueDays),
+        storage.updateSetting("deposits.depositDescription", depositsData.depositDescription),
+        storage.updateSetting("deposits.refundPolicy", depositsData.refundPolicy)
+      ];
+      
+      await Promise.all(promises);
+      res.json({ message: "Deposits settings saved successfully" });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
   // Batch update endpoint for settings
   app.put("/api/settings", async (req, res) => {
     try {

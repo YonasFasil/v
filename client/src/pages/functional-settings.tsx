@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -76,8 +76,18 @@ const notificationSettingsSchema = z.object({
   leadAssignments: z.boolean()
 });
 
+const depositsSettingsSchema = z.object({
+  defaultDepositPercentage: z.number().min(0).max(100),
+  requireDepositForBooking: z.boolean(),
+  allowDepositAmendment: z.boolean(),
+  depositDueDays: z.number().min(0),
+  depositDescription: z.string().optional(),
+  refundPolicy: z.string().optional()
+});
+
 type BusinessSettings = z.infer<typeof businessSettingsSchema>;
 type NotificationSettings = z.infer<typeof notificationSettingsSchema>;
+type DepositsSettings = z.infer<typeof depositsSettingsSchema>;
 
 export default function FunctionalSettings() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -126,6 +136,19 @@ export default function FunctionalSettings() {
       taskDeadlines: true,
       customerMessages: true,
       leadAssignments: true
+    }
+  });
+
+  // Deposits Settings Form
+  const depositsForm = useForm<DepositsSettings>({
+    resolver: zodResolver(depositsSettingsSchema),
+    defaultValues: {
+      defaultDepositPercentage: 25,
+      requireDepositForBooking: true,
+      allowDepositAmendment: true,
+      depositDueDays: 7,
+      depositDescription: "A deposit is required to secure your booking",
+      refundPolicy: "Deposits are refundable up to 14 days before the event date"
     }
   });
 
@@ -183,6 +206,17 @@ export default function FunctionalSettings() {
     },
     onError: () => {
       toast({ title: "Failed to save notification settings", variant: "destructive" });
+    }
+  });
+
+  const saveDepositsSettings = useMutation({
+    mutationFn: (data: DepositsSettings) => apiRequest("PUT", "/api/settings/deposits", data),
+    onSuccess: () => {
+      toast({ title: "Deposits settings saved successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+    },
+    onError: () => {
+      toast({ title: "Failed to save deposits settings", variant: "destructive" });
     }
   });
 
@@ -775,6 +809,171 @@ export default function FunctionalSettings() {
     </div>
   );
 
+  const renderDepositsSettings = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="w-5 h-5" />
+            Deposit Management
+          </CardTitle>
+          <CardDescription>
+            Configure default deposit requirements and policies for bookings
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...depositsForm}>
+            <form onSubmit={depositsForm.handleSubmit((data) => saveDepositsSettings.mutate(data))} className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <FormField
+                  control={depositsForm.control}
+                  name="defaultDepositPercentage"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Default Deposit Percentage</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="1"
+                            {...field}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            className="pr-8"
+                          />
+                          <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">%</span>
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Default percentage of total booking cost required as deposit
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={depositsForm.control}
+                  name="depositDueDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Deposit Due (Days)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="1"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Number of days from booking confirmation to deposit due date
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="space-y-4">
+                <FormField
+                  control={depositsForm.control}
+                  name="requireDepositForBooking"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Require Deposit for Booking</FormLabel>
+                        <FormDescription>
+                          Customers must pay deposit to confirm their booking
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={depositsForm.control}
+                  name="allowDepositAmendment"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Allow Deposit Amendment</FormLabel>
+                        <FormDescription>
+                          Allow staff to modify deposit percentage when sending proposals
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={depositsForm.control}
+                name="depositDescription"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Deposit Description</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        placeholder="A deposit is required to secure your booking..."
+                        className="min-h-[100px]"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      This message will appear on proposals and booking confirmations
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={depositsForm.control}
+                name="refundPolicy"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Refund Policy</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        placeholder="Deposits are refundable up to 14 days before the event date..."
+                        className="min-h-[100px]"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Clear refund terms that will be displayed to customers
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Button type="submit" disabled={saveDepositsSettings.isPending}>
+                <Save className="w-4 h-4 mr-2" />
+                {saveDepositsSettings.isPending ? "Saving..." : "Save Deposit Settings"}
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
   const renderIntegrationSettings = () => (
     <div className="space-y-6">
       <Card>
@@ -899,7 +1098,7 @@ export default function FunctionalSettings() {
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <div className="w-full overflow-x-auto mobile-tabs">
-              <TabsList className="flex w-max min-w-full justify-start sm:justify-center lg:grid lg:grid-cols-6 gap-1 p-1">
+              <TabsList className="flex w-max min-w-full justify-start sm:justify-center lg:grid lg:grid-cols-7 gap-1 p-1">
                 <TabsTrigger value="business" className="flex items-center gap-1 text-xs sm:text-sm px-3 py-2 whitespace-nowrap">
                   <Building2 className="w-4 h-4" />
                   <span>Business</span>
@@ -908,6 +1107,10 @@ export default function FunctionalSettings() {
                   <Bell className="w-4 h-4" />
                   <span className="hidden xs:inline">Notifications</span>
                   <span className="xs:hidden">Notify</span>
+                </TabsTrigger>
+                <TabsTrigger value="deposits" className="flex items-center gap-1 text-xs sm:text-sm px-3 py-2 whitespace-nowrap">
+                  <DollarSign className="w-4 h-4" />
+                  <span>Deposits</span>
                 </TabsTrigger>
                 <TabsTrigger value="ai" className="flex items-center gap-1 text-xs sm:text-sm px-3 py-2 whitespace-nowrap">
                   <Sparkles className="w-4 h-4" />
@@ -935,6 +1138,10 @@ export default function FunctionalSettings() {
 
             <TabsContent value="notifications">
               {renderNotificationSettings()}
+            </TabsContent>
+
+            <TabsContent value="deposits">
+              {renderDepositsSettings()}
             </TabsContent>
 
             <TabsContent value="ai">

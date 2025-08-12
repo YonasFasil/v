@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/api";
-import { Send, Mail, Eye } from "lucide-react";
+import { Send, Mail, Eye, DollarSign } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface ProposalEmailModalProps {
@@ -45,6 +47,20 @@ export function ProposalEmailModal({
   const [emailSubject, setEmailSubject] = useState(
     `Event Proposal: ${eventData.eventName}`
   );
+
+  // Fetch current deposits settings
+  const { data: settings } = useQuery({
+    queryKey: ["/api/settings"],
+  });
+
+  // Deposit amendment state
+  const [enableDepositAmendment, setEnableDepositAmendment] = useState(false);
+  const [customDepositPercentage, setCustomDepositPercentage] = useState(
+    (settings as any)?.deposits?.defaultDepositPercentage || 25
+  );
+
+  // Check if deposit amendment is allowed in settings
+  const allowDepositAmendment = (settings as any)?.deposits?.allowDepositAmendment !== false;
   
   const [emailMessage, setEmailMessage] = useState(`Dear ${eventData.customerName},
 
@@ -149,6 +165,12 @@ This proposal is valid for 30 days from the date of this email.`);
 
   const sendProposal = useMutation({
     mutationFn: async () => {
+      // Calculate deposit amount based on custom percentage if enabled
+      const depositPercentage = enableDepositAmendment ? 
+        customDepositPercentage : 
+        ((settings as any)?.deposits?.defaultDepositPercentage || 25);
+      const depositAmount = (eventData.totalAmount * depositPercentage) / 100;
+
       // Create proposal in the proposals table
       const proposalData = {
         customerId: eventData.customerId,
@@ -159,7 +181,10 @@ This proposal is valid for 30 days from the date of this email.`);
         status: 'sent',
         sentAt: new Date().toISOString(),
         eventType: 'corporate',
-        guestCount: eventData.eventDates[0]?.guestCount || 1
+        guestCount: eventData.eventDates[0]?.guestCount || 1,
+        // Include deposit information
+        depositPercentage: depositPercentage,
+        depositAmount: depositAmount.toFixed(2)
       };
       
       const proposalResponse = await fetch("/api/proposals", {
@@ -293,6 +318,60 @@ This proposal is valid for 30 days from the date of this email.`);
           </TabsContent>
         </Tabs>
         
+        {/* Deposit Amendment Section */}
+        {allowDepositAmendment && (
+          <Card className="mt-4">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <DollarSign className="h-4 w-4" />
+                Deposit Configuration
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium">
+                    Override Default Deposit Percentage
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Default: {(settings as any)?.deposits?.defaultDepositPercentage || 25}%
+                  </p>
+                </div>
+                <Switch
+                  checked={enableDepositAmendment}
+                  onCheckedChange={setEnableDepositAmendment}
+                />
+              </div>
+              
+              {enableDepositAmendment && (
+                <div className="space-y-2">
+                  <Label htmlFor="custom-deposit" className="text-sm">
+                    Custom Deposit Percentage
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="custom-deposit"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={customDepositPercentage}
+                      onChange={(e) => setCustomDepositPercentage(parseInt(e.target.value) || 0)}
+                      className="pr-8"
+                    />
+                    <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
+                      %
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    This will override the default deposit percentage for this proposal only
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <div className="flex justify-end gap-3 pt-4 border-t">
           <Button 
             variant="outline" 
