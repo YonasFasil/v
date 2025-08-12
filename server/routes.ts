@@ -2761,47 +2761,96 @@ This is a test email from your Venuine venue management system.
         return res.status(404).json({ message: "Customer not found" });
       }
 
-      // Re-send the proposal email
+      // Get updated event details from the original proposal's embedded data or find related events
+      let relatedEvents = [];
+      let eventData;
+      
+      // First try to get events associated with this proposal ID
+      const allBookings = await storage.getBookings();
+      const proposalEvents = allBookings.filter(booking => 
+        booking.proposalId === proposal.id || 
+        (proposal.eventData && booking.eventName === proposal.eventData.eventName)
+      );
+
+      if (proposalEvents.length > 0) {
+        // Use current event data from bookings
+        eventData = proposalEvents[0];
+        relatedEvents = proposalEvents;
+      } else if (proposal.eventData) {
+        // Fall back to embedded event data but warn it might be outdated
+        eventData = proposal.eventData;
+        relatedEvents = [proposal.eventData];
+      } else {
+        return res.status(400).json({ message: "No event data found for this proposal" });
+      }
+
+      // Get current services and packages
+      const services = await storage.getServices();
+      const packages = await storage.getPackages();
+      const venues = await storage.getVenues();
+      const settings = await storage.getSettings();
+
+      // Regenerate proposal content with current event details
       const emailService = new EmailService();
       const baseUrl = process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000';
       const proposalViewLink = `${baseUrl}/proposal/${proposal.id}`;
       
+      // Generate fresh proposal content with current event data 
+      const updatedProposalContent = `
+        <h2>Updated Proposal for ${eventData.eventName}</h2>
+        <p><strong>Event Date:</strong> ${new Date(eventData.eventDate).toLocaleDateString()}</p>
+        <p><strong>Event Time:</strong> ${eventData.startTime} - ${eventData.endTime}</p>
+        <p><strong>Guest Count:</strong> ${eventData.guestCount}</p>
+        <p><strong>Venue:</strong> ${eventData.venueName || 'To be determined'}</p>
+        <p><strong>Total Amount:</strong> $${eventData.totalAmount || proposal.totalAmount}</p>
+        <br/>
+        <p>This proposal has been updated with the latest event details. Please review and let us know if you have any questions.</p>
+        <br/>
+        <p><a href="${proposalViewLink}" style="background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px;">View Full Proposal</a></p>
+      `;
+
+      // Update the proposal with new content and regenerated details
+      const updatedProposal = await storage.updateProposal(proposal.id, {
+        content: updatedProposalContent,
+        sentAt: new Date(),
+        status: 'sent',
+        // Update title if event name changed
+        title: `Proposal for ${eventData.eventName}`,
+        // Update amounts if they've changed from the event
+        totalAmount: eventData.totalAmount || proposal.totalAmount,
+        depositAmount: proposal.depositAmount
+      });
+      
       try {
         await emailService.sendProposalEmail({
           to: customer.email,
-          subject: `Proposal for ${proposal.title}`,
-          htmlContent: proposal.content,
+          subject: `Updated Proposal for ${eventData.eventName}`,
+          htmlContent: updatedProposalContent,
           proposalViewLink
         });
       } catch (error) {
         console.error('Failed to resend proposal email:', error);
-        return res.status(500).json({ message: "Failed to send proposal email" });
+        return res.status(500).json({ message: "Failed to send proposal email. Please check your email configuration." });
       }
-
-      // Update proposal with new sent timestamp
-      const updatedProposal = await storage.updateProposal(proposal.id, {
-        sentAt: new Date(),
-        status: 'sent'
-      });
 
       // Record communication
       await storage.createCommunication({
         customerId: customer.id,
         type: 'email',
         direction: 'outbound',
-        subject: `Proposal for ${proposal.title}`,
-        content: 'Proposal has been resent to customer',
+        subject: `Updated Proposal for ${eventData.eventName}`,
+        message: `Updated proposal resent to customer with current event details: ${eventData.eventName} on ${new Date(eventData.eventDate).toLocaleDateString()}`,
         timestamp: new Date()
       });
 
       res.json({ 
         success: true, 
-        message: "Proposal resent successfully",
+        message: "Proposal regenerated and resent successfully with updated event details",
         proposal: updatedProposal
       });
     } catch (error) {
       console.error('Error resending proposal:', error);
-      res.status(500).json({ message: "Failed to resend proposal" });
+      res.status(500).json({ message: "Failed to resend proposal: " + error.message });
     }
   });
 
