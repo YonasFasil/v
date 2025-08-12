@@ -21,6 +21,7 @@ import ProposalView from "@/pages/proposal-view";
 import Proposals from "@/pages/proposals";
 import PaymentCheckout from "@/pages/payment-checkout";
 import PaymentSuccess from "@/pages/payment-success";
+import AuditLogs from "@/pages/audit-logs";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -43,6 +44,7 @@ function Router() {
       <Route path="/proposal/:proposalId" component={ProposalView} />
       <Route path="/proposal/:proposalId/payment" component={PaymentCheckout} />
       <Route path="/proposal/:proposalId/success" component={PaymentSuccess} />
+      <Route path="/audit-logs" component={AuditLogs} />
       <Route component={NotFound} />
     </Switch>
   );

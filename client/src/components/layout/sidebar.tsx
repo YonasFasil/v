@@ -17,7 +17,8 @@ import {
   Mic,
   ChevronLeft,
   ChevronRight,
-  Grid3X3
+  Grid3X3,
+  Shield
 } from "lucide-react";
 
 const navigationItems = [
@@ -40,6 +41,7 @@ const aiFeatures = [
 
 const analyticsItems = [
   { name: "Reports & Analytics", href: "/reports", icon: BarChart3 },
+  { name: "Audit Logs", href: "/audit-logs", icon: Shield },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 

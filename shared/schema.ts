@@ -345,6 +345,20 @@ export const tours = pgTable("tours", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Audit logging system
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id), // Who performed the action (null for system events)
+  action: text("action").notNull(), // CREATE, UPDATE, DELETE, LOGIN, LOGOUT, etc.
+  resourceType: text("resource_type").notNull(), // booking, customer, venue, user, etc.
+  resourceId: varchar("resource_id"), // ID of the affected resource
+  details: jsonb("details"), // Additional context about what changed
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  severity: text("severity").notNull().default("INFO"), // INFO, WARNING, ERROR, CRITICAL
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertVenueSchema = createInsertSchema(venues).omit({ id: true });
@@ -398,6 +412,7 @@ export const insertLeadSchema = createInsertSchema(leads, {
 export const insertLeadActivitySchema = createInsertSchema(leadActivities).omit({ id: true, createdAt: true });
 export const insertLeadTaskSchema = createInsertSchema(leadTasks).omit({ id: true, createdAt: true });
 export const insertTourSchema = createInsertSchema(tours).omit({ id: true, createdAt: true });
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
 
 // Types
 export type User = typeof users.$inferSelect;
@@ -444,3 +459,5 @@ export type LeadTask = typeof leadTasks.$inferSelect;
 export type InsertLeadTask = z.infer<typeof insertLeadTaskSchema>;
 export type Tour = typeof tours.$inferSelect;
 export type InsertTour = z.infer<typeof insertTourSchema>;
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;

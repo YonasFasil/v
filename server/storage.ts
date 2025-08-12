@@ -20,6 +20,7 @@ import {
   type LeadActivity, type InsertLeadActivity,
   type LeadTask, type InsertLeadTask,
   type Tour, type InsertTour,
+  type AuditLog, type InsertAuditLog,
 
 } from "@shared/schema";
 
@@ -190,6 +191,25 @@ export interface IStorage {
   addLeadTag(leadId: string, tagId: string): Promise<void>;
   removeLeadTag(leadId: string, tagId: string): Promise<void>;
   
+  // Audit Logging
+  getAuditLogs(filters?: { 
+    userId?: string; 
+    action?: string; 
+    resourceType?: string; 
+    severity?: string;
+    startDate?: Date;
+    endDate?: Date;
+    limit?: number;
+    offset?: number;
+  }): Promise<AuditLog[]>;
+  createAuditLog(auditLog: InsertAuditLog): Promise<AuditLog>;
+  getAuditLogStats(): Promise<{
+    totalLogs: number;
+    recentActions: number;
+    errorCount: number;
+    topUsers: Array<{ userId: string; count: number; userName?: string }>;
+    topActions: Array<{ action: string; count: number }>;
+  }>;
 
   
   // Additional CRUD operations  
@@ -217,6 +237,7 @@ export class MemStorage implements IStorage {
   private taxSettings: Map<string, TaxSetting>;
   private communications: Map<string, Communication>;
   private settings: Map<string, Setting>;
+  private auditLogs: Map<string, AuditLog>;
   
   // Lead Management Maps
   private campaignSources: Map<string, CampaignSource>;
@@ -245,6 +266,7 @@ export class MemStorage implements IStorage {
     this.taxSettings = new Map();
     this.communications = new Map();
     this.settings = new Map();
+    this.auditLogs = new Map();
     
     // Lead Management initialization
     this.campaignSources = new Map();
@@ -1895,6 +1917,113 @@ export class MemStorage implements IStorage {
 
   async removeLeadTag(leadId: string, tagId: string): Promise<void> {
     this.leadTags.delete(`${leadId}:${tagId}`);
+  }
+
+  // Audit Logging implementation
+  async getAuditLogs(filters?: { 
+    userId?: string; 
+    action?: string; 
+    resourceType?: string; 
+    severity?: string;
+    startDate?: Date;
+    endDate?: Date;
+    limit?: number;
+    offset?: number;
+  }): Promise<AuditLog[]> {
+    let logs = Array.from(this.auditLogs.values());
+    
+    // Apply filters
+    if (filters?.userId) {
+      logs = logs.filter(log => log.userId === filters.userId);
+    }
+    if (filters?.action) {
+      logs = logs.filter(log => log.action.includes(filters.action));
+    }
+    if (filters?.resourceType) {
+      logs = logs.filter(log => log.resourceType === filters.resourceType);
+    }
+    if (filters?.severity) {
+      logs = logs.filter(log => log.severity === filters.severity);
+    }
+    if (filters?.startDate) {
+      logs = logs.filter(log => log.createdAt >= filters.startDate!);
+    }
+    if (filters?.endDate) {
+      logs = logs.filter(log => log.createdAt <= filters.endDate!);
+    }
+    
+    // Sort by most recent first
+    logs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    
+    // Apply pagination
+    const offset = filters?.offset || 0;
+    const limit = filters?.limit || 100;
+    return logs.slice(offset, offset + limit);
+  }
+
+  async createAuditLog(auditLog: InsertAuditLog): Promise<AuditLog> {
+    const newLog: AuditLog = {
+      id: randomUUID(),
+      createdAt: new Date(),
+      severity: 'INFO',
+      ...auditLog,
+    };
+    this.auditLogs.set(newLog.id, newLog);
+    return newLog;
+  }
+
+  async getAuditLogStats(): Promise<{
+    totalLogs: number;
+    recentActions: number;
+    errorCount: number;
+    topUsers: Array<{ userId: string; count: number; userName?: string }>;
+    topActions: Array<{ action: string; count: number }>;
+  }> {
+    const logs = Array.from(this.auditLogs.values());
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    
+    const recentLogs = logs.filter(log => log.createdAt >= oneDayAgo);
+    const errorLogs = logs.filter(log => log.severity === 'ERROR');
+    
+    // Calculate top users
+    const userCounts = new Map<string, number>();
+    logs.forEach(log => {
+      if (log.userId) {
+        userCounts.set(log.userId, (userCounts.get(log.userId) || 0) + 1);
+      }
+    });
+    
+    const topUsers = Array.from(userCounts.entries())
+      .map(([userId, count]) => {
+        const user = this.users.get(userId);
+        return { 
+          userId, 
+          count, 
+          userName: user?.username || user?.email || 'Unknown User'
+        };
+      })
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+    
+    // Calculate top actions
+    const actionCounts = new Map<string, number>();
+    logs.forEach(log => {
+      actionCounts.set(log.action, (actionCounts.get(log.action) || 0) + 1);
+    });
+    
+    const topActions = Array.from(actionCounts.entries())
+      .map(([action, count]) => ({ action, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+    
+    return {
+      totalLogs: logs.length,
+      recentActions: recentLogs.length,
+      errorCount: errorLogs.length,
+      topUsers,
+      topActions
+    };
   }
 
 
