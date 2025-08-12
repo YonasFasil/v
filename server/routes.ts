@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import multer from "multer";
 import { storage } from "./storage";
 import { EmailService } from "./services/email";
 import { gmailService } from "./services/gmail";
@@ -33,6 +34,14 @@ import {
   parseVoiceToBooking
 } from "./services/gemini";
 import { getStatusColor, type EventStatus } from "@shared/status-utils";
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -3232,9 +3241,10 @@ This is a test email from your Venuine venue management system.
     }
   });
 
-  app.post("/api/proposals/:id/communications", async (req, res) => {
+  app.post("/api/proposals/:id/communications", upload.array('attachments', 5), async (req, res) => {
     try {
       console.log('Received communication data:', req.body);
+      console.log('Received files:', req.files ? (req.files as Express.Multer.File[]).length : 0);
       
       // Validate and prepare communication data
       const communicationData = {
@@ -3270,12 +3280,20 @@ This is a test email from your Venuine venue management system.
             throw new Error(`Proposal or customer not found - Proposal: ${proposal ? 'Found' : 'Not found'}, Customer: ${customer ? 'Found' : 'Not found'}`);
           }
 
+          // Process attachments if any
+          const attachments = req.files ? (req.files as Express.Multer.File[]).map(file => ({
+            filename: file.originalname,
+            content: file.buffer,
+            contentType: file.mimetype
+          })) : [];
+
           // Send email using Gmail service
           const emailSent = await gmailService.sendMessage({
             to: customer.email,
             subject: validatedData.subject || "Follow-up on your event proposal",
             content: validatedData.message,
-            customerName: customer.name
+            customerName: customer.name,
+            attachments: attachments.length > 0 ? attachments : undefined
           });
 
           if (emailSent) {

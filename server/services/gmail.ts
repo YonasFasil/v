@@ -206,12 +206,17 @@ ${this.config.email}
     subject: string;
     content: string;
     customerName: string;
+    attachments?: Array<{
+      filename: string;
+      content: Buffer;
+      contentType?: string;
+    }>;
   }): Promise<boolean> {
     if (!this.transporter || !this.config) {
       throw new Error('Gmail not configured. Please set up Gmail credentials first.');
     }
 
-    const { to, subject, content, customerName } = options;
+    const { to, subject, content, customerName, attachments } = options;
     
     const htmlContent = `
       <!DOCTYPE html>
@@ -237,6 +242,13 @@ ${this.config.email}
           
           ${content.split('\n').map(line => `<p>${line}</p>`).join('')}
           
+          ${attachments && attachments.length > 0 ? `
+          <div style="background: #e3f2fd; padding: 15px; border-left: 4px solid #2196f3; margin: 20px 0; border-radius: 4px;">
+            <strong>📎 Attachments included:</strong><br>
+            ${attachments.map(att => att.filename).join('<br>')}
+          </div>
+          ` : ''}
+          
           <p>Best regards,<br>
           <strong>Venuine Events Team</strong></p>
         </div>
@@ -250,13 +262,24 @@ ${this.config.email}
     `;
 
     try {
-      await this.transporter.sendMail({
+      const mailOptions: any = {
         from: `"Venuine Events" <${this.config.email}>`,
         to,
         subject,
         html: htmlContent,
         text: `Dear ${customerName},\n\n${content}\n\nBest regards,\nVenuine Events Team`
-      });
+      };
+
+      // Add attachments if provided
+      if (attachments && attachments.length > 0) {
+        mailOptions.attachments = attachments.map(att => ({
+          filename: att.filename,
+          content: att.content,
+          contentType: att.contentType
+        }));
+      }
+
+      await this.transporter.sendMail(mailOptions);
       return true;
     } catch (error) {
       console.error('Failed to send message:', error);

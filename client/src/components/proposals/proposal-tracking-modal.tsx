@@ -251,7 +251,27 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", `/api/proposals/${proposalId}/communications`, data);
+      const formData = new FormData();
+      formData.append('type', data.type);
+      formData.append('direction', data.direction);
+      if (data.subject) formData.append('subject', data.subject);
+      formData.append('content', data.content);
+      formData.append('customerId', data.customerId);
+      
+      // Add attachments
+      attachments.forEach((file, index) => {
+        formData.append('attachments', file);
+      });
+      
+      const response = await fetch(`/api/proposals/${proposalId}/communications`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       return response.json();
     },
     onSuccess: () => {
