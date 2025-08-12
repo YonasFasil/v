@@ -162,7 +162,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
       console.log('Using embedded event data from proposal');
       return [{
         id: `proposal-event-${proposal.id}`,
-        eventName: proposal.title.replace(/^Proposal for\s+/i, ''),
+        eventName: proposal.title ? proposal.title.replace(/^Proposal for\s+/i, '') : 'Untitled Event',
         eventType: proposal.eventType || 'corporate',
         customerId: proposal.customerId,
         venueId: proposal.venueId || '',
@@ -173,7 +173,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
         guestCount: proposal.guestCount,
         status: 'proposal_shared',
         totalAmount: proposal.totalAmount,
-        notes: `Proposal: ${proposal.title}`
+        notes: `Proposal: ${proposal.title || 'Untitled'}`
       }];
     }
 
@@ -344,7 +344,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
         <DialogHeader className="border-b pb-4">
           <DialogTitle className="flex items-center gap-3">
             <FileText className="h-5 w-5 text-blue-500" />
-            <span>{proposal.title || proposal.eventName}</span>
+            <span>{proposal.title || proposal.eventName || 'Untitled Event'}</span>
             <Badge variant={proposal.status === 'sent' ? 'default' : 'secondary'}>
               {proposal.status}
             </Badge>
