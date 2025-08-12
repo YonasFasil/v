@@ -326,23 +326,61 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         packageSubtotal = packagePrice;
       }
       
+      // Get package tax/fee overrides
+      const packageOverrides = dateConfig.serviceTaxOverrides?.[selectedPackage.id] || { 
+        enabledTaxIds: [], enabledFeeIds: [], disabledInheritedTaxIds: [], disabledInheritedFeeIds: [] 
+      };
+      
+      // Calculate effective fee IDs for package (inherited + additional - disabled)
+      const inheritedFeeIds = selectedPackage.enabledFeeIds || [];
+      const additionalFeeIds = packageOverrides.enabledFeeIds || [];
+      const disabledFeeIds = packageOverrides.disabledInheritedFeeIds || [];
+      const effectivePackageFeeIds = [...inheritedFeeIds.filter((id: string) => !disabledFeeIds.includes(id)), ...additionalFeeIds];
+      
+      // Calculate effective tax IDs for package (inherited + additional - disabled)  
+      const inheritedTaxIds = selectedPackage.enabledTaxIds || [];
+      const additionalTaxIds = packageOverrides.enabledTaxIds || [];
+      const disabledTaxIds = packageOverrides.disabledInheritedTaxIds || [];
+      const effectivePackageTaxIds = [...inheritedTaxIds.filter((id: string) => !disabledTaxIds.includes(id)), ...additionalTaxIds];
+      
       // Apply package fees
-      (selectedPackage.enabledFeeIds || []).forEach(feeId => {
+      let packageFeeAmount = 0;
+      effectivePackageFeeIds.forEach(feeId => {
         const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
         if (feeSetting && (feeSetting.type === 'fee' || feeSetting.type === 'service_charge')) {
+          let feeAmount = 0;
           if (feeSetting.calculation === 'percentage') {
-            feesTotal += (packageSubtotal * parseFloat(feeSetting.value)) / 100;
+            feeAmount = (packageSubtotal * parseFloat(feeSetting.value)) / 100;
           } else {
-            feesTotal += parseFloat(feeSetting.value);
+            feeAmount = parseFloat(feeSetting.value);
           }
+          feesTotal += feeAmount;
+          packageFeeAmount += feeAmount;
         }
       });
       
-      // Apply package taxes
-      (selectedPackage.enabledTaxIds || []).forEach(taxId => {
+      // Apply package taxes (to base package amount + fees if fee is taxable)
+      effectivePackageTaxIds.forEach(taxId => {
         const taxSetting = (taxSettings as any[])?.find((s: any) => s.id === taxId && s.isActive);
         if (taxSetting) {
-          taxesTotal += (packageSubtotal * parseFloat(taxSetting.value)) / 100;
+          let taxableAmount = packageSubtotal;
+          
+          // Add fees to taxable amount if any applied fees are taxable
+          effectivePackageFeeIds.forEach((feeId: string) => {
+            const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
+            if (feeSetting && feeSetting.isTaxable && (feeSetting.applicableTaxIds || []).includes(taxId)) {
+              let feeAmount = 0;
+              if (feeSetting.calculation === 'percentage') {
+                feeAmount = (packageSubtotal * parseFloat(feeSetting.value)) / 100;
+              } else {
+                feeAmount = parseFloat(feeSetting.value);
+              }
+              taxableAmount += feeAmount;
+            }
+          });
+          
+          const taxAmount = (taxableAmount * parseFloat(taxSetting.value)) / 100;
+          taxesTotal += taxAmount;
         }
       });
     }
@@ -375,13 +413,13 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         const inheritedFeeIds = service.enabledFeeIds || [];
         const additionalFeeIds = currentOverrides.enabledFeeIds || [];
         const disabledFeeIds = currentOverrides.disabledInheritedFeeIds || [];
-        const effectiveFeeIds = [...inheritedFeeIds.filter(id => !disabledFeeIds.includes(id)), ...additionalFeeIds];
+        const effectiveFeeIds = [...inheritedFeeIds.filter((id: string) => !disabledFeeIds.includes(id)), ...additionalFeeIds];
         
         // Calculate effective tax IDs (inherited + additional - disabled)
         const inheritedTaxIds = service.enabledTaxIds || [];
         const additionalTaxIds = currentOverrides.enabledTaxIds || [];
         const disabledTaxIds = currentOverrides.disabledInheritedTaxIds || [];
-        const effectiveTaxIds = [...inheritedTaxIds.filter(id => !disabledTaxIds.includes(id)), ...additionalTaxIds];
+        const effectiveTaxIds = [...inheritedTaxIds.filter((id: string) => !disabledTaxIds.includes(id)), ...additionalTaxIds];
         
         // Apply service fees and track them for potential tax application
         let serviceFeeAmount = 0;
