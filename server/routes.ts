@@ -2637,7 +2637,7 @@ This is a test email from your Venuine venue management system.
       // Re-send the proposal email
       const emailService = new EmailService();
       const baseUrl = process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000';
-      const proposalViewLink = `${baseUrl}/proposal/view/${customer.id}`;
+      const proposalViewLink = `${baseUrl}/proposal/${proposal.id}`;
       
       try {
         await emailService.sendProposalEmail({
