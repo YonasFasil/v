@@ -42,7 +42,9 @@ import {
   Check,
   XCircle,
   RefreshCw,
-  Play
+  Play,
+  Calculator,
+  Percent
 } from "lucide-react";
 
 export default function Settings() {
@@ -125,6 +127,26 @@ export default function Settings() {
       acceptCheck: true,
       acceptCash: true,
       acceptWireTransfer: false
+    },
+    taxes: {
+      enabled: false,
+      salesTaxRate: 0,
+      serviceTaxRate: 0,
+      label: "Tax",
+      inclusive: false
+    },
+    fees: {
+      serviceFeesEnabled: false,
+      serviceFeeType: "percentage",
+      serviceFeeAmount: 0,
+      serviceFeeLabel: "Service Fee",
+      processingFeesEnabled: false,
+      processingFeeType: "percentage", 
+      processingFeeAmount: 0,
+      processingFeeLabel: "Processing Fee",
+      setupFeesEnabled: false,
+      setupFeeAmount: 0,
+      setupFeeLabel: "Setup Fee"
     }
   });
 
@@ -252,7 +274,7 @@ export default function Settings() {
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-1 h-auto p-1 bg-slate-100">
+              <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-1 h-auto p-1 bg-slate-100">
                 <TabsTrigger value="general" className="data-[state=active]:bg-white flex flex-col gap-1 py-3 px-2">
                   <Building2 className="w-4 h-4" />
                   <span className="text-xs">General</span>
@@ -268,6 +290,10 @@ export default function Settings() {
                 <TabsTrigger value="beo" className="data-[state=active]:bg-white flex flex-col gap-1 py-3 px-2">
                   <FileOutput className="w-4 h-4" />
                   <span className="text-xs">BEO</span>
+                </TabsTrigger>
+                <TabsTrigger value="taxes" className="data-[state=active]:bg-white flex flex-col gap-1 py-3 px-2">
+                  <Calculator className="w-4 h-4" />
+                  <span className="text-xs">Taxes & Fees</span>
                 </TabsTrigger>
                 <TabsTrigger value="payments" className="data-[state=active]:bg-white flex flex-col gap-1 py-3 px-2">
                   <CreditCard className="w-4 h-4" />
@@ -1286,7 +1312,386 @@ export default function Settings() {
                 </Card>
               </TabsContent>
 
-              {/* Taxes and Fees Settings */}
+              {/* Taxes & Fees Settings */}
+              <TabsContent value="taxes" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Calculator className="w-5 h-5 text-green-600" />
+                      Tax Configuration
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <Label className="text-base font-medium">Enable Tax Calculation</Label>
+                          <p className="text-sm text-slate-600">Automatically calculate taxes on bookings and invoices</p>
+                        </div>
+                        <Switch
+                          checked={formData.taxes?.enabled || false}
+                          onCheckedChange={(checked) => updateFormData("taxes", "enabled", checked)}
+                        />
+                      </div>
+
+                      {formData.taxes?.enabled && (
+                        <>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                              <Label htmlFor="salesTaxRate">Sales Tax Rate (%)</Label>
+                              <div className="relative">
+                                <Input
+                                  id="salesTaxRate"
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  max="100"
+                                  value={formData.taxes?.salesTaxRate || ""}
+                                  onChange={(e) => updateFormData("taxes", "salesTaxRate", parseFloat(e.target.value))}
+                                  placeholder="8.25"
+                                />
+                                <Percent className="w-4 h-4 absolute right-3 top-3 text-gray-400" />
+                              </div>
+                              <p className="text-xs text-slate-500">Standard sales tax percentage for your location</p>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="serviceTaxRate">Service Tax Rate (%)</Label>
+                              <div className="relative">
+                                <Input
+                                  id="serviceTaxRate"
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  max="100"
+                                  value={formData.taxes?.serviceTaxRate || ""}
+                                  onChange={(e) => updateFormData("taxes", "serviceTaxRate", parseFloat(e.target.value))}
+                                  placeholder="3.50"
+                                />
+                                <Percent className="w-4 h-4 absolute right-3 top-3 text-gray-400" />
+                              </div>
+                              <p className="text-xs text-slate-500">Additional tax for services and labor</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="taxLabel">Tax Label</Label>
+                            <Input
+                              id="taxLabel"
+                              value={formData.taxes?.label || ""}
+                              onChange={(e) => updateFormData("taxes", "label", e.target.value)}
+                              placeholder="Sales Tax"
+                            />
+                            <p className="text-xs text-slate-500">How taxes will be labeled on invoices and proposals</p>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                              <Label className="text-base font-medium">Tax Inclusive Pricing</Label>
+                              <p className="text-sm text-slate-600">Show prices with tax included rather than as separate line items</p>
+                            </div>
+                            <Switch
+                              checked={formData.taxes?.inclusive || false}
+                              onCheckedChange={(checked) => updateFormData("taxes", "inclusive", checked)}
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="pt-4 border-t">
+                      <Button 
+                        onClick={() => handleSaveSection("taxes")}
+                        disabled={saveSettingsMutation.isPending}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <Save className="w-4 h-4 mr-2" />
+                        Save Tax Settings
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CreditCard className="w-5 h-5 text-purple-600" />
+                      Additional Fees
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <Label className="text-base font-medium">Service Fee</Label>
+                          <p className="text-sm text-slate-600">Flat or percentage-based service fee</p>
+                        </div>
+                        <Switch
+                          checked={formData.fees?.serviceFeesEnabled || false}
+                          onCheckedChange={(checked) => updateFormData("fees", "serviceFeesEnabled", checked)}
+                        />
+                      </div>
+
+                      {formData.fees?.serviceFeesEnabled && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 ml-6">
+                          <div className="space-y-2">
+                            <Label>Fee Type</Label>
+                            <Select
+                              value={formData.fees?.serviceFeeType || "percentage"}
+                              onValueChange={(value) => updateFormData("fees", "serviceFeeType", value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="percentage">Percentage</SelectItem>
+                                <SelectItem value="fixed">Fixed Amount</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Amount</Label>
+                            <div className="relative">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={formData.fees?.serviceFeeAmount || ""}
+                                onChange={(e) => updateFormData("fees", "serviceFeeAmount", parseFloat(e.target.value))}
+                                placeholder={formData.fees?.serviceFeeType === "fixed" ? "50.00" : "15.00"}
+                              />
+                              {formData.fees?.serviceFeeType === "percentage" && (
+                                <Percent className="w-4 h-4 absolute right-3 top-3 text-gray-400" />
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Label</Label>
+                            <Input
+                              value={formData.fees?.serviceFeeLabel || ""}
+                              onChange={(e) => updateFormData("fees", "serviceFeeLabel", e.target.value)}
+                              placeholder="Service Fee"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <Label className="text-base font-medium">Processing Fee</Label>
+                          <p className="text-sm text-slate-600">Credit card processing or payment handling fee</p>
+                        </div>
+                        <Switch
+                          checked={formData.fees?.processingFeesEnabled || false}
+                          onCheckedChange={(checked) => updateFormData("fees", "processingFeesEnabled", checked)}
+                        />
+                      </div>
+
+                      {formData.fees?.processingFeesEnabled && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 ml-6">
+                          <div className="space-y-2">
+                            <Label>Fee Type</Label>
+                            <Select
+                              value={formData.fees?.processingFeeType || "percentage"}
+                              onValueChange={(value) => updateFormData("fees", "processingFeeType", value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="percentage">Percentage</SelectItem>
+                                <SelectItem value="fixed">Fixed Amount</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Amount</Label>
+                            <div className="relative">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={formData.fees?.processingFeeAmount || ""}
+                                onChange={(e) => updateFormData("fees", "processingFeeAmount", parseFloat(e.target.value))}
+                                placeholder={formData.fees?.processingFeeType === "fixed" ? "25.00" : "2.90"}
+                              />
+                              {formData.fees?.processingFeeType === "percentage" && (
+                                <Percent className="w-4 h-4 absolute right-3 top-3 text-gray-400" />
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Label</Label>
+                            <Input
+                              value={formData.fees?.processingFeeLabel || ""}
+                              onChange={(e) => updateFormData("fees", "processingFeeLabel", e.target.value)}
+                              placeholder="Processing Fee"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <Label className="text-base font-medium">Setup Fee</Label>
+                          <p className="text-sm text-slate-600">One-time setup or booking fee</p>
+                        </div>
+                        <Switch
+                          checked={formData.fees?.setupFeesEnabled || false}
+                          onCheckedChange={(checked) => updateFormData("fees", "setupFeesEnabled", checked)}
+                        />
+                      </div>
+
+                      {formData.fees?.setupFeesEnabled && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ml-6">
+                          <div className="space-y-2">
+                            <Label>Amount</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={formData.fees?.setupFeeAmount || ""}
+                              onChange={(e) => updateFormData("fees", "setupFeeAmount", parseFloat(e.target.value))}
+                              placeholder="100.00"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Label</Label>
+                            <Input
+                              value={formData.fees?.setupFeeLabel || ""}
+                              onChange={(e) => updateFormData("fees", "setupFeeLabel", e.target.value)}
+                              placeholder="Setup Fee"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-4 border-t">
+                      <Button 
+                        onClick={() => handleSaveSection("fees")}
+                        disabled={saveSettingsMutation.isPending}
+                        className="bg-purple-600 hover:bg-purple-700"
+                      >
+                        <Save className="w-4 h-4 mr-2" />
+                        Save Fee Settings
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <AlertCircle className="w-5 h-5 text-orange-600" />
+                      Preview Calculation
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="p-4 bg-slate-50 rounded-lg">
+                      <h4 className="font-semibold mb-3">Sample Booking Calculation</h4>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span>Venue Rental</span>
+                          <span>$1,000.00</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Services & Packages</span>
+                          <span>$500.00</span>
+                        </div>
+                        <hr className="my-2" />
+                        <div className="flex justify-between text-slate-600">
+                          <span>Subtotal</span>
+                          <span>$1,500.00</span>
+                        </div>
+                        {formData.fees?.serviceFeesEnabled && (
+                          <div className="flex justify-between text-slate-600">
+                            <span>{formData.fees?.serviceFeeLabel || "Service Fee"}</span>
+                            <span>
+                              {formData.fees?.serviceFeeType === "percentage" 
+                                ? `$${((1500 * (formData.fees?.serviceFeeAmount || 0)) / 100).toFixed(2)}`
+                                : `$${(formData.fees?.serviceFeeAmount || 0).toFixed(2)}`
+                              }
+                            </span>
+                          </div>
+                        )}
+                        {formData.fees?.setupFeesEnabled && (
+                          <div className="flex justify-between text-slate-600">
+                            <span>{formData.fees?.setupFeeLabel || "Setup Fee"}</span>
+                            <span>${(formData.fees?.setupFeeAmount || 0).toFixed(2)}</span>
+                          </div>
+                        )}
+                        {formData.taxes?.enabled && (
+                          <div className="flex justify-between text-slate-600">
+                            <span>{formData.taxes?.label || "Tax"}</span>
+                            <span>
+                              ${(((1500 + 
+                                (formData.fees?.serviceFeesEnabled && formData.fees?.serviceFeeType === "percentage" 
+                                  ? (1500 * (formData.fees?.serviceFeeAmount || 0)) / 100 
+                                  : formData.fees?.serviceFeeAmount || 0) +
+                                (formData.fees?.setupFeesEnabled ? formData.fees?.setupFeeAmount || 0 : 0)
+                              ) * ((formData.taxes?.salesTaxRate || 0) + (formData.taxes?.serviceTaxRate || 0))) / 100).toFixed(2)}
+                            </span>
+                          </div>
+                        )}
+                        {formData.fees?.processingFeesEnabled && (
+                          <div className="flex justify-between text-slate-600">
+                            <span>{formData.fees?.processingFeeLabel || "Processing Fee"}</span>
+                            <span>
+                              {formData.fees?.processingFeeType === "percentage" 
+                                ? `$${((1500 * (formData.fees?.processingFeeAmount || 0)) / 100).toFixed(2)}`
+                                : `$${(formData.fees?.processingFeeAmount || 0).toFixed(2)}`
+                              }
+                            </span>
+                          </div>
+                        )}
+                        <hr className="my-2" />
+                        <div className="flex justify-between font-semibold text-lg">
+                          <span>Total</span>
+                          <span>
+                            ${(() => {
+                              let subtotal = 1500;
+                              
+                              // Add service fee
+                              if (formData.fees?.serviceFeesEnabled) {
+                                subtotal += formData.fees?.serviceFeeType === "percentage" 
+                                  ? (1500 * (formData.fees?.serviceFeeAmount || 0)) / 100
+                                  : formData.fees?.serviceFeeAmount || 0;
+                              }
+                              
+                              // Add setup fee
+                              if (formData.fees?.setupFeesEnabled) {
+                                subtotal += formData.fees?.setupFeeAmount || 0;
+                              }
+                              
+                              // Add taxes
+                              if (formData.taxes?.enabled) {
+                                subtotal += (subtotal * ((formData.taxes?.salesTaxRate || 0) + (formData.taxes?.serviceTaxRate || 0))) / 100;
+                              }
+                              
+                              // Add processing fee
+                              if (formData.fees?.processingFeesEnabled) {
+                                subtotal += formData.fees?.processingFeeType === "percentage" 
+                                  ? (subtotal * (formData.fees?.processingFeeAmount || 0)) / 100
+                                  : formData.fees?.processingFeeAmount || 0;
+                              }
+                              
+                              return subtotal.toFixed(2);
+                            })()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Payments Settings */}
               <TabsContent value="payments" className="space-y-6">
                 <Card>
                   <CardHeader>
