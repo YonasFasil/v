@@ -74,6 +74,202 @@ export default function Proposals() {
     setShowTrackingModal(true);
   };
 
+  // Filter proposals based on status
+  const getFilteredProposals = (status: string) => {
+    switch (status) {
+      case 'draft': return proposals.filter((p: any) => p.status === 'draft');
+      case 'sent': return proposals.filter((p: any) => p.status === 'sent');
+      case 'viewed': return proposals.filter((p: any) => p.emailOpened);
+      case 'accepted': return proposals.filter((p: any) => p.status === 'accepted');
+      default: return proposals;
+    }
+  };
+
+  // Render proposal table/cards
+  const renderProposalsList = (filteredProposals: any[]) => (
+    <>
+      {/* Mobile Cards View */}
+      <div className="sm:hidden space-y-3">
+        {filteredProposals.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="flex flex-col items-center gap-3">
+              <FileText className="h-12 w-12 text-gray-300" />
+              <div>
+                <p className="font-medium text-gray-900">No proposals found</p>
+                <p className="text-sm text-gray-500">Proposals sent through the event creation process will appear here</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          filteredProposals.map((proposal: any) => (
+            <Card key={proposal.id} className="p-3">
+              <div className="space-y-2">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h3 className="font-medium text-sm">{proposal.title}</h3>
+                    <p className="text-xs text-gray-600">{proposal.customerName}</p>
+                  </div>
+                  <Badge className={`${getStatusColor(proposal.status)} text-xs`}>
+                    <div className="flex items-center gap-1">
+                      {getStatusIcon(proposal.status)}
+                      {proposal.status}
+                    </div>
+                  </Badge>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-gray-500">Date:</span>
+                    <div>{proposal.eventDate ? format(new Date(proposal.eventDate), 'MMM d, yyyy') : 'N/A'}</div>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Amount:</span>
+                    <div className="font-medium">${parseFloat(proposal.totalAmount || 0).toLocaleString()}</div>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Created:</span>
+                    <div>{format(new Date(proposal.createdAt), 'MMM d')}</div>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Deposit:</span>
+                    <div className={proposal.depositPaid ? "text-green-600" : "text-gray-500"}>
+                      {proposal.depositPaid ? "Paid" : "Pending"}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleViewProposal(proposal.id)}
+                    className="flex-1 text-xs"
+                  >
+                    <Eye className="h-3 w-3 mr-1" />
+                    View
+                  </Button>
+                  <Button size="sm" variant="outline" className="flex-1 text-xs">
+                    <Edit className="h-3 w-3 mr-1" />
+                    Edit
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden sm:block border rounded-lg">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-xs sm:text-sm">Proposal</TableHead>
+              <TableHead className="text-xs sm:text-sm">Customer</TableHead>
+              <TableHead className="text-xs sm:text-sm">Event Date</TableHead>
+              <TableHead className="text-xs sm:text-sm">Amount</TableHead>
+              <TableHead className="text-xs sm:text-sm">Status</TableHead>
+              <TableHead className="text-xs sm:text-sm">Deposit</TableHead>
+              <TableHead className="text-xs sm:text-sm">Created</TableHead>
+              <TableHead className="text-xs sm:text-sm">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredProposals.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-8">
+                  <div className="flex flex-col items-center gap-3">
+                    <FileText className="h-12 w-12 text-gray-300" />
+                    <div>
+                      <p className="font-medium text-gray-900">No proposals found</p>
+                      <p className="text-sm text-gray-500">Proposals sent through the event creation process will appear here</p>
+                    </div>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredProposals.map((proposal: any) => (
+                <TableRow 
+                  key={proposal.id}
+                  className="hover:bg-gray-50 cursor-pointer"
+                  onClick={() => handleViewProposal(proposal.id)}
+                >
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{proposal.title}</div>
+                      <div className="text-sm text-gray-500">{proposal.eventName}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{proposal.customer?.name}</div>
+                      <div className="text-sm text-gray-500">{proposal.customer?.email}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {proposal.eventDate 
+                      ? format(new Date(proposal.eventDate), "MMM d, yyyy")
+                      : "TBD"
+                    }
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    ${parseFloat(proposal.totalAmount).toFixed(2)}
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={getStatusColor(proposal.status)}>
+                      {getStatusIcon(proposal.status)}
+                      <span className="ml-1">{proposal.status.charAt(0).toUpperCase() + proposal.status.slice(1)}</span>
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      <div className="font-medium text-green-600">
+                        ${parseFloat(proposal.depositAmount).toFixed(2)}
+                      </div>
+                      {proposal.depositPaid ? (
+                        <Badge className="bg-green-100 text-green-800 text-xs">
+                          ✓ Paid
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs">
+                          Pending
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm text-gray-500">
+                    {format(new Date(proposal.createdAt), "MMM d, yyyy")}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewProposal(proposal.id);
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </>
+  );
+
   if (isLoading) {
     return (
       <div className="flex h-screen overflow-hidden bg-slate-50">
@@ -180,222 +376,31 @@ export default function Proposals() {
             <CardContent>
               <Tabs defaultValue="all" className="space-y-3 sm:space-y-4">
                 <TabsList className="grid w-full grid-cols-5 text-xs sm:text-sm">
-                  <TabsTrigger value="all" className="px-2 sm:px-4">All</TabsTrigger>
-                  <TabsTrigger value="draft" className="px-2 sm:px-4">Drafts</TabsTrigger>
-                  <TabsTrigger value="sent" className="px-2 sm:px-4">Sent</TabsTrigger>
-                  <TabsTrigger value="viewed" className="px-2 sm:px-4">Viewed</TabsTrigger>
-                  <TabsTrigger value="accepted" className="px-2 sm:px-4">Accepted</TabsTrigger>
+                  <TabsTrigger value="all" className="px-2 sm:px-4">All ({metrics.total})</TabsTrigger>
+                  <TabsTrigger value="draft" className="px-2 sm:px-4">Drafts ({proposals.filter((p: any) => p.status === 'draft').length})</TabsTrigger>
+                  <TabsTrigger value="sent" className="px-2 sm:px-4">Sent ({metrics.sent})</TabsTrigger>
+                  <TabsTrigger value="viewed" className="px-2 sm:px-4">Viewed ({metrics.viewed})</TabsTrigger>
+                  <TabsTrigger value="accepted" className="px-2 sm:px-4">Accepted ({metrics.accepted})</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="all">
-                  {/* Mobile Cards View */}
-                  <div className="sm:hidden space-y-3">
-                    {proposals.length === 0 ? (
-                      <div className="text-center py-8">
-                        <div className="flex flex-col items-center gap-3">
-                          <FileText className="h-12 w-12 text-gray-300" />
-                          <div>
-                            <p className="font-medium text-gray-900">No proposals sent yet</p>
-                            <p className="text-sm text-gray-500">Proposals sent through the event creation process will appear here</p>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      proposals.map((proposal: any) => (
-                        <Card key={proposal.id} className="p-3">
-                          <div className="space-y-2">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <h3 className="font-medium text-sm">{proposal.title}</h3>
-                                <p className="text-xs text-gray-600">{proposal.customerName}</p>
-                              </div>
-                              <Badge className={`${getStatusColor(proposal.status)} text-xs`}>
-                                <div className="flex items-center gap-1">
-                                  {getStatusIcon(proposal.status)}
-                                  {proposal.status}
-                                </div>
-                              </Badge>
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                              <div>
-                                <span className="text-gray-500">Date:</span>
-                                <div>{proposal.eventDate ? format(new Date(proposal.eventDate), 'MMM d, yyyy') : 'N/A'}</div>
-                              </div>
-                              <div>
-                                <span className="text-gray-500">Amount:</span>
-                                <div className="font-medium">${parseFloat(proposal.totalAmount || 0).toLocaleString()}</div>
-                              </div>
-                              <div>
-                                <span className="text-gray-500">Created:</span>
-                                <div>{format(new Date(proposal.createdAt), 'MMM d')}</div>
-                              </div>
-                              <div>
-                                <span className="text-gray-500">Deposit:</span>
-                                <div className={proposal.depositPaid ? "text-green-600" : "text-gray-500"}>
-                                  {proposal.depositPaid ? "Paid" : "Pending"}
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <div className="flex gap-2 pt-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleViewProposal(proposal.id)}
-                                className="flex-1 text-xs"
-                              >
-                                <Eye className="h-3 w-3 mr-1" />
-                                View
-                              </Button>
-                              <Button size="sm" variant="outline" className="flex-1 text-xs">
-                                <Edit className="h-3 w-3 mr-1" />
-                                Edit
-                              </Button>
-                            </div>
-                          </div>
-                        </Card>
-                      ))
-                    )}
-                  </div>
-
-                  {/* Desktop Table View */}
-                  <div className="hidden sm:block border rounded-lg">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-xs sm:text-sm">Proposal</TableHead>
-                          <TableHead className="text-xs sm:text-sm">Customer</TableHead>
-                          <TableHead className="text-xs sm:text-sm">Event Date</TableHead>
-                          <TableHead className="text-xs sm:text-sm">Amount</TableHead>
-                          <TableHead className="text-xs sm:text-sm">Status</TableHead>
-                          <TableHead className="text-xs sm:text-sm">Deposit</TableHead>
-                          <TableHead className="text-xs sm:text-sm">Created</TableHead>
-                          <TableHead className="text-xs sm:text-sm">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {proposals.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={8} className="text-center py-8">
-                              <div className="flex flex-col items-center gap-3">
-                                <FileText className="h-12 w-12 text-gray-300" />
-                                <div>
-                                  <p className="font-medium text-gray-900">No proposals sent yet</p>
-                                  <p className="text-sm text-gray-500">Proposals sent through the event creation process will appear here</p>
-                                </div>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          proposals.map((proposal: any) => (
-                            <TableRow 
-                              key={proposal.id}
-                              className="hover:bg-gray-50 cursor-pointer"
-                              onClick={() => handleViewProposal(proposal.id)}
-                            >
-                              <TableCell>
-                                <div>
-                                  <div className="font-medium">{proposal.title}</div>
-                                  <div className="text-sm text-gray-500">{proposal.eventName}</div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div>
-                                  <div className="font-medium">{proposal.customer?.name}</div>
-                                  <div className="text-sm text-gray-500">{proposal.customer?.email}</div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                {proposal.eventDate 
-                                  ? format(new Date(proposal.eventDate), "MMM d, yyyy")
-                                  : "TBD"
-                                }
-                              </TableCell>
-                              <TableCell className="font-medium">
-                                ${parseFloat(proposal.totalAmount).toFixed(2)}
-                              </TableCell>
-                              <TableCell>
-                                <Badge className={getStatusColor(proposal.status)}>
-                                  {getStatusIcon(proposal.status)}
-                                  <span className="ml-1">{proposal.status.charAt(0).toUpperCase() + proposal.status.slice(1)}</span>
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm">
-                                  <div className="font-medium text-green-600">
-                                    ${parseFloat(proposal.depositAmount).toFixed(2)}
-                                  </div>
-                                  {proposal.depositPaid ? (
-                                    <Badge className="bg-green-100 text-green-800 text-xs">
-                                      ✓ Paid
-                                    </Badge>
-                                  ) : (
-                                    <Badge variant="outline" className="text-xs">
-                                      Pending
-                                    </Badge>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-sm text-gray-500">
-                                {format(new Date(proposal.createdAt), "MMM d, yyyy")}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleViewProposal(proposal.id);
-                                    }}
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
+                  {renderProposalsList(getFilteredProposals('all'))}
                 </TabsContent>
 
-                {/* Other tab contents would filter the proposals array */}
                 <TabsContent value="draft">
-                  <div className="text-center py-8 text-gray-500">
-                    <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>Draft proposals will be shown here</p>
-                  </div>
+                  {renderProposalsList(getFilteredProposals('draft'))}
                 </TabsContent>
 
                 <TabsContent value="sent">
-                  <div className="text-center py-8 text-gray-500">
-                    <Send className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>Sent proposals will be shown here</p>
-                  </div>
+                  {renderProposalsList(getFilteredProposals('sent'))}
                 </TabsContent>
 
                 <TabsContent value="viewed">
-                  <div className="text-center py-8 text-gray-500">
-                    <Eye className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>Viewed proposals will be shown here</p>
-                  </div>
+                  {renderProposalsList(getFilteredProposals('viewed'))}
                 </TabsContent>
 
                 <TabsContent value="accepted">
-                  <div className="text-center py-8 text-gray-500">
-                    <CheckCircle2 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>Accepted proposals will be shown here</p>
-                  </div>
+                  {renderProposalsList(getFilteredProposals('accepted'))}
                 </TabsContent>
               </Tabs>
             </CardContent>
