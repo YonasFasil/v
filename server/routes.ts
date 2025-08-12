@@ -2803,6 +2803,81 @@ This is a test email from your Venuine venue management system.
         status: proposal.status === 'sent' ? 'viewed' : proposal.status
       });
 
+      // Get real event data from linked booking
+      let eventDates = [];
+      try {
+        // Find the booking linked to this proposal
+        const bookings = await storage.getBookings();
+        const linkedBooking = bookings.find(b => b.proposalId === proposal.id);
+        
+        if (linkedBooking) {
+          console.log('Found linked booking for proposal:', proposal.id);
+          // Get venue and space information
+          const venues = await storage.getVenues();
+          const spaces = await storage.getSpaces();
+          const bookingVenue = venues.find(v => v.id === linkedBooking.venueId);
+          const space = spaces.find(s => s.id === linkedBooking.spaceId);
+          
+          // Get package and services information
+          let packageName = null;
+          let services = [];
+          
+          if (linkedBooking.packageId) {
+            const packages = await storage.getPackages();
+            const packageData = packages.find(p => p.id === linkedBooking.packageId);
+            packageName = packageData?.name || null;
+          }
+          
+          if (linkedBooking.selectedServices && linkedBooking.selectedServices.length > 0) {
+            const allServices = await storage.getServices();
+            services = linkedBooking.selectedServices.map(serviceId => {
+              const service = allServices.find(s => s.id === serviceId);
+              return service ? {
+                name: service.name,
+                price: parseFloat(service.price)
+              } : null;
+            }).filter(Boolean);
+          }
+          
+          eventDates = [{
+            date: linkedBooking.eventDate ? linkedBooking.eventDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            startTime: linkedBooking.startTime || "TBD",
+            endTime: linkedBooking.endTime || "TBD",
+            venue: bookingVenue?.name || "Venue Location",
+            space: space?.name || "Event Space",
+            guestCount: linkedBooking.guestCount || 1,
+            packageName: packageName,
+            services: services
+          }];
+          console.log('Generated event dates:', eventDates);
+        } else {
+          console.log('No linked booking found for proposal:', proposal.id);
+          // Fallback to proposal data if no linked booking found
+          eventDates = [{
+            date: proposal.eventDate || new Date().toISOString().split('T')[0],
+            startTime: proposal.startTime || "TBD",
+            endTime: proposal.endTime || "TBD",
+            venue: proposal.venue || "Venue Location",
+            space: proposal.space || "Event Space",
+            guestCount: proposal.guestCount || 1,
+            packageName: "Event Package",
+            services: []
+          }];
+        }
+      } catch (error) {
+        console.error('Error fetching event data for proposal:', error);
+        eventDates = [{
+          date: proposal.eventDate || new Date().toISOString().split('T')[0],
+          startTime: "TBD",
+          endTime: "TBD",
+          venue: "Venue Location",
+          space: "Event Space",
+          guestCount: proposal.guestCount || 1,
+          packageName: null,
+          services: []
+        }];
+      }
+
       // Return proposal data formatted for client viewing
       res.json({
         id: proposal.id,
@@ -2827,24 +2902,7 @@ This is a test email from your Venuine venue management system.
           name: venue.name,
           description: venue.description
         } : null,
-        // Sample event dates and company info for display
-        eventDates: [
-          {
-            date: proposal.eventDate || new Date().toISOString().split('T')[0],
-            startTime: proposal.eventTime?.split(' - ')[0] || "6:00 PM",
-            endTime: proposal.eventTime?.split(' - ')[1] || "11:00 PM",
-            venue: proposal.venue || "Grand Ballroom",
-            space: proposal.space || "Main Hall",
-            guestCount: proposal.guestCount || 150,
-            packageName: "Premium Wedding Package",
-            services: [
-              { name: "Full Bar Service", price: 1500 },
-              { name: "DJ & Sound System", price: 800 },
-              { name: "Wedding Cake", price: 500 },
-              { name: "Floral Arrangements", price: 750 }
-            ]
-          }
-        ],
+        eventDates: eventDates,
         companyInfo: {
           name: "Venuine Events",
           address: "123 Celebration Drive, Event City, EC 12345",
