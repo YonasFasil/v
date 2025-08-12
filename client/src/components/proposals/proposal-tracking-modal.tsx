@@ -29,7 +29,8 @@ import {
   X,
   ChevronDown,
   ChevronRight,
-  MessageCircle
+  MessageCircle,
+  Shield
 } from "lucide-react";
 
 interface Proposal {
@@ -577,10 +578,18 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                       };
 
                       // Extract preview (first line or 100 chars)
-                      const preview = comm.content ? 
-                        (comm.content.split('\n')[0].length > 100 ? 
-                          comm.content.split('\n')[0].substring(0, 100) + '...' : 
-                          comm.content.split('\n')[0]) : '';
+                      // Create a clean preview that strips HTML if present
+                      const getCleanPreview = (content: string) => {
+                        if (content.includes('<!DOCTYPE html>') || content.includes('<html>')) {
+                          const tempDiv = document.createElement('div');
+                          tempDiv.innerHTML = content;
+                          const cleanText = tempDiv.textContent || tempDiv.innerText || content;
+                          return cleanText.length > 100 ? cleanText.substring(0, 100) + '...' : cleanText;
+                        }
+                        return content.length > 100 ? content.substring(0, 100) + '...' : content;
+                      };
+                      
+                      const preview = comm.content ? getCleanPreview(comm.content.split('\n')[0]) : '';
 
                       return (
                         <div key={comm.id} className={`border-l-4 pl-4 py-3 bg-white hover:bg-gray-50 rounded-r transition-colors ${
@@ -650,7 +659,20 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                                 {/* Full Message Content */}
                                 <div className="bg-gray-50 p-3 rounded border">
                                   <div className="text-xs text-gray-500 mb-2 font-medium">Message Content:</div>
-                                  <div className="whitespace-pre-wrap text-gray-800">{comm.message || comm.content}</div>
+                                  <div className="whitespace-pre-wrap text-gray-800">
+                                    {/* Strip HTML from content and show clean text */}
+                                    {(() => {
+                                      const content = comm.message || comm.content;
+                                      // If content contains HTML, extract text content
+                                      if (content.includes('<!DOCTYPE html>') || content.includes('<html>')) {
+                                        // Create a temporary div to parse HTML and extract text
+                                        const tempDiv = document.createElement('div');
+                                        tempDiv.innerHTML = content;
+                                        return tempDiv.textContent || tempDiv.innerText || content;
+                                      }
+                                      return content;
+                                    })()}
+                                  </div>
                                 </div>
 
                                 {/* Detailed Information */}
@@ -694,17 +716,17 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                                   </div>
                                 </div>
 
-                                {/* Attachments (if any) */}
-                                {comm.attachments && comm.attachments.length > 0 && (
-                                  <div className={`p-3 rounded border ${comm.direction === 'inbound' ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'}`}>
-                                    <div className={`text-xs font-medium mb-2 ${comm.direction === 'inbound' ? 'text-green-700' : 'text-blue-700'}`}>
-                                      Attachments ({comm.attachments.length}):
+                                {/* Attachments (only show for outbound communications for security) */}
+                                {comm.direction === 'outbound' && comm.attachments && comm.attachments.length > 0 && (
+                                  <div className="bg-blue-50 border-blue-200 p-3 rounded border">
+                                    <div className="text-xs font-medium mb-2 text-blue-700">
+                                      Attachments Sent ({comm.attachments.length}):
                                     </div>
                                     <div className="space-y-1">
                                       {comm.attachments.map((attachment: any, idx: number) => (
                                         <div key={idx} className="flex items-center gap-2 text-xs">
-                                          <Paperclip className={`h-3 w-3 ${comm.direction === 'inbound' ? 'text-green-500' : 'text-blue-500'}`} />
-                                          <span className={comm.direction === 'inbound' ? 'text-green-700' : 'text-blue-700'}>
+                                          <Paperclip className="h-3 w-3 text-blue-500" />
+                                          <span className="text-blue-700">
                                             {attachment.name || `Attachment ${idx + 1}`}
                                           </span>
                                           {attachment.size && (
@@ -712,6 +734,16 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                                           )}
                                         </div>
                                       ))}
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {/* Security notice for inbound communications */}
+                                {comm.direction === 'inbound' && (
+                                  <div className="bg-amber-50 border-amber-200 p-2 rounded border">
+                                    <div className="text-xs text-amber-700 flex items-center gap-1">
+                                      <Shield className="h-3 w-3" />
+                                      Customer attachments are not displayed for security reasons
                                     </div>
                                   </div>
                                 )}
