@@ -90,9 +90,11 @@ const TEMPLATES = [
 
 export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSave }: SetupStyleFloorPlanModalProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [elements, setElements] = useState<FloorPlanElement[]>(
-    setupStyle?.floorPlan?.elements || setupStyle?.floorPlan?.objects || []
-  );
+  const [elements, setElements] = useState<FloorPlanElement[]>(() => {
+    const initialData = setupStyle?.floorPlan?.elements || setupStyle?.floorPlan?.objects || [];
+    // Deep clone initial data to prevent reference sharing
+    return JSON.parse(JSON.stringify(initialData));
+  });
   const [selectedElements, setSelectedElements] = useState<string[]>([]);
   const [mode, setMode] = useState<'select' | 'add' | 'pan'>('select');
   const [selectedType, setSelectedType] = useState(ELEMENT_TYPES[0]);
@@ -513,12 +515,15 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
 
 
   const handleSave = () => {
+    // Create proper deep clones to prevent reference sharing across setup styles
+    const elementsClone = JSON.parse(JSON.stringify(elements));
     const floorPlan = {
-      elements,
-      objects: elements, // Keep both formats for compatibility
-      dimensions: canvasSize,
-      canvasSize
+      elements: elementsClone,
+      objects: JSON.parse(JSON.stringify(elements)), // Keep both formats for compatibility with separate clones
+      dimensions: { ...canvasSize },
+      canvasSize: { ...canvasSize }
     };
+    console.log('Saving floor plan for setup:', setupStyle?.name, 'with', elementsClone.length, 'elements');
     onSave(floorPlan);
     onOpenChange(false);
   };
