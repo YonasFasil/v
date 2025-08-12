@@ -1042,9 +1042,26 @@ export class MemStorage implements IStorage {
 
   async updateBooking(id: string, booking: Partial<InsertBooking>): Promise<Booking | undefined> {
     const existing = this.bookings.get(id);
-    if (!existing) return undefined;
+    if (!existing) {
+      console.log('❌ STORAGE: Booking not found:', id);
+      return undefined;
+    }
+    
+    console.log('🔍 STORAGE UPDATE:', {
+      bookingId: id,
+      existingEventName: existing.eventName,
+      newEventName: booking.eventName,
+      updateFields: Object.keys(booking)
+    });
+    
     const updated = { ...existing, ...booking };
     this.bookings.set(id, updated);
+    
+    console.log('✅ STORAGE UPDATED:', {
+      bookingId: updated.id,
+      finalEventName: updated.eventName
+    });
+    
     return updated;
   }
 
