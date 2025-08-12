@@ -801,6 +801,11 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                     : `Send ${messageType === 'email' ? 'Email' : 'Note'}`
                   }
                 </Button>
+                
+                {/* Debug info - remove this after testing */}
+                <div className="text-xs text-red-500 p-1 bg-red-50 rounded">
+                  Debug: Message length: {newMessage.length} | Content: "{newMessage}" | Disabled: {(!newMessage.trim()).toString()}
+                </div>
 
                 {messageType === 'email' && (
                   <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded">
