@@ -231,13 +231,6 @@ export default function Settings() {
               </div>
               <div className="flex gap-3">
                 <Button 
-                  variant="outline"
-                  onClick={() => window.location.reload()}
-                  className="bg-white"
-                >
-                  Reset Changes
-                </Button>
-                <Button 
                   onClick={handleSaveAll}
                   disabled={saveSettingsMutation.isPending}
                   className="bg-blue-600 hover:bg-blue-700"
