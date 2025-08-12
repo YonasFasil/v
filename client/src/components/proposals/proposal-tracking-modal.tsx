@@ -149,8 +149,17 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
 
   // Find related events - with precise matching to avoid mixing up different proposals
   const relatedEvents = proposal ? (() => {
+    console.log('=== PROPOSAL EVENT MATCHING DEBUG ===');
+    console.log('Proposal ID:', proposal.id);
+    console.log('Proposal Title:', proposal.title);
+    console.log('Proposal Customer ID:', proposal.customerId);
+    console.log('Proposal Booking ID:', proposal.bookingId);
+    console.log('Proposal Sent At:', proposal.sentAt);
+    console.log('Total Bookings Available:', bookings.length);
+    
     // For direct proposals with event data embedded in the proposal
     if (proposal.eventDate && proposal.guestCount) {
+      console.log('Using embedded event data from proposal');
       return [{
         id: `proposal-event-${proposal.id}`,
         eventName: proposal.title.replace(/^Proposal for\s+/i, ''),
@@ -170,9 +179,12 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
 
     // FIRST: Try direct proposal ID matching (most reliable)
     const directMatch = bookings.filter(booking => booking.proposalId === proposal.id);
+    console.log('Direct proposalId matches:', directMatch.length);
     if (directMatch.length > 0) {
+      console.log('Found direct proposal ID match:', directMatch.map(b => ({id: b.id, eventName: b.eventName})));
       return directMatch.flatMap((booking) => {
         if (booking.contractEvents && booking.contractEvents.length > 0) {
+          console.log('Returning contract events for direct match:', booking.contractEvents.length);
           return booking.contractEvents;
         }
         return [booking];
@@ -181,18 +193,24 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
 
     // SECOND: Try bookingId from proposal (reverse relationship)
     if (proposal.bookingId) {
+      console.log('Checking reverse booking ID:', proposal.bookingId);
       const bookingMatch = bookings.find(booking => booking.id === proposal.bookingId);
       if (bookingMatch) {
+        console.log('Found reverse booking match:', bookingMatch.eventName);
         if (bookingMatch.contractEvents && bookingMatch.contractEvents.length > 0) {
+          console.log('Returning contract events for reverse match:', bookingMatch.contractEvents.length);
           return bookingMatch.contractEvents;
         }
         return [bookingMatch];
+      } else {
+        console.log('No booking found for booking ID:', proposal.bookingId);
       }
     }
 
     // THIRD: For proposals created from booking flow - precise time-based matching
     if (proposal.sentAt) {
       const proposalTime = new Date(proposal.sentAt).getTime();
+      console.log('Trying time-based matching for proposal sent at:', proposalTime);
       
       // Find bookings that were created at the exact same time as this proposal was sent
       const timeMatchedBookings = bookings.filter((booking) => {
@@ -205,13 +223,18 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
         const bookingProposalTime = new Date(booking.proposalSentAt).getTime();
         const timeDiff = Math.abs(proposalTime - bookingProposalTime);
         
+        console.log(`Checking booking ${booking.eventName}: time diff = ${timeDiff}ms`);
+        
         // Very tight window - only 5 seconds to ensure precision
         return timeDiff < 5000;
       });
       
+      console.log('Time-based matches:', timeMatchedBookings.length);
       if (timeMatchedBookings.length > 0) {
+        console.log('Found time-based matches:', timeMatchedBookings.map(b => ({id: b.id, eventName: b.eventName})));
         return timeMatchedBookings.flatMap((booking) => {
           if (booking.contractEvents && booking.contractEvents.length > 0) {
+            console.log('Returning contract events for time match:', booking.contractEvents.length);
             return booking.contractEvents;
           }
           return [booking];
@@ -220,7 +243,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     }
 
     // FOURTH: No fallback matching to prevent mixing up different proposals
-    // Only show event data if we have a precise match
+    console.log('No precise matches found - returning empty array');
     return [];
   })() : [];
 
