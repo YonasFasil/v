@@ -2065,24 +2065,54 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
   // Gmail test connection endpoint
   app.post("/api/gmail/test", async (req, res) => {
     try {
-      const { email, appPassword } = req.body;
-      
-      if (!email || !appPassword) {
-        return res.status(400).json({ message: "Email and app password are required" });
-      }
+      // Check if Gmail service is already configured with env vars
+      if (!gmailService.isConfigured()) {
+        // Check if env vars are available
+        if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+          // Fall back to request body if env vars not set (for settings page)
+          const { email, appPassword } = req.body;
+          
+          if (!email || !appPassword) {
+            return res.status(400).json({ 
+              message: "Gmail credentials not configured. Please set GMAIL_USER and GMAIL_APP_PASSWORD environment variables or provide email and appPassword in request body." 
+            });
+          }
 
-      // Configure Gmail temporarily for testing
-      gmailService.configure({ email, appPassword });
+          // Configure Gmail temporarily for testing
+          gmailService.configure({ email, appPassword });
+        } else {
+          // Configure with environment variables
+          gmailService.configure({
+            email: process.env.GMAIL_USER,
+            appPassword: process.env.GMAIL_APP_PASSWORD
+          });
+        }
+      }
       
       const isWorking = await gmailService.testConnection();
       
       if (isWorking) {
-        res.json({ success: true, message: "Gmail connection successful!" });
+        res.json({ 
+          success: true, 
+          message: `Gmail connection successful! Connected as: ${gmailService.getConfiguredEmail()}` 
+        });
       } else {
-        res.status(400).json({ message: "Gmail connection failed. Please check your credentials." });
+        res.status(400).json({ 
+          success: false,
+          message: "Gmail connection failed. Please check your credentials:\n\n1. Use your full Gmail address\n2. Use a 16-character App Password (NOT your regular Gmail password)\n3. Make sure 2-Factor Authentication is enabled\n4. Generate a new App Password if this one isn't working" 
+        });
       }
     } catch (error: any) {
-      res.status(400).json({ message: `Gmail test failed: ${error.message}` });
+      console.error("Gmail test error:", error);
+      
+      let errorMessage = "Gmail connection test failed";
+      if (error.message?.includes('Invalid login') || error.message?.includes('Username and Password not accepted')) {
+        errorMessage = "Authentication failed: Invalid Gmail App Password. Please generate a new App Password from Google Account settings.";
+      } else if (error.message?.includes('Invalid credentials')) {
+        errorMessage = "Invalid Gmail credentials. Make sure you're using an App Password, not your regular Gmail password.";
+      }
+      
+      res.status(400).json({ success: false, message: errorMessage });
     }
   });
 
@@ -4630,39 +4660,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     }
   });
 
-  // Gmail connection test endpoint
-  app.post("/api/gmail/test", async (req, res) => {
-    try {
-      const { email, appPassword } = req.body;
-      
-      if (!email || !appPassword) {
-        return res.status(400).json({ message: "Email and app password are required" });
-      }
 
-      gmailService.configure({ email, appPassword });
-      const isValid = await gmailService.testConnection();
-      
-      if (isValid) {
-        res.json({ success: true, message: "Gmail connection successful!" });
-      } else {
-        res.status(400).json({ 
-          success: false, 
-          message: "Gmail authentication failed. Please check your credentials:\n\n1. Use your full Gmail address\n2. Use a 16-character App Password (NOT your regular Gmail password)\n3. Make sure 2-Factor Authentication is enabled\n4. Generate a new App Password if this one isn't working"
-        });
-      }
-    } catch (error: any) {
-      console.error("Gmail test error:", error);
-      
-      let errorMessage = "Gmail connection test failed";
-      if (error.message?.includes('Invalid login') || error.message?.includes('Username and Password not accepted')) {
-        errorMessage = "Authentication failed: Invalid Gmail App Password. Please generate a new App Password from Google Account settings.";
-      } else if (error.message?.includes('Invalid credentials')) {
-        errorMessage = "Invalid Gmail credentials. Make sure you're using an App Password, not your regular Gmail password.";
-      }
-      
-      res.status(400).json({ success: false, message: errorMessage });
-    }
-  });
 
   const httpServer = createServer(app);
   return httpServer;

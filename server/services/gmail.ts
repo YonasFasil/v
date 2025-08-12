@@ -288,5 +288,13 @@ ${this.config.email}
   }
 }
 
-// Global instance
+// Global instance - initialize with environment variables if available
 export const gmailService = new GmailService();
+
+// Configure with environment variables on startup
+if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+  gmailService.configure({
+    email: process.env.GMAIL_USER,
+    appPassword: process.env.GMAIL_APP_PASSWORD
+  });
+}
