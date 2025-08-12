@@ -663,13 +663,36 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                                     {/* Strip HTML from content and show clean text */}
                                     {(() => {
                                       const content = comm.message || comm.content;
-                                      // If content contains HTML, extract text content
-                                      if (content.includes('<!DOCTYPE html>') || content.includes('<html>')) {
-                                        // Create a temporary div to parse HTML and extract text
-                                        const tempDiv = document.createElement('div');
-                                        tempDiv.innerHTML = content;
-                                        return tempDiv.textContent || tempDiv.innerText || content;
+                                      
+                                      // Check if content contains HTML tags or CSS
+                                      if (content.includes('<') && content.includes('>')) {
+                                        try {
+                                          // Create a temporary div to parse HTML and extract text
+                                          const tempDiv = document.createElement('div');
+                                          tempDiv.innerHTML = content;
+                                          
+                                          // Remove script and style elements
+                                          const scripts = tempDiv.querySelectorAll('script, style');
+                                          scripts.forEach(el => el.remove());
+                                          
+                                          // Get clean text content
+                                          let cleanText = tempDiv.textContent || tempDiv.innerText || '';
+                                          
+                                          // Clean up extra whitespace and format nicely
+                                          cleanText = cleanText
+                                            .replace(/\s+/g, ' ')  // Replace multiple spaces with single space
+                                            .replace(/\n\s*\n/g, '\n')  // Remove extra line breaks
+                                            .trim();
+                                          
+                                          // If we successfully extracted readable text, return it
+                                          if (cleanText && cleanText.length > 10) {
+                                            return cleanText;
+                                          }
+                                        } catch (error) {
+                                          console.warn('Error parsing HTML content:', error);
+                                        }
                                       }
+                                      
                                       return content;
                                     })()}
                                   </div>
@@ -771,7 +794,27 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                                 className="cursor-pointer hover:text-gray-800"
                                 onClick={toggleExpanded}
                               >
-                                {preview || (comm.message || comm.content)?.substring(0, 100) + '...'}
+                                {(() => {
+                                  const content = comm.message || comm.content;
+                                  let displayContent = preview || content;
+                                  
+                                  // If content contains HTML, extract clean text for preview
+                                  if (displayContent && displayContent.includes('<') && displayContent.includes('>')) {
+                                    try {
+                                      const tempDiv = document.createElement('div');
+                                      tempDiv.innerHTML = displayContent;
+                                      const scripts = tempDiv.querySelectorAll('script, style');
+                                      scripts.forEach(el => el.remove());
+                                      const cleanText = tempDiv.textContent || tempDiv.innerText || '';
+                                      displayContent = cleanText.replace(/\s+/g, ' ').trim();
+                                    } catch (error) {
+                                      // Fallback to original content if parsing fails
+                                    }
+                                  }
+                                  
+                                  const truncated = displayContent?.substring(0, 100) + (displayContent?.length > 100 ? '...' : '');
+                                  return truncated;
+                                })()}
                                 {(comm.message || comm.content) && (comm.message || comm.content).length > 100 && (
                                   <span className="text-blue-500 ml-1 text-xs">Click to expand</span>
                                 )}
