@@ -3233,19 +3233,69 @@ This is a test email from your Venuine venue management system.
 
   app.post("/api/proposals/:id/communications", async (req, res) => {
     try {
-      const validatedData = insertCommunicationSchema.parse(req.body);
-      const communication = await storage.createCommunication({
-        ...validatedData,
-        proposalId: req.params.id
-      });
+      console.log('Received communication data:', req.body);
+      
+      // Validate and prepare communication data
+      const communicationData = {
+        proposalId: req.params.id,
+        customerId: req.body.customerId,
+        type: req.body.type || "email",
+        direction: req.body.direction || "outbound",
+        subject: req.body.subject || null,
+        message: req.body.content || req.body.message,
+        sentBy: req.body.sentBy || "user",
+        status: "sent"
+      };
 
-      // If it's an email, simulate sending
+      console.log('Processed communication data:', communicationData);
+
+      // Validate with schema
+      const validatedData = insertCommunicationSchema.parse(communicationData);
+      const communication = await storage.createCommunication(validatedData);
+
+      // If it's an email, attempt to send it
       if (validatedData.type === "email" && validatedData.direction === "outbound") {
-        console.log(`Email sent for proposal ${req.params.id}: ${validatedData.subject}`);
+        try {
+          console.log(`Attempting to send email for proposal ${req.params.id}:`, validatedData.subject);
+          
+          // Get proposal and customer info
+          const proposal = await storage.getProposal(req.params.id);
+          const customer = await storage.getCustomer(validatedData.customerId);
+          
+          if (!proposal || !customer) {
+            throw new Error("Proposal or customer not found");
+          }
+
+          // Send email using Gmail service
+          const emailSent = await gmailService.sendMessage({
+            to: customer.email,
+            subject: validatedData.subject || "Follow-up on your event proposal",
+            content: validatedData.message,
+            customerName: customer.name
+          });
+
+          if (emailSent) {
+            // Update communication status to sent
+            await storage.updateCommunication(communication.id, { status: "sent" });
+            console.log(`✅ Email successfully sent for proposal ${req.params.id}`);
+          } else {
+            // Update communication status to failed
+            await storage.updateCommunication(communication.id, { status: "failed" });
+            console.log(`❌ Email failed to send for proposal ${req.params.id}`);
+          }
+        } catch (emailError) {
+          console.error("Email sending failed:", emailError);
+          // Update communication status to failed
+          await storage.updateCommunication(communication.id, { 
+            status: "failed",
+            message: `${validatedData.message} [EMAIL SEND FAILED: ${emailError instanceof Error ? emailError.message : 'Unknown error'}]`
+          });
+        }
       }
 
       res.status(201).json(communication);
     } catch (error: any) {
+      console.error("Communication creation error:", error);
       res.status(400).json({ message: error.message });
     }
   });

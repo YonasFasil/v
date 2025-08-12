@@ -200,6 +200,69 @@ ${this.config.email}
   getConfiguredEmail(): string {
     return this.config?.email || "";
   }
+
+  async sendMessage(options: {
+    to: string;
+    subject: string;
+    content: string;
+    customerName: string;
+  }): Promise<boolean> {
+    if (!this.transporter || !this.config) {
+      throw new Error('Gmail not configured. Please set up Gmail credentials first.');
+    }
+
+    const { to, subject, content, customerName } = options;
+    
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${subject}</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f8f9fa; padding: 20px; border-radius: 0 0 10px 10px; }
+          .footer { text-align: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h2>Message from Venuine Events</h2>
+        </div>
+        
+        <div class="content">
+          <p>Dear ${customerName},</p>
+          
+          ${content.split('\n').map(line => `<p>${line}</p>`).join('')}
+          
+          <p>Best regards,<br>
+          <strong>Venuine Events Team</strong></p>
+        </div>
+        
+        <div class="footer">
+          <p>Venuine Events | Professional Event Management</p>
+          <p><a href="mailto:${this.config.email}">${this.config.email}</a></p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: `"Venuine Events" <${this.config.email}>`,
+        to,
+        subject,
+        html: htmlContent,
+        text: `Dear ${customerName},\n\n${content}\n\nBest regards,\nVenuine Events Team`
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      throw new Error(`Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
 }
 
 // Global instance

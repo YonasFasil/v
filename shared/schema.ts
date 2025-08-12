@@ -170,6 +170,7 @@ export const settings = pgTable("settings", {
 export const communications = pgTable("communications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   bookingId: varchar("booking_id").references(() => bookings.id),
+  proposalId: varchar("proposal_id").references(() => proposals.id),
   customerId: varchar("customer_id").references(() => customers.id),
   type: text("type").notNull(), // email, sms, call, internal
   direction: text("direction").notNull(), // inbound, outbound
