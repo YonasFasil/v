@@ -2874,14 +2874,17 @@ This is a test email from your Venuine venue management system.
         });
       }
 
-      // Record communication
+      // Record communication with enhanced tracking
       await storage.createCommunication({
+        proposalId: proposal.id, // Link to proposal for tracking
         customerId: customer.id,
         type: 'email',
         direction: 'outbound',
-        subject: `Updated Proposal for ${eventData.eventName}`,
-        message: `Updated proposal resent to customer with current event details: ${eventData.eventName} on ${new Date(eventData.eventDate).toLocaleDateString()}`,
-        timestamp: new Date()
+        subject: `Updated Proposal for ${eventData.eventName} (RESENT)`,
+        message: `✉️ Proposal resent with updated event details\n\nEvent: ${eventData.eventName}\nDate: ${new Date(eventData.eventDate).toLocaleDateString()}\nTime: ${eventData.startTime} - ${eventData.endTime}\nGuests: ${eventData.guestCount}\nTotal Amount: $${eventData.totalAmount || proposal.totalAmount}\n\nNote: This is a resent proposal with current event information.`,
+        sentBy: process.env.GMAIL_USER || "system",
+        sentAt: new Date(),
+        status: "sent"
       });
 
       res.json({ 

@@ -314,9 +314,10 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     onSuccess: () => {
       toast({
         title: "Proposal Resent",
-        description: "The proposal has been resent to the customer"
+        description: "The proposal has been resent to the customer with updated event details"
       });
       queryClient.invalidateQueries({ queryKey: [`/api/proposals/${proposalId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/proposals/${proposalId}/communications`] });
     },
     onError: (error: any) => {
       console.error('Resend proposal error:', error);
