@@ -102,6 +102,7 @@ export interface IStorage {
   getCommunication(id: string): Promise<Communication | undefined>;
   getCommunicationsByProposal(proposalId: string): Promise<Communication[]>;
   getCommunicationsByCustomer(customerId: string): Promise<Communication[]>;
+  getCommunicationByMessageId(messageId: string): Promise<Communication | undefined>;
   createCommunication(communication: InsertCommunication): Promise<Communication>;
   updateCommunication(id: string, communication: Partial<InsertCommunication>): Promise<Communication | undefined>;
 
@@ -1397,6 +1398,10 @@ export class MemStorage implements IStorage {
     return Array.from(this.communications.values()).filter(c => c.customerId === customerId);
   }
 
+  async getCommunicationByMessageId(messageId: string): Promise<Communication | undefined> {
+    return Array.from(this.communications.values()).find(c => (c as any).emailMessageId === messageId);
+  }
+
   async createCommunication(communication: InsertCommunication): Promise<Communication> {
     const newCommunication: Communication = {
       id: randomUUID(),
@@ -1407,8 +1412,10 @@ export class MemStorage implements IStorage {
       direction: communication.direction,
       subject: communication.subject || null,
       message: communication.message,
-      sentBy: communication.sentBy || null,
-      sentAt: new Date(),
+      sender: (communication as any).sender || null,
+      recipient: (communication as any).recipient || null,
+      emailMessageId: (communication as any).emailMessageId || null,
+      sentAt: (communication as any).sentAt || new Date(),
       readAt: communication.readAt || null,
       status: communication.status || "sent"
     };

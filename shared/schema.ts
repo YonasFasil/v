@@ -176,10 +176,12 @@ export const communications = pgTable("communications", {
   direction: text("direction").notNull(), // inbound, outbound
   subject: text("subject"),
   message: text("message").notNull(),
-  sentBy: text("sent_by"),
+  sender: text("sender"), // Email sender address
+  recipient: text("recipient"), // Email recipient address
+  emailMessageId: text("email_message_id").unique(), // Unique email message ID for duplicate detection
   sentAt: timestamp("sent_at").defaultNow(),
   readAt: timestamp("read_at"),
-  status: text("status").default("sent"), // sent, delivered, read, failed
+  status: text("status").default("sent"), // sent, delivered, read, failed, received
 });
 
 export const payments = pgTable("payments", {

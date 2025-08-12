@@ -12,6 +12,7 @@ interface ParsedEmailReply {
   subject: string;
   content: string;
   receivedDate: Date;
+  messageId: string; // Unique email message ID
   inReplyTo?: string;
   references?: string[];
   proposalId?: string;
@@ -22,6 +23,7 @@ export class EmailMonitorService {
   private monitoringActive = false;
   private monitoringInterval: NodeJS.Timeout | null = null;
   private lastCheckTime: Date = new Date();
+  private processedMessageIds = new Set<string>(); // Track processed message IDs
 
   constructor(config?: EmailMonitorConfig) {
     if (config) {
@@ -147,8 +149,15 @@ export class EmailMonitorService {
           const from = envelope.from?.[0]?.address;
           const subject = envelope.subject;
           const date = envelope.date;
+          const messageId = envelope.messageId || `${from}-${date?.getTime()}-${Math.random()}`;
           
           if (!from || !subject || !date) continue;
+          
+          // Skip if already processed
+          if (this.processedMessageIds.has(messageId)) {
+            console.log(`⏭️ Skipping already processed email: ${messageId.substring(0, 50)}...`);
+            continue;
+          }
           
           // Get text content
           let content = '';
@@ -162,7 +171,8 @@ export class EmailMonitorService {
             from,
             subject,
             content,
-            date
+            date,
+            messageId
           });
           
         } catch (msgError) {
@@ -189,17 +199,28 @@ export class EmailMonitorService {
 
   private async processIncomingEmail(email: any): Promise<void> {
     try {
+      // Mark this message as processed to prevent duplicates
+      this.processedMessageIds.add(email.messageId);
+      
       const parsedReply: ParsedEmailReply = {
         from: email.from,
         subject: email.subject,
         content: this.cleanEmailContent(email.content),
-        receivedDate: new Date(email.date)
+        receivedDate: new Date(email.date),
+        messageId: email.messageId
       };
 
       // Try to match this reply to a proposal
       const proposalId = await this.findProposalForReply(parsedReply);
       if (!proposalId) {
         console.log('No matching proposal found for email reply from:', parsedReply.from);
+        return;
+      }
+
+      // Check if this exact message has already been recorded in the database
+      const existingComm = await storage.getCommunicationByMessageId(email.messageId);
+      if (existingComm) {
+        console.log(`⏭️ Email already recorded in database: ${email.messageId.substring(0, 50)}...`);
         return;
       }
 
@@ -337,6 +358,7 @@ export class EmailMonitorService {
         message: reply.content,
         sender: reply.from,
         recipient: this.config?.email || 'venue',
+        emailMessageId: reply.messageId,
         status: 'received' as const,
         sentAt: reply.receivedDate,
       };
