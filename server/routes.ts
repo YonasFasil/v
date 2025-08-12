@@ -3242,7 +3242,7 @@ This is a test email from your Venuine venue management system.
         type: req.body.type || "email",
         direction: req.body.direction || "outbound",
         subject: req.body.subject || null,
-        message: req.body.content || req.body.message,
+        message: req.body.content || req.body.message || "",
         sentBy: req.body.sentBy || "user",
         status: "sent"
       };
@@ -3262,8 +3262,11 @@ This is a test email from your Venuine venue management system.
           const proposal = await storage.getProposal(req.params.id);
           const customer = await storage.getCustomer(validatedData.customerId);
           
+          console.log('Proposal lookup result:', proposal ? 'Found' : 'Not found');
+          console.log('Customer lookup result:', customer ? 'Found' : 'Not found');
+          
           if (!proposal || !customer) {
-            throw new Error("Proposal or customer not found");
+            throw new Error(`Proposal or customer not found - Proposal: ${proposal ? 'Found' : 'Not found'}, Customer: ${customer ? 'Found' : 'Not found'}`);
           }
 
           // Send email using Gmail service
