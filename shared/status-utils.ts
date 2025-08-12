@@ -73,7 +73,7 @@ export const STATUS_CONFIGS: Record<EventStatus, StatusConfig> = {
     isActive: true
   },
   confirmed_deposit_paid: {
-    label: "Confirmed (Deposit Paid)",
+    label: "Confirmed Deposited",
     description: "Deposit received, balance payment pending",
     color: "#8b5cf6", // violet-500  
     bgColor: "bg-violet-50",
@@ -85,7 +85,7 @@ export const STATUS_CONFIGS: Record<EventStatus, StatusConfig> = {
     isActive: true
   },
   confirmed_fully_paid: {
-    label: "Confirmed (Fully Paid)",
+    label: "Confirmed Paid",
     description: "All payments received, event ready",
     color: "#10b981", // emerald-500
     bgColor: "bg-emerald-50", 
