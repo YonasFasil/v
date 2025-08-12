@@ -2142,46 +2142,73 @@ This is a test email from your Venuine venue management system.
         return res.status(400).json({ message: "Gmail not configured. Please set up Gmail credentials in Settings > Integrations." });
       }
 
-      await gmailService.sendProposal({
-        to,
-        customerName,
-        proposalContent,
-        totalAmount,
-        validUntil,
-        companyName,
-        proposalId: req.body.proposalId,
-        baseUrl: `${req.protocol}://${req.get('host')}`
-      });
+      // Prepare communication tracking data first
+      const subject = `Event Proposal from ${companyName || 'Venuine Events'}`;
+      const proposalUrl = `${req.protocol}://${req.get('host')}/proposal/${req.body.proposalId}`;
+      const emailBody = `Event proposal sent to ${customerName}.\n\nProposal includes:\n${proposalContent}\n\nTotal Amount: $${totalAmount}\n${validUntil ? `Valid Until: ${validUntil}` : ''}\n\nProposal Link: ${proposalUrl}`;
 
-      // Track the initial proposal email in communications history and update proposal status
-      if (req.body.proposalId) {
-        try {
-          const subject = `Event Proposal from ${companyName || 'Venuine Events'}`;
-          const proposalUrl = `${req.protocol}://${req.get('host')}/proposal/${req.body.proposalId}`;
-          const emailBody = `New event proposal has been sent to ${customerName}.\n\nProposal includes:\n${proposalContent}\n\nTotal Amount: $${totalAmount}\n${validUntil ? `Valid Until: ${validUntil}` : ''}\n\nProposal Link: ${proposalUrl}`;
+      try {
+        // Attempt to send the email
+        await gmailService.sendProposal({
+          to,
+          customerName,
+          proposalContent,
+          totalAmount,
+          validUntil,
+          companyName,
+          proposalId: req.body.proposalId,
+          baseUrl: `${req.protocol}://${req.get('host')}`
+        });
 
-          await storage.createCommunication({
-            proposalId: req.body.proposalId,
-            type: "email",
-            direction: "outbound",
-            subject: subject,
-            message: emailBody,
-            sentBy: gmailService.getConfiguredEmail() || "system",
-            sentAt: new Date(),
-            status: "sent"
-          });
+        // Track successful email in communications history
+        if (req.body.proposalId) {
+          try {
+            await storage.createCommunication({
+              proposalId: req.body.proposalId,
+              type: "email",
+              direction: "outbound",
+              subject: subject,
+              message: emailBody + "\n\n✅ Status: Successfully sent",
+              sentBy: gmailService.getConfiguredEmail() || "system",
+              sentAt: new Date(),
+              status: "sent"
+            });
 
-          // Update proposal status to "sent"
-          await storage.updateProposal(req.body.proposalId, { 
-            status: "sent",
-            sentAt: new Date()
-          });
+            // Update proposal status to "sent"
+            await storage.updateProposal(req.body.proposalId, { 
+              status: "sent",
+              sentAt: new Date()
+            });
 
-          console.log(`Communication tracked and proposal status updated for ${req.body.proposalId}`);
-        } catch (commError) {
-          console.error('Failed to track communication:', commError);
-          // Don't fail the proposal sending if communication tracking fails
+            console.log(`Email sent and communication tracked for proposal ${req.body.proposalId}`);
+          } catch (commError) {
+            console.error('Failed to track successful communication:', commError);
+          }
         }
+
+      } catch (emailError: any) {
+        // Track failed email attempt in communications history
+        if (req.body.proposalId) {
+          try {
+            await storage.createCommunication({
+              proposalId: req.body.proposalId,
+              type: "email",
+              direction: "outbound",
+              subject: subject + " [FAILED]",
+              message: emailBody + `\n\n❌ Status: Failed to send\nError: ${emailError.message}\n\nNote: Please check Gmail configuration in Settings > Integrations`,
+              sentBy: gmailService.getConfiguredEmail() || "system",
+              sentAt: new Date(),
+              status: "failed"
+            });
+
+            console.log(`Failed email attempt tracked for proposal ${req.body.proposalId}`);
+          } catch (commError) {
+            console.error('Failed to track failed communication:', commError);
+          }
+        }
+        
+        // Re-throw the original error
+        throw emailError;
       }
 
       // Create a tentative booking if event data is provided
