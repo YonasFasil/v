@@ -26,7 +26,9 @@ import {
   MapPin,
   Users,
   Paperclip,
-  X
+  X,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
 
 interface Proposal {
@@ -114,6 +116,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
   const [emailSubject, setEmailSubject] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [showEmailComposer, setShowEmailComposer] = useState(false);
+  const [expandedComms, setExpandedComms] = useState<Set<string>>(new Set());
 
   // Fetch proposal details
   const { data: proposal, isLoading, refetch } = useQuery<Proposal>({
@@ -524,32 +527,101 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                       <p>No communications yet</p>
                     </div>
                   ) : (
-                    communications.map((comm) => (
-                      <div key={comm.id} className="border-l-4 border-blue-200 pl-4 py-2">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2">
-                            {comm.type === 'email' && <Mail className="h-4 w-4 text-blue-500" />}
-                            {comm.type === 'phone' && <Phone className="h-4 w-4 text-green-500" />}
-                            {comm.type === 'note' && <MessageSquare className="h-4 w-4 text-gray-500" />}
-                            <span className="font-medium text-sm">
-                              {comm.direction === 'outbound' ? 'Sent' : 'Received'}
+                    communications.map((comm) => {
+                      const isExpanded = expandedComms.has(comm.id);
+                      const toggleExpanded = () => {
+                        const newExpanded = new Set(expandedComms);
+                        if (isExpanded) {
+                          newExpanded.delete(comm.id);
+                        } else {
+                          newExpanded.add(comm.id);
+                        }
+                        setExpandedComms(newExpanded);
+                      };
+
+                      // Extract preview (first line or 100 chars)
+                      const preview = comm.content ? 
+                        (comm.content.split('\n')[0].length > 100 ? 
+                          comm.content.split('\n')[0].substring(0, 100) + '...' : 
+                          comm.content.split('\n')[0]) : '';
+
+                      return (
+                        <div key={comm.id} className="border-l-4 border-blue-200 pl-4 py-2 bg-white hover:bg-gray-50 rounded-r transition-colors">
+                          {/* Clickable Header */}
+                          <div 
+                            className="flex items-center justify-between mb-1 cursor-pointer"
+                            onClick={toggleExpanded}
+                          >
+                            <div className="flex items-center gap-2">
+                              {/* Expand/Collapse Icon */}
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-gray-400" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-gray-400" />
+                              )}
+                              
+                              {/* Communication Type Icon */}
+                              {comm.type === 'email' && <Mail className="h-4 w-4 text-blue-500" />}
+                              {comm.type === 'phone' && <Phone className="h-4 w-4 text-green-500" />}
+                              {comm.type === 'note' && <MessageSquare className="h-4 w-4 text-gray-500" />}
+                              
+                              <span className="font-medium text-sm">
+                                {comm.direction === 'outbound' ? 'Sent' : 'Received'}
+                              </span>
+                              <Badge variant="outline" className="text-xs">
+                                {comm.type}
+                              </Badge>
+                              
+                              {/* Status indicator for failed emails */}
+                              {comm.status === 'failed' && (
+                                <Badge variant="destructive" className="text-xs">
+                                  Failed
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              {comm.createdAt && !isNaN(new Date(comm.createdAt).getTime()) 
+                                ? format(new Date(comm.createdAt), "MMM d, h:mm a")
+                                : "Unknown"}
                             </span>
-                            <Badge variant="outline" className="text-xs">
-                              {comm.type}
-                            </Badge>
                           </div>
-                          <span className="text-xs text-gray-500">
-                            {comm.createdAt && !isNaN(new Date(comm.createdAt).getTime()) 
-                              ? format(new Date(comm.createdAt), "MMM d, h:mm a")
-                              : "Unknown"}
-                          </span>
+
+                          {/* Subject Line */}
+                          {comm.subject && (
+                            <div 
+                              className="text-sm font-medium mb-1 cursor-pointer hover:text-blue-600"
+                              onClick={toggleExpanded}
+                            >
+                              {comm.subject}
+                            </div>
+                          )}
+
+                          {/* Content Preview/Full */}
+                          <div className="text-sm text-gray-600">
+                            {isExpanded ? (
+                              <div className="bg-gray-50 p-3 rounded border mt-2">
+                                <div className="whitespace-pre-wrap">{comm.content}</div>
+                                {comm.sentBy && (
+                                  <div className="mt-2 pt-2 border-t text-xs text-gray-500">
+                                    Sent by: {comm.sentBy}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div 
+                                className="cursor-pointer hover:text-gray-800"
+                                onClick={toggleExpanded}
+                              >
+                                {preview}
+                                {comm.content && comm.content.length > 100 && (
+                                  <span className="text-blue-500 ml-1">Click to expand</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        {comm.subject && (
-                          <div className="text-sm font-medium mb-1">{comm.subject}</div>
-                        )}
-                        <div className="text-sm text-gray-600">{comm.content}</div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </CardContent>
