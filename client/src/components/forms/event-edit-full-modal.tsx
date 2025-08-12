@@ -75,17 +75,31 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
     pricingModel: "fixed"
   });
   
-  // Generate time slots for dropdowns
+  // Generate time slots for dropdowns (AM/PM format)
   const timeSlots = useMemo(() => {
     const slots = [];
     for (let hour = 0; hour < 24; hour++) {
       for (let minute = 0; minute < 60; minute += 30) {
-        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-        slots.push(timeString);
+        const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+        const ampm = hour < 12 ? 'AM' : 'PM';
+        const minuteStr = minute.toString().padStart(2, '0');
+        const displayTime = `${displayHour}:${minuteStr} ${ampm}`;
+        const value = `${hour.toString().padStart(2, '0')}:${minuteStr}`; // Store in 24-hour format
+        slots.push({ display: displayTime, value });
       }
     }
     return slots;
   }, []);
+
+  // Helper function to convert 24-hour format to AM/PM display
+  const formatTimeForDisplay = (time24: string) => {
+    if (!time24) return '';
+    const [hours, minutes] = time24.split(':');
+    const hour24 = parseInt(hours, 10);
+    const displayHour = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+    const ampm = hour24 < 12 ? 'AM' : 'PM';
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
   
   // Step 3: Final Details
   const [eventName, setEventName] = useState("");
@@ -1127,8 +1141,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                                         </SelectTrigger>
                                         <SelectContent>
                                           {timeSlots.map((time) => (
-                                            <SelectItem key={time} value={time}>
-                                              {time}
+                                            <SelectItem key={time.value} value={time.value}>
+                                              {time.display}
                                             </SelectItem>
                                           ))}
                                         </SelectContent>
@@ -1150,8 +1164,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                                         </SelectTrigger>
                                         <SelectContent>
                                           {timeSlots.map((time) => (
-                                            <SelectItem key={time} value={time}>
-                                              {time}
+                                            <SelectItem key={time.value} value={time.value}>
+                                              {time.display}
                                             </SelectItem>
                                           ))}
                                         </SelectContent>
@@ -1288,7 +1302,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                                         {format(activeDate.date, 'EEEE, MMMM d')}
                                       </h4>
                                       <p className="text-xs text-slate-600 mt-0.5">
-                                        {activeDate.startTime} - {activeDate.endTime}
+                                        {formatTimeForDisplay(activeDate.startTime)} - {formatTimeForDisplay(activeDate.endTime)}
                                       </p>
                                     </div>
                                   </div>
