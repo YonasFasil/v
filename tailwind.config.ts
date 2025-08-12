@@ -3,6 +3,16 @@ import type { Config } from "tailwindcss";
 export default {
   darkMode: ["class"],
   content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
+  safelist: [
+    // Status color classes that need to be preserved
+    'bg-violet-50', 'text-violet-700', 'border-violet-200',
+    'bg-emerald-50', 'text-emerald-700', 'border-emerald-200',
+    'bg-amber-50', 'text-amber-700', 'border-amber-200',
+    'bg-blue-50', 'text-blue-700', 'border-blue-200',
+    'bg-gray-50', 'text-gray-700', 'border-gray-200',
+    'bg-green-50', 'text-green-700', 'border-green-200',
+    'bg-red-50', 'text-red-700', 'border-red-200',
+  ],
   theme: {
     screens: {
       'xs': '475px',
