@@ -40,10 +40,8 @@ export function EditSpaceModal({ open, onOpenChange, space, venueId }: EditSpace
     name: '',
     description: '',
     capacity: '',
-    pricePerHour: '',
     amenities: [] as string[],
     availableSetupStyles: [] as string[],
-
   });
 
   useEffect(() => {
@@ -53,7 +51,6 @@ export function EditSpaceModal({ open, onOpenChange, space, venueId }: EditSpace
         name: space.name || '',
         description: space.description || '',
         capacity: space.capacity?.toString() || '',
-        pricePerHour: space.pricePerHour?.toString() || '',
         amenities: space.amenities || [],
         availableSetupStyles: space.availableSetupStyles || [],
       });
@@ -77,7 +74,6 @@ export function EditSpaceModal({ open, onOpenChange, space, venueId }: EditSpace
         name: formData.name,
         description: formData.description,
         capacity: parseInt(formData.capacity),
-        pricePerHour: parseFloat(formData.pricePerHour) || 0,
         amenities: formData.amenities,
         availableSetupStyles: formData.availableSetupStyles,
       };
@@ -207,17 +203,7 @@ export function EditSpaceModal({ open, onOpenChange, space, venueId }: EditSpace
                         placeholder="Max guests"
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="pricePerHour">Price per Hour ($)</Label>
-                      <Input
-                        id="pricePerHour"
-                        type="number"
-                        step="0.01"
-                        value={formData.pricePerHour}
-                        onChange={(e) => setFormData(prev => ({ ...prev, pricePerHour: e.target.value }))}
-                        placeholder="0.00"
-                      />
-                    </div>
+
                   </div>
                 </div>
 

@@ -35,7 +35,6 @@ export default function Venues() {
     capacity: "",
     location: "",
     amenities: "",
-    hourlyRate: "",
     type: "indoor"
   });
 
@@ -52,8 +51,7 @@ export default function Venues() {
     try {
       await apiRequest("POST", "/api/venues", {
         ...newVenue,
-        capacity: parseInt(newVenue.capacity),
-        hourlyRate: parseFloat(newVenue.hourlyRate) || 0
+        capacity: parseInt(newVenue.capacity)
       });
       await queryClient.invalidateQueries({ queryKey: ["/api/venues-with-spaces"] });
       
@@ -64,7 +62,6 @@ export default function Venues() {
         capacity: "",
         location: "",
         amenities: "",
-        hourlyRate: "",
         type: "indoor"
       });
       
@@ -155,27 +152,15 @@ export default function Venues() {
                     />
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-sm font-medium">Capacity *</Label>
-                      <Input
-                        type="number"
-                        placeholder="100"
-                        value={newVenue.capacity}
-                        onChange={(e) => setNewVenue(prev => ({ ...prev, capacity: e.target.value }))}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Hourly Rate</Label>
-                      <Input
-                        type="number"
-                        placeholder="150"
-                        value={newVenue.hourlyRate}
-                        onChange={(e) => setNewVenue(prev => ({ ...prev, hourlyRate: e.target.value }))}
-                        className="mt-1"
-                      />
-                    </div>
+                  <div>
+                    <Label className="text-sm font-medium">Capacity *</Label>
+                    <Input
+                      type="number"
+                      placeholder="100"
+                      value={newVenue.capacity}
+                      onChange={(e) => setNewVenue(prev => ({ ...prev, capacity: e.target.value }))}
+                      className="mt-1"
+                    />
                   </div>
                   
                   <div>
@@ -253,11 +238,7 @@ export default function Venues() {
                     )}
                   </div>
                   
-                  {venue.hourlyRate && (
-                    <div className="text-lg font-semibold text-blue-600">
-                      ${venue.hourlyRate}/hour
-                    </div>
-                  )}
+
                   
                   {/* Spaces List */}
                   {venue.spaces && venue.spaces.length > 0 && (
