@@ -197,7 +197,7 @@ export default function Venues() {
         />
         
         <main className="flex-1 overflow-y-auto p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-6">
             {Array.isArray(venues) && venues.map((venue: any) => (
               <Card key={venue.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
