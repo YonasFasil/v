@@ -251,3 +251,17 @@ export function getAllStatuses(): { value: EventStatus; label: string; descripti
     description: config.description
   }));
 }
+
+// Get user-selectable statuses (excludes auto-assigned ones like "pending" which is "Proposal Shared")
+export function getUserSelectableStatuses(): { value: EventStatus; label: string; description: string }[] {
+  // Exclude statuses that should only be auto-assigned
+  const excludedStatuses: EventStatus[] = ["pending"]; // "pending" is "Proposal Shared" - auto-assigned only
+  
+  return Object.entries(STATUS_CONFIGS)
+    .filter(([value]) => !excludedStatuses.includes(value as EventStatus))
+    .map(([value, config]) => ({
+      value: value as EventStatus,
+      label: config.label,
+      description: config.description
+    }));
+}

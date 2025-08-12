@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, getDay } from "date-fns";
 import { ChevronLeft, ChevronRight, X, Plus, RotateCcw, Trash2, Save, Edit, Minus, FileText, Send, MessageSquare, Mail, Phone, Users, Grid3X3, MapPin, Calendar as CalendarIcon } from "lucide-react";
+import { EmailPreviewModal } from "@/components/proposals/email-preview-modal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -84,6 +85,10 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   const [showCommunication, setShowCommunication] = useState(false);
   const [communicationMessage, setCommunicationMessage] = useState("");
   const [communicationType, setCommunicationType] = useState("email");
+  
+  // Email preview modal state
+  const [showEmailPreview, setShowEmailPreview] = useState(false);
+  const [proposalEmailData, setProposalEmailData] = useState<any>(null);
   
   // Customer creation
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
@@ -2777,34 +2782,40 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                               return subtotal + totalFees + totalTaxes;
                             })();
                             
-                            // Create and send proposal via API
-                            const response = await fetch('/api/proposals/send', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({
-                                title: `Proposal for ${eventName}`,
-                                customerId: selectedCustomer,
-                                totalAmount: currentTotal.toFixed(2),
-                                depositAmount: (currentTotal * 0.3).toFixed(2),
-                                validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-                                content: `Proposal for ${eventName} with ${selectedDates.length} event date(s). Total: $${currentTotal.toFixed(2)}`,
-                                status: 'sent'
-                              })
+                            // Prepare email data and show email preview modal
+                            const customer = (customers as any[])?.find(c => c.id === selectedCustomer);
+                            const venue = (venues as any[])?.find(v => v.id === selectedVenue);
+                            
+                            const eventDates = selectedDates.map(date => {
+                              const space = venue?.spaces?.find((s: any) => s.id === date.spaceId);
+                              return {
+                                date: date.date,
+                                startTime: date.startTime,
+                                endTime: date.endTime,
+                                venue: venue?.name || 'Venue',
+                                space: space?.name || 'Main Space',
+                                guestCount: date.guestCount || 50,
+                                totalAmount: currentTotal
+                              };
                             });
                             
-                            if (response.ok) {
-                              toast({
-                                title: "Proposal Sent",
-                                description: "The proposal has been sent to the customer successfully.",
-                              });
-                              onOpenChange(false);
-                              queryClient.invalidateQueries({ queryKey: ['/api/proposals'] });
-                              queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
-                            }
+                            setProposalEmailData({
+                              eventName,
+                              customerId: selectedCustomer,
+                              eventDates,
+                              totalAmount: currentTotal,
+                              customerData: customer ? {
+                                name: customer.name,
+                                email: customer.email,
+                                company: customer.company
+                              } : null
+                            });
+                            
+                            setShowEmailPreview(true);
                           } catch (error) {
                             toast({
                               title: "Error",
-                              description: "Failed to send proposal. Please try again.",
+                              description: "Failed to prepare proposal. Please try again.",
                               variant: "destructive",
                             });
                           }
@@ -2890,6 +2901,41 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
           </div>
         </DialogContent>
       </Dialog>
+      
+      {/* Email Preview Modal */}
+      {proposalEmailData && (
+        <EmailPreviewModal
+          open={showEmailPreview}
+          onOpenChange={setShowEmailPreview}
+          eventData={proposalEmailData}
+          onSend={async (proposalId: string) => {
+            try {
+              // Update booking status to "pending" (Proposal Shared)
+              await apiRequest("PATCH", `/api/bookings/${booking.id}`, {
+                status: "pending",
+                proposalStatus: "sent",
+                proposalSentAt: new Date()
+              });
+              
+              toast({
+                title: "Proposal Sent",
+                description: "The proposal has been sent to the customer successfully.",
+              });
+              
+              setShowEmailPreview(false);
+              onOpenChange(false);
+              queryClient.invalidateQueries({ queryKey: ['/api/proposals'] });
+              queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
+            } catch (error) {
+              toast({
+                title: "Error",
+                description: "Failed to update booking status. Please try again.",
+                variant: "destructive",
+              });
+            }
+          }}
+        />
+      )}
     </Dialog>
   );
 }
