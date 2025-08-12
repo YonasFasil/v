@@ -2726,14 +2726,106 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                     {currentStep === 1 ? `Configure ${selectedDates.length} Event Slot(s)` : 'Next'}
                   </Button>
                 ) : (
-                  <Button 
-                    onClick={handleSubmit}
-                    className="bg-blue-600 hover:bg-blue-700"
-                    disabled={updateBooking.isPending}
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    {updateBooking.isPending ? 'Saving...' : 'Save Changes'}
-                  </Button>
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                    {/* Show Send Proposal button only if no proposal exists yet */}
+                    {booking?.proposalStatus === 'none' && (
+                      <Button 
+                        onClick={async () => {
+                          try {
+                            // First save the changes
+                            await handleSubmit();
+                            
+                            // Calculate current total for proposal
+                            const currentTotal = (() => {
+                              let subtotal = 0;
+                              let totalFees = 0;
+                              let totalTaxes = 0;
+
+                              selectedDates.forEach(date => {
+                                // Package price
+                                if (date.packageId) {
+                                  const pkg = (packages as any[])?.find((p: any) => p.id === date.packageId);
+                                  if (pkg) {
+                                    const packagePrice = date.pricingOverrides?.packagePrice ?? parseFloat(pkg.price || 0);
+                                    let packageSubtotal = 0;
+                                    if (pkg.pricingModel === 'per_person') {
+                                      packageSubtotal = packagePrice * (date.guestCount || 1);
+                                    } else {
+                                      packageSubtotal = packagePrice;
+                                    }
+                                    subtotal += packageSubtotal;
+                                  }
+                                }
+                                
+                                // Services price
+                                date.selectedServices?.forEach(serviceId => {
+                                  const service = (services as any[]).find((s: any) => s.id === serviceId);
+                                  if (service) {
+                                    const servicePrice = date.pricingOverrides?.servicePrices?.[serviceId] ?? parseFloat(service.price || 0);
+                                    let serviceSubtotal = 0;
+                                    if (service.pricingModel === 'per_person') {
+                                      serviceSubtotal = servicePrice * (date.guestCount || 1);
+                                    } else {
+                                      const quantity = date.itemQuantities?.[serviceId] || 1;
+                                      serviceSubtotal = servicePrice * quantity;
+                                    }
+                                    subtotal += serviceSubtotal;
+                                  }
+                                });
+                              });
+
+                              return subtotal + totalFees + totalTaxes;
+                            })();
+                            
+                            // Create and send proposal via API
+                            const response = await fetch('/api/proposals/send', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                title: `Proposal for ${eventName}`,
+                                customerId: selectedCustomer,
+                                totalAmount: currentTotal.toFixed(2),
+                                depositAmount: (currentTotal * 0.3).toFixed(2),
+                                validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+                                content: `Proposal for ${eventName} with ${selectedDates.length} event date(s). Total: $${currentTotal.toFixed(2)}`,
+                                status: 'sent'
+                              })
+                            });
+                            
+                            if (response.ok) {
+                              toast({
+                                title: "Proposal Sent",
+                                description: "The proposal has been sent to the customer successfully.",
+                              });
+                              onOpenChange(false);
+                              queryClient.invalidateQueries({ queryKey: ['/api/proposals'] });
+                              queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
+                            }
+                          } catch (error) {
+                            toast({
+                              title: "Error",
+                              description: "Failed to send proposal. Please try again.",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                        variant="outline"
+                        className="border-green-200 text-green-700 hover:bg-green-50"
+                        disabled={updateBooking.isPending}
+                      >
+                        <Send className="h-4 w-4 mr-2" />
+                        Send Proposal
+                      </Button>
+                    )}
+                    <Button 
+                      onClick={handleSubmit}
+                      className="bg-blue-600 hover:bg-blue-700"
+                      disabled={updateBooking.isPending}
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      {updateBooking.isPending ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
