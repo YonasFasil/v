@@ -686,17 +686,30 @@ export default function Settings() {
                                 appPassword: e.target.value
                               })}
                             />
-                            <div className="text-xs space-y-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
-                              <p className="font-semibold text-blue-800 dark:text-blue-200">📧 Gmail App Password Setup Required:</p>
-                              <div className="space-y-1 text-blue-700 dark:text-blue-300">
-                                <p><strong>1.</strong> Enable 2-Factor Authentication on your Gmail account</p>
-                                <p><strong>2.</strong> Go to <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-900 dark:hover:text-blue-100">Google App Passwords</a></p>
-                                <p><strong>3.</strong> Select "Mail" or "Other (Custom)" and create app password</p>
-                                <p><strong>4.</strong> Copy the 16-character password (format: "abcd efgh ijkl mnop")</p>
-                                <p><strong>5.</strong> Paste that password here (NOT your regular Gmail password)</p>
+                            <div className="text-xs space-y-3 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
+                              <div>
+                                <p className="font-semibold text-blue-800 dark:text-blue-200 mb-2">📧 Gmail App Password Setup Required:</p>
+                                <div className="space-y-1 text-blue-700 dark:text-blue-300">
+                                  <p><strong>1.</strong> Enable 2-Factor Authentication on your Gmail account</p>
+                                  <p><strong>2.</strong> Go to <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-900 dark:hover:text-blue-100">Google App Passwords</a></p>
+                                  <p><strong>3.</strong> Select "Mail" or "Other (Custom)" and create app password</p>
+                                  <p><strong>4.</strong> Copy the 16-character password (format: "abcd efgh ijkl mnop")</p>
+                                  <p><strong>5.</strong> Paste that password here (NOT your regular Gmail password)</p>
+                                </div>
                               </div>
-                              <div className="text-amber-600 dark:text-amber-400 font-medium">
-                                ⚠️ You must use an App Password for this to work!
+                              
+                              <div className="border-t border-blue-200 dark:border-blue-700 pt-3">
+                                <p className="font-semibold text-amber-700 dark:text-amber-300 mb-1">🔧 Troubleshooting Authentication Issues:</p>
+                                <div className="space-y-1 text-amber-600 dark:text-amber-400 text-xs">
+                                  <p>• If you get "Invalid credentials" error, generate a NEW App Password</p>
+                                  <p>• App Passwords expire - create a fresh one if it stopped working</p>
+                                  <p>• Make sure you copy the password exactly (16 characters, no spaces)</p>
+                                  <p>• Delete old App Passwords and create new ones if needed</p>
+                                </div>
+                              </div>
+                              
+                              <div className="text-red-600 dark:text-red-400 font-medium bg-red-50 dark:bg-red-950/20 p-2 rounded border border-red-200 dark:border-red-800">
+                                ⚠️ NEVER use your regular Gmail password - only 16-character App Passwords work!
                               </div>
                             </div>
                           </div>
@@ -708,7 +721,7 @@ export default function Settings() {
                               onClick={async () => {
                                 if (formData.integrations.gmailSettings?.email && formData.integrations.gmailSettings?.appPassword) {
                                   try {
-                                    await fetch('/api/gmail/test', {
+                                    const response = await fetch('/api/gmail/test', {
                                       method: 'POST',
                                       headers: { 'Content-Type': 'application/json' },
                                       body: JSON.stringify({
@@ -716,21 +729,32 @@ export default function Settings() {
                                         appPassword: formData.integrations.gmailSettings.appPassword
                                       })
                                     });
+
+                                    const result = await response.json();
                                     
+                                    if (result.success) {
+                                      updateFormData("integrations", "gmailSettings", {
+                                        ...formData.integrations.gmailSettings,
+                                        isConfigured: true
+                                      });
+                                      
+                                      toast({
+                                        title: "Gmail Connected!",
+                                        description: "Your Gmail account is now ready to send proposals and monitor replies.",
+                                        variant: "default"
+                                      });
+                                    } else {
+                                      throw new Error(result.message);
+                                    }
+                                  } catch (error: any) {
                                     updateFormData("integrations", "gmailSettings", {
                                       ...formData.integrations.gmailSettings,
-                                      isConfigured: true
+                                      isConfigured: false
                                     });
                                     
                                     toast({
-                                      title: "Gmail Connected!",
-                                      description: "Your Gmail account is now ready to send proposals.",
-                                      variant: "default"
-                                    });
-                                  } catch (error: any) {
-                                    toast({
-                                      title: "Connection Failed",
-                                      description: error.message || "Please check your Gmail credentials and try again.",
+                                      title: "Gmail Connection Failed",
+                                      description: error.message || "Please generate a new Gmail App Password and try again.",
                                       variant: "destructive"
                                     });
                                   }

@@ -4504,6 +4504,18 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
         return res.status(400).json({ message: "Email and app password are required" });
       }
 
+      // First test the credentials
+      gmailService.configure({ email, appPassword });
+      const connectionTest = await gmailService.testConnection();
+      
+      if (!connectionTest) {
+        return res.status(400).json({ 
+          message: "Gmail authentication failed. Please check your email and app password. Make sure you're using a 16-character Gmail App Password, not your regular Gmail password.",
+          error: "AUTHENTICATION_FAILED"
+        });
+      }
+
+      // If connection test passes, configure monitoring
       emailMonitorService.configure({ email, appPassword });
       await emailMonitorService.startMonitoring();
       
@@ -4514,7 +4526,15 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
       });
     } catch (error: any) {
       console.error("Email monitoring start error:", error);
-      res.status(400).json({ message: `Failed to start monitoring: ${error.message}` });
+      
+      let errorMessage = "Failed to start monitoring";
+      if (error.message?.includes('Invalid login') || error.message?.includes('Username and Password not accepted')) {
+        errorMessage = "Gmail authentication failed. Please generate a new App Password and try again. Regular Gmail passwords don't work - you need a 16-character App Password.";
+      } else if (error.message?.includes('Invalid credentials') || error.message?.includes('AUTHENTICATIONFAILED')) {
+        errorMessage = "Authentication failed. Please check your Gmail App Password is correct and try again.";
+      }
+      
+      res.status(400).json({ message: errorMessage });
     }
   });
 
@@ -4522,12 +4542,47 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
   app.get("/api/emails/monitoring-status", async (req, res) => {
     try {
       res.json({
+        isActive: emailMonitorService.isMonitoring(),
         configured: emailMonitorService.isConfigured(),
-        monitoring: emailMonitorService.isMonitoring()
+        startedAt: emailMonitorService.isMonitoring() ? new Date().toISOString() : null
       });
     } catch (error: any) {
       console.error("Email monitoring status error:", error);
       res.status(500).json({ message: "Failed to get monitoring status" });
+    }
+  });
+
+  // Gmail connection test endpoint
+  app.post("/api/gmail/test", async (req, res) => {
+    try {
+      const { email, appPassword } = req.body;
+      
+      if (!email || !appPassword) {
+        return res.status(400).json({ message: "Email and app password are required" });
+      }
+
+      gmailService.configure({ email, appPassword });
+      const isValid = await gmailService.testConnection();
+      
+      if (isValid) {
+        res.json({ success: true, message: "Gmail connection successful!" });
+      } else {
+        res.status(400).json({ 
+          success: false, 
+          message: "Gmail authentication failed. Please check your credentials:\n\n1. Use your full Gmail address\n2. Use a 16-character App Password (NOT your regular Gmail password)\n3. Make sure 2-Factor Authentication is enabled\n4. Generate a new App Password if this one isn't working"
+        });
+      }
+    } catch (error: any) {
+      console.error("Gmail test error:", error);
+      
+      let errorMessage = "Gmail connection test failed";
+      if (error.message?.includes('Invalid login') || error.message?.includes('Username and Password not accepted')) {
+        errorMessage = "Authentication failed: Invalid Gmail App Password. Please generate a new App Password from Google Account settings.";
+      } else if (error.message?.includes('Invalid credentials')) {
+        errorMessage = "Invalid Gmail credentials. Make sure you're using an App Password, not your regular Gmail password.";
+      }
+      
+      res.status(400).json({ success: false, message: errorMessage });
     }
   });
 
