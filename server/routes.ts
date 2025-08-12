@@ -550,12 +550,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/bookings/:id", async (req, res) => {
     try {
       const updateData = { ...req.body };
-      
-      console.log('📝 BOOKING UPDATE DEBUG:', {
-        bookingId: req.params.id,
-        updateData: updateData,
-        eventNameInUpdate: updateData.eventName
-      });
 
       // Auto-complete booking if status is being set to completed and event date has passed
       if (updateData.status === "completed" && !updateData.completedAt) {
@@ -566,13 +560,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!booking) {
         return res.status(404).json({ message: "Booking not found" });
       }
-      
-      console.log('✅ BOOKING UPDATED:', {
-        bookingId: booking.id,
-        newEventName: booking.eventName,
-        updatedAt: new Date().toISOString()
-      });
-      
       res.json(booking);
     } catch (error) {
       console.error('Booking update error:', error);
