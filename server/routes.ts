@@ -570,6 +570,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updateData.completedAt = new Date();
       }
 
+      // Handle cancellation data
+      if (updateData.status === "cancelled") {
+        if (!updateData.cancelledAt) {
+          updateData.cancelledAt = new Date();
+        }
+        // Ensure cancellation reason is provided
+        if (!updateData.cancellationReason) {
+          return res.status(400).json({ message: "Cancellation reason is required" });
+        }
+      }
+
       const booking = await storage.updateBooking(req.params.id, updateData);
       if (!booking) {
         return res.status(404).json({ message: "Booking not found" });
@@ -1009,6 +1020,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ content });
     } catch (error) {
       res.status(500).json({ message: "Failed to generate proposal" });
+    }
+  });
+
+  // Reports - Cancellation Analytics
+  app.get("/api/reports/cancellations", async (req, res) => {
+    try {
+      const bookings = await storage.getBookings();
+      const cancelledBookings = bookings.filter(booking => booking.status === 'cancelled');
+      
+      // Group cancellations by reason
+      const cancellationReasons: Record<string, { count: number; totalValue: number; bookings: any[] }> = {};
+      let totalCancellations = 0;
+      let totalCancellationValue = 0;
+      
+      for (const booking of cancelledBookings) {
+        const reason = booking.cancellationReason || 'Unknown';
+        const value = parseFloat(booking.totalAmount || '0');
+        
+        if (!cancellationReasons[reason]) {
+          cancellationReasons[reason] = { count: 0, totalValue: 0, bookings: [] };
+        }
+        
+        cancellationReasons[reason].count++;
+        cancellationReasons[reason].totalValue += value;
+        cancellationReasons[reason].bookings.push({
+          id: booking.id,
+          eventName: booking.eventName,
+          eventDate: booking.eventDate,
+          totalAmount: booking.totalAmount,
+          cancelledAt: booking.cancelledAt,
+          customerName: booking.customerData?.name || 'Unknown'
+        });
+        
+        totalCancellations++;
+        totalCancellationValue += value;
+      }
+      
+      // Sort reasons by frequency
+      const sortedReasons = Object.entries(cancellationReasons)
+        .map(([reason, data]) => ({ reason, ...data }))
+        .sort((a, b) => b.count - a.count);
+      
+      res.json({
+        totalCancellations,
+        totalCancellationValue,
+        cancellationReasons: sortedReasons,
+        recentCancellations: cancelledBookings
+          .sort((a, b) => new Date(b.cancelledAt || '').getTime() - new Date(a.cancelledAt || '').getTime())
+          .slice(0, 10)
+          .map(booking => ({
+            id: booking.id,
+            eventName: booking.eventName,
+            eventDate: booking.eventDate,
+            cancelledAt: booking.cancelledAt,
+            cancellationReason: booking.cancellationReason,
+            totalAmount: booking.totalAmount,
+            customerName: booking.customerData?.name || 'Unknown'
+          }))
+      });
+    } catch (error) {
+      console.error("Error fetching cancellation reports:", error);
+      res.status(500).json({ message: "Failed to fetch cancellation reports" });
     }
   });
 

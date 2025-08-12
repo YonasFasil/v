@@ -76,10 +76,10 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
     paddedDays.push(date);
   }
 
-  // Get events for a specific day
+  // Get events for a specific day - exclude cancelled events from calendar view
   const getEventsForDay = (date: Date) => {
     const filteredEvents = events.filter(event => 
-      isSameDay(new Date(event.start), date)
+      isSameDay(new Date(event.start), date) && event.status !== 'cancelled'
     );
     // Debug logging to help identify duplicate event issues
     if (filteredEvents.length > 0) {

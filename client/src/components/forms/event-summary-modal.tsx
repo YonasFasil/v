@@ -144,6 +144,8 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
               <StatusSelector
                 currentStatus={booking.status as EventStatus}
                 onStatusChange={handleStatusChange}
+                eventId={booking.id}
+                eventTitle={booking.eventName}
               />
             </div>
           </div>
