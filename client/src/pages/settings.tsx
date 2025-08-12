@@ -1390,57 +1390,7 @@ export default function Settings() {
                       </div>
                     </div>
 
-                    {/* Currency and Tax Settings */}
-                    <div className="space-y-4 border-t pt-6">
-                      <h4 className="font-medium text-slate-900">Taxes & Fees</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label htmlFor="defaultTaxRate">Default Tax Rate</Label>
-                          <div className="flex items-center gap-2">
-                            <Input
-                              id="defaultTaxRate"
-                              type="number"
-                              min="0"
-                              max="50"
-                              step="0.01"
-                              value={formData.payments?.defaultTaxRate || 8.25}
-                              onChange={(e) => updateFormData("payments", "defaultTaxRate", parseFloat(e.target.value) || 0)}
-                              className="w-20"
-                            />
-                            <span className="text-sm text-slate-600">% sales tax</span>
-                          </div>
-                          <p className="text-xs text-slate-500">Applied to all services and packages</p>
-                        </div>
 
-                        <div className="space-y-2">
-                          <Label htmlFor="serviceFee">Service Fee</Label>
-                          <div className="flex items-center gap-2">
-                            <Input
-                              id="serviceFee"
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={formData.payments?.serviceFee || 0}
-                              onChange={(e) => updateFormData("payments", "serviceFee", parseFloat(e.target.value) || 0)}
-                              className="w-20"
-                            />
-                            <Select 
-                              value={formData.payments?.serviceFeeType || "percentage"} 
-                              onValueChange={(value) => updateFormData("payments", "serviceFeeType", value)}
-                            >
-                              <SelectTrigger className="w-32">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="percentage">%</SelectItem>
-                                <SelectItem value="fixed">$ Fixed</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <p className="text-xs text-slate-500">Additional service or convenience fee</p>
-                        </div>
-                      </div>
-                    </div>
 
                     {/* Payment Methods */}
                     <div className="space-y-4 border-t pt-6">
