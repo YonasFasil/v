@@ -114,6 +114,8 @@ export function getStatusConfig(status: EventStatus | string): StatusConfig {
   // Handle legacy statuses by mapping them to new ones
   const statusMap: Record<string, EventStatus> = {
     'confirmed': 'tentative',
+    'confirmed_fully_paid': 'confirmed',
+    'confirmed_deposit_paid': 'confirmed',
     'pending': 'pending',
     'proposal_shared': 'pending',
     'completed': 'completed',
@@ -130,6 +132,8 @@ export function getStatusColor(status: EventStatus | string): string {
   // Handle legacy statuses by mapping them to new ones
   const statusMap: Record<string, EventStatus> = {
     'confirmed': 'tentative',
+    'confirmed_fully_paid': 'confirmed',
+    'confirmed_deposit_paid': 'confirmed',
     'pending': 'pending',
     'proposal_shared': 'pending',
     'completed': 'completed',
@@ -146,6 +150,8 @@ export function getStatusLabel(status: EventStatus | string): string {
   // Handle legacy statuses by mapping them to new ones
   const statusMap: Record<string, EventStatus> = {
     'confirmed': 'tentative',
+    'confirmed_fully_paid': 'confirmed',
+    'confirmed_deposit_paid': 'confirmed',
     'pending': 'pending',
     'proposal_shared': 'pending',
     'completed': 'completed',
@@ -161,6 +167,8 @@ export function getNextStatuses(currentStatus: EventStatus | string): EventStatu
   // Handle legacy statuses by mapping them to new ones
   const statusMap: Record<string, EventStatus> = {
     'confirmed': 'tentative',
+    'confirmed_fully_paid': 'confirmed',
+    'confirmed_deposit_paid': 'confirmed',
     'pending': 'pending',
     'proposal_shared': 'pending',
     'completed': 'completed',
@@ -176,6 +184,8 @@ export function canEditStatus(status: EventStatus | string): boolean {
   // Handle legacy statuses by mapping them to new ones
   const statusMap: Record<string, EventStatus> = {
     'confirmed': 'tentative',
+    'confirmed_fully_paid': 'confirmed',
+    'confirmed_deposit_paid': 'confirmed',
     'pending': 'pending',
     'proposal_shared': 'pending',
     'completed': 'completed',

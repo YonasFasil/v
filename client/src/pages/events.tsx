@@ -178,8 +178,8 @@ export default function Events() {
                         onClick={() => setSelectedBooking(booking)}
                       >
                         <CardHeader className="pb-2">
-                          <div className="flex items-start justify-between">
-                            <div>
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
                               {(booking as any).isContract && (
                                 <Badge variant="secondary" className="mb-2 bg-purple-100 text-purple-800">
                                   Contract • {(booking as any).eventCount} Events
@@ -192,22 +192,27 @@ export default function Events() {
                                 }
                               </CardTitle>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Badge className={`${getStatusConfig(booking.status).bgColor} ${getStatusConfig(booking.status).textColor} ${getStatusConfig(booking.status).borderColor} border`}>
-                                {getStatusConfig(booking.status).label}
-                              </Badge>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedBooking(booking);
-                                  setShowStatusModal(true);
-                                }}
-                                className="h-6 w-6 p-0 hover:bg-gray-100"
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
+                            <div className="flex items-start gap-2 flex-shrink-0">
+                              <div className="flex flex-col items-end gap-2">
+                                <Badge 
+                                  className={`${getStatusConfig(booking.status).bgColor} ${getStatusConfig(booking.status).textColor} ${getStatusConfig(booking.status).borderColor} border text-xs px-2 py-1 whitespace-nowrap max-w-[120px] text-center`}
+                                  title={getStatusConfig(booking.status).description}
+                                >
+                                  {getStatusConfig(booking.status).label}
+                                </Badge>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedBooking(booking);
+                                    setShowStatusModal(true);
+                                  }}
+                                  className="h-6 w-6 p-0 hover:bg-gray-100 flex-shrink-0"
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         </CardHeader>
@@ -411,10 +416,12 @@ export default function Events() {
                             </TableCell>
                             <TableCell>
                               <div className="flex flex-col gap-1">
-                                <Badge className={`${getStatusConfig(booking.status).bgColor} ${getStatusConfig(booking.status).textColor} ${getStatusConfig(booking.status).borderColor} border`}>
+                                <Badge 
+                                  className={`${getStatusConfig(booking.status).bgColor} ${getStatusConfig(booking.status).textColor} ${getStatusConfig(booking.status).borderColor} border text-xs px-2 py-1 whitespace-nowrap text-center min-w-fit`}
+                                  title={getStatusConfig(booking.status).description}
+                                >
                                   {getStatusConfig(booking.status).label}
                                 </Badge>
-
                               </div>
                             </TableCell>
                             <TableCell className="font-medium text-green-600">
