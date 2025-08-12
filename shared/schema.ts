@@ -1,39 +1,17 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, timestamp, boolean, jsonb, pgEnum, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, decimal, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// User roles enum
-export const userRoleEnum = pgEnum('user_role', ['admin', 'staff', 'viewer']);
-
-// Session storage table (required for Replit Auth)
-export const sessions = pgTable(
-  "sessions",
-  {
-    sid: varchar("sid").primaryKey(),
-    sess: jsonb("sess").notNull(),
-    expire: timestamp("expire").notNull(),
-  },
-  (table) => [index("IDX_session_expire").on(table.expire)],
-);
-
-// Users table (updated for Replit Auth and role management)
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique(),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
-  profileImageUrl: varchar("profile_image_url"),
-  role: userRoleEnum("role").notNull().default('viewer'),
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-  // Keep legacy fields for backwards compatibility
-  username: text("username"),
-  password: text("password"),
-  name: text("name"),
-  stripeAccountId: text("stripe_account_id"),
-  stripeAccountStatus: text("stripe_account_status"),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  role: text("role").notNull().default("manager"),
+  stripeAccountId: text("stripe_account_id"), // Stripe Connect account ID
+  stripeAccountStatus: text("stripe_account_status"), // pending, active, restricted, etc.
   stripeOnboardingCompleted: boolean("stripe_onboarding_completed").default(false),
   stripeChargesEnabled: boolean("stripe_charges_enabled").default(false),
   stripePayoutsEnabled: boolean("stripe_payouts_enabled").default(false),
@@ -367,20 +345,6 @@ export const tours = pgTable("tours", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Audit logging system
-export const auditLogs = pgTable("audit_logs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id), // Who performed the action (null for system events)
-  action: text("action").notNull(), // CREATE, UPDATE, DELETE, LOGIN, LOGOUT, etc.
-  resourceType: text("resource_type").notNull(), // booking, customer, venue, user, etc.
-  resourceId: varchar("resource_id"), // ID of the affected resource
-  details: jsonb("details"), // Additional context about what changed
-  ipAddress: text("ip_address"),
-  userAgent: text("user_agent"),
-  severity: text("severity").notNull().default("INFO"), // INFO, WARNING, ERROR, CRITICAL
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertVenueSchema = createInsertSchema(venues).omit({ id: true });
@@ -434,11 +398,10 @@ export const insertLeadSchema = createInsertSchema(leads, {
 export const insertLeadActivitySchema = createInsertSchema(leadActivities).omit({ id: true, createdAt: true });
 export const insertLeadTaskSchema = createInsertSchema(leadTasks).omit({ id: true, createdAt: true });
 export const insertTourSchema = createInsertSchema(tours).omit({ id: true, createdAt: true });
-export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
 
 // Types
 export type User = typeof users.$inferSelect;
-export type UpsertUser = typeof users.$inferInsert;
+
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Venue = typeof venues.$inferSelect;
@@ -481,5 +444,3 @@ export type LeadTask = typeof leadTasks.$inferSelect;
 export type InsertLeadTask = z.infer<typeof insertLeadTaskSchema>;
 export type Tour = typeof tours.$inferSelect;
 export type InsertTour = z.infer<typeof insertTourSchema>;
-export type AuditLog = typeof auditLogs.$inferSelect;
-export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;

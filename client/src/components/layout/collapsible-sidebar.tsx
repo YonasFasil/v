@@ -12,7 +12,6 @@ import {
   Building2,
   Package,
   Settings,
-  Shield,
   ChevronLeft,
   ChevronRight,
   Menu,
@@ -28,7 +27,6 @@ const navigation = [
   { name: "Tasks", href: "/tasks", icon: CheckSquare },
   { name: "Venues", href: "/venues", icon: Building2 },
   { name: "Packages", href: "/packages", icon: Package },
-  { name: "Audit Logs", href: "/audit-logs", icon: Shield },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 

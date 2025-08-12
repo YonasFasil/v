@@ -23,8 +23,7 @@ import {
   insertLeadSchema,
   insertLeadActivitySchema,
   insertLeadTaskSchema,
-  insertTourSchema,
-  insertAuditLogSchema
+  insertTourSchema
 } from "@shared/schema";
 import { 
   generateAIInsights,
@@ -35,7 +34,6 @@ import {
   parseVoiceToBooking
 } from "./services/gemini";
 import { getStatusColor, type EventStatus } from "@shared/status-utils";
-import { setupAuth, isAuthenticated } from "./auth";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -46,8 +44,6 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup authentication
-  setupAuth(app);
   
   // Venues
   app.get("/api/venues", async (req, res) => {
@@ -2077,23 +2073,13 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
         twoFactorEnabled: false,
         ipWhitelist: ""
       },
-      payments: {
-        defaultDepositPercentage: 30,
-        paymentDueDays: 7,
-        lateFeePercentage: 5,
-        cancellationRefundDays: 30,
-        requireDepositOnBooking: false,
-        allowPartialPayments: true,
-        autoSendPaymentReminders: true,
-        defaultTaxRate: 8.25,
-        serviceFee: 0,
-        serviceFeeType: "percentage",
-        acceptCreditCards: true,
-        acceptACH: false,
-        acceptPayPal: false,
-        acceptCheck: true,
-        acceptCash: true,
-        acceptWireTransfer: false
+      taxes: {
+        defaultTaxRate: 8.5,
+        taxName: "Sales Tax",
+        taxNumber: "",
+        applyToServices: true,
+        applyToPackages: true,
+        includeTaxInPrice: false
       }
     });
   });
@@ -2138,15 +2124,6 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
       }
       
       res.json({ success: true, message: "Integration settings saved" });
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  app.put("/api/settings/payments", async (req, res) => {
-    try {
-      console.log('Saving payment settings:', req.body);
-      res.json({ success: true, message: "Payment settings saved" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -4758,87 +4735,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     }
   });
 
-  // Audit Logging endpoints
-  app.get("/api/audit-logs", async (req, res) => {
-    try {
-      const { 
-        userId, 
-        action, 
-        resourceType, 
-        severity,
-        startDate,
-        endDate,
-        limit = 100, 
-        offset = 0 
-      } = req.query;
-      
-      const filters: any = { limit: Number(limit), offset: Number(offset) };
-      
-      if (userId) filters.userId = userId as string;
-      if (action) filters.action = action as string;
-      if (resourceType) filters.resourceType = resourceType as string;
-      if (severity) filters.severity = severity as string;
-      if (startDate) filters.startDate = new Date(startDate as string);
-      if (endDate) filters.endDate = new Date(endDate as string);
-      
-      const logs = await storage.getAuditLogs(filters);
-      res.json(logs);
-    } catch (error) {
-      console.error("Failed to fetch audit logs:", error);
-      res.status(500).json({ message: "Failed to fetch audit logs" });
-    }
-  });
 
-  app.post("/api/audit-logs", async (req, res) => {
-    try {
-      const validatedData = insertAuditLogSchema.parse(req.body);
-      
-      // Add metadata from request
-      const auditLogData = {
-        ...validatedData,
-        ipAddress: req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress,
-        userAgent: req.headers['user-agent']
-      };
-      
-      const log = await storage.createAuditLog(auditLogData);
-      res.status(201).json(log);
-    } catch (error) {
-      console.error("Failed to create audit log:", error);
-      res.status(500).json({ message: "Failed to create audit log" });
-    }
-  });
-
-  app.get("/api/audit-logs/stats", async (req, res) => {
-    try {
-      const stats = await storage.getAuditLogStats();
-      res.json(stats);
-    } catch (error) {
-      console.error("Failed to fetch audit log stats:", error);
-      res.status(500).json({ message: "Failed to fetch audit log stats" });
-    }
-  });
-
-  // Audit logging helper function for use throughout the API
-  app.use((req, res, next) => {
-    // Add audit logging helper to request object
-    (req as any).auditLog = async (action: string, resourceType: string, resourceId?: string, details?: any, severity: 'INFO' | 'WARNING' | 'ERROR' = 'INFO') => {
-      try {
-        await storage.createAuditLog({
-          userId: null, // You can set this from authentication context
-          action,
-          resourceType,
-          resourceId,
-          details,
-          severity,
-          ipAddress: req.ip || req.headers['x-forwarded-for'] as string || req.socket.remoteAddress,
-          userAgent: req.headers['user-agent']
-        });
-      } catch (error) {
-        console.error("Failed to create audit log:", error);
-      }
-    };
-    next();
-  });
 
   const httpServer = createServer(app);
   return httpServer;
