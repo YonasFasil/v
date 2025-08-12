@@ -1345,42 +1345,7 @@ export default function Settings() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label htmlFor="lateFeePercentage">Late Payment Fee</Label>
-                          <div className="flex items-center gap-2">
-                            <Input
-                              id="lateFeePercentage"
-                              type="number"
-                              min="0"
-                              max="50"
-                              step="0.1"
-                              value={formData.payments?.lateFeePercentage || 5}
-                              onChange={(e) => updateFormData("payments", "lateFeePercentage", parseFloat(e.target.value) || 0)}
-                              className="w-20"
-                            />
-                            <span className="text-sm text-slate-600">% fee for late payments</span>
-                          </div>
-                          <p className="text-xs text-slate-500">Additional charge for overdue payments</p>
-                        </div>
 
-                        <div className="space-y-2">
-                          <Label htmlFor="cancellationRefundDays">Cancellation Policy</Label>
-                          <div className="flex items-center gap-2">
-                            <Input
-                              id="cancellationRefundDays"
-                              type="number"
-                              min="0"
-                              max="365"
-                              value={formData.payments?.cancellationRefundDays || 30}
-                              onChange={(e) => updateFormData("payments", "cancellationRefundDays", parseInt(e.target.value) || 0)}
-                              className="w-20"
-                            />
-                            <span className="text-sm text-slate-600">days for full refund</span>
-                          </div>
-                          <p className="text-xs text-slate-500">Full refund period before event</p>
-                        </div>
-                      </div>
 
                       <div className="space-y-3">
                         <Label>Deposit Collection Options</Label>
