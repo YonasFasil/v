@@ -89,6 +89,7 @@ export default function SetupStyles() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/setup-styles"] });
       setEditingStyle(null);
+      setShowCreateModal(false);
       resetForm();
       toast({
         title: "Setup style updated",
