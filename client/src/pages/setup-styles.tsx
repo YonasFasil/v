@@ -182,9 +182,27 @@ export default function SetupStyles() {
     }
   };
 
-  const handleFloorPlanSave = (floorPlan: any) => {
+  const handleFloorPlanSave = async (floorPlan: any) => {
     if (floorPlanStyle) {
-      updateFloorPlanMutation.mutate({ id: floorPlanStyle.id, floorPlan });
+      console.log('Handling floor plan save for style:', floorPlanStyle.id);
+      console.log('Floor plan data:', floorPlan);
+      
+      return new Promise((resolve, reject) => {
+        updateFloorPlanMutation.mutate(
+          { id: floorPlanStyle.id, floorPlan },
+          {
+            onSuccess: () => {
+              console.log('Floor plan mutation succeeded');
+              setShowFloorPlanModal(false);
+              resolve(void 0);
+            },
+            onError: (error) => {
+              console.error('Floor plan mutation failed:', error);
+              reject(error);
+            }
+          }
+        );
+      });
     }
   };
 

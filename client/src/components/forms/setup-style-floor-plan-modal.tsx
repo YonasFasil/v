@@ -514,7 +514,7 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
 
 
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Create proper deep clones to prevent reference sharing across setup styles
     const elementsClone = JSON.parse(JSON.stringify(elements));
     const floorPlan = {
@@ -524,8 +524,16 @@ export function SetupStyleFloorPlanModal({ open, onOpenChange, setupStyle, onSav
       canvasSize: { ...canvasSize }
     };
     console.log('Saving floor plan for setup:', setupStyle?.name, 'with', elementsClone.length, 'elements');
-    onSave(floorPlan);
-    onOpenChange(false);
+    console.log('Floor plan data being saved:', floorPlan);
+    
+    try {
+      await onSave(floorPlan);
+      console.log('Floor plan save completed successfully');
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Floor plan save failed:', error);
+      // Don't close modal on error
+    }
   };
 
   const selectedElementData = selectedElements.length === 1 ? elements.find(el => el.id === selectedElements[0]) : null;
