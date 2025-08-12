@@ -25,6 +25,7 @@ Preferred communication style: Simple, everyday language.
     - Clean, grid-based layouts for modals (e.g., event creation/editing).
     - Mobile-responsive design for all key features like proposals.
     - Visual indicators for pricing, categories, and booking statuses.
+    - Simplified interface: Removed unnecessary features (pricing models, amenities, appearance settings) per user request for streamlined UI.
 
 ### Backend Architecture
 - **Framework**: Express.js with TypeScript on Node.js.

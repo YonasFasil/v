@@ -29,7 +29,6 @@ import {
   CheckCircle,
   Globe,
   FileOutput,
-  Palette,
   Bell,
   Users,
   Settings as SettingsIcon,
@@ -79,14 +78,6 @@ export default function Settings() {
       paymentReminders: true,
       maintenanceAlerts: false,
       marketingEmails: false
-    },
-    appearance: {
-      theme: "light",
-      primaryColor: "blue",
-      accentColor: "purple",
-      fontFamily: "inter",
-      compactMode: false,
-      sidebarCollapsed: false
     },
     integrations: {
       stripeConnected: false,
@@ -258,7 +249,7 @@ export default function Settings() {
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-1 h-auto p-1 bg-slate-100">
+              <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-1 h-auto p-1 bg-slate-100">
                 <TabsTrigger value="general" className="data-[state=active]:bg-white flex flex-col gap-1 py-3 px-2">
                   <Building2 className="w-4 h-4" />
                   <span className="text-xs">General</span>
@@ -266,10 +257,6 @@ export default function Settings() {
                 <TabsTrigger value="notifications" className="data-[state=active]:bg-white flex flex-col gap-1 py-3 px-2">
                   <Bell className="w-4 h-4" />
                   <span className="text-xs">Notifications</span>
-                </TabsTrigger>
-                <TabsTrigger value="appearance" className="data-[state=active]:bg-white flex flex-col gap-1 py-3 px-2">
-                  <Palette className="w-4 h-4" />
-                  <span className="text-xs">Appearance</span>
                 </TabsTrigger>
                 <TabsTrigger value="integrations" className="data-[state=active]:bg-white flex flex-col gap-1 py-3 px-2">
                   <Key className="w-4 h-4" />
@@ -527,92 +514,7 @@ export default function Settings() {
                 <NotificationTestPanel />
               </TabsContent>
 
-              {/* Appearance Settings */}
-              <TabsContent value="appearance" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Palette className="w-5 h-5 text-purple-600" />
-                      Interface & Appearance
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="theme">Theme</Label>
-                        <Select 
-                          value={formData.appearance.theme} 
-                          onValueChange={(value) => updateFormData("appearance", "theme", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="light">Light Theme</SelectItem>
-                            <SelectItem value="dark">Dark Theme</SelectItem>
-                            <SelectItem value="auto">Auto (System)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor="primaryColor">Primary Color</Label>
-                        <Select 
-                          value={formData.appearance.primaryColor} 
-                          onValueChange={(value) => updateFormData("appearance", "primaryColor", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="blue">Blue</SelectItem>
-                            <SelectItem value="green">Green</SelectItem>
-                            <SelectItem value="purple">Purple</SelectItem>
-                            <SelectItem value="red">Red</SelectItem>
-                            <SelectItem value="orange">Orange</SelectItem>
-                            <SelectItem value="teal">Teal</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <Label className="text-base font-medium">Compact Mode</Label>
-                          <p className="text-sm text-slate-600">Use smaller spacing and fonts</p>
-                        </div>
-                        <Switch
-                          checked={formData.appearance.compactMode}
-                          onCheckedChange={(checked) => updateFormData("appearance", "compactMode", checked)}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <Label className="text-base font-medium">Collapsed Sidebar</Label>
-                          <p className="text-sm text-slate-600">Start with sidebar collapsed</p>
-                        </div>
-                        <Switch
-                          checked={formData.appearance.sidebarCollapsed}
-                          onCheckedChange={(checked) => updateFormData("appearance", "sidebarCollapsed", checked)}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="pt-4 border-t">
-                      <Button 
-                        onClick={() => handleSaveSection("appearance")}
-                        disabled={saveSettingsMutation.isPending}
-                        className="bg-purple-600 hover:bg-purple-700"
-                      >
-                        <Save className="w-4 h-4 mr-2" />
-                        Save Appearance Settings
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
 
               {/* Integrations Settings */}
               <TabsContent value="integrations" className="space-y-6">
