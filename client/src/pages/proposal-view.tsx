@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle, Calendar, Clock, MapPin, Users, Mail, Phone, ArrowRight, Sparkles } from "lucide-react";
+import { CheckCircle, Calendar, Clock, MapPin, Users, Mail, Phone, ArrowRight, Sparkles, Star, Award, ChefHat, Music, Camera, Utensils } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface ProposalData {
@@ -22,11 +22,9 @@ interface ProposalData {
   endTime?: string;
   guestCount?: number;
   customer?: {
-    id: string;
     name: string;
     email: string;
     phone?: string;
-    company?: string;
   };
   venue?: {
     name: string;
@@ -36,11 +34,25 @@ interface ProposalData {
     name: string;
     description?: string;
   };
-  services?: Array<{
-    name: string;
-    description?: string;
-    price: string;
+  eventDates?: Array<{
+    date: string;
+    startTime: string;
+    endTime: string;
+    venue: string;
+    space: string;
+    guestCount: number;
+    packageName?: string;
+    services: Array<{
+      name: string;
+      price: number;
+    }>;
   }>;
+  companyInfo?: {
+    name: string;
+    address: string;
+    phone: string;
+    email: string;
+  };
 }
 
 export default function ProposalView() {
@@ -167,107 +179,171 @@ export default function ProposalView() {
         <div className="grid lg:grid-cols-3 gap-12">
           {/* Event Details */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Event Information Card */}
-            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-              <CardContent className="p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Event Details</h2>
-                <div className="grid md:grid-cols-2 gap-6">
-                  {eventDate && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                        <Calendar className="w-6 h-6 text-blue-600" />
+            {/* Event Overview */}
+            {proposal.eventDates && proposal.eventDates.length > 0 && (
+              <div className="space-y-6">
+                {proposal.eventDates.map((eventDate, index) => (
+                  <Card key={index} className="border-0 shadow-xl bg-gradient-to-br from-white to-gray-50/50 backdrop-blur-sm overflow-hidden">
+                    <CardContent className="p-0">
+                      {/* Event Header */}
+                      <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 p-8 text-white relative overflow-hidden">
+                        <div className="absolute inset-0 bg-black/10"></div>
+                        <div className="relative z-10">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                              <Star className="w-6 h-6 text-yellow-300" />
+                            </div>
+                            <div>
+                              <h2 className="text-2xl font-bold">Your Event Experience</h2>
+                              <p className="text-blue-100">Carefully curated for your special day</p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Event Date</p>
-                        <p className="font-semibold text-gray-900">
-                          {eventDate.toLocaleDateString('en-US', { 
-                            weekday: 'long', 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric' 
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                  )}
 
-                  {proposal.startTime && proposal.endTime && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                        <Clock className="w-6 h-6 text-purple-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Event Time</p>
-                        <p className="font-semibold text-gray-900">
-                          {proposal.startTime} - {proposal.endTime}
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                      {/* Event Details Grid */}
+                      <div className="p-8">
+                        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                          <div className="group">
+                            <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-300">
+                              <Calendar className="w-8 h-8 text-blue-600" />
+                            </div>
+                            <p className="text-sm text-gray-500 mb-1">Event Date</p>
+                            <p className="font-bold text-gray-900 text-lg">
+                              {new Date(eventDate.date).toLocaleDateString('en-US', { 
+                                weekday: 'long', 
+                                month: 'short', 
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                            </p>
+                          </div>
 
-                  {proposal.venue && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                        <MapPin className="w-6 h-6 text-green-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Venue</p>
-                        <p className="font-semibold text-gray-900">{proposal.venue.name}</p>
-                        {proposal.space && (
-                          <p className="text-sm text-gray-600">{proposal.space.name}</p>
+                          <div className="group">
+                            <div className="w-16 h-16 bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-300">
+                              <Clock className="w-8 h-8 text-purple-600" />
+                            </div>
+                            <p className="text-sm text-gray-500 mb-1">Event Time</p>
+                            <p className="font-bold text-gray-900 text-lg">
+                              {eventDate.startTime} - {eventDate.endTime}
+                            </p>
+                          </div>
+
+                          <div className="group">
+                            <div className="w-16 h-16 bg-gradient-to-br from-green-100 to-green-200 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-300">
+                              <MapPin className="w-8 h-8 text-green-600" />
+                            </div>
+                            <p className="text-sm text-gray-500 mb-1">Venue</p>
+                            <p className="font-bold text-gray-900 text-lg">{eventDate.venue}</p>
+                            <p className="text-sm text-gray-600">{eventDate.space}</p>
+                          </div>
+
+                          <div className="group">
+                            <div className="w-16 h-16 bg-gradient-to-br from-orange-100 to-orange-200 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-300">
+                              <Users className="w-8 h-8 text-orange-600" />
+                            </div>
+                            <p className="text-sm text-gray-500 mb-1">Guest Count</p>
+                            <p className="font-bold text-gray-900 text-lg">{eventDate.guestCount}</p>
+                            <p className="text-sm text-gray-600">guests</p>
+                          </div>
+                        </div>
+
+                        {/* Package Information */}
+                        {eventDate.packageName && (
+                          <div className="mb-8">
+                            <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-2xl p-6">
+                              <div className="flex items-center gap-3 mb-3">
+                                <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                                  <Award className="w-5 h-5 text-amber-600" />
+                                </div>
+                                <div>
+                                  <h3 className="font-bold text-gray-900">Selected Package</h3>
+                                  <p className="text-amber-700 font-semibold">{eventDate.packageName}</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Services */}
+                        {eventDate.services && eventDate.services.length > 0 && (
+                          <div>
+                            <div className="flex items-center gap-3 mb-6">
+                              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                <Sparkles className="w-5 h-5 text-blue-600" />
+                              </div>
+                              <h3 className="text-xl font-bold text-gray-900">Included Services</h3>
+                            </div>
+                            <div className="grid md:grid-cols-2 gap-4">
+                              {eventDate.services.map((service, serviceIndex) => {
+                                const getServiceIcon = (serviceName: string) => {
+                                  const name = serviceName.toLowerCase();
+                                  if (name.includes('bar') || name.includes('drink')) return <Utensils className="w-5 h-5" />;
+                                  if (name.includes('dj') || name.includes('music') || name.includes('sound')) return <Music className="w-5 h-5" />;
+                                  if (name.includes('photo') || name.includes('camera')) return <Camera className="w-5 h-5" />;
+                                  if (name.includes('food') || name.includes('catering') || name.includes('cake')) return <ChefHat className="w-5 h-5" />;
+                                  return <Star className="w-5 h-5" />;
+                                };
+
+                                const getServiceColor = (index: number) => {
+                                  const colors = [
+                                    'from-blue-50 to-blue-100 border-blue-200 text-blue-700',
+                                    'from-purple-50 to-purple-100 border-purple-200 text-purple-700',
+                                    'from-green-50 to-green-100 border-green-200 text-green-700',
+                                    'from-pink-50 to-pink-100 border-pink-200 text-pink-700',
+                                    'from-indigo-50 to-indigo-100 border-indigo-200 text-indigo-700',
+                                    'from-orange-50 to-orange-100 border-orange-200 text-orange-700'
+                                  ];
+                                  return colors[index % colors.length];
+                                };
+
+                                return (
+                                  <div
+                                    key={serviceIndex}
+                                    className={`group bg-gradient-to-br ${getServiceColor(serviceIndex)} border rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]`}
+                                  >
+                                    <div className="flex items-start justify-between mb-3">
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-white/50 backdrop-blur-sm rounded-full flex items-center justify-center">
+                                          {getServiceIcon(service.name)}
+                                        </div>
+                                        <div>
+                                          <h4 className="font-bold text-gray-900">{service.name}</h4>
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="text-2xl font-bold text-gray-900">
+                                          ${service.price.toLocaleString()}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
                         )}
                       </div>
-                    </div>
-                  )}
-
-                  {proposal.guestCount && (
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-                        <Users className="w-6 h-6 text-orange-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Guest Count</p>
-                        <p className="font-semibold text-gray-900">{proposal.guestCount} guests</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
 
             {/* Proposal Content */}
             {proposal.content && (
-              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+              <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
                 <CardContent className="p-8">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">Proposal Details</h2>
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Mail className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900">Proposal Details</h2>
+                  </div>
                   <div 
                     className="prose prose-lg max-w-none text-gray-700 leading-relaxed"
                     dangerouslySetInnerHTML={{ __html: proposal.content }}
                   />
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Services */}
-            {proposal.services && proposal.services.length > 0 && (
-              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-                <CardContent className="p-8">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">Included Services</h2>
-                  <div className="space-y-4">
-                    {proposal.services.map((service, index) => (
-                      <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                        <div>
-                          <h3 className="font-semibold text-gray-900">{service.name}</h3>
-                          {service.description && (
-                            <p className="text-sm text-gray-600 mt-1">{service.description}</p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-gray-900">${service.price}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
                 </CardContent>
               </Card>
             )}
@@ -343,21 +419,23 @@ export default function ProposalView() {
             </Card>
 
             {/* Contact Information */}
-            {proposal.customer && (
+            {proposal.companyInfo && (
               <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
                 <CardContent className="p-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">Contact Information</h3>
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Contact Us</h3>
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
-                      <Mail className="w-5 h-5 text-gray-400" />
-                      <span className="text-gray-700">{proposal.customer.email}</span>
+                      <Mail className="w-5 h-5 text-blue-600" />
+                      <span className="text-gray-700">{proposal.companyInfo.email}</span>
                     </div>
-                    {proposal.customer.phone && (
-                      <div className="flex items-center gap-3">
-                        <Phone className="w-5 h-5 text-gray-400" />
-                        <span className="text-gray-700">{proposal.customer.phone}</span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-3">
+                      <Phone className="w-5 h-5 text-blue-600" />
+                      <span className="text-gray-700">{proposal.companyInfo.phone}</span>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <MapPin className="w-5 h-5 text-blue-600 mt-0.5" />
+                      <span className="text-gray-700 leading-relaxed">{proposal.companyInfo.address}</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -367,16 +445,38 @@ export default function ProposalView() {
       </div>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <h3 className="text-2xl font-bold mb-4">Venuine Events</h3>
-          <p className="text-gray-400 mb-6">Creating memorable experiences, one event at a time</p>
-          <div className="flex justify-center gap-6 text-sm text-gray-400">
-            <span>Professional Event Management</span>
-            <span>•</span>
-            <span>Trusted by thousands</span>
-            <span>•</span>
-            <span>Excellence guaranteed</span>
+      <footer className="bg-gradient-to-r from-gray-900 via-blue-900 to-gray-900 text-white py-16">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid md:grid-cols-3 gap-8 mb-8">
+            <div className="text-center md:text-left">
+              <h3 className="text-3xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                {proposal.companyInfo?.name || 'Venuine Events'}
+              </h3>
+              <p className="text-gray-300 leading-relaxed">Creating unforgettable experiences, one event at a time</p>
+            </div>
+            <div className="text-center">
+              <h4 className="text-lg font-semibold mb-4 text-blue-300">Contact Information</h4>
+              <div className="space-y-2 text-gray-300">
+                <p>{proposal.companyInfo?.phone || '(555) 123-4567'}</p>
+                <p>{proposal.companyInfo?.email || 'hello@venuine-events.com'}</p>
+              </div>
+            </div>
+            <div className="text-center md:text-right">
+              <h4 className="text-lg font-semibold mb-4 text-blue-300">Location</h4>
+              <p className="text-gray-300 leading-relaxed">
+                {proposal.companyInfo?.address || '123 Celebration Drive, Event City, EC 12345'}
+              </p>
+            </div>
+          </div>
+          <div className="border-t border-gray-700 pt-8 text-center">
+            <p className="text-gray-400 mb-6">Creating memorable experiences, one event at a time</p>
+            <div className="flex justify-center gap-6 text-sm text-gray-400">
+              <span>Professional Event Management</span>
+              <span>•</span>
+              <span>Trusted by thousands</span>
+              <span>•</span>
+              <span>Excellence guaranteed</span>
+            </div>
           </div>
         </div>
       </footer>
