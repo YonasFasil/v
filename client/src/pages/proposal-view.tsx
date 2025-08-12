@@ -64,7 +64,10 @@ export default function ProposalView() {
 
   const { data: proposal, isLoading, error } = useQuery({
     queryKey: ["/api/proposals/public", proposalId],
-    queryFn: () => apiRequest("GET", `/api/proposals/public/${proposalId}`),
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/proposals/public/${proposalId}`);
+      return response.json();
+    },
     enabled: !!proposalId,
   });
 
@@ -73,10 +76,11 @@ export default function ProposalView() {
   const acceptProposalMutation = useMutation({
     mutationFn: async () => {
       if (!proposal?.id) throw new Error("No proposal ID");
-      return apiRequest("POST", `/api/proposals/${proposal.id}/accept`, {});
+      const response = await apiRequest("POST", `/api/proposals/${proposal.id}/accept`, {});
+      return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/proposals/view", proposalId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/proposals/public", proposalId] });
       // Redirect to payment page (we'll implement this later)
       window.location.href = `/proposal/${proposalId}/payment`;
     }
