@@ -4,10 +4,7 @@ import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { MapPin, Users, Plus, Edit, Trash2 } from "lucide-react";
@@ -19,7 +16,6 @@ import { EditSpaceModal } from "@/components/forms/edit-space-modal";
 
 export default function Venues() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingVenue, setEditingVenue] = useState<any>(null);
   const [editingSpace, setEditingSpace] = useState<any>(null);
   const [selectedVenueForSpaces, setSelectedVenueForSpaces] = useState<any>(null);
@@ -29,54 +25,7 @@ export default function Venues() {
     queryKey: ["/api/venues-with-spaces"],
   });
 
-  const [newVenue, setNewVenue] = useState({
-    name: "",
-    description: "",
-    capacity: "",
-    location: "",
-    amenities: "",
-    type: "indoor"
-  });
 
-  const createVenue = async () => {
-    if (!newVenue.name || !newVenue.capacity) {
-      toast({
-        title: "Required fields missing",
-        description: "Please provide venue name and capacity",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      await apiRequest("POST", "/api/venues", {
-        ...newVenue,
-        capacity: parseInt(newVenue.capacity)
-      });
-      await queryClient.invalidateQueries({ queryKey: ["/api/venues-with-spaces"] });
-      
-      setShowCreateForm(false);
-      setNewVenue({
-        name: "",
-        description: "",
-        capacity: "",
-        location: "",
-        amenities: "",
-        type: "indoor"
-      });
-      
-      toast({
-        title: "Venue created",
-        description: `${newVenue.name} has been added successfully`
-      });
-    } catch (error) {
-      toast({
-        title: "Creation failed",
-        description: "Could not create venue",
-        variant: "destructive"
-      });
-    }
-  };
 
   if (isLoading) {
     return (
@@ -120,79 +69,13 @@ export default function Venues() {
           subtitle="Manage venue spaces and amenities"
           onMobileMenuToggle={() => setMobileNavOpen(true)}
           action={
-            <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
-              <DialogTrigger asChild>
-                <Button className="bg-blue-600 hover:bg-blue-700">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Venue
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Create New Venue</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label className="text-sm font-medium">Venue Name *</Label>
-                    <Input
-                      placeholder="e.g., Grand Ballroom"
-                      value={newVenue.name}
-                      onChange={(e) => setNewVenue(prev => ({ ...prev, name: e.target.value }))}
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label className="text-sm font-medium">Description</Label>
-                    <Textarea
-                      placeholder="Describe the venue space..."
-                      value={newVenue.description}
-                      onChange={(e) => setNewVenue(prev => ({ ...prev, description: e.target.value }))}
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label className="text-sm font-medium">Capacity *</Label>
-                    <Input
-                      type="number"
-                      placeholder="100"
-                      value={newVenue.capacity}
-                      onChange={(e) => setNewVenue(prev => ({ ...prev, capacity: e.target.value }))}
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label className="text-sm font-medium">Location</Label>
-                    <Input
-                      placeholder="Building A, Floor 2"
-                      value={newVenue.location}
-                      onChange={(e) => setNewVenue(prev => ({ ...prev, location: e.target.value }))}
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label className="text-sm font-medium">Amenities</Label>
-                    <Input
-                      placeholder="Projector, Sound System, WiFi"
-                      value={newVenue.amenities}
-                      onChange={(e) => setNewVenue(prev => ({ ...prev, amenities: e.target.value }))}
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <Button
-                    onClick={createVenue}
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                    disabled={!newVenue.name || !newVenue.capacity}
-                  >
-                    Create Venue
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => setEditingVenue({})}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Venue
+            </Button>
           }
         />
         
