@@ -179,6 +179,7 @@ export default function ProposalView() {
         <div className="grid lg:grid-cols-3 gap-12">
           {/* Event Details */}
           <div className="lg:col-span-2 space-y-8">
+            
             {/* Event Overview */}
             {proposal.eventDates && proposal.eventDates.length > 0 && (
               <div className="space-y-6">
@@ -328,6 +329,87 @@ export default function ProposalView() {
                   </Card>
                 ))}
               </div>
+            )}
+
+            {/* Fallback Event Details - if no eventDates array */}
+            {(!proposal.eventDates || proposal.eventDates.length === 0) && (
+              <Card className="border-0 shadow-xl bg-gradient-to-br from-white to-gray-50/50 backdrop-blur-sm overflow-hidden">
+                <CardContent className="p-0">
+                  {/* Event Header */}
+                  <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 p-8 text-white relative overflow-hidden">
+                    <div className="absolute inset-0 bg-black/10"></div>
+                    <div className="relative z-10">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                          <Star className="w-6 h-6 text-yellow-300" />
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-bold">Your Event Experience</h2>
+                          <p className="text-blue-100">Carefully curated for your special day</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Event Details Grid */}
+                  <div className="p-8">
+                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                      {proposal.eventDate && (
+                        <div className="group">
+                          <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-300">
+                            <Calendar className="w-8 h-8 text-blue-600" />
+                          </div>
+                          <p className="text-sm text-gray-500 mb-1">Event Date</p>
+                          <p className="font-bold text-gray-900 text-lg">
+                            {new Date(proposal.eventDate).toLocaleDateString('en-US', { 
+                              weekday: 'long', 
+                              month: 'short', 
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </p>
+                        </div>
+                      )}
+
+                      {proposal.startTime && proposal.endTime && (
+                        <div className="group">
+                          <div className="w-16 h-16 bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-300">
+                            <Clock className="w-8 h-8 text-purple-600" />
+                          </div>
+                          <p className="text-sm text-gray-500 mb-1">Event Time</p>
+                          <p className="font-bold text-gray-900 text-lg">
+                            {proposal.startTime} - {proposal.endTime}
+                          </p>
+                        </div>
+                      )}
+
+                      {proposal.venue && (
+                        <div className="group">
+                          <div className="w-16 h-16 bg-gradient-to-br from-green-100 to-green-200 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-300">
+                            <MapPin className="w-8 h-8 text-green-600" />
+                          </div>
+                          <p className="text-sm text-gray-500 mb-1">Venue</p>
+                          <p className="font-bold text-gray-900 text-lg">{proposal.venue.name}</p>
+                          {proposal.venue.description && (
+                            <p className="text-sm text-gray-600">{proposal.venue.description}</p>
+                          )}
+                        </div>
+                      )}
+
+                      {proposal.guestCount && (
+                        <div className="group">
+                          <div className="w-16 h-16 bg-gradient-to-br from-orange-100 to-orange-200 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-300">
+                            <Users className="w-8 h-8 text-orange-600" />
+                          </div>
+                          <p className="text-sm text-gray-500 mb-1">Guest Count</p>
+                          <p className="font-bold text-gray-900 text-lg">{proposal.guestCount}</p>
+                          <p className="text-sm text-gray-600">guests</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
             {/* Proposal Content */}
