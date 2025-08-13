@@ -7,7 +7,6 @@ import { QuickActions } from "@/components/dashboard/quick-actions";
 import Dashboard from "@/pages/dashboard";
 import Events from "@/pages/events";
 import Customers from "@/pages/customers";
-import Companies from "@/pages/companies";
 import Payments from "@/pages/payments";
 import Tasks from "@/pages/tasks";
 import Venues from "@/pages/venues";
@@ -30,7 +29,6 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/events" component={Events} />
       <Route path="/customers" component={Customers} />
-      <Route path="/companies" component={Companies} />
       <Route path="/leads" component={Leads} />
       <Route path="/payments" component={Payments} />
       <Route path="/tasks" component={Tasks} />
