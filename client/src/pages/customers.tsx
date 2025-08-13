@@ -107,6 +107,15 @@ export default function Customers() {
     notes: ""
   });
 
+  // Employees to add when creating/editing company
+  const [companyEmployees, setCompanyEmployees] = useState<Array<{
+    name: string;
+    email: string;
+    phone: string;
+    status: string;
+    notes: string;
+  }>>([]);
+
   // Employee form for adding to company
   const employeeForm = useForm({
     resolver: zodResolver(insertCustomerSchema),
@@ -145,11 +154,28 @@ export default function Customers() {
 
   // Company mutations
   const createCompanyMutation = useMutation({
-    mutationFn: async (data: typeof companyFormData) => {
-      return apiRequest("POST", "/api/companies", data);
+    mutationFn: async (data: { companyData: typeof companyFormData; employees: any[] }) => {
+      // Create company first
+      const company = await apiRequest("POST", "/api/companies", data.companyData);
+      
+      // Then create employees if any
+      if (data.employees.length > 0) {
+        await Promise.all(
+          data.employees.map(employee => 
+            apiRequest("POST", "/api/customers", {
+              ...employee,
+              companyId: company.id
+            })
+          )
+        );
+      }
+      
+      return company;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/companies"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers/analytics"] });
       setShowCreateCompanyForm(false);
       resetCompanyForm();
       toast({
@@ -219,6 +245,27 @@ export default function Customers() {
       email: "",
       notes: ""
     });
+    setCompanyEmployees([]);
+  };
+
+  const addCompanyEmployee = () => {
+    setCompanyEmployees([...companyEmployees, {
+      name: "",
+      email: "",
+      phone: "",
+      status: "customer",
+      notes: ""
+    }]);
+  };
+
+  const updateCompanyEmployee = (index: number, field: string, value: string) => {
+    const updatedEmployees = [...companyEmployees];
+    updatedEmployees[index] = { ...updatedEmployees[index], [field]: value };
+    setCompanyEmployees(updatedEmployees);
+  };
+
+  const removeCompanyEmployee = (index: number) => {
+    setCompanyEmployees(companyEmployees.filter((_, i) => i !== index));
   };
 
   const handleEditCompany = (company: Company) => {
@@ -286,10 +333,19 @@ export default function Customers() {
   };
 
   const handleSubmitCompany = () => {
+    if (!companyFormData.name) {
+      toast({
+        title: "Error",
+        description: "Company name is required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (editingCompany) {
       updateCompanyMutation.mutate({ id: editingCompany.id, updates: companyFormData });
     } else {
-      createCompanyMutation.mutate(companyFormData);
+      createCompanyMutation.mutate({ companyData: companyFormData, employees: companyEmployees });
     }
   };
 
@@ -839,6 +895,103 @@ export default function Customers() {
                           placeholder="Additional notes"
                         />
                       </div>
+
+                      {/* Employees Section - Only show when creating new company */}
+                      {!editingCompany && (
+                        <div className="space-y-4 border-t pt-4">
+                          <div className="flex justify-between items-center">
+                            <Label className="text-base font-medium">Employees (Optional)</Label>
+                            <Button 
+                              type="button" 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={addCompanyEmployee}
+                              data-testid="button-add-company-employee"
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add Employee
+                            </Button>
+                          </div>
+                          
+                          {companyEmployees.length > 0 && (
+                            <div className="space-y-3">
+                              {companyEmployees.map((employee, index) => (
+                                <div key={index} className="border rounded-lg p-4 space-y-3">
+                                  <div className="flex justify-between items-start">
+                                    <span className="text-sm font-medium text-gray-700">Employee {index + 1}</span>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => removeCompanyEmployee(index)}
+                                      className="text-red-600 hover:text-red-700"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">Name</Label>
+                                      <Input
+                                        placeholder="Full name"
+                                        value={employee.name}
+                                        onChange={(e) => updateCompanyEmployee(index, "name", e.target.value)}
+                                      />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">Email</Label>
+                                      <Input
+                                        type="email"
+                                        placeholder="Email address"
+                                        value={employee.email}
+                                        onChange={(e) => updateCompanyEmployee(index, "email", e.target.value)}
+                                      />
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">Phone</Label>
+                                      <Input
+                                        placeholder="Phone number"
+                                        value={employee.phone}
+                                        onChange={(e) => updateCompanyEmployee(index, "phone", e.target.value)}
+                                      />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">Status</Label>
+                                      <Select 
+                                        value={employee.status} 
+                                        onValueChange={(value) => updateCompanyEmployee(index, "status", value)}
+                                      >
+                                        <SelectTrigger className="h-8">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="customer">Customer</SelectItem>
+                                          <SelectItem value="lead">Lead</SelectItem>
+                                          <SelectItem value="inactive">Inactive</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">Notes</Label>
+                                    <Textarea
+                                      placeholder="Employee notes"
+                                      value={employee.notes}
+                                      onChange={(e) => updateCompanyEmployee(index, "notes", e.target.value)}
+                                      className="h-16"
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                       
                       <div className="flex justify-end space-x-2">
                         <Button variant="outline" onClick={() => {
