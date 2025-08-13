@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sidebar } from "@/components/layout/sidebar";
+import { Header } from "@/components/layout/header";
+import { MobileNav } from "@/components/layout/mobile-nav";
 import { 
   Mic, 
   Phone, 
@@ -23,6 +26,8 @@ export default function VoiceBookingPage() {
   const [showEventModal, setShowEventModal] = useState(false);
   const [voiceData, setVoiceData] = useState<any>(null);
   const [activeDemo, setActiveDemo] = useState<'booking' | 'call' | null>(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const handleVoiceDataExtracted = (data: any) => {
     setVoiceData(data);
@@ -68,18 +73,29 @@ export default function VoiceBookingPage() {
   ];
 
   return (
-    <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="text-center space-y-4">
-        <div className="flex items-center justify-center gap-3 mb-4">
-          <div className="p-3 bg-purple-100 rounded-full">
-            <Mic className="h-8 w-8 text-purple-600" />
-          </div>
-          <h1 className="text-3xl font-bold">AI Voice Booking System</h1>
-        </div>
-        <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-          Revolutionary voice-powered booking system that captures customer calls and converts speech to structured booking data using Google Gemini AI.
-        </p>
+    <div className="flex h-screen overflow-hidden bg-slate-50">
+      <div className="hidden lg:block">
+        <Sidebar collapsed={sidebarCollapsed} />
+      </div>
+      
+      <MobileNav 
+        isOpen={mobileNavOpen} 
+        onClose={() => setMobileNavOpen(false)} 
+      />
+      
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header 
+          title="AI Voice Booking System" 
+          subtitle="Revolutionary voice-powered booking system using Google Gemini AI"
+          onMobileMenuToggle={() => setMobileNavOpen(true)}
+          onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          sidebarCollapsed={sidebarCollapsed}
+        />
+        
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+          <div className="max-w-6xl mx-auto space-y-6">
+      {/* Feature Badges */}
+      <div className="text-center">
         <div className="flex items-center justify-center gap-4">
           <Badge variant="secondary" className="bg-purple-100 text-purple-700">
             <Sparkles className="w-4 h-4 mr-1" />
@@ -334,6 +350,9 @@ export default function VoiceBookingPage() {
           onOpenChange={setShowEventModal}
         />
       )}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

@@ -1479,69 +1479,274 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
   app.get("/api/reports/analytics/:dateRange?", async (req, res) => {
     try {
       const dateRange = req.params.dateRange || "3months";
+      
+      // Calculate date range filter
+      const now = new Date();
+      let startDate = new Date();
+      switch (dateRange) {
+        case "7days":
+          startDate.setDate(now.getDate() - 7);
+          break;
+        case "30days":
+          startDate.setDate(now.getDate() - 30);
+          break;
+        case "3months":
+          startDate.setMonth(now.getMonth() - 3);
+          break;
+        case "6months":
+          startDate.setMonth(now.getMonth() - 6);
+          break;
+        case "1year":
+          startDate.setFullYear(now.getFullYear() - 1);
+          break;
+        default:
+          startDate.setMonth(now.getMonth() - 3);
+      }
+
       const bookings = await storage.getBookings();
       const customers = await storage.getCustomers();
       const venues = await storage.getVenues();
       const payments = await storage.getPayments();
+      const proposals = await storage.getProposals();
+      const leads = await storage.getLeads();
       
-      // Calculate comprehensive analytics
-      const totalBookings = bookings.length;
-      const totalRevenue = bookings.reduce((sum, booking) => {
+      // Filter data by date range
+      const filteredBookings = bookings.filter(booking => 
+        new Date(booking.createdAt || booking.eventDate) >= startDate
+      );
+      const filteredProposals = proposals.filter(proposal => 
+        new Date(proposal.createdAt) >= startDate
+      );
+      const filteredLeads = leads.filter(lead => 
+        new Date(lead.createdAt) >= startDate
+      );
+      const filteredPayments = payments.filter(payment => 
+        new Date(payment.createdAt) >= startDate
+      );
+
+      // Calculate real metrics
+      const totalBookings = filteredBookings.length;
+      const totalRevenue = filteredBookings.reduce((sum, booking) => {
         const amount = booking.totalAmount ? parseFloat(booking.totalAmount) : 0;
         return sum + amount;
       }, 0);
       
-      const confirmedBookings = bookings.filter(booking => booking.status === 'confirmed').length;
-      const activeLeads = customers.filter(c => c.status === "lead").length;
-      const venueUtilization = venues.length > 0 ? Math.round((confirmedBookings / venues.length) * 10) / 10 : 0;
+      const confirmedBookings = filteredBookings.filter(booking => 
+        ['confirmed_deposit_paid', 'confirmed_fully_paid', 'completed'].includes(booking.status)
+      ).length;
       
-      // Calculate growth rates (simulated with real data patterns)
-      const revenueGrowth = totalBookings > 0 ? 12.5 : 0;
-      const bookingGrowth = totalBookings > 0 ? 8.3 : 0;
+      const activeLeads = filteredLeads.filter(lead => 
+        ['NEW', 'CONTACTED', 'TOUR_SCHEDULED', 'PROPOSAL_SENT'].includes(lead.status)
+      ).length;
+      
+      const convertedLeads = filteredLeads.filter(lead => lead.status === 'WON').length;
+      const leadConversionRate = filteredLeads.length > 0 ? (convertedLeads / filteredLeads.length) * 100 : 0;
+      
+      // Calculate proposal metrics
+      const sentProposals = filteredProposals.filter(p => p.status === 'sent' || p.status === 'viewed' || p.status === 'accepted').length;
+      const acceptedProposals = filteredProposals.filter(p => p.status === 'accepted').length;
+      const proposalConversionRate = sentProposals > 0 ? (acceptedProposals / sentProposals) * 100 : 0;
+      
+      // Calculate real venue utilization
+      const venueBookingCounts = {};
+      const venueBookingHours = {};
+      filteredBookings.forEach(booking => {
+        if (booking.venueId) {
+          venueBookingCounts[booking.venueId] = (venueBookingCounts[booking.venueId] || 0) + 1;
+          
+          // Calculate hours for each booking
+          if (booking.startTime && booking.endTime) {
+            const startHour = parseInt(booking.startTime.split(':')[0]) || 0;
+            const endHour = parseInt(booking.endTime.split(':')[0]) || 0;
+            const hours = endHour > startHour ? endHour - startHour : 8; // Default 8 hours if invalid
+            venueBookingHours[booking.venueId] = (venueBookingHours[booking.venueId] || 0) + hours;
+          } else {
+            // Default to 8 hours per booking if times not specified
+            venueBookingHours[booking.venueId] = (venueBookingHours[booking.venueId] || 0) + 8;
+          }
+        }
+      });
+      
+      // Calculate utilization based on available hours in the period
+      const daysInPeriod = Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      const availableHoursPerVenue = daysInPeriod * 12; // Assume 12 operating hours per day
+      
+      const avgBookingsPerVenue = venues.length > 0 ? Object.values(venueBookingCounts).reduce((a, b) => a + b, 0) / venues.length : 0;
+      const avgHoursPerVenue = venues.length > 0 ? Object.values(venueBookingHours).reduce((a, b) => a + b, 0) / venues.length : 0;
+      const venueUtilization = availableHoursPerVenue > 0 ? Math.min(100, Math.round((avgHoursPerVenue / availableHoursPerVenue) * 100)) : 0;
+      
+      // Calculate growth rates (compare with previous period)
+      const prevStartDate = new Date(startDate);
+      const diffMs = now.getTime() - startDate.getTime();
+      prevStartDate.setTime(startDate.getTime() - diffMs);
+      
+      const prevBookings = bookings.filter(booking => {
+        const date = new Date(booking.createdAt || booking.eventDate);
+        return date >= prevStartDate && date < startDate;
+      });
+      
+      const prevRevenue = prevBookings.reduce((sum, booking) => {
+        const amount = booking.totalAmount ? parseFloat(booking.totalAmount) : 0;
+        return sum + amount;
+      }, 0);
+      
+      const revenueGrowth = prevRevenue > 0 ? ((totalRevenue - prevRevenue) / prevRevenue) * 100 : 0;
+      const bookingGrowth = prevBookings.length > 0 ? ((totalBookings - prevBookings.length) / prevBookings.length) * 100 : 0;
       const averageBookingValue = totalBookings > 0 ? totalRevenue / totalBookings : 0;
-      const conversionRate = customers.length > 0 ? confirmedBookings / customers.length : 0;
       
-      // Generate monthly trends (simulated based on current data)
+      // Generate real monthly trends
       const monthlyTrends = [];
-      for (let i = 5; i >= 0; i--) {
-        const month = new Date();
-        month.setMonth(month.getMonth() - i);
+      const monthsToShow = dateRange === "1year" ? 12 : dateRange === "6months" ? 6 : 6;
+      
+      for (let i = monthsToShow - 1; i >= 0; i--) {
+        const monthDate = new Date();
+        monthDate.setMonth(monthDate.getMonth() - i);
+        const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+        const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+        
+        const monthBookings = bookings.filter(booking => {
+          const date = new Date(booking.createdAt || booking.eventDate);
+          return date >= monthStart && date <= monthEnd;
+        });
+        
+        const monthRevenue = monthBookings.reduce((sum, booking) => {
+          const amount = booking.totalAmount ? parseFloat(booking.totalAmount) : 0;
+          return sum + amount;
+        }, 0);
+        
+        const monthVenueBookings = {};
+        const monthVenueHours = {};
+        monthBookings.forEach(booking => {
+          if (booking.venueId) {
+            monthVenueBookings[booking.venueId] = (monthVenueBookings[booking.venueId] || 0) + 1;
+            
+            // Calculate hours for each booking
+            if (booking.startTime && booking.endTime) {
+              const startHour = parseInt(booking.startTime.split(':')[0]) || 0;
+              const endHour = parseInt(booking.endTime.split(':')[0]) || 0;
+              const hours = endHour > startHour ? endHour - startHour : 8;
+              monthVenueHours[booking.venueId] = (monthVenueHours[booking.venueId] || 0) + hours;
+            } else {
+              monthVenueHours[booking.venueId] = (monthVenueHours[booking.venueId] || 0) + 8;
+            }
+          }
+        });
+        
+        const daysInMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
+        const monthAvailableHours = daysInMonth * 12; // 12 operating hours per day
+        const avgMonthHours = venues.length > 0 ? Object.values(monthVenueHours).reduce((a, b) => a + b, 0) / venues.length : 0;
+        const monthUtilization = monthAvailableHours > 0 ? Math.min(100, Math.round((avgMonthHours / monthAvailableHours) * 100)) : 0;
+        
         monthlyTrends.push({
-          month: month.toLocaleString('default', { month: 'short' }),
-          bookings: Math.max(1, Math.floor(totalBookings / 6 + Math.random() * 5)),
-          revenue: Math.max(1000, Math.floor(totalRevenue / 6 + Math.random() * 5000)),
-          utilization: Math.max(20, Math.floor(venueUtilization + Math.random() * 20))
+          month: monthDate.toLocaleString('default', { month: 'short' }),
+          bookings: monthBookings.length,
+          revenue: Math.round(monthRevenue),
+          utilization: monthUtilization
         });
       }
       
-      // Venue performance data
-      const venuePerformance = venues.map(venue => ({
-        name: venue.name,
-        bookings: Math.floor(Math.random() * 10) + 1,
-        revenue: Math.floor(Math.random() * 10000) + 5000,
-        utilization: Math.floor(Math.random() * 40) + 40
-      }));
+      // Real venue performance data
+      const venuePerformance = venues.map(venue => {
+        const venueBookings = filteredBookings.filter(booking => booking.venueId === venue.id);
+        const venueRevenue = venueBookings.reduce((sum, booking) => {
+          const amount = booking.totalAmount ? parseFloat(booking.totalAmount) : 0;
+          return sum + amount;
+        }, 0);
+        
+        // Calculate real utilization for this venue
+        const venueBookingHours = venueBookings.reduce((sum, booking) => {
+          if (booking.startTime && booking.endTime) {
+            const startHour = parseInt(booking.startTime.split(':')[0]) || 0;
+            const endHour = parseInt(booking.endTime.split(':')[0]) || 0;
+            const hours = endHour > startHour ? endHour - startHour : 8;
+            return sum + hours;
+          } else {
+            return sum + 8; // Default 8 hours per booking
+          }
+        }, 0);
+        
+        const venueUtilization = availableHoursPerVenue > 0 ? 
+          Math.min(100, Math.round((venueBookingHours / availableHoursPerVenue) * 100)) : 0;
+        
+        return {
+          name: venue.name,
+          bookings: venueBookings.length,
+          revenue: Math.round(venueRevenue),
+          utilization: venueUtilization
+        };
+      });
       
-      // Revenue by event type
-      const eventTypes = ['Corporate', 'Wedding', 'Conference', 'Birthday', 'Other'];
-      const revenueByEventType = eventTypes.map(type => ({
+      // Real revenue by event type
+      const eventTypeStats = {};
+      filteredBookings.forEach(booking => {
+        const type = booking.eventType || 'Other';
+        if (!eventTypeStats[type]) {
+          eventTypeStats[type] = { revenue: 0, count: 0 };
+        }
+        eventTypeStats[type].count++;
+        eventTypeStats[type].revenue += booking.totalAmount ? parseFloat(booking.totalAmount) : 0;
+      });
+      
+      const revenueByEventType = Object.entries(eventTypeStats).map(([type, stats]) => ({
         type,
-        revenue: Math.floor(Math.random() * totalRevenue / 5),
-        count: Math.floor(Math.random() * totalBookings / 5)
-      }));
+        revenue: Math.round(stats.revenue),
+        count: stats.count
+      })).sort((a, b) => b.revenue - a.revenue);
       
+      // Additional comprehensive metrics
+      const averageLeadValue = filteredLeads.length > 0 ? 
+        (filteredLeads.reduce((sum, lead) => sum + (parseFloat(lead.budgetMax) || 0), 0) / filteredLeads.length) : 0;
+      
+      const completedEvents = filteredBookings.filter(booking => booking.status === 'completed').length;
+      const cancelledEvents = filteredBookings.filter(booking => booking.status === 'cancelled_refunded').length;
+      const cancellationRate = totalBookings > 0 ? (cancelledEvents / totalBookings) * 100 : 0;
+      
+      const totalDepositsCollected = filteredPayments
+        .filter(payment => payment.paymentType === 'deposit' && payment.status === 'completed')
+        .reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
+      
+      const outstandingRevenue = filteredBookings
+        .filter(booking => ['confirmed_deposit_paid'].includes(booking.status))
+        .reduce((sum, booking) => {
+          const total = parseFloat(booking.totalAmount) || 0;
+          const deposit = parseFloat(booking.depositAmount) || 0;
+          return sum + (total - deposit);
+        }, 0);
+
       res.json({
         totalBookings,
-        revenue: totalRevenue,
+        revenue: Math.round(totalRevenue),
         activeLeads,
         utilization: venueUtilization,
-        revenueGrowth,
-        bookingGrowth,
-        averageBookingValue,
-        conversionRate,
+        revenueGrowth: Math.round(revenueGrowth * 100) / 100,
+        bookingGrowth: Math.round(bookingGrowth * 100) / 100,
+        averageBookingValue: Math.round(averageBookingValue),
+        conversionRate: leadConversionRate / 100, // Convert to decimal for display
+        proposalConversionRate: proposalConversionRate / 100,
         monthlyTrends,
         venuePerformance,
-        revenueByEventType
+        revenueByEventType,
+        // Additional metrics
+        completedEvents,
+        cancelledEvents,
+        cancellationRate: Math.round(cancellationRate * 100) / 100,
+        averageLeadValue: Math.round(averageLeadValue),
+        totalDepositsCollected: Math.round(totalDepositsCollected),
+        outstandingRevenue: Math.round(outstandingRevenue),
+        sentProposals,
+        acceptedProposals,
+        totalPayments: filteredPayments.length,
+        leadSources: filteredLeads.reduce((acc, lead) => {
+          const source = lead.utmSource || 'Direct';
+          acc[source] = (acc[source] || 0) + 1;
+          return acc;
+        }, {}),
+        customerTypes: filteredBookings.reduce((acc, booking) => {
+          const customer = customers.find(c => c.id === booking.customerId);
+          const type = customer?.customerType || 'individual';
+          acc[type] = (acc[type] || 0) + 1;
+          return acc;
+        }, {})
       });
     } catch (error) {
       console.error('Reports analytics error:', error);
@@ -1770,6 +1975,284 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
     } catch (error) {
       console.error('Report export error:', error);
       res.status(500).json({ message: "Failed to export report" });
+    }
+  });
+
+  // Revenue Analytics Endpoint
+  app.get("/api/reports/revenue/:dateRange?", async (req, res) => {
+    try {
+      const dateRange = req.params.dateRange || "3months";
+      const bookings = await storage.getBookings();
+      const payments = await storage.getPayments();
+      const customers = await storage.getCustomers();
+      
+      // Revenue breakdown by payment status
+      const revenueByStatus = {
+        collected: 0,
+        pending: 0,
+        outstanding: 0
+      };
+      
+      const paymentBreakdown = {
+        deposits: 0,
+        finalPayments: 0,
+        refunds: 0
+      };
+      
+      payments.forEach(payment => {
+        const amount = parseFloat(payment.amount) || 0;
+        if (payment.status === 'completed') {
+          revenueByStatus.collected += amount;
+          if (payment.paymentType === 'deposit') paymentBreakdown.deposits += amount;
+          else if (payment.paymentType === 'final') paymentBreakdown.finalPayments += amount;
+        } else if (payment.status === 'pending') {
+          revenueByStatus.pending += amount;
+        } else if (payment.paymentType === 'refund') {
+          paymentBreakdown.refunds += amount;
+        }
+      });
+      
+      // Outstanding revenue calculation
+      bookings.forEach(booking => {
+        if (booking.status === 'confirmed_deposit_paid') {
+          const total = parseFloat(booking.totalAmount) || 0;
+          const deposit = parseFloat(booking.depositAmount) || 0;
+          revenueByStatus.outstanding += (total - deposit);
+        }
+      });
+      
+      // Revenue trends by month
+      const monthlyRevenue = [];
+      for (let i = 11; i >= 0; i--) {
+        const monthDate = new Date();
+        monthDate.setMonth(monthDate.getMonth() - i);
+        const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+        const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+        
+        const monthPayments = payments.filter(payment => {
+          const date = new Date(payment.createdAt);
+          return date >= monthStart && date <= monthEnd && payment.status === 'completed';
+        });
+        
+        const monthTotal = monthPayments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
+        
+        monthlyRevenue.push({
+          month: monthDate.toLocaleString('default', { month: 'short', year: 'numeric' }),
+          revenue: Math.round(monthTotal),
+          transactions: monthPayments.length
+        });
+      }
+      
+      // Average revenue per customer type
+      const revenueByCustomerType = {};
+      bookings.forEach(booking => {
+        const customer = customers.find(c => c.id === booking.customerId);
+        const type = customer?.customerType || 'individual';
+        const revenue = parseFloat(booking.totalAmount) || 0;
+        
+        if (!revenueByCustomerType[type]) {
+          revenueByCustomerType[type] = { total: 0, count: 0 };
+        }
+        revenueByCustomerType[type].total += revenue;
+        revenueByCustomerType[type].count += 1;
+      });
+      
+      Object.keys(revenueByCustomerType).forEach(type => {
+        revenueByCustomerType[type].average = revenueByCustomerType[type].total / revenueByCustomerType[type].count;
+      });
+      
+      res.json({
+        revenueByStatus,
+        paymentBreakdown,
+        monthlyRevenue,
+        revenueByCustomerType,
+        totalRevenue: revenueByStatus.collected,
+        projectedRevenue: revenueByStatus.collected + revenueByStatus.outstanding
+      });
+    } catch (error) {
+      console.error('Revenue analytics error:', error);
+      res.status(500).json({ message: "Failed to fetch revenue analytics" });
+    }
+  });
+
+  // Customer Analytics Endpoint
+  app.get("/api/reports/customers/:dateRange?", async (req, res) => {
+    try {
+      const customers = await storage.getCustomers();
+      const bookings = await storage.getBookings();
+      const leads = await storage.getLeads();
+      const proposals = await storage.getProposals();
+      
+      // Customer acquisition over time
+      const acquisitionTrends = [];
+      for (let i = 11; i >= 0; i--) {
+        const monthDate = new Date();
+        monthDate.setMonth(monthDate.getMonth() - i);
+        const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+        const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+        
+        const newCustomers = customers.filter(customer => {
+          const date = new Date(customer.createdAt);
+          return date >= monthStart && date <= monthEnd && customer.status === 'customer';
+        });
+        
+        const newLeads = leads.filter(lead => {
+          const date = new Date(lead.createdAt);
+          return date >= monthStart && date <= monthEnd;
+        });
+        
+        acquisitionTrends.push({
+          month: monthDate.toLocaleString('default', { month: 'short' }),
+          customers: newCustomers.length,
+          leads: newLeads.length,
+          conversion: newLeads.length > 0 ? (newCustomers.length / newLeads.length) * 100 : 0
+        });
+      }
+      
+      // Customer lifetime value analysis
+      const customerLTV = customers.map(customer => {
+        const customerBookings = bookings.filter(b => b.customerId === customer.id);
+        const totalValue = customerBookings.reduce((sum, booking) => 
+          sum + (parseFloat(booking.totalAmount) || 0), 0);
+        const bookingCount = customerBookings.length;
+        
+        return {
+          id: customer.id,
+          name: customer.name,
+          type: customer.customerType,
+          totalValue: Math.round(totalValue),
+          bookingCount,
+          averageBookingValue: bookingCount > 0 ? Math.round(totalValue / bookingCount) : 0
+        };
+      }).sort((a, b) => b.totalValue - a.totalValue).slice(0, 10);
+      
+      // Lead source performance
+      const leadSources = {};
+      leads.forEach(lead => {
+        const source = lead.utmSource || 'Direct';
+        if (!leadSources[source]) {
+          leadSources[source] = { leads: 0, converted: 0, revenue: 0 };
+        }
+        leadSources[source].leads += 1;
+        
+        if (lead.convertedCustomerId) {
+          leadSources[source].converted += 1;
+          const customerBookings = bookings.filter(b => b.customerId === lead.convertedCustomerId);
+          const revenue = customerBookings.reduce((sum, booking) => 
+            sum + (parseFloat(booking.totalAmount) || 0), 0);
+          leadSources[source].revenue += revenue;
+        }
+      });
+      
+      Object.keys(leadSources).forEach(source => {
+        const data = leadSources[source];
+        data.conversionRate = data.leads > 0 ? (data.converted / data.leads) * 100 : 0;
+        data.averageRevenue = data.converted > 0 ? data.revenue / data.converted : 0;
+      });
+      
+      res.json({
+        totalCustomers: customers.filter(c => c.status === 'customer').length,
+        totalLeads: leads.length,
+        acquisitionTrends,
+        customerLTV,
+        leadSources
+      });
+    } catch (error) {
+      console.error('Customer analytics error:', error);
+      res.status(500).json({ message: "Failed to fetch customer analytics" });
+    }
+  });
+
+  // Venue Performance Analytics
+  app.get("/api/reports/venues/:dateRange?", async (req, res) => {
+    try {
+      const venues = await storage.getVenues();
+      const bookings = await storage.getBookings();
+      const spaces = await storage.getSpaces();
+      
+      // Venue performance metrics
+      const venueMetrics = venues.map(venue => {
+        const venueBookings = bookings.filter(b => b.venueId === venue.id);
+        const totalRevenue = venueBookings.reduce((sum, booking) => 
+          sum + (parseFloat(booking.totalAmount) || 0), 0);
+        
+        // Calculate utilization based on booking frequency
+        const confirmedBookings = venueBookings.filter(b => 
+          ['confirmed_deposit_paid', 'confirmed_fully_paid', 'completed'].includes(b.status));
+        
+        // Calculate real utilization based on actual booking hours
+        const venueBookingHours = venueBookings.reduce((sum, booking) => {
+          if (booking.startTime && booking.endTime) {
+            const startHour = parseInt(booking.startTime.split(':')[0]) || 0;
+            const endHour = parseInt(booking.endTime.split(':')[0]) || 0;
+            const hours = endHour > startHour ? endHour - startHour : 8;
+            return sum + hours;
+          } else {
+            return sum + 8; // Default 8 hours per booking
+          }
+        }, 0);
+        
+        // Calculate available hours (assuming 12 hours per day, 365 days per year)
+        const availableHoursPerYear = 365 * 12;
+        const utilizationPercentage = Math.min(100, Math.round((venueBookingHours / availableHoursPerYear) * 100));
+        
+        // Calculate average event size
+        const averageGuestCount = venueBookings.length > 0 ? 
+          venueBookings.reduce((sum, b) => sum + (b.guestCount || 0), 0) / venueBookings.length : 0;
+        
+        return {
+          id: venue.id,
+          name: venue.name,
+          capacity: venue.capacity,
+          totalBookings: venueBookings.length,
+          confirmedBookings: confirmedBookings.length,
+          totalRevenue: Math.round(totalRevenue),
+          averageRevenue: venueBookings.length > 0 ? Math.round(totalRevenue / venueBookings.length) : 0,
+          utilization: utilizationPercentage,
+          averageGuestCount: Math.round(averageGuestCount)
+        };
+      }).sort((a, b) => b.totalRevenue - a.totalRevenue);
+      
+      // Popular event types by venue
+      const eventTypesByVenue = {};
+      bookings.forEach(booking => {
+        if (!booking.venueId) return;
+        
+        const venueName = venues.find(v => v.id === booking.venueId)?.name || 'Unknown';
+        if (!eventTypesByVenue[venueName]) {
+          eventTypesByVenue[venueName] = {};
+        }
+        
+        const eventType = booking.eventType || 'Other';
+        eventTypesByVenue[venueName][eventType] = (eventTypesByVenue[venueName][eventType] || 0) + 1;
+      });
+      
+      // Space utilization
+      const spaceMetrics = spaces.map(space => {
+        const spaceBookings = bookings.filter(b => b.spaceId === space.id);
+        const venue = venues.find(v => v.id === space.venueId);
+        
+        return {
+          id: space.id,
+          name: space.name,
+          venueName: venue?.name || 'Unknown',
+          capacity: space.capacity,
+          bookings: spaceBookings.length,
+          revenue: Math.round(spaceBookings.reduce((sum, booking) => 
+            sum + (parseFloat(booking.totalAmount) || 0), 0))
+        };
+      });
+      
+      res.json({
+        venueMetrics,
+        eventTypesByVenue,
+        spaceMetrics,
+        totalVenues: venues.length,
+        totalSpaces: spaces.length
+      });
+    } catch (error) {
+      console.error('Venue analytics error:', error);
+      res.status(500).json({ message: "Failed to fetch venue analytics" });
     }
   });
 
