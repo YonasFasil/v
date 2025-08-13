@@ -93,8 +93,18 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
     name: "",
     email: "",
     phone: "",
-    company: ""
+    company: "",
+    customerType: "individual" as "individual" | "business",
+    companyId: "",
+    jobTitle: "",
+    department: ""
   });
+
+  // Company search and employee management
+  const [companySearch, setCompanySearch] = useState("");
+  const [showCompanyEmployees, setShowCompanyEmployees] = useState(false);
+  const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  const [showManageEmployees, setShowManageEmployees] = useState(false);
 
   // Proposal creation
   const [showCreateProposal, setShowCreateProposal] = useState(false);
@@ -117,6 +127,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
   const { data: packages = [] } = useQuery({ queryKey: ["/api/packages"] });
   const { data: services = [] } = useQuery({ queryKey: ["/api/services"] });
   const { data: customers = [] } = useQuery({ queryKey: ["/api/customers"] });
+  const { data: companies = [] } = useQuery({ queryKey: ["/api/companies"] });
   const { data: existingBookings = [] } = useQuery({ queryKey: ["/api/bookings"] });
   const { data: taxSettings = [] } = useQuery({ queryKey: ["/api/tax-settings"] });
 
@@ -590,7 +601,17 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       setSelectedCustomer(data.id);
       setShowNewCustomerForm(false);
-      setNewCustomer({ name: "", email: "", phone: "", company: "" });
+      setShowManageEmployees(false);
+      setNewCustomer({ 
+        name: "", 
+        email: "", 
+        phone: "", 
+        company: "",
+        customerType: "individual",
+        companyId: "",
+        jobTitle: "",
+        department: ""
+      });
       toast({ title: "Customer created successfully!" });
     },
     onError: (error: any) => {
@@ -729,7 +750,16 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
     setSelectedCustomer("");
     setEventStatus("inquiry");
     setShowNewCustomerForm(false);
-    setNewCustomer({ name: "", email: "", phone: "", company: "" });
+    setNewCustomer({ 
+      name: "", 
+      email: "", 
+      phone: "", 
+      company: "",
+      customerType: "individual",
+      companyId: "",
+      jobTitle: "",
+      department: ""
+    });
     setShowVoicePanel(false);
     setVoiceExtractedData(null);
   };
@@ -743,7 +773,29 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
       });
       return;
     }
-    createCustomer.mutate(newCustomer);
+    
+    if (newCustomer.customerType === "business" && !newCustomer.companyId) {
+      toast({
+        title: "Company required",
+        description: "Please select a company for business customers",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const customerData = {
+      name: newCustomer.name,
+      email: newCustomer.email,
+      phone: newCustomer.phone,
+      customerType: newCustomer.customerType,
+      ...(newCustomer.customerType === "business" && {
+        companyId: newCustomer.companyId,
+        jobTitle: newCustomer.jobTitle,
+        department: newCustomer.department
+      })
+    };
+    
+    createCustomer.mutate(customerData);
   };
 
   const handleCreateService = () => {
@@ -903,6 +955,22 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         }
       });
     }
+  };
+
+  // Helper functions for company/customer management
+  const getCompanyById = (id: string) => {
+    return (companies as any[]).find(c => c.id === id);
+  };
+
+  const getCustomersByCompany = (companyId: string) => {
+    return (customers as any[]).filter(c => c.companyId === companyId);
+  };
+
+  const getFilteredCompanies = () => {
+    if (!companySearch) return [];
+    return (companies as any[]).filter(company => 
+      company.name.toLowerCase().includes(companySearch.toLowerCase())
+    );
   };
 
   const nextStep = () => {
@@ -2141,6 +2209,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                             size="sm"
                             onClick={() => setShowNewCustomerForm(!showNewCustomerForm)}
                             className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                            data-testid="button-new-customer"
                           >
                             <Plus className="w-4 h-4 mr-1" />
                             {showNewCustomerForm ? "Cancel" : "New Customer"}
@@ -2148,22 +2217,126 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                         </div>
                         
                         {!showNewCustomerForm ? (
-                          <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-                            <SelectTrigger className={cn(!selectedCustomer && "border-red-200 bg-red-50/30")}>
-                              <SelectValue placeholder="-- Select a Customer --" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(customers as any[]).map((customer: any) => (
-                                <SelectItem key={customer.id} value={customer.id}>
-                                  {customer.name} - {customer.email}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <div className="space-y-3">
+                            {/* Company Search */}
+                            <div>
+                              <Label className="text-sm font-medium mb-2 block">Search by Company</Label>
+                              <Input
+                                value={companySearch}
+                                onChange={(e) => setCompanySearch(e.target.value)}
+                                placeholder="Type company name to search..."
+                                className="mb-2"
+                                data-testid="input-company-search"
+                              />
+                              
+                              {companySearch && getFilteredCompanies().length > 0 && (
+                                <div className="border rounded-md max-h-48 overflow-y-auto bg-white">
+                                  {getFilteredCompanies().map((company: any) => {
+                                    const companyEmployees = getCustomersByCompany(company.id);
+                                    return (
+                                      <div key={company.id} className="border-b last:border-b-0">
+                                        <div className="p-3 bg-gray-50">
+                                          <div className="flex items-center justify-between">
+                                            <div>
+                                              <h4 className="font-medium text-sm">{company.name}</h4>
+                                              <p className="text-xs text-muted-foreground">{companyEmployees.length} employees</p>
+                                            </div>
+                                            <Button
+                                              type="button"
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => {
+                                                setSelectedCompanyId(company.id);
+                                                setShowManageEmployees(true);
+                                              }}
+                                              data-testid={`button-manage-employees-${company.id}`}
+                                            >
+                                              Manage
+                                            </Button>
+                                          </div>
+                                        </div>
+                                        {companyEmployees.length > 0 && (
+                                          <div className="p-2 space-y-1">
+                                            {companyEmployees.map((employee: any) => (
+                                              <button
+                                                key={employee.id}
+                                                type="button"
+                                                onClick={() => {
+                                                  setSelectedCustomer(employee.id);
+                                                  setCompanySearch("");
+                                                }}
+                                                className="w-full text-left p-2 rounded hover:bg-blue-50 border border-transparent hover:border-blue-200"
+                                                data-testid={`button-select-employee-${employee.id}`}
+                                              >
+                                                <div className="flex items-center justify-between">
+                                                  <div>
+                                                    <p className="font-medium text-sm">{employee.name}</p>
+                                                    <p className="text-xs text-muted-foreground">{employee.email}</p>
+                                                    {employee.jobTitle && (
+                                                      <p className="text-xs text-blue-600">{employee.jobTitle}</p>
+                                                    )}
+                                                  </div>
+                                                  {selectedCustomer === employee.id && (
+                                                    <Badge variant="default" className="bg-green-100 text-green-800">Selected</Badge>
+                                                  )}
+                                                </div>
+                                              </button>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Regular Customer Selection */}
+                            <div>
+                              <Label className="text-sm font-medium mb-2 block">Or Select Existing Customer</Label>
+                              <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
+                                <SelectTrigger className={cn(!selectedCustomer && "border-red-200 bg-red-50/30")} data-testid="select-customer">
+                                  <SelectValue placeholder="-- Select a Customer --" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {(customers as any[]).map((customer: any) => (
+                                    <SelectItem key={customer.id} value={customer.id}>
+                                      <div className="flex flex-col">
+                                        <span>{customer.name} - {customer.email}</span>
+                                        {customer.companyId && (
+                                          <span className="text-xs text-muted-foreground">
+                                            {getCompanyById(customer.companyId)?.name} • {customer.jobTitle}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
                         ) : (
                           <Card className="p-4 border-blue-200 bg-blue-50">
                             <div className="space-y-4">
                               <h4 className="font-medium text-sm">Create New Customer</h4>
+                              
+                              {/* Customer Type Selection */}
+                              <div>
+                                <Label className="text-sm font-medium">Customer Type</Label>
+                                <Select 
+                                  value={newCustomer.customerType} 
+                                  onValueChange={(value) => setNewCustomer(prev => ({...prev, customerType: value as "individual" | "business"}))}
+                                >
+                                  <SelectTrigger className="mt-1">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="individual">Individual Customer</SelectItem>
+                                    <SelectItem value="business">Business Customer</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
                               <div className="grid grid-cols-2 gap-3">
                                 <div>
                                   <Label className="text-sm flex items-center gap-1">
@@ -2175,6 +2348,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                     onChange={(e) => setNewCustomer(prev => ({...prev, name: e.target.value}))}
                                     placeholder="Customer name"
                                     className={cn("mt-1", !newCustomer.name.trim() && "border-red-200 bg-red-50/30")}
+                                    data-testid="input-new-customer-name"
                                   />
                                 </div>
                                 <div>
@@ -2188,6 +2362,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                     onChange={(e) => setNewCustomer(prev => ({...prev, email: e.target.value}))}
                                     placeholder="customer@example.com"
                                     className={cn("mt-1", !newCustomer.email.trim() && "border-red-200 bg-red-50/30")}
+                                    data-testid="input-new-customer-email"
                                   />
                                 </div>
                                 <div>
@@ -2197,17 +2372,70 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                     onChange={(e) => setNewCustomer(prev => ({...prev, phone: e.target.value}))}
                                     placeholder="(555) 123-4567"
                                     className="mt-1"
+                                    data-testid="input-new-customer-phone"
                                   />
                                 </div>
-                                <div>
-                                  <Label className="text-sm">Company</Label>
-                                  <Input
-                                    value={newCustomer.company}
-                                    onChange={(e) => setNewCustomer(prev => ({...prev, company: e.target.value}))}
-                                    placeholder="Company name"
-                                    className="mt-1"
-                                  />
-                                </div>
+                                
+                                {newCustomer.customerType === "business" ? (
+                                  <div>
+                                    <Label className="text-sm flex items-center gap-1">
+                                      Company
+                                      <span className="text-red-500 text-xs">*</span>
+                                    </Label>
+                                    <Select 
+                                      value={newCustomer.companyId} 
+                                      onValueChange={(value) => setNewCustomer(prev => ({...prev, companyId: value}))}
+                                    >
+                                      <SelectTrigger className={cn("mt-1", !newCustomer.companyId && "border-red-200 bg-red-50/30")}>
+                                        <SelectValue placeholder="Select company" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {(companies as any[]).map((company: any) => (
+                                          <SelectItem key={company.id} value={company.id}>
+                                            {company.name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <Label className="text-sm">Company</Label>
+                                    <Input
+                                      value={newCustomer.company}
+                                      onChange={(e) => setNewCustomer(prev => ({...prev, company: e.target.value}))}
+                                      placeholder="Company name"
+                                      className="mt-1"
+                                      data-testid="input-new-customer-company"
+                                    />
+                                  </div>
+                                )}
+                                
+                                {/* Additional business customer fields */}
+                                {newCustomer.customerType === "business" && (
+                                  <>
+                                    <div>
+                                      <Label className="text-sm">Job Title</Label>
+                                      <Input
+                                        value={newCustomer.jobTitle}
+                                        onChange={(e) => setNewCustomer(prev => ({...prev, jobTitle: e.target.value}))}
+                                        placeholder="e.g., Event Manager"
+                                        className="mt-1"
+                                        data-testid="input-new-customer-job-title"
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label className="text-sm">Department</Label>
+                                      <Input
+                                        value={newCustomer.department}
+                                        onChange={(e) => setNewCustomer(prev => ({...prev, department: e.target.value}))}
+                                        placeholder="e.g., Marketing"
+                                        className="mt-1"
+                                        data-testid="input-new-customer-department"
+                                      />
+                                    </div>
+                                  </>
+                                )}
                               </div>
                               <Button
                                 type="button"
@@ -3243,6 +3471,130 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
           }}
         />
       )}
+
+      {/* Manage Employees Modal */}
+      <Dialog open={showManageEmployees} onOpenChange={setShowManageEmployees}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Manage Employees</DialogTitle>
+            <DialogDescription>
+              Add a new employee for {getCompanyById(selectedCompanyId)?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3">
+              <div>
+                <Label className="text-sm flex items-center gap-1">
+                  Employee Name
+                  <span className="text-red-500 text-xs">*</span>
+                </Label>
+                <Input
+                  value={newCustomer.name}
+                  onChange={(e) => setNewCustomer(prev => ({...prev, name: e.target.value}))}
+                  placeholder="Employee full name"
+                  className={cn("mt-1", !newCustomer.name.trim() && "border-red-200 bg-red-50/30")}
+                  data-testid="input-manage-employee-name"
+                />
+              </div>
+              <div>
+                <Label className="text-sm flex items-center gap-1">
+                  Email
+                  <span className="text-red-500 text-xs">*</span>
+                </Label>
+                <Input
+                  type="email"
+                  value={newCustomer.email}
+                  onChange={(e) => setNewCustomer(prev => ({...prev, email: e.target.value}))}
+                  placeholder="employee@company.com"
+                  className={cn("mt-1", !newCustomer.email.trim() && "border-red-200 bg-red-50/30")}
+                  data-testid="input-manage-employee-email"
+                />
+              </div>
+              <div>
+                <Label className="text-sm">Phone</Label>
+                <Input
+                  value={newCustomer.phone}
+                  onChange={(e) => setNewCustomer(prev => ({...prev, phone: e.target.value}))}
+                  placeholder="(555) 123-4567"
+                  className="mt-1"
+                  data-testid="input-manage-employee-phone"
+                />
+              </div>
+              <div>
+                <Label className="text-sm">Job Title</Label>
+                <Input
+                  value={newCustomer.jobTitle}
+                  onChange={(e) => setNewCustomer(prev => ({...prev, jobTitle: e.target.value}))}
+                  placeholder="e.g., Event Manager"
+                  className="mt-1"
+                  data-testid="input-manage-employee-job-title"
+                />
+              </div>
+              <div>
+                <Label className="text-sm">Department</Label>
+                <Input
+                  value={newCustomer.department}
+                  onChange={(e) => setNewCustomer(prev => ({...prev, department: e.target.value}))}
+                  placeholder="e.g., Marketing"
+                  className="mt-1"
+                  data-testid="input-manage-employee-department"
+                />
+              </div>
+            </div>
+            
+            <div className="flex gap-2 pt-4">
+              <Button
+                onClick={() => {
+                  if (!newCustomer.name || !newCustomer.email) {
+                    toast({
+                      title: "Required fields missing",
+                      description: "Please provide employee name and email",
+                      variant: "destructive"
+                    });
+                    return;
+                  }
+                  
+                  const customerData = {
+                    name: newCustomer.name,
+                    email: newCustomer.email,
+                    phone: newCustomer.phone,
+                    customerType: "business",
+                    companyId: selectedCompanyId,
+                    jobTitle: newCustomer.jobTitle,
+                    department: newCustomer.department
+                  };
+                  
+                  createCustomer.mutate(customerData);
+                }}
+                disabled={createCustomer.isPending || !newCustomer.name || !newCustomer.email}
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                data-testid="button-add-employee"
+              >
+                {createCustomer.isPending ? "Adding..." : "Add Employee"}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowManageEmployees(false);
+                  setNewCustomer({ 
+                    name: "", 
+                    email: "", 
+                    phone: "", 
+                    company: "",
+                    customerType: "individual",
+                    companyId: "",
+                    jobTitle: "",
+                    department: ""
+                  });
+                }}
+                data-testid="button-cancel-manage-employee"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
