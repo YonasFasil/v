@@ -193,11 +193,28 @@ export default function Customers() {
   });
 
   const updateCompanyMutation = useMutation({
-    mutationFn: async (data: { id: string; updates: Partial<typeof companyFormData> }) => {
-      return apiRequest("PATCH", `/api/companies/${data.id}`, data.updates);
+    mutationFn: async (data: { id: string; updates: Partial<typeof companyFormData>; employees?: any[] }) => {
+      // Update company first
+      const company = await apiRequest("PATCH", `/api/companies/${data.id}`, data.updates);
+      
+      // Then create any new employees if provided
+      if (data.employees && data.employees.length > 0) {
+        await Promise.all(
+          data.employees.map(employee => 
+            apiRequest("POST", "/api/customers", {
+              ...employee,
+              companyId: data.id
+            })
+          )
+        );
+      }
+      
+      return company;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/companies"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers/analytics"] });
       setEditingCompany(null);
       resetCompanyForm();
       toast({
@@ -343,7 +360,11 @@ export default function Customers() {
     }
 
     if (editingCompany) {
-      updateCompanyMutation.mutate({ id: editingCompany.id, updates: companyFormData });
+      updateCompanyMutation.mutate({ 
+        id: editingCompany.id, 
+        updates: companyFormData, 
+        employees: companyEmployees 
+      });
     } else {
       createCompanyMutation.mutate({ companyData: companyFormData, employees: companyEmployees });
     }
@@ -896,11 +917,13 @@ export default function Customers() {
                         />
                       </div>
 
-                      {/* Employees Section - Only show when creating new company */}
-                      {!editingCompany && (
+                      {/* Employees Section - Show for both creating and editing */}
+                      {true && (
                         <div className="space-y-4 border-t pt-4">
                           <div className="flex justify-between items-center">
-                            <Label className="text-base font-medium">Employees (Optional)</Label>
+                            <Label className="text-base font-medium">
+                              {editingCompany ? "Add New Employees" : "Employees (Optional)"}
+                            </Label>
                             <Button 
                               type="button" 
                               variant="outline" 
