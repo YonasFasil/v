@@ -3109,18 +3109,29 @@ This is a test email from your Venuine venue management system.
           const spaces = await storage.getSpaces();
           const packages = await storage.getPackages();
           const allServices = await storage.getServices();
+          const setupStyles = await storage.getSetupStyles();
           
           eventDates = linkedBookings.map(linkedBooking => {
             const bookingVenue = venues.find(v => v.id === linkedBooking.venueId);
             const space = spaces.find(s => s.id === linkedBooking.spaceId);
             
-            // Get package and services information
-            let packageName = null;
+            // Get detailed package and services information
+            let packageDetails = null;
             let services = [];
+            let setupStyle = null;
             
             if (linkedBooking.packageId) {
               const packageData = packages.find(p => p.id === linkedBooking.packageId);
-              packageName = packageData?.name || null;
+              if (packageData) {
+                packageDetails = {
+                  name: packageData.name,
+                  description: packageData.description,
+                  price: parseFloat(packageData.price || 0),
+                  pricingModel: packageData.pricingModel,
+                  category: packageData.category,
+                  services: packageData.includedServices || []
+                };
+              }
             }
             
             if (linkedBooking.selectedServices && linkedBooking.selectedServices.length > 0) {
@@ -3128,20 +3139,52 @@ This is a test email from your Venuine venue management system.
                 const service = allServices.find(s => s.id === serviceId);
                 return service ? {
                   name: service.name,
-                  price: parseFloat(service.price)
+                  description: service.description,
+                  price: parseFloat(service.price || 0),
+                  pricingModel: service.pricingModel,
+                  category: service.category,
+                  duration: service.duration
                 } : null;
               }).filter(Boolean);
+            }
+            
+            // Get setup style information
+            if (linkedBooking.setupStyle) {
+              const setupStyleData = setupStyles.find(s => s.id === linkedBooking.setupStyle);
+              if (setupStyleData) {
+                setupStyle = {
+                  name: setupStyleData.name,
+                  description: setupStyleData.description,
+                  category: setupStyleData.category,
+                  capacity: {
+                    min: setupStyleData.minCapacity,
+                    max: setupStyleData.maxCapacity
+                  }
+                };
+              }
             }
             
             return {
               date: linkedBooking.eventDate ? (typeof linkedBooking.eventDate === 'string' ? linkedBooking.eventDate : new Date(linkedBooking.eventDate).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
               startTime: linkedBooking.startTime || "TBD",
               endTime: linkedBooking.endTime || "TBD",
-              venue: bookingVenue?.name || "Venue Location",
-              space: space?.name || "Event Space",
+              venue: {
+                name: bookingVenue?.name || "Venue Location",
+                description: bookingVenue?.description || "",
+                capacity: bookingVenue?.capacity || 0
+              },
+              space: {
+                name: space?.name || "Event Space",
+                description: space?.description || "",
+                capacity: space?.capacity || 0
+              },
               guestCount: linkedBooking.guestCount || 1,
-              packageName: packageName,
-              services: services
+              packageDetails: packageDetails,
+              services: services,
+              setupStyle: setupStyle,
+              pricingModel: linkedBooking.pricingModel || "fixed",
+              totalAmount: parseFloat(linkedBooking.totalAmount || 0),
+              notes: linkedBooking.notes || ""
             };
           });
           

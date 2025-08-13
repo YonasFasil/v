@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle, Calendar, Clock, MapPin, Users, Mail, Phone, ArrowRight, Sparkles, Star, Award, ChefHat, Music, Camera, Utensils } from "lucide-react";
+import { CheckCircle, Calendar, Clock, MapPin, Users, Mail, Phone, ArrowRight, Sparkles, Star, Award, ChefHat, Music, Camera, Utensils, Settings, FileText } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface ProposalData {
@@ -202,48 +202,38 @@ export default function ProposalView() {
           <div className="space-y-20">
             {proposal.eventDates.map((eventDate, index) => (
               <div key={index} className="space-y-12">
-                <Card className="group border-0 shadow-2xl bg-white/90 backdrop-blur-xl hover:bg-white/95 transition-all duration-500 overflow-hidden">
+                <Card className="border border-slate-200 shadow-sm bg-white">
                   <CardContent className="p-0">
-                    {/* Elegant Header with Event Number */}
-                    <div className="bg-gradient-to-r from-slate-900 via-gray-900 to-slate-900 p-12 text-white relative overflow-hidden">
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.1),transparent_70%)]"></div>
-                      <div className="relative z-10 flex items-center justify-between">
+                    {/* Professional Header */}
+                    <div className="bg-slate-50 border-b border-slate-200 px-8 py-6">
+                      <div className="flex items-center justify-between">
                         <div>
-                          <div className="flex items-center gap-4 mb-4">
-                            {proposal.eventDates.length > 1 && (
-                              <div className="bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 border border-white/30">
-                                <span className="text-sm font-medium text-white">Day {index + 1} of {proposal.eventDates.length}</span>
-                              </div>
-                            )}
-                          </div>
-                          <h2 className="text-4xl font-light mb-2 tracking-wide">
-                            {proposal.eventDates.length > 1 ? `Event Day ${index + 1}` : "Your Event Experience"}
+                          {proposal.eventDates.length > 1 && (
+                            <div className="inline-flex items-center gap-2 bg-slate-200 text-slate-700 px-3 py-1 rounded-md text-sm font-medium mb-3">
+                              <span>Day {index + 1} of {proposal.eventDates.length}</span>
+                            </div>
+                          )}
+                          <h2 className="text-2xl font-semibold text-slate-900 mb-1">
+                            {proposal.eventDates.length > 1 ? `Event Day ${index + 1}` : "Event Details"}
                           </h2>
-                          <p className="text-gray-300 text-lg font-light">Meticulously planned, elegantly executed</p>
+                          <p className="text-slate-600">Complete breakdown of services and pricing</p>
                         </div>
-                        <div className="hidden md:block">
-                          <div className="w-20 h-20 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20">
-                            <Sparkles className="w-10 h-10 text-amber-300" />
-                          </div>
+                        <div className="text-right">
+                          <p className="text-sm text-slate-500">Total for this date</p>
+                          <p className="text-2xl font-bold text-slate-900">${eventDate.totalAmount?.toLocaleString() || '0'}</p>
                         </div>
                       </div>
                     </div>
 
-                    {/* Event Details Grid */}
-                    <div className="p-12">
-                      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-10 mb-16">
-                        {/* Date */}
-                        <div className="group text-center">
-                          <div className="relative">
-                            <div className="w-24 h-24 mx-auto bg-gradient-to-br from-blue-50 via-blue-100 to-indigo-100 rounded-3xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:shadow-xl transition-all duration-300 border-2 border-blue-200/50 shadow-lg">
-                              <Calendar className="w-12 h-12 text-blue-600" />
-                            </div>
-                            <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                              <div className="w-2 h-2 bg-white rounded-full"></div>
-                            </div>
+                    {/* Event Information Grid - Professional & Compact */}
+                    <div className="p-8">
+                      <div className="grid md:grid-cols-4 gap-4 mb-8">
+                        <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Calendar className="w-4 h-4 text-slate-600" />
+                            <span className="text-sm font-medium text-slate-600 uppercase tracking-wide">Date</span>
                           </div>
-                          <p className="text-xs text-gray-500 mb-3 uppercase tracking-widest font-semibold">Date</p>
-                          <p className="font-bold text-gray-900 text-xl leading-tight">
+                          <p className="text-base font-semibold text-slate-900">
                             {new Date(eventDate.date).toLocaleDateString('en-US', { 
                               weekday: 'long', 
                               month: 'long', 
@@ -253,157 +243,224 @@ export default function ProposalView() {
                           </p>
                         </div>
 
-                        {/* Time */}
-                        <div className="group text-center">
-                          <div className="relative">
-                            <div className="w-24 h-24 mx-auto bg-gradient-to-br from-purple-50 via-purple-100 to-violet-100 rounded-3xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:shadow-xl transition-all duration-300 border-2 border-purple-200/50 shadow-lg">
-                              <Clock className="w-12 h-12 text-purple-600" />
-                            </div>
-                            <div className="absolute -top-2 -right-2 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
-                              <div className="w-2 h-2 bg-white rounded-full"></div>
-                            </div>
+                        <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Clock className="w-4 h-4 text-slate-600" />
+                            <span className="text-sm font-medium text-slate-600 uppercase tracking-wide">Time</span>
                           </div>
-                          <p className="text-xs text-gray-500 mb-3 uppercase tracking-widest font-semibold">Time</p>
-                          <p className="font-bold text-gray-900 text-xl leading-tight">
+                          <p className="text-base font-semibold text-slate-900">
                             {eventDate.startTime} - {eventDate.endTime}
                           </p>
                         </div>
 
-                        {/* Venue */}
-                        <div className="group text-center">
-                          <div className="relative">
-                            <div className="w-24 h-24 mx-auto bg-gradient-to-br from-emerald-50 via-emerald-100 to-green-100 rounded-3xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:shadow-xl transition-all duration-300 border-2 border-emerald-200/50 shadow-lg">
-                              <MapPin className="w-12 h-12 text-emerald-600" />
-                            </div>
-                            <div className="absolute -top-2 -right-2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
-                              <div className="w-2 h-2 bg-white rounded-full"></div>
-                            </div>
+                        <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <MapPin className="w-4 h-4 text-slate-600" />
+                            <span className="text-sm font-medium text-slate-600 uppercase tracking-wide">Location</span>
                           </div>
-                          <p className="text-xs text-gray-500 mb-3 uppercase tracking-widest font-semibold">Venue</p>
-                          <p className="font-bold text-gray-900 text-xl leading-tight">{eventDate.venue}</p>
-                          <p className="text-sm text-gray-600 mt-1">{eventDate.space}</p>
+                          <p className="text-base font-semibold text-slate-900">{eventDate.venue?.name || eventDate.venue}</p>
+                          <p className="text-sm text-slate-600">{eventDate.space?.name || eventDate.space}</p>
+                          {eventDate.space?.capacity && (
+                            <p className="text-xs text-slate-500 mt-1">Max capacity: {eventDate.space.capacity}</p>
+                          )}
                         </div>
 
-                        {/* Guest Count */}
-                        <div className="group text-center">
-                          <div className="relative">
-                            <div className="w-24 h-24 mx-auto bg-gradient-to-br from-orange-50 via-orange-100 to-amber-100 rounded-3xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:shadow-xl transition-all duration-300 border-2 border-orange-200/50 shadow-lg">
-                              <Users className="w-12 h-12 text-orange-600" />
-                            </div>
-                            <div className="absolute -top-2 -right-2 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
-                              <div className="w-2 h-2 bg-white rounded-full"></div>
-                            </div>
+                        <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Users className="w-4 h-4 text-slate-600" />
+                            <span className="text-sm font-medium text-slate-600 uppercase tracking-wide">Guests</span>
                           </div>
-                          <p className="text-xs text-gray-500 mb-3 uppercase tracking-widest font-semibold">Guests</p>
-                          <p className="font-bold text-gray-900 text-xl leading-tight">{eventDate.guestCount}</p>
-                          <p className="text-sm text-gray-600 mt-1">Expected</p>
+                          <p className="text-base font-semibold text-slate-900">{eventDate.guestCount}</p>
+                          <p className="text-sm text-slate-600">Expected attendees</p>
                         </div>
                       </div>
 
-                      {/* Package Information */}
-                      {eventDate.packageName && (
-                        <div className="mb-12">
-                          <Card className="bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-200 shadow-lg">
-                            <CardContent className="p-8">
-                              <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center">
-                                  <Award className="w-8 h-8 text-amber-600" />
+                      {/* Package Details */}
+                      {eventDate.packageDetails && (
+                        <div className="mb-8">
+                          <div className="border border-slate-200 rounded-lg">
+                            <div className="bg-slate-50 border-b border-slate-200 px-6 py-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <Award className="w-5 h-5 text-slate-600" />
+                                  <h3 className="text-lg font-semibold text-slate-900">Package: {eventDate.packageDetails.name}</h3>
                                 </div>
-                                <div>
-                                  <h3 className="text-xl font-bold text-gray-900 mb-1">Selected Package</h3>
-                                  <p className="text-amber-700 font-semibold text-lg">{eventDate.packageName}</p>
+                                <div className="text-right">
+                                  <p className="text-sm text-slate-500">{eventDate.packageDetails.pricingModel === 'per_person' ? 'Per Person' : 'Fixed Price'}</p>
+                                  <p className="text-lg font-bold text-slate-900">${eventDate.packageDetails.price.toLocaleString()}</p>
                                 </div>
                               </div>
-                            </CardContent>
-                          </Card>
+                            </div>
+                            <div className="p-6">
+                              {eventDate.packageDetails.description && (
+                                <p className="text-slate-600 mb-4">{eventDate.packageDetails.description}</p>
+                              )}
+                              {eventDate.packageDetails.category && (
+                                <div className="inline-flex items-center gap-2 bg-slate-100 text-slate-700 px-3 py-1 rounded-md text-sm font-medium mb-4">
+                                  <span>{eventDate.packageDetails.category}</span>
+                                </div>
+                              )}
+                              {eventDate.packageDetails.services && eventDate.packageDetails.services.length > 0 && (
+                                <div>
+                                  <h4 className="text-sm font-semibold text-slate-700 mb-3">Included Services:</h4>
+                                  <div className="grid md:grid-cols-2 gap-2">
+                                    {eventDate.packageDetails.services.map((serviceId, idx) => (
+                                      <div key={idx} className="flex items-center gap-2 text-sm text-slate-600">
+                                        <div className="w-1.5 h-1.5 bg-slate-400 rounded-full"></div>
+                                        <span>Service ID: {serviceId}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       )}
 
-                      {/* Services */}
-                      {eventDate.services && eventDate.services.length > 0 && (
-                        <div className="mb-12">
-                          <div className="flex items-center gap-4 mb-8">
-                            <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl flex items-center justify-center">
-                              <Sparkles className="w-8 h-8 text-blue-600" />
+                      {/* Setup Style Information */}
+                      {eventDate.setupStyle && (
+                        <div className="mb-8">
+                          <div className="border border-slate-200 rounded-lg">
+                            <div className="bg-slate-50 border-b border-slate-200 px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <Settings className="w-5 h-5 text-slate-600" />
+                                <h3 className="text-lg font-semibold text-slate-900">Setup Style: {eventDate.setupStyle.name}</h3>
+                              </div>
                             </div>
-                            <div>
-                              <h3 className="text-2xl font-bold text-gray-900">Included Services</h3>
-                              <p className="text-gray-600">Professional services tailored to your event</p>
+                            <div className="p-6">
+                              {eventDate.setupStyle.description && (
+                                <p className="text-slate-600 mb-4">{eventDate.setupStyle.description}</p>
+                              )}
+                              <div className="grid md:grid-cols-3 gap-4">
+                                <div>
+                                  <p className="text-sm font-medium text-slate-700">Category</p>
+                                  <p className="text-slate-600">{eventDate.setupStyle.category}</p>
+                                </div>
+                                {eventDate.setupStyle.capacity?.min && (
+                                  <div>
+                                    <p className="text-sm font-medium text-slate-700">Min Capacity</p>
+                                    <p className="text-slate-600">{eventDate.setupStyle.capacity.min} guests</p>
+                                  </div>
+                                )}
+                                {eventDate.setupStyle.capacity?.max && (
+                                  <div>
+                                    <p className="text-sm font-medium text-slate-700">Max Capacity</p>
+                                    <p className="text-slate-600">{eventDate.setupStyle.capacity.max} guests</p>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
-                          
-                          <div className="grid md:grid-cols-2 gap-6">
-                            {eventDate.services.map((service, serviceIndex) => {
-                              const getServiceIcon = (serviceName: string) => {
-                                const name = serviceName.toLowerCase();
-                                if (name.includes('bar') || name.includes('drink')) return <Utensils className="w-6 h-6" />;
-                                if (name.includes('dj') || name.includes('music') || name.includes('sound')) return <Music className="w-6 h-6" />;
-                                if (name.includes('photo') || name.includes('camera')) return <Camera className="w-6 h-6" />;
-                                if (name.includes('food') || name.includes('catering') || name.includes('cake')) return <ChefHat className="w-6 h-6" />;
-                                return <Star className="w-6 h-6" />;
-                              };
+                        </div>
+                      )}
 
-                              const getServiceColor = (index: number) => {
-                                const colors = [
-                                  'from-blue-50 to-blue-100 border-blue-200 text-blue-700',
-                                  'from-purple-50 to-purple-100 border-purple-200 text-purple-700',
-                                  'from-green-50 to-green-100 border-green-200 text-green-700',
-                                  'from-pink-50 to-pink-100 border-pink-200 text-pink-700',
-                                  'from-indigo-50 to-indigo-100 border-indigo-200 text-indigo-700',
-                                  'from-orange-50 to-orange-100 border-orange-200 text-orange-700'
-                                ];
-                                return colors[index % colors.length];
-                              };
-
-                              return (
-                                <Card key={serviceIndex} className={`group bg-gradient-to-br ${getServiceColor(serviceIndex)} border-2 hover:shadow-xl transition-all duration-300 hover:scale-[1.02] overflow-hidden`}>
-                                  <CardContent className="p-8">
+                      {/* Additional Services */}
+                      {eventDate.services && eventDate.services.length > 0 && (
+                        <div className="mb-8">
+                          <div className="border border-slate-200 rounded-lg">
+                            <div className="bg-slate-50 border-b border-slate-200 px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <Sparkles className="w-5 h-5 text-slate-600" />
+                                <h3 className="text-lg font-semibold text-slate-900">Additional Services</h3>
+                              </div>
+                            </div>
+                            <div className="p-6">
+                              <div className="space-y-4">
+                                {eventDate.services.map((service, serviceIndex) => (
+                                  <div key={serviceIndex} className="border border-slate-100 rounded-lg p-4">
                                     <div className="flex items-start justify-between">
-                                      <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 bg-white/70 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-lg">
-                                          {getServiceIcon(service.name)}
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-3 mb-2">
+                                          <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center">
+                                            <Star className="w-4 h-4 text-slate-600" />
+                                          </div>
+                                          <h4 className="text-base font-semibold text-slate-900">{service.name}</h4>
                                         </div>
-                                        <div>
-                                          <h4 className="text-lg font-bold text-gray-900 mb-1">{service.name}</h4>
-                                          <p className="text-sm text-gray-600">Professional service</p>
+                                        {service.description && (
+                                          <p className="text-sm text-slate-600 mb-3 ml-11">{service.description}</p>
+                                        )}
+                                        <div className="flex items-center gap-6 ml-11">
+                                          {service.category && (
+                                            <div className="inline-flex items-center gap-1 text-xs text-slate-500">
+                                              <span>Category:</span>
+                                              <span className="font-medium">{service.category}</span>
+                                            </div>
+                                          )}
+                                          {service.duration && (
+                                            <div className="inline-flex items-center gap-1 text-xs text-slate-500">
+                                              <span>Duration:</span>
+                                              <span className="font-medium">{service.duration}</span>
+                                            </div>
+                                          )}
+                                          <div className="inline-flex items-center gap-1 text-xs text-slate-500">
+                                            <span>Pricing:</span>
+                                            <span className="font-medium">{service.pricingModel === 'per_hour' ? 'Per Hour' : service.pricingModel === 'per_person' ? 'Per Person' : 'Fixed Price'}</span>
+                                          </div>
                                         </div>
                                       </div>
                                       <div className="text-right">
-                                        <p className="text-2xl font-bold text-gray-900">
-                                          ${service.price.toLocaleString()}
-                                        </p>
+                                        <p className="text-lg font-bold text-slate-900">${service.price.toLocaleString()}</p>
                                       </div>
                                     </div>
-                                  </CardContent>
-                                </Card>
-                              );
-                            })}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Additional Event Details */}
+                      {eventDate.notes && (
+                        <div className="mb-8">
+                          <div className="border border-slate-200 rounded-lg">
+                            <div className="bg-slate-50 border-b border-slate-200 px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <FileText className="w-5 h-5 text-slate-600" />
+                                <h3 className="text-lg font-semibold text-slate-900">Event Notes</h3>
+                              </div>
+                            </div>
+                            <div className="p-6">
+                              <p className="text-slate-600">{eventDate.notes}</p>
+                            </div>
                           </div>
                         </div>
                       )}
 
                       {/* Total Investment */}
-                      <div className="mt-12">
-                        <Card className="bg-gradient-to-r from-slate-900 to-gray-900 text-white shadow-2xl overflow-hidden">
-                          <CardContent className="p-10">
+                      <div className="mt-8">
+                        <div className="border border-slate-300 rounded-lg bg-slate-50">
+                          <div className="bg-slate-100 border-b border-slate-300 px-6 py-4">
                             <div className="flex items-center justify-between">
-                              <div>
-                                <h3 className="text-2xl font-light mb-2">Total Investment</h3>
-                                <p className="text-gray-300">Complete event experience</p>
+                              <div className="flex items-center gap-3">
+                                <Award className="w-5 h-5 text-slate-700" />
+                                <h3 className="text-lg font-semibold text-slate-900">Total Investment for this Date</h3>
                               </div>
                               <div className="text-right">
-                                <p className="text-5xl font-bold text-white">
-                                  ${proposal.totalAmount}
+                                <p className="text-2xl font-bold text-slate-900">
+                                  ${eventDate.totalAmount?.toLocaleString() || '0'}
                                 </p>
-                                {proposal.depositAmount && (
-                                  <p className="text-gray-300 mt-2">
-                                    Deposit: ${proposal.depositAmount}
-                                  </p>
-                                )}
                               </div>
                             </div>
-                          </CardContent>
-                        </Card>
+                          </div>
+                          <div className="p-6">
+                            <div className="grid md:grid-cols-3 gap-6">
+                              <div>
+                                <p className="text-sm font-medium text-slate-700 mb-1">Pricing Model</p>
+                                <p className="text-slate-600 capitalize">{eventDate.pricingModel || 'Fixed'}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-slate-700 mb-1">Payment Terms</p>
+                                <p className="text-slate-600">30% deposit required</p>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-slate-700 mb-1">Deposit Amount</p>
+                                <p className="text-slate-600 font-semibold">${Math.round((eventDate.totalAmount || 0) * 0.3).toLocaleString()}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -413,38 +470,56 @@ export default function ProposalView() {
           </div>
         )}
 
-        {/* Company Information */}
-        {proposal.companyInfo && (
-          <div className="mt-20">
-            <Card className="bg-gradient-to-br from-white to-gray-50/50 border-0 shadow-xl">
-              <CardContent className="p-12">
-                <div className="text-center max-w-2xl mx-auto">
-                  <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <Sparkles className="w-10 h-10 text-blue-600" />
+        {/* Overall Total and Company Information */}
+        <div className="mt-12 space-y-8">
+          {/* Overall Total for Multi-Date Events */}
+          {proposal.eventDates && proposal.eventDates.length > 1 && (
+            <div className="border-2 border-slate-300 rounded-lg bg-white">
+              <div className="bg-slate-100 border-b-2 border-slate-300 px-8 py-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">Grand Total for All Event Dates</h3>
+                    <p className="text-slate-600">Complete {proposal.eventDates.length}-day event package</p>
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-4">{proposal.companyInfo.name}</h3>
-                  <p className="text-gray-600 mb-6 leading-relaxed">
-                    Thank you for considering us for your special event. We're committed to making your celebration extraordinary.
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-6 justify-center text-sm text-gray-600">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4" />
-                      <span>{proposal.companyInfo.address}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4" />
-                      <span>{proposal.companyInfo.phone}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-4 h-4" />
-                      <span>{proposal.companyInfo.email}</span>
-                    </div>
+                  <div className="text-right">
+                    <p className="text-3xl font-bold text-slate-900">${proposal.totalAmount}</p>
+                    {proposal.depositAmount && (
+                      <p className="text-slate-600 mt-1">Deposit: ${proposal.depositAmount}</p>
+                    )}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+              </div>
+            </div>
+          )}
+
+          {/* Company Information */}
+          {proposal.companyInfo && (
+            <div className="border border-slate-200 rounded-lg bg-white">
+              <div className="bg-slate-50 border-b border-slate-200 px-8 py-6">
+                <h3 className="text-xl font-semibold text-slate-900">{proposal.companyInfo.name}</h3>
+              </div>
+              <div className="p-8">
+                <p className="text-slate-600 mb-6 leading-relaxed">
+                  Thank you for considering us for your special event. We're committed to delivering exceptional service and creating memorable experiences.
+                </p>
+                <div className="grid md:grid-cols-3 gap-6 text-sm">
+                  <div className="flex items-center gap-3">
+                    <MapPin className="w-4 h-4 text-slate-500" />
+                    <span className="text-slate-700">{proposal.companyInfo.address}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Phone className="w-4 h-4 text-slate-500" />
+                    <span className="text-slate-700">{proposal.companyInfo.phone}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Mail className="w-4 h-4 text-slate-500" />
+                    <span className="text-slate-700">{proposal.companyInfo.email}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
