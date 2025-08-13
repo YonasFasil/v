@@ -15,7 +15,7 @@ export function setupSecurity(app: Express) {
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         imgSrc: ["'self'", "data:", "https:", "blob:"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Note: unsafe-eval needed for Vite in dev
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://js.stripe.com"], // Added Stripe.js
         connectSrc: ["'self'", "https://api.stripe.com", "ws:", "wss:"],
         frameSrc: ["'self'", "https://js.stripe.com"],
       },
@@ -26,6 +26,11 @@ export function setupSecurity(app: Express) {
   // CORS configuration
   const corsOptions = {
     origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+      // In development, allow all origins for easier testing
+      if (process.env.NODE_ENV === 'development') {
+        return callback(null, true);
+      }
+      
       const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5000').split(',');
       
       // Allow requests with no origin (mobile apps, Postman, etc.)
@@ -48,16 +53,20 @@ export function setupSecurity(app: Express) {
   const rateLimitWindowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'); // 15 minutes
   const rateLimitMax = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100');
 
-  // General rate limit
+  // General rate limit (more permissive in development)
   const generalLimiter = rateLimit({
     windowMs: rateLimitWindowMs,
-    max: rateLimitMax,
+    max: process.env.NODE_ENV === 'development' ? 10000 : rateLimitMax, // Much higher limit in dev
     message: {
       error: 'Too many requests from this IP, please try again later.',
       retryAfter: Math.ceil(rateLimitWindowMs / 1000),
     },
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => {
+      // Skip rate limiting for static assets and vite HMR
+      return req.path.includes('.') || req.path.startsWith('/src/') || req.path.startsWith('/@vite') || req.path.startsWith('/node_modules');
+    }
   });
 
   // Strict rate limit for auth endpoints

@@ -14,6 +14,9 @@ import {
 
 const app = express();
 
+// Trust proxy (needed for proper rate limiting behind reverse proxy)
+app.set('trust proxy', true);
+
 // Security setup (must be first)
 setupSecurity(app);
 setupRequestLimits(app);
