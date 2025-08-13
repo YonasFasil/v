@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { 
   Users, Mail, Phone, Building, Star, DollarSign, Calendar, 
   TrendingUp, Search, Filter, Plus, Eye, Edit2, MoreHorizontal,
-  Crown, Award, Medal, Trophy, Building2, Globe, MapPin, Trash2
+  Crown, Award, Medal, Trophy, Building2, Globe, MapPin, Trash2, Upload
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -116,6 +116,13 @@ export default function Customers() {
     notes: string;
   }>>([]);
 
+  // Import functionality state
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importType, setImportType] = useState<"customers" | "companies">("customers");
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importPreview, setImportPreview] = useState<any[]>([]);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+
   // Employee form for adding to company
   const employeeForm = useForm({
     resolver: zodResolver(insertCustomerSchema),
@@ -156,7 +163,8 @@ export default function Customers() {
   const createCompanyMutation = useMutation({
     mutationFn: async (data: { companyData: typeof companyFormData; employees: any[] }) => {
       // Create company first
-      const company = await apiRequest("POST", "/api/companies", data.companyData);
+      const companyResponse = await apiRequest("POST", "/api/companies", data.companyData);
+      const company = await companyResponse.json();
       
       // Then create employees if any
       if (data.employees.length > 0) {
@@ -195,7 +203,8 @@ export default function Customers() {
   const updateCompanyMutation = useMutation({
     mutationFn: async (data: { id: string; updates: Partial<typeof companyFormData>; employees?: any[] }) => {
       // Update company first
-      const company = await apiRequest("PATCH", `/api/companies/${data.id}`, data.updates);
+      const companyResponse = await apiRequest("PATCH", `/api/companies/${data.id}`, data.updates);
+      const company = await companyResponse.json();
       
       // Then create any new employees if provided
       if (data.employees && data.employees.length > 0) {
@@ -251,6 +260,67 @@ export default function Customers() {
     },
   });
 
+  // Import mutations
+  const importDataMutation = useMutation({
+    mutationFn: async (data: { type: "customers" | "companies"; items: any[] }) => {
+      if (data.type === "customers") {
+        // Import customers
+        const results = await Promise.allSettled(
+          data.items.map(customer => apiRequest("POST", "/api/customers", customer))
+        );
+        return results;
+      } else {
+        // Import companies with employees
+        const results = await Promise.allSettled(
+          data.items.map(async (company) => {
+            const { employees, ...companyData } = company;
+            const companyResponse = await apiRequest("POST", "/api/companies", companyData);
+            const createdCompany = await companyResponse.json();
+            
+            if (employees && employees.length > 0) {
+              await Promise.allSettled(
+                employees.map((employee: any) => 
+                  apiRequest("POST", "/api/customers", {
+                    ...employee,
+                    companyId: createdCompany.id
+                  })
+                )
+              );
+            }
+            
+            return createdCompany;
+          })
+        );
+        return results;
+      }
+    },
+    onSuccess: (results) => {
+      const successful = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/companies"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers/analytics"] });
+      
+      setShowImportModal(false);
+      setImportFile(null);
+      setImportPreview([]);
+      setImportErrors([]);
+      
+      toast({
+        title: "Import Complete",
+        description: `Successfully imported ${successful} items${failed > 0 ? `, ${failed} failed` : ''}`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Import Failed",
+        description: "Failed to import data. Please check your file format.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const resetCompanyForm = () => {
     setCompanyFormData({
       name: "",
@@ -263,6 +333,166 @@ export default function Customers() {
       notes: ""
     });
     setCompanyEmployees([]);
+  };
+
+  // Import utility functions
+  const parseCSV = (content: string): any[] => {
+    const lines = content.trim().split('\n');
+    if (lines.length < 2) return [];
+    
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const data = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+      const row: any = {};
+      headers.forEach((header, index) => {
+        row[header] = values[index] || '';
+      });
+      data.push(row);
+    }
+    
+    return data;
+  };
+
+  const validateCustomerData = (data: any[]): { valid: any[]; errors: string[] } => {
+    const valid = [];
+    const errors = [];
+    
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      const rowErrors = [];
+      
+      if (!row.name || row.name.trim() === '') {
+        rowErrors.push(`Row ${i + 2}: Name is required`);
+      }
+      if (!row.email || row.email.trim() === '') {
+        rowErrors.push(`Row ${i + 2}: Email is required`);
+      }
+      if (row.email && !row.email.includes('@')) {
+        rowErrors.push(`Row ${i + 2}: Invalid email format`);
+      }
+      
+      if (rowErrors.length === 0) {
+        valid.push({
+          name: row.name,
+          email: row.email,
+          phone: row.phone || '',
+          status: row.status || 'lead',
+          notes: row.notes || '',
+          companyId: row.companyId || null
+        });
+      } else {
+        errors.push(...rowErrors);
+      }
+    }
+    
+    return { valid, errors };
+  };
+
+  const validateCompanyData = (data: any[]): { valid: any[]; errors: string[] } => {
+    const valid = [];
+    const errors = [];
+    
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      const rowErrors = [];
+      
+      if (!row.name || row.name.trim() === '') {
+        rowErrors.push(`Row ${i + 2}: Company name is required`);
+      }
+      
+      if (rowErrors.length === 0) {
+        const company: any = {
+          name: row.name,
+          industry: row.industry || '',
+          description: row.description || '',
+          website: row.website || '',
+          address: row.address || '',
+          phone: row.phone || '',
+          email: row.email || '',
+          notes: row.notes || ''
+        };
+        
+        // Parse employees if provided (semicolon separated)
+        if (row.employees) {
+          const employeesText = row.employees.split(';').filter(e => e.trim());
+          company.employees = employeesText.map((empText: string) => {
+            const parts = empText.split('|').map(p => p.trim());
+            return {
+              name: parts[0] || '',
+              email: parts[1] || '',
+              phone: parts[2] || '',
+              status: parts[3] || 'customer',
+              notes: parts[4] || ''
+            };
+          }).filter(emp => emp.name && emp.email);
+        }
+        
+        valid.push(company);
+      } else {
+        errors.push(...rowErrors);
+      }
+    }
+    
+    return { valid, errors };
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.name.endsWith('.csv')) {
+      toast({
+        title: "Invalid File",
+        description: "Please upload a CSV file",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setImportFile(file);
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      const parsedData = parseCSV(content);
+      
+      if (importType === 'customers') {
+        const { valid, errors } = validateCustomerData(parsedData);
+        setImportPreview(valid);
+        setImportErrors(errors);
+      } else {
+        const { valid, errors } = validateCompanyData(parsedData);
+        setImportPreview(valid);
+        setImportErrors(errors);
+      }
+    };
+    
+    reader.readAsText(file);
+  };
+
+  const handleImport = () => {
+    if (importPreview.length === 0) {
+      toast({
+        title: "No Data",
+        description: "No valid data to import",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    importDataMutation.mutate({
+      type: importType,
+      items: importPreview
+    });
+  };
+
+  const resetImportModal = () => {
+    setImportFile(null);
+    setImportPreview([]);
+    setImportErrors([]);
+    setImportType("customers");
   };
 
   const addCompanyEmployee = () => {
@@ -583,13 +813,25 @@ export default function Customers() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
-                  <DialogTrigger asChild>
-                    <Button className="bg-blue-600 hover:bg-blue-700" data-testid="button-add-customer">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Customer
-                    </Button>
-                  </DialogTrigger>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setImportType("customers");
+                      setShowImportModal(true);
+                    }}
+                    data-testid="button-import-customers"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import
+                  </Button>
+                  <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
+                    <DialogTrigger asChild>
+                      <Button className="bg-blue-600 hover:bg-blue-700" data-testid="button-add-customer">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Customer
+                      </Button>
+                    </DialogTrigger>
                   <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Add New Customer</DialogTitle>
@@ -700,6 +942,7 @@ export default function Customers() {
                     </Form>
                   </DialogContent>
                 </Dialog>
+                </div>
               </div>
 
               {/* Customer Table */}
@@ -819,14 +1062,26 @@ export default function Customers() {
                     data-testid="input-search-companies"
                   />
                 </div>
-                <Dialog open={showCreateCompanyForm} onOpenChange={setShowCreateCompanyForm}>
-                  <DialogTrigger asChild>
-                    <Button className="bg-blue-600 hover:bg-blue-700" data-testid="button-add-company">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Company
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setImportType("companies");
+                      setShowImportModal(true);
+                    }}
+                    data-testid="button-import-companies"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import
+                  </Button>
+                  <Dialog open={showCreateCompanyForm} onOpenChange={setShowCreateCompanyForm}>
+                    <DialogTrigger asChild>
+                      <Button className="bg-blue-600 hover:bg-blue-700" data-testid="button-add-company">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Company
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>
                         {editingCompany ? "Edit Company" : "Add New Company"}
@@ -1034,6 +1289,7 @@ export default function Customers() {
                     </div>
                   </DialogContent>
                 </Dialog>
+                </div>
               </div>
 
               {/* Companies Grid */}
@@ -1483,6 +1739,164 @@ export default function Customers() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Import Modal */}
+      <Dialog open={showImportModal} onOpenChange={(open) => {
+        setShowImportModal(open);
+        if (!open) resetImportModal();
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Import {importType === "customers" ? "Customers" : "Companies"}
+            </DialogTitle>
+            <DialogDescription>
+              Upload a CSV file to bulk import {importType === "customers" ? "customer data" : "companies with their employees"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* File Upload Section */}
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Choose CSV File
+                </label>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileUpload}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  data-testid="input-file-import"
+                />
+              </div>
+
+              {/* Format Instructions */}
+              <div className="bg-blue-50 p-4 rounded-md">
+                <h4 className="text-sm font-medium text-blue-800 mb-2">
+                  {importType === "customers" ? "Customer CSV Format:" : "Company CSV Format:"}
+                </h4>
+                <p className="text-xs text-blue-700 mb-2">
+                  {importType === "customers" ? 
+                    "Required columns: name, email | Optional: phone, status, notes" :
+                    "Required columns: name | Optional: industry, description, website, address, phone, email, notes, employees"
+                  }
+                </p>
+                {importType === "companies" && (
+                  <p className="text-xs text-blue-700">
+                    <strong>Employee format:</strong> Use semicolon (;) to separate employees, and pipe (|) to separate employee fields: Name|Email|Phone|Status|Notes
+                  </p>
+                )}
+                <div className="mt-2 text-xs text-blue-700">
+                  <strong>Example:</strong>
+                  <br />
+                  {importType === "customers" ? 
+                    "name,email,phone,status,notes" :
+                    "name,industry,email,phone,employees"
+                  }
+                  <br />
+                  {importType === "customers" ? 
+                    "John Doe,john@example.com,555-0123,customer,VIP client" :
+                    'Tech Corp,Technology,tech@example.com,555-0123,"John Doe|john@example.com|555-0123|customer|Manager;Jane Smith|jane@example.com|555-0124|customer|"'
+                  }
+                </div>
+              </div>
+            </div>
+
+            {/* Errors */}
+            {importErrors.length > 0 && (
+              <div className="bg-red-50 p-4 rounded-md">
+                <h4 className="text-sm font-medium text-red-800 mb-2">Validation Errors:</h4>
+                <ul className="text-xs text-red-700 list-disc list-inside">
+                  {importErrors.map((error, index) => (
+                    <li key={index}>{error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Preview */}
+            {importPreview.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">
+                  Preview ({importPreview.length} {importType} to import)
+                </h4>
+                <div className="max-h-60 overflow-y-auto border rounded-md">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        {importType === "customers" ? (
+                          <>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Phone</TableHead>
+                            <TableHead>Status</TableHead>
+                          </>
+                        ) : (
+                          <>
+                            <TableHead>Industry</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Employees</TableHead>
+                          </>
+                        )}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {importPreview.slice(0, 10).map((item, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">{item.name}</TableCell>
+                          {importType === "customers" ? (
+                            <>
+                              <TableCell>{item.email}</TableCell>
+                              <TableCell>{item.phone || '-'}</TableCell>
+                              <TableCell>
+                                <Badge className={getStatusColor(item.status)}>
+                                  {item.status}
+                                </Badge>
+                              </TableCell>
+                            </>
+                          ) : (
+                            <>
+                              <TableCell>{item.industry || '-'}</TableCell>
+                              <TableCell>{item.email || '-'}</TableCell>
+                              <TableCell>
+                                {item.employees ? item.employees.length : 0} employees
+                              </TableCell>
+                            </>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  {importPreview.length > 10 && (
+                    <p className="text-xs text-gray-500 p-2">
+                      ... and {importPreview.length - 10} more
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowImportModal(false)}
+                data-testid="button-cancel-import"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleImport}
+                disabled={importPreview.length === 0 || importDataMutation.isPending}
+                data-testid="button-confirm-import"
+              >
+                {importDataMutation.isPending ? "Importing..." : `Import ${importPreview.length} ${importType}`}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
