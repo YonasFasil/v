@@ -58,7 +58,7 @@ export default function Customers() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [valueFilter, setValueFilter] = useState<string>("all");
   const [showCreateForm, setShowCreateForm] = useState(false);
-
+  const [showCreateCompanyForm, setShowCreateCompanyForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerAnalytics | null>(null);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
@@ -184,8 +184,7 @@ export default function Customers() {
       queryClient.invalidateQueries({ queryKey: ["/api/companies"] });
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       queryClient.invalidateQueries({ queryKey: ["/api/customers/analytics"] });
-      setViewingCompany(null);
-      setEditingCompany(null);
+      setShowCreateCompanyForm(false);
       resetCompanyForm();
       toast({
         title: "Success",
@@ -225,7 +224,6 @@ export default function Customers() {
       queryClient.invalidateQueries({ queryKey: ["/api/companies"] });
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       queryClient.invalidateQueries({ queryKey: ["/api/customers/analytics"] });
-      setViewingCompany(null);
       setEditingCompany(null);
       resetCompanyForm();
       toast({
@@ -418,7 +416,7 @@ export default function Customers() {
         
         // Parse employees if provided (semicolon separated)
         if (row.employees) {
-          const employeesText = row.employees.split(';').filter((e: string) => e.trim());
+          const employeesText = row.employees.split(';').filter(e => e.trim());
           company.employees = employeesText.map((empText: string) => {
             const parts = empText.split('|').map(p => p.trim());
             return {
@@ -428,7 +426,7 @@ export default function Customers() {
               status: parts[3] || 'customer',
               notes: parts[4] || ''
             };
-          }).filter((emp: any) => emp.name && emp.email);
+          }).filter(emp => emp.name && emp.email);
         }
         
         valid.push(company);
@@ -529,7 +527,7 @@ export default function Customers() {
       email: company.email || "",
       notes: company.notes || ""
     });
-    setViewingCompany(company);
+    setShowCreateCompanyForm(true);
   };
 
   const handleViewCompany = (company: Company) => {
@@ -1076,31 +1074,231 @@ export default function Customers() {
                     <Upload className="h-4 w-4 mr-2" />
                     Import
                   </Button>
-                  <Button 
-                    className="bg-blue-600 hover:bg-blue-700" 
-                    data-testid="button-add-company"
-                    onClick={() => {
-                      setEditingCompany(null);
-                      resetCompanyForm();
-                      setViewingCompany({ 
-                        id: '', 
-                        name: '', 
-                        industry: null, 
-                        description: null, 
-                        website: null, 
-                        address: null, 
-                        phone: null, 
-                        email: null, 
-                        notes: null,
-                        isActive: true,
-                        createdAt: null,
-                        updatedAt: null
-                      });
-                    }}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Company
-                  </Button>
+                  <Dialog open={showCreateCompanyForm} onOpenChange={setShowCreateCompanyForm}>
+                    <DialogTrigger asChild>
+                      <Button 
+                        className="bg-blue-600 hover:bg-blue-700" 
+                        data-testid="button-add-company"
+                        onClick={() => {
+                          setEditingCompany(null);
+                          resetCompanyForm();
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Company
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>
+                        {editingCompany ? "Edit Company" : "Add New Company"}
+                      </DialogTitle>
+                      <DialogDescription>
+                        {editingCompany ? "Update company information and manage employees" : "Create a new company and add employees"}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="name">Company Name</Label>
+                          <Input
+                            id="name"
+                            value={companyFormData.name}
+                            onChange={(e) => setCompanyFormData({ ...companyFormData, name: e.target.value })}
+                            placeholder="Enter company name"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="industry">Industry</Label>
+                          <Input
+                            id="industry"
+                            value={companyFormData.industry}
+                            onChange={(e) => setCompanyFormData({ ...companyFormData, industry: e.target.value })}
+                            placeholder="Enter industry"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="description">Description</Label>
+                        <Textarea
+                          id="description"
+                          value={companyFormData.description}
+                          onChange={(e) => setCompanyFormData({ ...companyFormData, description: e.target.value })}
+                          placeholder="Brief company description"
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="website">Website</Label>
+                          <Input
+                            id="website"
+                            value={companyFormData.website}
+                            onChange={(e) => setCompanyFormData({ ...companyFormData, website: e.target.value })}
+                            placeholder="https://example.com"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="email">Email</Label>
+                          <Input
+                            id="email"
+                            type="email"
+                            value={companyFormData.email}
+                            onChange={(e) => setCompanyFormData({ ...companyFormData, email: e.target.value })}
+                            placeholder="contact@company.com"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="phone">Phone</Label>
+                          <Input
+                            id="phone"
+                            value={companyFormData.phone}
+                            onChange={(e) => setCompanyFormData({ ...companyFormData, phone: e.target.value })}
+                            placeholder="Phone number"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="address">Address</Label>
+                          <Input
+                            id="address"
+                            value={companyFormData.address}
+                            onChange={(e) => setCompanyFormData({ ...companyFormData, address: e.target.value })}
+                            placeholder="Company address"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="notes">Notes</Label>
+                        <Textarea
+                          id="notes"
+                          value={companyFormData.notes}
+                          onChange={(e) => setCompanyFormData({ ...companyFormData, notes: e.target.value })}
+                          placeholder="Additional notes"
+                        />
+                      </div>
+
+                      {/* Employees Section - Show for both creating and editing */}
+                      {true && (
+                        <div className="space-y-4 border-t pt-4">
+                          <div className="flex justify-between items-center">
+                            <Label className="text-base font-medium">
+                              {editingCompany ? "Add New Employees" : "Employees (Optional)"}
+                            </Label>
+                            <Button 
+                              type="button" 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={addCompanyEmployee}
+                              data-testid="button-add-company-employee"
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add Employee
+                            </Button>
+                          </div>
+                          
+                          {companyEmployees.length > 0 && (
+                            <div className="space-y-3">
+                              {companyEmployees.map((employee, index) => (
+                                <div key={index} className="border rounded-lg p-4 space-y-3">
+                                  <div className="flex justify-between items-start">
+                                    <span className="text-sm font-medium text-gray-700">Employee {index + 1}</span>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => removeCompanyEmployee(index)}
+                                      className="text-red-600 hover:text-red-700"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">Name</Label>
+                                      <Input
+                                        placeholder="Full name"
+                                        value={employee.name}
+                                        onChange={(e) => updateCompanyEmployee(index, "name", e.target.value)}
+                                      />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">Email</Label>
+                                      <Input
+                                        type="email"
+                                        placeholder="Email address"
+                                        value={employee.email}
+                                        onChange={(e) => updateCompanyEmployee(index, "email", e.target.value)}
+                                      />
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">Phone</Label>
+                                      <Input
+                                        placeholder="Phone number"
+                                        value={employee.phone}
+                                        onChange={(e) => updateCompanyEmployee(index, "phone", e.target.value)}
+                                      />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">Status</Label>
+                                      <Select 
+                                        value={employee.status} 
+                                        onValueChange={(value) => updateCompanyEmployee(index, "status", value)}
+                                      >
+                                        <SelectTrigger className="h-8">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="customer">Customer</SelectItem>
+                                          <SelectItem value="lead">Lead</SelectItem>
+                                          <SelectItem value="inactive">Inactive</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">Notes</Label>
+                                    <Textarea
+                                      placeholder="Employee notes"
+                                      value={employee.notes}
+                                      onChange={(e) => updateCompanyEmployee(index, "notes", e.target.value)}
+                                      className="h-16"
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-end space-x-2">
+                        <Button variant="outline" onClick={() => {
+                          setShowCreateCompanyForm(false);
+                          setEditingCompany(null);
+                          resetCompanyForm();
+                        }}>
+                          Cancel
+                        </Button>
+                        <Button 
+                          onClick={handleSubmitCompany}
+                          disabled={createCompanyMutation.isPending || updateCompanyMutation.isPending}
+                        >
+                          {editingCompany ? "Update Company" : "Create Company"}
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
                 </div>
               </div>
 
@@ -1338,301 +1536,53 @@ export default function Customers() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Building2 className="h-5 w-5" />
-                {viewingCompany.id === '' ? "Add New Company" : 
-                 editingCompany ? "Edit Company" : 
-                 viewingCompany.name}
+                {viewingCompany.name}
               </DialogTitle>
               <DialogDescription>
-                {viewingCompany.id === '' ? "Create a new company and add employees" :
-                 editingCompany 
-                  ? "Update company information and manage employees" 
-                  : `${viewingCompany.industry || 'Company'} • ${viewingCustomers.length} employee${viewingCustomers.length !== 1 ? 's' : ''}`
-                }
+                {viewingCompany.industry && `${viewingCompany.industry} • `}
+                {viewingCustomers.length} employee{viewingCustomers.length !== 1 ? 's' : ''}
               </DialogDescription>
             </DialogHeader>
             
             <div className="space-y-6">
-              {/* Company Information - Editable when in edit mode */}
+              {/* Company Information */}
               <Card>
                 <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="text-lg">Company Information</CardTitle>
-                    {viewingCompany.id !== '' && !editingCompany && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setEditingCompany(viewingCompany);
-                          setCompanyFormData({
-                            name: viewingCompany.name,
-                            industry: viewingCompany.industry || "",
-                            description: viewingCompany.description || "",
-                            website: viewingCompany.website || "",
-                            address: viewingCompany.address || "",
-                            phone: viewingCompany.phone || "",
-                            email: viewingCompany.email || "",
-                            notes: viewingCompany.notes || ""
-                          });
-                        }}
-                        data-testid="button-edit-company-inline"
-                      >
-                        <Edit2 className="h-4 w-4 mr-2" />
-                        Edit
-                      </Button>
+                  <CardTitle className="text-lg">Company Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {viewingCompany.description && (
+                    <p className="text-gray-600">{viewingCompany.description}</p>
+                  )}
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    {viewingCompany.email && (
+                      <div className="flex items-center">
+                        <Mail className="h-4 w-4 mr-2 text-gray-500" />
+                        <span>{viewingCompany.email}</span>
+                      </div>
+                    )}
+                    {viewingCompany.phone && (
+                      <div className="flex items-center">
+                        <Phone className="h-4 w-4 mr-2 text-gray-500" />
+                        <span>{viewingCompany.phone}</span>
+                      </div>
+                    )}
+                    {viewingCompany.website && (
+                      <div className="flex items-center">
+                        <Globe className="h-4 w-4 mr-2 text-gray-500" />
+                        <a href={viewingCompany.website} target="_blank" rel="noopener noreferrer" className="hover:underline text-blue-600">
+                          {viewingCompany.website}
+                        </a>
+                      </div>
+                    )}
+                    {viewingCompany.address && (
+                      <div className="flex items-center">
+                        <MapPin className="h-4 w-4 mr-2 text-gray-500" />
+                        <span>{viewingCompany.address}</span>
+                      </div>
                     )}
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {(editingCompany || viewingCompany.id === '') ? (
-                    // Edit mode - show form fields
-                    <>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="edit-name">Company Name</Label>
-                          <Input
-                            id="edit-name"
-                            value={companyFormData.name}
-                            onChange={(e) => setCompanyFormData({ ...companyFormData, name: e.target.value })}
-                            placeholder="Enter company name"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="edit-industry">Industry</Label>
-                          <Input
-                            id="edit-industry"
-                            value={companyFormData.industry}
-                            onChange={(e) => setCompanyFormData({ ...companyFormData, industry: e.target.value })}
-                            placeholder="Enter industry"
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="edit-description">Description</Label>
-                        <Textarea
-                          id="edit-description"
-                          value={companyFormData.description}
-                          onChange={(e) => setCompanyFormData({ ...companyFormData, description: e.target.value })}
-                          placeholder="Brief company description"
-                        />
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="edit-website">Website</Label>
-                          <Input
-                            id="edit-website"
-                            value={companyFormData.website}
-                            onChange={(e) => setCompanyFormData({ ...companyFormData, website: e.target.value })}
-                            placeholder="https://example.com"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="edit-email">Email</Label>
-                          <Input
-                            id="edit-email"
-                            type="email"
-                            value={companyFormData.email}
-                            onChange={(e) => setCompanyFormData({ ...companyFormData, email: e.target.value })}
-                            placeholder="contact@company.com"
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="edit-phone">Phone</Label>
-                          <Input
-                            id="edit-phone"
-                            value={companyFormData.phone}
-                            onChange={(e) => setCompanyFormData({ ...companyFormData, phone: e.target.value })}
-                            placeholder="Phone number"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="edit-address">Address</Label>
-                          <Input
-                            id="edit-address"
-                            value={companyFormData.address}
-                            onChange={(e) => setCompanyFormData({ ...companyFormData, address: e.target.value })}
-                            placeholder="Company address"
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="edit-notes">Notes</Label>
-                        <Textarea
-                          id="edit-notes"
-                          value={companyFormData.notes}
-                          onChange={(e) => setCompanyFormData({ ...companyFormData, notes: e.target.value })}
-                          placeholder="Additional notes"
-                        />
-                      </div>
-
-                      {/* Employees Section - Show for create mode only */}
-                      {viewingCompany.id === '' && (
-                        <div className="space-y-4 border-t pt-4">
-                          <div className="flex justify-between items-center">
-                            <Label className="text-base font-medium">Employees (Optional)</Label>
-                            <Button 
-                              type="button" 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={addCompanyEmployee}
-                              data-testid="button-add-company-employee"
-                            >
-                              <Plus className="h-4 w-4 mr-2" />
-                              Add Employee
-                            </Button>
-                          </div>
-                          
-                          {companyEmployees.length > 0 && (
-                            <div className="space-y-3">
-                              {companyEmployees.map((employee, index) => (
-                                <div key={index} className="border rounded-lg p-4 space-y-3">
-                                  <div className="flex justify-between items-start">
-                                    <span className="text-sm font-medium text-gray-700">Employee {index + 1}</span>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => removeCompanyEmployee(index)}
-                                      className="text-red-600 hover:text-red-700"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                  
-                                  <div className="grid grid-cols-2 gap-3">
-                                    <div className="space-y-1">
-                                      <Label className="text-xs">Name</Label>
-                                      <Input
-                                        placeholder="Full name"
-                                        value={employee.name}
-                                        onChange={(e) => updateCompanyEmployee(index, "name", e.target.value)}
-                                      />
-                                    </div>
-                                    <div className="space-y-1">
-                                      <Label className="text-xs">Email</Label>
-                                      <Input
-                                        type="email"
-                                        placeholder="Email address"
-                                        value={employee.email}
-                                        onChange={(e) => updateCompanyEmployee(index, "email", e.target.value)}
-                                      />
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="grid grid-cols-2 gap-3">
-                                    <div className="space-y-1">
-                                      <Label className="text-xs">Phone</Label>
-                                      <Input
-                                        placeholder="Phone number"
-                                        value={employee.phone}
-                                        onChange={(e) => updateCompanyEmployee(index, "phone", e.target.value)}
-                                      />
-                                    </div>
-                                    <div className="space-y-1">
-                                      <Label className="text-xs">Status</Label>
-                                      <Select 
-                                        value={employee.status} 
-                                        onValueChange={(value) => updateCompanyEmployee(index, "status", value)}
-                                      >
-                                        <SelectTrigger className="h-8">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="customer">Customer</SelectItem>
-                                          <SelectItem value="lead">Lead</SelectItem>
-                                          <SelectItem value="inactive">Inactive</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="space-y-1">
-                                    <Label className="text-xs">Notes</Label>
-                                    <Textarea
-                                      placeholder="Employee notes"
-                                      value={employee.notes}
-                                      onChange={(e) => updateCompanyEmployee(index, "notes", e.target.value)}
-                                      className="h-16"
-                                    />
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="flex justify-end space-x-2 pt-4 border-t">
-                        <Button 
-                          variant="outline" 
-                          onClick={() => {
-                            setViewingCompany(null);
-                            setEditingCompany(null);
-                            resetCompanyForm();
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                        <Button 
-                          onClick={handleSubmitCompany}
-                          disabled={createCompanyMutation.isPending || updateCompanyMutation.isPending}
-                        >
-                          {viewingCompany.id === '' 
-                            ? (createCompanyMutation.isPending ? "Creating..." : "Create Company")
-                            : (updateCompanyMutation.isPending ? "Updating..." : "Update Company")
-                          }
-                        </Button>
-                      </div>
-                    </>
-                  ) : (
-                    // View mode - show read-only data
-                    <>
-                      {viewingCompany.description && (
-                        <p className="text-gray-600">{viewingCompany.description}</p>
-                      )}
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        {viewingCompany.email && (
-                          <div className="flex items-center">
-                            <Mail className="h-4 w-4 mr-2 text-gray-500" />
-                            <span>{viewingCompany.email}</span>
-                          </div>
-                        )}
-                        {viewingCompany.phone && (
-                          <div className="flex items-center">
-                            <Phone className="h-4 w-4 mr-2 text-gray-500" />
-                            <span>{viewingCompany.phone}</span>
-                          </div>
-                        )}
-                        {viewingCompany.website && (
-                          <div className="flex items-center">
-                            <Globe className="h-4 w-4 mr-2 text-gray-500" />
-                            <a href={viewingCompany.website} target="_blank" rel="noopener noreferrer" className="hover:underline text-blue-600">
-                              {viewingCompany.website}
-                            </a>
-                          </div>
-                        )}
-                        {viewingCompany.address && (
-                          <div className="flex items-center">
-                            <MapPin className="h-4 w-4 mr-2 text-gray-500" />
-                            <span>{viewingCompany.address}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {viewingCompany.notes && (
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium">Notes</Label>
-                          <p className="text-sm text-gray-600">{viewingCompany.notes}</p>
-                        </div>
-                      )}
-                    </>
-                  )}
                 </CardContent>
               </Card>
               
@@ -1783,6 +1733,18 @@ export default function Customers() {
                   )}
                 </CardContent>
               </Card>
+              
+              {/* Notes */}
+              {viewingCompany.notes && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Notes</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-600">{viewingCompany.notes}</p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </DialogContent>
         </Dialog>
