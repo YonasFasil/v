@@ -640,10 +640,16 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                       // Create a clean preview that strips HTML if present
                       const getCleanPreview = (content: string) => {
                         if (content.includes('<!DOCTYPE html>') || content.includes('<html>')) {
-                          const tempDiv = document.createElement('div');
-                          tempDiv.innerHTML = content;
-                          const cleanText = tempDiv.textContent || tempDiv.innerText || content;
-                          return cleanText.length > 100 ? cleanText.substring(0, 100) + '...' : cleanText;
+                          try {
+                            // Use DOMParser instead of innerHTML to safely parse HTML without script execution
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(content, 'text/html');
+                            const cleanText = doc.body?.textContent || doc.body?.innerText || content;
+                            return cleanText.length > 100 ? cleanText.substring(0, 100) + '...' : cleanText;
+                          } catch (error) {
+                            console.warn('Error parsing HTML content:', error);
+                            return content.length > 100 ? content.substring(0, 100) + '...' : content;
+                          }
                         }
                         return content.length > 100 ? content.substring(0, 100) + '...' : content;
                       };
@@ -726,16 +732,16 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                                       // Check if content contains HTML tags or CSS
                                       if (content.includes('<') && content.includes('>')) {
                                         try {
-                                          // Create a temporary div to parse HTML and extract text
-                                          const tempDiv = document.createElement('div');
-                                          tempDiv.innerHTML = content;
+                                          // Use DOMParser instead of innerHTML to safely parse HTML without script execution
+                                          const parser = new DOMParser();
+                                          const doc = parser.parseFromString(content, 'text/html');
                                           
                                           // Remove script and style elements
-                                          const scripts = tempDiv.querySelectorAll('script, style');
+                                          const scripts = doc.querySelectorAll('script, style');
                                           scripts.forEach(el => el.remove());
                                           
                                           // Get clean text content
-                                          let cleanText = tempDiv.textContent || tempDiv.innerText || '';
+                                          let cleanText = doc.body?.textContent || doc.body?.innerText || '';
                                           
                                           // Clean up extra whitespace and format nicely
                                           cleanText = cleanText
