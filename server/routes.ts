@@ -3095,52 +3095,59 @@ This is a test email from your Venuine venue management system.
         status: proposal.status === 'sent' ? 'viewed' : proposal.status
       });
 
-      // Get real event data from linked booking
+      // Get real event data from linked bookings (support multiple dates)
       let eventDates = [];
       try {
-        // Find the booking linked to this proposal
+        // Find ALL bookings linked to this proposal (for multi-date events)
         const bookings = await storage.getBookings();
-        const linkedBooking = bookings.find(b => b.proposalId === proposal.id);
+        const linkedBookings = bookings.filter(b => b.proposalId === proposal.id);
         
-        if (linkedBooking) {
-          console.log('Found linked booking for proposal:', proposal.id);
+        if (linkedBookings.length > 0) {
+          console.log('Found linked booking(s) for proposal:', proposal.id, 'Count:', linkedBookings.length);
           // Get venue and space information
           const venues = await storage.getVenues();
           const spaces = await storage.getSpaces();
-          const bookingVenue = venues.find(v => v.id === linkedBooking.venueId);
-          const space = spaces.find(s => s.id === linkedBooking.spaceId);
+          const packages = await storage.getPackages();
+          const allServices = await storage.getServices();
           
-          // Get package and services information
-          let packageName = null;
-          let services = [];
+          eventDates = linkedBookings.map(linkedBooking => {
+            const bookingVenue = venues.find(v => v.id === linkedBooking.venueId);
+            const space = spaces.find(s => s.id === linkedBooking.spaceId);
+            
+            // Get package and services information
+            let packageName = null;
+            let services = [];
+            
+            if (linkedBooking.packageId) {
+              const packageData = packages.find(p => p.id === linkedBooking.packageId);
+              packageName = packageData?.name || null;
+            }
+            
+            if (linkedBooking.selectedServices && linkedBooking.selectedServices.length > 0) {
+              services = linkedBooking.selectedServices.map(serviceId => {
+                const service = allServices.find(s => s.id === serviceId);
+                return service ? {
+                  name: service.name,
+                  price: parseFloat(service.price)
+                } : null;
+              }).filter(Boolean);
+            }
+            
+            return {
+              date: linkedBooking.eventDate ? (typeof linkedBooking.eventDate === 'string' ? linkedBooking.eventDate : new Date(linkedBooking.eventDate).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
+              startTime: linkedBooking.startTime || "TBD",
+              endTime: linkedBooking.endTime || "TBD",
+              venue: bookingVenue?.name || "Venue Location",
+              space: space?.name || "Event Space",
+              guestCount: linkedBooking.guestCount || 1,
+              packageName: packageName,
+              services: services
+            };
+          });
           
-          if (linkedBooking.packageId) {
-            const packages = await storage.getPackages();
-            const packageData = packages.find(p => p.id === linkedBooking.packageId);
-            packageName = packageData?.name || null;
-          }
+          // Sort event dates chronologically
+          eventDates.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
           
-          if (linkedBooking.selectedServices && linkedBooking.selectedServices.length > 0) {
-            const allServices = await storage.getServices();
-            services = linkedBooking.selectedServices.map(serviceId => {
-              const service = allServices.find(s => s.id === serviceId);
-              return service ? {
-                name: service.name,
-                price: parseFloat(service.price)
-              } : null;
-            }).filter(Boolean);
-          }
-          
-          eventDates = [{
-            date: linkedBooking.eventDate ? (typeof linkedBooking.eventDate === 'string' ? linkedBooking.eventDate : new Date(linkedBooking.eventDate).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
-            startTime: linkedBooking.startTime || "TBD",
-            endTime: linkedBooking.endTime || "TBD",
-            venue: bookingVenue?.name || "Venue Location",
-            space: space?.name || "Event Space",
-            guestCount: linkedBooking.guestCount || 1,
-            packageName: packageName,
-            services: services
-          }];
           console.log('Generated event dates:', eventDates);
         } else {
           console.log('No linked booking found for proposal:', proposal.id);

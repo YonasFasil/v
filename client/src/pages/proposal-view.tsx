@@ -199,17 +199,26 @@ export default function ProposalView() {
       {/* Main Content */}
       <div className="relative max-w-7xl mx-auto px-6 py-20">
         {proposal.eventDates && proposal.eventDates.length > 0 && (
-          <div className="space-y-16">
+          <div className="space-y-20">
             {proposal.eventDates.map((eventDate, index) => (
               <div key={index} className="space-y-12">
-                <Card className="group border-0 shadow-2xl bg-white/70 backdrop-blur-xl hover:bg-white/80 transition-all duration-500 overflow-hidden">
+                <Card className="group border-0 shadow-2xl bg-white/90 backdrop-blur-xl hover:bg-white/95 transition-all duration-500 overflow-hidden">
                   <CardContent className="p-0">
-                    {/* Elegant Header */}
+                    {/* Elegant Header with Event Number */}
                     <div className="bg-gradient-to-r from-slate-900 via-gray-900 to-slate-900 p-12 text-white relative overflow-hidden">
                       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.1),transparent_70%)]"></div>
                       <div className="relative z-10 flex items-center justify-between">
                         <div>
-                          <h2 className="text-4xl font-light mb-2 tracking-wide">Your Event Experience</h2>
+                          <div className="flex items-center gap-4 mb-4">
+                            {proposal.eventDates.length > 1 && (
+                              <div className="bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 border border-white/30">
+                                <span className="text-sm font-medium text-white">Day {index + 1} of {proposal.eventDates.length}</span>
+                              </div>
+                            )}
+                          </div>
+                          <h2 className="text-4xl font-light mb-2 tracking-wide">
+                            {proposal.eventDates.length > 1 ? `Event Day ${index + 1}` : "Your Event Experience"}
+                          </h2>
                           <p className="text-gray-300 text-lg font-light">Meticulously planned, elegantly executed</p>
                         </div>
                         <div className="hidden md:block">
@@ -222,14 +231,19 @@ export default function ProposalView() {
 
                     {/* Event Details Grid */}
                     <div className="p-12">
-                      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+                      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-10 mb-16">
                         {/* Date */}
                         <div className="group text-center">
-                          <div className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300 border border-blue-100">
-                            <Calendar className="w-10 h-10 text-blue-600" />
+                          <div className="relative">
+                            <div className="w-24 h-24 mx-auto bg-gradient-to-br from-blue-50 via-blue-100 to-indigo-100 rounded-3xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:shadow-xl transition-all duration-300 border-2 border-blue-200/50 shadow-lg">
+                              <Calendar className="w-12 h-12 text-blue-600" />
+                            </div>
+                            <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                              <div className="w-2 h-2 bg-white rounded-full"></div>
+                            </div>
                           </div>
-                          <p className="text-sm text-gray-500 mb-2 uppercase tracking-wider font-medium">Date</p>
-                          <p className="font-bold text-gray-900 text-lg">
+                          <p className="text-xs text-gray-500 mb-3 uppercase tracking-widest font-semibold">Date</p>
+                          <p className="font-bold text-gray-900 text-xl leading-tight">
                             {new Date(eventDate.date).toLocaleDateString('en-US', { 
                               weekday: 'long', 
                               month: 'long', 
@@ -241,33 +255,48 @@ export default function ProposalView() {
 
                         {/* Time */}
                         <div className="group text-center">
-                          <div className="w-20 h-20 mx-auto bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300 border border-purple-100">
-                            <Clock className="w-10 h-10 text-purple-600" />
+                          <div className="relative">
+                            <div className="w-24 h-24 mx-auto bg-gradient-to-br from-purple-50 via-purple-100 to-violet-100 rounded-3xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:shadow-xl transition-all duration-300 border-2 border-purple-200/50 shadow-lg">
+                              <Clock className="w-12 h-12 text-purple-600" />
+                            </div>
+                            <div className="absolute -top-2 -right-2 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
+                              <div className="w-2 h-2 bg-white rounded-full"></div>
+                            </div>
                           </div>
-                          <p className="text-sm text-gray-500 mb-2 uppercase tracking-wider font-medium">Time</p>
-                          <p className="font-bold text-gray-900 text-lg">
+                          <p className="text-xs text-gray-500 mb-3 uppercase tracking-widest font-semibold">Time</p>
+                          <p className="font-bold text-gray-900 text-xl leading-tight">
                             {eventDate.startTime} - {eventDate.endTime}
                           </p>
                         </div>
 
                         {/* Venue */}
                         <div className="group text-center">
-                          <div className="w-20 h-20 mx-auto bg-gradient-to-br from-emerald-50 to-green-100 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300 border border-emerald-100">
-                            <MapPin className="w-10 h-10 text-emerald-600" />
+                          <div className="relative">
+                            <div className="w-24 h-24 mx-auto bg-gradient-to-br from-emerald-50 via-emerald-100 to-green-100 rounded-3xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:shadow-xl transition-all duration-300 border-2 border-emerald-200/50 shadow-lg">
+                              <MapPin className="w-12 h-12 text-emerald-600" />
+                            </div>
+                            <div className="absolute -top-2 -right-2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
+                              <div className="w-2 h-2 bg-white rounded-full"></div>
+                            </div>
                           </div>
-                          <p className="text-sm text-gray-500 mb-2 uppercase tracking-wider font-medium">Venue</p>
-                          <p className="font-bold text-gray-900 text-lg">{eventDate.venue}</p>
-                          <p className="text-sm text-gray-600">{eventDate.space}</p>
+                          <p className="text-xs text-gray-500 mb-3 uppercase tracking-widest font-semibold">Venue</p>
+                          <p className="font-bold text-gray-900 text-xl leading-tight">{eventDate.venue}</p>
+                          <p className="text-sm text-gray-600 mt-1">{eventDate.space}</p>
                         </div>
 
                         {/* Guest Count */}
                         <div className="group text-center">
-                          <div className="w-20 h-20 mx-auto bg-gradient-to-br from-amber-50 to-orange-100 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-lg transition-all duration-300 border border-amber-100">
-                            <Users className="w-10 h-10 text-amber-600" />
+                          <div className="relative">
+                            <div className="w-24 h-24 mx-auto bg-gradient-to-br from-orange-50 via-orange-100 to-amber-100 rounded-3xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:shadow-xl transition-all duration-300 border-2 border-orange-200/50 shadow-lg">
+                              <Users className="w-12 h-12 text-orange-600" />
+                            </div>
+                            <div className="absolute -top-2 -right-2 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                              <div className="w-2 h-2 bg-white rounded-full"></div>
+                            </div>
                           </div>
-                          <p className="text-sm text-gray-500 mb-2 uppercase tracking-wider font-medium">Guests</p>
-                          <p className="font-bold text-gray-900 text-lg">{eventDate.guestCount}</p>
-                          <p className="text-sm text-gray-600">attendees</p>
+                          <p className="text-xs text-gray-500 mb-3 uppercase tracking-widest font-semibold">Guests</p>
+                          <p className="font-bold text-gray-900 text-xl leading-tight">{eventDate.guestCount}</p>
+                          <p className="text-sm text-gray-600 mt-1">Expected</p>
                         </div>
                       </div>
 
