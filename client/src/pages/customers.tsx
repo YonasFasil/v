@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -64,6 +64,7 @@ export default function Customers() {
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [viewingCompany, setViewingCompany] = useState<Company | null>(null);
   const [viewingCustomers, setViewingCustomers] = useState<Customer[]>([]);
+  const [showAddEmployeeForm, setShowAddEmployeeForm] = useState(false);
   const { toast } = useToast();
   const { formatAmount } = useFormattedCurrency();
 
@@ -104,6 +105,19 @@ export default function Customers() {
     phone: "",
     email: "",
     notes: ""
+  });
+
+  // Employee form for adding to company
+  const employeeForm = useForm({
+    resolver: zodResolver(insertCustomerSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      phone: "",
+      company: "",
+      status: "customer",
+      notes: "",
+    }
   });
 
   const createCustomerMutation = useMutation({
@@ -226,6 +240,45 @@ export default function Customers() {
     setViewingCompany(company);
     const companyCustomers = allCustomers.filter(customer => customer.companyId === company.id);
     setViewingCustomers(companyCustomers);
+  };
+
+  // Update viewing customers when allCustomers data changes
+  useEffect(() => {
+    if (viewingCompany && allCustomers) {
+      const companyCustomers = allCustomers.filter(customer => customer.companyId === viewingCompany.id);
+      setViewingCustomers(companyCustomers);
+    }
+  }, [allCustomers, viewingCompany]);
+
+  // Create employee mutation
+  const createEmployeeMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return apiRequest("POST", "/api/customers", {
+        ...data,
+        companyId: viewingCompany?.id
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers/analytics"] });
+      setShowAddEmployeeForm(false);
+      employeeForm.reset();
+      toast({
+        title: "Success",
+        description: "Employee added successfully!",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to add employee. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleAddEmployee = (data: any) => {
+    createEmployeeMutation.mutate(data);
   };
 
   const onSubmit = async (data: any) => {
@@ -1094,10 +1147,118 @@ export default function Customers() {
               {/* Employees */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    Employees ({viewingCustomers.length})
-                  </CardTitle>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      Employees ({viewingCustomers.length})
+                    </CardTitle>
+                    <Dialog open={showAddEmployeeForm} onOpenChange={setShowAddEmployeeForm}>
+                      <DialogTrigger asChild>
+                        <Button size="sm" className="bg-blue-600 hover:bg-blue-700" data-testid="button-add-employee">
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Employee
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle>Add Employee to {viewingCompany?.name}</DialogTitle>
+                          <DialogDescription>
+                            Add a new employee to this company's team.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <Form {...employeeForm}>
+                          <form onSubmit={employeeForm.handleSubmit(handleAddEmployee)} className="space-y-4 pb-4">
+                            <FormField
+                              control={employeeForm.control}
+                              name="name"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Full Name</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="Enter employee's full name" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            
+                            <FormField
+                              control={employeeForm.control}
+                              name="email"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Email</FormLabel>
+                                  <FormControl>
+                                    <Input type="email" placeholder="Enter employee's email" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={employeeForm.control}
+                              name="phone"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Phone (Optional)</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="Enter phone number" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={employeeForm.control}
+                              name="status"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Status</FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select status" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="customer">Customer</SelectItem>
+                                      <SelectItem value="lead">Lead</SelectItem>
+                                      <SelectItem value="inactive">Inactive</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={employeeForm.control}
+                              name="notes"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Notes (Optional)</FormLabel>
+                                  <FormControl>
+                                    <Textarea placeholder="Enter any notes about this employee" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <Button 
+                              type="submit" 
+                              className="w-full"
+                              disabled={createEmployeeMutation.isPending}
+                            >
+                              {createEmployeeMutation.isPending ? "Adding Employee..." : "Add Employee"}
+                            </Button>
+                          </form>
+                        </Form>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {viewingCustomers.length > 0 ? (
