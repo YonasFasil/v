@@ -418,7 +418,7 @@ export default function Customers() {
         
         // Parse employees if provided (semicolon separated)
         if (row.employees) {
-          const employeesText = row.employees.split(';').filter(e => e.trim());
+          const employeesText = row.employees.split(';').filter((e: string) => e.trim());
           company.employees = employeesText.map((empText: string) => {
             const parts = empText.split('|').map(p => p.trim());
             return {
@@ -428,7 +428,7 @@ export default function Customers() {
               status: parts[3] || 'customer',
               notes: parts[4] || ''
             };
-          }).filter(emp => emp.name && emp.email);
+          }).filter((emp: any) => emp.name && emp.email);
         }
         
         valid.push(company);
@@ -529,7 +529,7 @@ export default function Customers() {
       email: company.email || "",
       notes: company.notes || ""
     });
-    setShowCreateCompanyForm(true);
+    setViewingCompany(company);
   };
 
   const handleViewCompany = (company: Company) => {
@@ -1085,13 +1085,16 @@ export default function Customers() {
                       setViewingCompany({ 
                         id: '', 
                         name: '', 
-                        industry: '', 
-                        description: '', 
-                        website: '', 
-                        address: '', 
-                        phone: '', 
-                        email: '', 
-                        notes: '' 
+                        industry: null, 
+                        description: null, 
+                        website: null, 
+                        address: null, 
+                        phone: null, 
+                        email: null, 
+                        notes: null,
+                        isActive: true,
+                        createdAt: null,
+                        updatedAt: null
                       });
                     }}
                   >
