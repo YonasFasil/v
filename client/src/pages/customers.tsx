@@ -1076,7 +1076,14 @@ export default function Customers() {
                   </Button>
                   <Dialog open={showCreateCompanyForm} onOpenChange={setShowCreateCompanyForm}>
                     <DialogTrigger asChild>
-                      <Button className="bg-blue-600 hover:bg-blue-700" data-testid="button-add-company">
+                      <Button 
+                        className="bg-blue-600 hover:bg-blue-700" 
+                        data-testid="button-add-company"
+                        onClick={() => {
+                          setEditingCompany(null);
+                          resetCompanyForm();
+                        }}
+                      >
                         <Plus className="h-4 w-4 mr-2" />
                         Add Company
                       </Button>
@@ -1086,6 +1093,9 @@ export default function Customers() {
                       <DialogTitle>
                         {editingCompany ? "Edit Company" : "Add New Company"}
                       </DialogTitle>
+                      <DialogDescription>
+                        {editingCompany ? "Update company information and manage employees" : "Create a new company and add employees"}
+                      </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                       <div className="grid grid-cols-2 gap-4">
