@@ -17,13 +17,15 @@ import {
   Mic,
   ChevronLeft,
   ChevronRight,
-  Grid3X3
+  Grid3X3,
+  Building2
 } from "lucide-react";
 
 const navigationItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Events & Bookings", href: "/events", icon: Calendar },
   { name: "Customers", href: "/customers", icon: Users },
+  { name: "Companies", href: "/companies", icon: Building2 },
   { name: "Leads", href: "/leads", icon: UserPlus },
   { name: "Proposals", href: "/proposals", icon: FileText },
   { name: "Payments", href: "/payments", icon: CreditCard },

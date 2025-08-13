@@ -3,6 +3,7 @@ import {
   type Venue, type InsertVenue,
   type Space, type InsertSpace,
   type SetupStyle, type InsertSetupStyle,
+  type Company, type InsertCompany,
   type Customer, type InsertCustomer,
   type Contract, type InsertContract,
   type Booking, type InsertBooking,
@@ -65,10 +66,18 @@ export interface IStorage {
   updateSetupStyle(id: string, setupStyle: Partial<InsertSetupStyle>): Promise<SetupStyle | undefined>;
   deleteSetupStyle(id: string): Promise<boolean>;
 
+  // Companies
+  getCompanies(): Promise<Company[]>;
+  getCompany(id: string): Promise<Company | undefined>;
+  createCompany(company: InsertCompany): Promise<Company>;
+  updateCompany(id: string, company: Partial<InsertCompany>): Promise<Company | undefined>;
+  deleteCompany(id: string): Promise<boolean>;
+
   // Customers
   getCustomers(): Promise<Customer[]>;
   getCustomer(id: string): Promise<Customer | undefined>;
   getCustomerByEmail(email: string): Promise<Customer | undefined>;
+  getCustomersByCompany(companyId: string): Promise<Customer[]>;
   createCustomer(customer: InsertCustomer): Promise<Customer>;
   updateCustomer(id: string, customer: Partial<InsertCustomer>): Promise<Customer | undefined>;
 
@@ -205,6 +214,7 @@ export class MemStorage implements IStorage {
   private venues: Map<string, Venue>;
   private spaces: Map<string, Space>;
   private setupStyles: Map<string, SetupStyle>;
+  private companies: Map<string, Company>;
   private customers: Map<string, Customer>;
   private contracts: Map<string, Contract>;
   private bookings: Map<string, Booking>;
@@ -233,6 +243,7 @@ export class MemStorage implements IStorage {
     this.venues = new Map();
     this.spaces = new Map();
     this.setupStyles = new Map();
+    this.companies = new Map();
     this.customers = new Map();
     this.contracts = new Map();
     this.bookings = new Map();
@@ -256,13 +267,18 @@ export class MemStorage implements IStorage {
     this.leadTags = new Set();
 
 
-    this.initializeData();
-    this.initializeLeadManagementData();
+    // Initialize data synchronously  
+    try {
+      this.initializeData();
+      console.log('Storage initialized with', this.companies.size, 'companies and', this.customers.size, 'customers');
+    } catch (error) {
+      console.error('Error initializing storage:', error);
+    }
   }
 
   private initializeData() {
     this.initializeSamplePackagesAndServices();
-    this.initializeSampleSetupStyles();
+    this.initializeSampleSetupStyles(); 
     this.initializeLeadManagementData();
     // Initialize with some default venues
     const defaultVenues: InsertVenue[] = [
@@ -382,45 +398,149 @@ export class MemStorage implements IStorage {
       pkg.applicableSpaceIds = spaceIds; // Make packages available for all spaces
     });
 
-    // Add sample bookings to demonstrate the calendar functionality
-    this.initializeSampleBookings();
+    // Initialize sample bookings with simplified approach (non-async)
+    this.initializeSampleData();
   }
 
-  private initializeSampleBookings() {
-    const customers = Array.from(this.customers.values());
+  private initializeSampleData() {
     const venues = Array.from(this.venues.values());
     const spaces = Array.from(this.spaces.values());
+    
+    // Create sample companies first
+    const company1: Company = {
+      id: randomUUID(),
+      name: "United Nations",
+      industry: "International Organization",
+      description: "Global intergovernmental organization",
+      website: "https://www.un.org",
+      address: "405 E 42nd St, New York, NY 10017",
+      phone: "212-963-1234",
+      email: "info@un.org",
+      notes: "Major corporate client with multiple departments and frequent large events",
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
 
-    // Create some sample customers if none exist
+    const company2: Company = {
+      id: randomUUID(),
+      name: "TechCorp Solutions",
+      industry: "Technology",
+      description: "Enterprise software development company",
+      website: "https://www.techcorp.com",
+      address: "123 Innovation Drive, San Francisco, CA 94105",
+      phone: "415-555-0100",
+      email: "events@techcorp.com",
+      notes: "Regular client for product launches and team building events",
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const company3: Company = {
+      id: randomUUID(),
+      name: "Creative Studio LLC",
+      industry: "Marketing & Advertising",
+      description: "Full-service creative agency",
+      website: "https://www.creativestudio.com",
+      address: "456 Design Way, Los Angeles, CA 90210",
+      phone: "323-555-0200",
+      email: "bookings@creativestudio.com",
+      notes: "Frequent client for client presentations and agency parties",
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    // Add companies to storage
+    this.companies.set(company1.id, company1);
+    this.companies.set(company2.id, company2);
+    this.companies.set(company3.id, company3);
+
+    // Create sample customers with B2B/B2C mix
+    const customers = Array.from(this.customers.values());
     if (customers.length === 0) {
       const sampleCustomers = [
         {
           name: "Sarah Johnson",
-          email: "sarah.johnson@email.com",
-          phone: "555-0123",
-          company: "Johnson Events",
-          status: "active" as const,
-          leadScore: 85
+          email: "sarah.johnson@un.org",
+          phone: "212-963-4567",
+          customerType: "business" as const,
+          companyId: company1.id, // UN
+          jobTitle: "Event Coordinator",
+          department: "Protocol and Liaison Service",
+          status: "customer" as const,
+          leadScore: 95
+        },
+        {
+          name: "David Kim",
+          email: "david.kim@un.org", 
+          phone: "212-963-4890",
+          customerType: "business" as const,
+          companyId: company1.id, // UN
+          jobTitle: "Senior Program Officer",
+          department: "Department of Global Communications",
+          status: "customer" as const,
+          leadScore: 88
         },
         {
           name: "Michael Chen", 
           email: "michael.chen@techcorp.com",
-          phone: "555-0456",
-          company: "TechCorp",
-          status: "lead" as const,
-          leadScore: 72
+          phone: "415-555-0456",
+          customerType: "business" as const,
+          companyId: company2.id, // TechCorp
+          jobTitle: "VP of Marketing",
+          department: "Marketing",
+          status: "customer" as const,
+          leadScore: 85
         },
         {
           name: "Emily Rodriguez",
           email: "emily@creativestudio.com", 
-          phone: "555-0789",
-          company: "Creative Studio",
-          status: "active" as const,
-          leadScore: 90
+          phone: "323-555-0789",
+          customerType: "business" as const,
+          companyId: company3.id, // Creative Studio
+          jobTitle: "Creative Director",
+          department: "Creative",
+          status: "customer" as const,
+          leadScore: 92
+        },
+        {
+          name: "Jessica Williams",
+          email: "jessica.williams@gmail.com",
+          phone: "555-0321",
+          customerType: "individual" as const,
+          companyId: null,
+          jobTitle: null,
+          department: null,
+          status: "lead" as const,
+          leadScore: 75,
+          notes: "Planning wedding reception for June 2025"
+        },
+        {
+          name: "Robert Taylor",
+          email: "robert.taylor@gmail.com",
+          phone: "555-0654",
+          customerType: "individual" as const,
+          companyId: null,
+          jobTitle: null,
+          department: null,
+          status: "customer" as const,
+          leadScore: 82,
+          notes: "Regular client for family celebrations and private parties"
         }
       ];
       
-      sampleCustomers.forEach(customer => this.createCustomer(customer));
+      sampleCustomers.forEach(customer => {
+        const newCustomer: Customer = {
+          id: randomUUID(),
+          ...customer,
+          createdAt: new Date(),
+          notes: customer.notes || null,
+          phone: customer.phone || null
+        };
+        this.customers.set(newCustomer.id, newCustomer);
+      });
     }
 
     // Create sample bookings
@@ -965,6 +1085,59 @@ export class MemStorage implements IStorage {
     const updated = { ...existing, ...customer };
     this.customers.set(id, updated);
     return updated;
+  }
+
+  async getCustomersByCompany(companyId: string): Promise<Customer[]> {
+    return Array.from(this.customers.values()).filter(customer => customer.companyId === companyId);
+  }
+
+  // Companies
+  async getCompanies(): Promise<Company[]> {
+    return Array.from(this.companies.values());
+  }
+
+  async getCompany(id: string): Promise<Company | undefined> {
+    return this.companies.get(id);
+  }
+
+  async createCompany(insertCompany: InsertCompany): Promise<Company> {
+    const id = randomUUID();
+    const company: Company = { 
+      ...insertCompany, 
+      id, 
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      industry: insertCompany.industry || null,
+      description: insertCompany.description || null,
+      website: insertCompany.website || null,
+      address: insertCompany.address || null,
+      phone: insertCompany.phone || null,
+      email: insertCompany.email || null,
+      notes: insertCompany.notes || null,
+      isActive: insertCompany.isActive ?? true
+    };
+    this.companies.set(id, company);
+    return company;
+  }
+
+  async updateCompany(id: string, company: Partial<InsertCompany>): Promise<Company | undefined> {
+    const existing = this.companies.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...company, updatedAt: new Date() };
+    this.companies.set(id, updated);
+    return updated;
+  }
+
+  async deleteCompany(id: string): Promise<boolean> {
+    // First check if any customers are associated with this company
+    const associatedCustomers = await this.getCustomersByCompany(id);
+    if (associatedCustomers.length > 0) {
+      // Update customers to remove company association
+      for (const customer of associatedCustomers) {
+        await this.updateCustomer(customer.id, { companyId: null, customerType: "individual" });
+      }
+    }
+    return this.companies.delete(id);
   }
 
   // Contracts

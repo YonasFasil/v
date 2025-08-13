@@ -57,12 +57,31 @@ export const spaces = pgTable("spaces", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Companies table for B2B organizations
+export const companies = pgTable("companies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  industry: text("industry"),
+  description: text("description"),
+  website: text("website"),
+  address: text("address"),
+  phone: text("phone"),
+  email: text("email"), // Main company contact email
+  notes: text("notes"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const customers = pgTable("customers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone"),
-  company: text("company"),
+  customerType: text("customer_type").notNull().default("individual"), // "individual" or "business"
+  companyId: varchar("company_id").references(() => companies.id), // Link to company for business customers
+  jobTitle: text("job_title"), // Position/title for business customers
+  department: text("department"), // Department for business customers
   leadScore: integer("lead_score").default(0),
   status: text("status").notNull().default("lead"), // lead, customer, inactive
   notes: text("notes"),
@@ -348,6 +367,7 @@ export const tours = pgTable("tours", {
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertVenueSchema = createInsertSchema(venues).omit({ id: true });
+export const insertCompanySchema = createInsertSchema(companies).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true });
 export const insertContractSchema = createInsertSchema(contracts).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertSettingsSchema = createInsertSchema(settings).omit({ id: true, updatedAt: true });
@@ -406,6 +426,8 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Venue = typeof venues.$inferSelect;
 export type InsertVenue = z.infer<typeof insertVenueSchema>;
+export type Company = typeof companies.$inferSelect;
+export type InsertCompany = z.infer<typeof insertCompanySchema>;
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 export type Contract = typeof contracts.$inferSelect;

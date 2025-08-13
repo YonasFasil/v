@@ -9,6 +9,7 @@ import { NotificationService } from "./services/notification";
 import { 
   insertBookingSchema, 
   insertCustomerSchema, 
+  insertCompanySchema,
   insertContractSchema,
   insertProposalSchema, 
   insertPaymentSchema,
@@ -318,6 +319,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(customer);
     } catch (error) {
       res.status(500).json({ message: "Failed to update customer" });
+    }
+  });
+
+  // Companies
+  app.get("/api/companies", async (req, res) => {
+    try {
+      const companies = await storage.getCompanies();
+      res.json(companies);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch companies" });
+    }
+  });
+
+  app.get("/api/companies/:id", async (req, res) => {
+    try {
+      const company = await storage.getCompany(req.params.id);
+      if (!company) {
+        return res.status(404).json({ message: "Company not found" });
+      }
+      res.json(company);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch company" });
+    }
+  });
+
+  app.post("/api/companies", async (req, res) => {
+    try {
+      const validatedData = insertCompanySchema.parse(req.body);
+      const company = await storage.createCompany(validatedData);
+      res.json(company);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid company data" });
+    }
+  });
+
+  app.patch("/api/companies/:id", async (req, res) => {
+    try {
+      const company = await storage.updateCompany(req.params.id, req.body);
+      if (!company) {
+        return res.status(404).json({ message: "Company not found" });
+      }
+      res.json(company);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update company" });
+    }
+  });
+
+  app.delete("/api/companies/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteCompany(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Company not found" });
+      }
+      res.json({ message: "Company deleted successfully" });
+    } catch (error) {
+      console.error('Company delete error:', error);
+      res.status(500).json({ message: "Failed to delete company" });
+    }
+  });
+
+  // Get customers by company
+  app.get("/api/companies/:id/customers", async (req, res) => {
+    try {
+      const customers = await storage.getCustomersByCompany(req.params.id);
+      res.json(customers);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch company customers" });
     }
   });
 
