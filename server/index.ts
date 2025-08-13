@@ -1,12 +1,30 @@
+import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { emailMonitorService } from "./services/email-monitor";
 import { storage } from "./storage";
+import { 
+  setupSecurity, 
+  validateInput, 
+  setupRequestLimits, 
+  setupErrorHandling, 
+  setupLogging 
+} from "./middleware/security";
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+
+// Security setup (must be first)
+setupSecurity(app);
+setupRequestLimits(app);
+setupLogging(app);
+
+// Body parsing middleware
+app.use(express.json({ limit: process.env.MAX_REQUEST_SIZE || '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: process.env.MAX_REQUEST_SIZE || '10mb' }));
+
+// Input validation middleware
+app.use(validateInput);
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -41,13 +59,8 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
-  });
+  // Setup error handling
+  setupErrorHandling(app);
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route

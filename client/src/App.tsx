@@ -22,11 +22,16 @@ import Proposals from "@/pages/proposals";
 import PaymentCheckout from "@/pages/payment-checkout";
 import PaymentSuccess from "@/pages/payment-success";
 import NotFound from "@/pages/not-found";
+import SuperAdminDashboard from "@/pages/super-admin-dashboard";
+import SuperAdminLogin from "@/pages/super-admin-login";
+import Landing from "@/pages/landing";
+import Signup from "@/pages/signup";
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
+      <Route path="/" component={Landing} />
+      <Route path="/dashboard" component={Dashboard} />
       <Route path="/events" component={Events} />
       <Route path="/customers" component={Customers} />
       <Route path="/leads" component={Leads} />
@@ -43,6 +48,9 @@ function Router() {
       <Route path="/proposal/:proposalId" component={ProposalView} />
       <Route path="/proposal/:proposalId/payment" component={PaymentCheckout} />
       <Route path="/proposal/:proposalId/success" component={PaymentSuccess} />
+      <Route path="/super-admin" component={SuperAdminDashboard} />
+      <Route path="/super-admin/login" component={SuperAdminLogin} />
+      <Route path="/signup" component={Signup} />
       <Route component={NotFound} />
     </Switch>
   );

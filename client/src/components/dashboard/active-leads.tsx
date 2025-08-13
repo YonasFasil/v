@@ -97,12 +97,6 @@ export function ActiveLeads() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-slate-900">{lead.name}</p>
-                    {lead.company && (
-                      <p className="text-xs text-slate-500 flex items-center">
-                        <Building className="w-3 h-3 mr-1" />
-                        {lead.company}
-                      </p>
-                    )}
                     <div className="flex items-center space-x-2 mt-1">
                       {lead.leadScore && lead.leadScore > 0 && (
                         <Badge className={getPriorityColor(lead.leadScore)}>

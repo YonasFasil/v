@@ -18,6 +18,7 @@ import { ProposalCreationModal } from "../proposals/proposal-creation-modal";
 import { ProposalEmailModal } from "../proposals/proposal-email-modal";
 import { StatusSelector } from "../events/status-selector";
 import { type EventStatus } from "@shared/status-utils";
+import { type TaxSetting } from "@shared/schema";
 
 interface Props {
   open: boolean;
@@ -81,7 +82,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
   // Step 3: Final Details
   const [eventName, setEventName] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState("");
-  const [eventStatus, setEventStatus] = useState("inquiry");
+  const [eventStatus, setEventStatus] = useState<"inquiry" | "pending" | "tentative" | "confirmed_deposit_paid" | "confirmed_fully_paid" | "completed" | "cancelled_refunded">("inquiry");
 
   // Voice booking integration
   const [showVoicePanel, setShowVoicePanel] = useState(false);
@@ -129,7 +130,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
   const { data: customers = [] } = useQuery({ queryKey: ["/api/customers"] });
   const { data: companies = [] } = useQuery({ queryKey: ["/api/companies"] });
   const { data: existingBookings = [] } = useQuery({ queryKey: ["/api/bookings"] });
-  const { data: taxSettings = [] } = useQuery({ queryKey: ["/api/tax-settings"] });
+  const { data: taxSettings = [] } = useQuery<TaxSetting[]>({ queryKey: ["/api/tax-settings"] });
 
   // Initialize form with duplicate data when provided
   useEffect(() => {
@@ -860,7 +861,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         startTime: convertTimeToHours(firstDate.startTime),
         endTime: convertTimeToHours(firstDate.endTime),
         guestCount: firstDate.guestCount || 1,
-        status: submitType === 'proposal' ? 'pending' : eventStatus,
+        status: (submitType === 'proposal' ? 'pending' : eventStatus) as "inquiry" | "pending" | "tentative" | "confirmed_deposit_paid" | "confirmed_fully_paid" | "completed" | "cancelled_refunded",
         customerId: selectedCustomer,
         venueId: selectedVenue,
         spaceId: firstDate.spaceId,
@@ -873,7 +874,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         serviceTaxOverrides: firstDate.serviceTaxOverrides || null,
         totalAmount: totalPrice.toString(),
         notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${firstDate.selectedServices?.length || 0} selected`,
-        proposalStatus: submitType === 'proposal' ? 'sent' : 'none',
+        proposalStatus: (submitType === 'proposal' ? 'sent' : 'none') as "none" | "sent" | "viewed" | "accepted" | "declined",
         proposalSentAt: submitType === 'proposal' ? new Date().toISOString() : null
       };
 
@@ -917,7 +918,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
           startTime: convertTimeToHours(date.startTime),
           endTime: convertTimeToHours(date.endTime),
           guestCount: date.guestCount || 1,
-          status: submitType === 'proposal' ? 'pending' : eventStatus,
+          status: (submitType === 'proposal' ? 'pending' : eventStatus) as "inquiry" | "pending" | "tentative" | "confirmed_deposit_paid" | "confirmed_fully_paid" | "completed" | "cancelled_refunded",
           customerId: selectedCustomer,
           venueId: selectedVenue,
           spaceId: date.spaceId,
@@ -930,7 +931,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
           serviceTaxOverrides: date.serviceTaxOverrides || null,
           totalAmount: datePrice.toString(),
           notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${date.selectedServices?.length || 0} selected`,
-          proposalStatus: submitType === 'proposal' ? 'sent' : 'none',
+          proposalStatus: (submitType === 'proposal' ? 'sent' : 'none') as "none" | "sent" | "viewed" | "accepted" | "declined",
           proposalSentAt: submitType === 'proposal' ? new Date().toISOString() : null
         };
       });
@@ -1695,13 +1696,13 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                                 )}
 
                                                 {/* Additional taxes/fees for package */}
-                                                {taxSettings.filter((item: any) => item.type === 'tax' && item.isActive).length > 0 && (
+                                                {taxSettings.filter((item) => item.type === 'tax' && item.isActive).length > 0 && (
                                                   <div>
                                                     <div className="text-xs text-slate-600 mb-1">Additional Taxes:</div>
                                                     <div className="flex flex-wrap gap-1">
                                                       {taxSettings
-                                                        .filter((item: any) => item.type === 'tax' && item.isActive)
-                                                        .map((tax: any) => {
+                                                        .filter((item) => item.type === 'tax' && item.isActive)
+                                                        .map((tax) => {
                                                           const isInherited = (pkg.enabledTaxIds || []).includes(tax.id);
                                                           const isOverridden = (activeDate.serviceTaxOverrides?.[pkg.id]?.enabledTaxIds || []).includes(tax.id);
                                                           const isDisabled = (activeDate.serviceTaxOverrides?.[pkg.id]?.disabledInheritedTaxIds || []).includes(tax.id);
@@ -2015,13 +2016,13 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                                 )}
 
                                                 {/* Available taxes to override/add */}
-                                                {taxSettings.filter((item: any) => item.type === 'tax' && item.isActive).length > 0 && (
+                                                {taxSettings.filter((item) => item.type === 'tax' && item.isActive).length > 0 && (
                                                   <div>
                                                     <div className="text-xs text-slate-600 mb-1">Additional Taxes:</div>
                                                     <div className="flex flex-wrap gap-1">
                                                       {taxSettings
-                                                        .filter((item: any) => item.type === 'tax' && item.isActive)
-                                                        .map((tax: any) => {
+                                                        .filter((item) => item.type === 'tax' && item.isActive)
+                                                        .map((tax) => {
                                                           const isInherited = (service.enabledTaxIds || []).includes(tax.id);
                                                           const isOverridden = (activeDate.serviceTaxOverrides?.[service.id]?.enabledTaxIds || []).includes(tax.id);
                                                           const isDisabled = (activeDate.serviceTaxOverrides?.[service.id]?.disabledInheritedTaxIds || []).includes(tax.id);
@@ -2571,7 +2572,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                     
                                     // Apply package fees
                                     (pkg.enabledFeeIds || []).forEach((feeId: string) => {
-                                      const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
+                                      const feeSetting = taxSettings?.find((s) => s.id === feeId && s.isActive);
                                       if (feeSetting && (feeSetting.type === 'fee' || feeSetting.type === 'service_charge')) {
                                         let feeAmount = 0;
                                         if (feeSetting.calculation === 'percentage') {
@@ -2588,7 +2589,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                     
                                     // Apply package taxes
                                     (pkg.enabledTaxIds || []).forEach((taxId: string) => {
-                                      const taxSetting = (taxSettings as any[])?.find((s: any) => s.id === taxId && s.isActive);
+                                      const taxSetting = taxSettings?.find((s) => s.id === taxId && s.isActive);
                                       if (taxSetting) {
                                         const taxAmount = (packageSubtotal * parseFloat(taxSetting.value)) / 100;
                                         
@@ -2633,17 +2634,17 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                     const inheritedFeeIds = service.enabledFeeIds || [];
                                     const additionalFeeIds = currentOverrides.enabledFeeIds || [];
                                     const disabledFeeIds = currentOverrides.disabledInheritedFeeIds || [];
-                                    const effectiveFeeIds = [...inheritedFeeIds.filter(id => !disabledFeeIds.includes(id)), ...additionalFeeIds];
+                                    const effectiveFeeIds = [...inheritedFeeIds.filter((id: string) => !disabledFeeIds.includes(id)), ...additionalFeeIds];
                                     
                                     // Calculate effective tax IDs (inherited + additional - disabled)
                                     const inheritedTaxIds = service.enabledTaxIds || [];
                                     const additionalTaxIds = currentOverrides.enabledTaxIds || [];
                                     const disabledTaxIds = currentOverrides.disabledInheritedTaxIds || [];
-                                    const effectiveTaxIds = [...inheritedTaxIds.filter(id => !disabledTaxIds.includes(id)), ...additionalTaxIds];
+                                    const effectiveTaxIds = [...inheritedTaxIds.filter((id: string) => !disabledTaxIds.includes(id)), ...additionalTaxIds];
                                     
                                     // Apply service fees
                                     effectiveFeeIds.forEach((feeId: string) => {
-                                      const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
+                                      const feeSetting = taxSettings?.find((s) => s.id === feeId && s.isActive);
                                       if (feeSetting && (feeSetting.type === 'fee' || feeSetting.type === 'service_charge')) {
                                         let feeAmount = 0;
                                         if (feeSetting.calculation === 'percentage') {
@@ -2660,14 +2661,14 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                     
                                     // Apply service taxes (to base service amount + fees if fee is taxable)
                                     effectiveTaxIds.forEach((taxId: string) => {
-                                      const taxSetting = (taxSettings as any[])?.find((s: any) => s.id === taxId && s.isActive);
+                                      const taxSetting = taxSettings?.find((s) => s.id === taxId && s.isActive);
                                       if (taxSetting) {
                                         // Tax on base service amount
                                         let taxableAmount = serviceSubtotal;
                                         
                                         // Add fees to taxable amount if any applied fees are taxable
                                         effectiveFeeIds.forEach((feeId: string) => {
-                                          const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
+                                          const feeSetting = taxSettings?.find((s) => s.id === feeId && s.isActive);
                                           if (feeSetting && feeSetting.isTaxable && (feeSetting.applicableTaxIds || []).includes(taxId)) {
                                             let feeAmount = 0;
                                             if (feeSetting.calculation === 'percentage') {
@@ -3210,16 +3211,16 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                         const inheritedFeeIds = service.enabledFeeIds || [];
                         const additionalFeeIds = currentOverrides.enabledFeeIds || [];
                         const disabledFeeIds = currentOverrides.disabledInheritedFeeIds || [];
-                        const effectiveFeeIds = [...inheritedFeeIds.filter(id => !disabledFeeIds.includes(id)), ...additionalFeeIds];
+                        const effectiveFeeIds = [...inheritedFeeIds.filter((id: string) => !disabledFeeIds.includes(id)), ...additionalFeeIds];
                         
                         const inheritedTaxIds = service.enabledTaxIds || [];
                         const additionalTaxIds = currentOverrides.enabledTaxIds || [];
                         const disabledTaxIds = currentOverrides.disabledInheritedTaxIds || [];
-                        const effectiveTaxIds = [...inheritedTaxIds.filter(id => !disabledTaxIds.includes(id)), ...additionalTaxIds];
+                        const effectiveTaxIds = [...inheritedTaxIds.filter((id: string) => !disabledTaxIds.includes(id)), ...additionalTaxIds];
                         
                         // Calculate fees for this service
                         effectiveFeeIds.forEach((feeId: string) => {
-                          const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
+                          const feeSetting = taxSettings?.find((s) => s.id === feeId && s.isActive);
                           if (feeSetting && (feeSetting.type === 'fee' || feeSetting.type === 'service_charge')) {
                             let feeAmount = 0;
                             if (feeSetting.calculation === 'percentage') {
@@ -3244,13 +3245,13 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                         
                         // Calculate taxes for this service
                         effectiveTaxIds.forEach((taxId: string) => {
-                          const taxSetting = (taxSettings as any[])?.find((s: any) => s.id === taxId && s.isActive);
+                          const taxSetting = taxSettings?.find((s) => s.id === taxId && s.isActive);
                           if (taxSetting) {
                             let taxableAmount = serviceSubtotal;
                             
                             // Add fees to taxable amount if any applied fees are taxable
                             effectiveFeeIds.forEach((feeId: string) => {
-                              const feeSetting = (taxSettings as any[])?.find((s: any) => s.id === feeId && s.isActive);
+                              const feeSetting = taxSettings?.find((s) => s.id === feeId && s.isActive);
                               if (feeSetting && feeSetting.isTaxable && (feeSetting.applicableTaxIds || []).includes(taxId)) {
                                 let feeAmount = 0;
                                 if (feeSetting.calculation === 'percentage') {

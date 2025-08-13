@@ -1,0 +1,276 @@
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { 
+  Users, 
+  Building, 
+  CreditCard, 
+  TrendingUp, 
+  Settings,
+  Plus,
+  Search,
+  MoreVertical,
+  CheckCircle,
+  AlertCircle,
+  XCircle
+} from "lucide-react";
+import { type Tenant, type SubscriptionPackage } from "@shared/schema";
+
+export default function SuperAdminDashboard() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Fetch data
+  const { data: tenants = [] } = useQuery<Tenant[]>({
+    queryKey: ["/api/super-admin/tenants"],
+  });
+
+  const { data: packages = [] } = useQuery<SubscriptionPackage[]>({
+    queryKey: ["/api/super-admin/packages"],
+  });
+
+  const { data: analytics } = useQuery({
+    queryKey: ["/api/super-admin/analytics"],
+    select: (data) => data || {
+      totalTenants: tenants.length,
+      activeTenants: tenants.filter(t => t.status === 'active').length,
+      trialTenants: tenants.filter(t => t.status === 'trial').length,
+      monthlyRevenue: 12450,
+      growthRate: 15.2
+    }
+  });
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-green-100 text-green-800';
+      case 'trial': return 'bg-blue-100 text-blue-800';
+      case 'suspended': return 'bg-yellow-100 text-yellow-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'active': return <CheckCircle className="w-4 h-4" />;
+      case 'trial': return <AlertCircle className="w-4 h-4" />;
+      case 'suspended': return <AlertCircle className="w-4 h-4" />;
+      case 'cancelled': return <XCircle className="w-4 h-4" />;
+      default: return <AlertCircle className="w-4 h-4" />;
+    }
+  };
+
+  const filteredTenants = tenants.filter(tenant =>
+    tenant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    tenant.subdomain?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-6 p-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Super Admin Dashboard</h1>
+          <p className="text-muted-foreground">Manage your SaaS platform</p>
+        </div>
+        <Button>
+          <Plus className="w-4 h-4 mr-2" />
+          Add Tenant
+        </Button>
+      </div>
+
+      {/* Analytics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Tenants</CardTitle>
+            <Building className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{analytics?.totalTenants || 0}</div>
+            <p className="text-xs text-muted-foreground">All organizations</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Tenants</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{analytics?.activeTenants || 0}</div>
+            <p className="text-xs text-muted-foreground">Paying customers</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${analytics?.monthlyRevenue?.toLocaleString() || 0}</div>
+            <p className="text-xs text-muted-foreground">Recurring revenue</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Growth Rate</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{analytics?.growthRate || 0}%</div>
+            <p className="text-xs text-muted-foreground">Month over month</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Content */}
+      <Tabs defaultValue="tenants" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="tenants">Tenants</TabsTrigger>
+          <TabsTrigger value="packages">Packages</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="tenants" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle>Tenant Management</CardTitle>
+                <div className="flex gap-2">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <input
+                      placeholder="Search tenants..."
+                      className="pl-8 pr-4 py-2 border rounded-md"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                  <Button>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Tenant
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {filteredTenants.map((tenant) => (
+                  <div key={tenant.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Building className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <div className="font-medium">{tenant.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {tenant.subdomain}.yourdomain.com
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      <Badge className={getStatusColor(tenant.status)}>
+                        <div className="flex items-center space-x-1">
+                          {getStatusIcon(tenant.status)}
+                          <span className="capitalize">{tenant.status}</span>
+                        </div>
+                      </Badge>
+                      <div className="text-sm text-muted-foreground">
+                        {tenant.currentUsers || 0} users
+                      </div>
+                      <Button variant="ghost" size="sm">
+                        <MoreVertical className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="packages" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle>Subscription Packages</CardTitle>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Package
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {packages.map((pkg) => (
+                  <Card key={pkg.id} className="relative">
+                    <CardHeader>
+                      <CardTitle className="text-lg">{pkg.name}</CardTitle>
+                      <div className="text-2xl font-bold">
+                        ${pkg.price}
+                        <span className="text-sm font-normal text-muted-foreground">
+                          /{pkg.billingInterval}
+                        </span>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2 text-sm">
+                        <div>• {pkg.maxVenues} venues</div>
+                        <div>• {pkg.maxUsers} users</div>
+                        <div>• {pkg.maxBookingsPerMonth} bookings/month</div>
+                        <div>• {pkg.trialDays} day trial</div>
+                      </div>
+                      <div className="mt-4 flex justify-between items-center">
+                        <Badge variant={pkg.isActive ? "default" : "secondary"}>
+                          {pkg.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                        <Button variant="ghost" size="sm">
+                          <Settings className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Platform Analytics</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8 text-muted-foreground">
+                Analytics dashboard coming soon...
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Platform Settings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8 text-muted-foreground">
+                Platform settings coming soon...
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

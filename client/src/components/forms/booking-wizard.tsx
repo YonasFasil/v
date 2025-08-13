@@ -388,7 +388,7 @@ export default function BookingWizard({
   // Price override handlers matching your previous app
   const handlePriceOverride = (slotId: string, type: 'package' | 'service', id: string, value: string) => {
     const numericValue = value === '' ? null : parseFloat(value);
-    if (value !== '' && isNaN(numericValue)) return;
+    if (value !== '' && (numericValue === null || isNaN(numericValue))) return;
 
     setPricingOverrides(prev => {
       const newOverrides = JSON.parse(JSON.stringify(prev)); // Deep copy

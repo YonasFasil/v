@@ -6,6 +6,10 @@ import { EmailService } from "./services/email";
 import { gmailService } from "./services/gmail";
 import { emailMonitorService } from "./services/email-monitor";
 import { NotificationService } from "./services/notification";
+import { requireSuperAdmin, authenticateSuperAdmin, hashPassword, comparePassword, generateToken, type AuthenticatedRequest } from "./middleware/auth";
+import { stripeService } from "./services/stripe";
+import { notificationEmailService } from "./services/notification-email";
+import { resolveTenant, requireTenant, checkTrialStatus, filterByTenant, type TenantRequest } from "./middleware/tenant";
 import { 
   insertBookingSchema, 
   insertCustomerSchema, 
@@ -45,6 +49,67 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  
+  // Apply tenant resolution middleware to all routes
+  app.use(resolveTenant);
+  
+  // ============================================================================
+  // TENANT-SPECIFIC ROUTES (with subdomain context)
+  // ============================================================================
+  
+  // Tenant Dashboard - requires valid tenant and checks trial status
+  app.get("/api/tenant/dashboard", requireTenant, checkTrialStatus, async (req: TenantRequest, res) => {
+    try {
+      const tenantId = req.tenant!.id;
+      
+      // Get tenant-specific metrics
+      const bookings = Array.from(storage.bookings.values()).filter(b => b.tenantId === tenantId);
+      const customers = Array.from(storage.customers.values()).filter(c => c.tenantId === tenantId);
+      const venues = Array.from(storage.venues.values()).filter(v => v.tenantId === tenantId);
+      
+      const metrics = {
+        totalBookings: bookings.length,
+        totalCustomers: customers.length,
+        totalVenues: venues.length,
+        revenue: bookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0),
+        recentBookings: bookings.slice(-5),
+        tenant: req.tenant
+      };
+      
+      res.json(metrics);
+    } catch (error: any) {
+      console.error("Error fetching tenant dashboard:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard data" });
+    }
+  });
+  
+  // Tenant-specific bookings
+  app.get("/api/tenant/bookings", requireTenant, checkTrialStatus, filterByTenant, async (req: TenantRequest, res) => {
+    try {
+      const tenantId = req.tenant!.id;
+      const bookings = Array.from(storage.bookings.values()).filter(b => b.tenantId === tenantId);
+      res.json(bookings);
+    } catch (error: any) {
+      console.error("Error fetching tenant bookings:", error);
+      res.status(500).json({ message: "Failed to fetch bookings" });
+    }
+  });
+  
+  // Tenant-specific customers
+  app.get("/api/tenant/customers", requireTenant, checkTrialStatus, filterByTenant, async (req: TenantRequest, res) => {
+    try {
+      const tenantId = req.tenant!.id;
+      const customers = Array.from(storage.customers.values()).filter(c => c.tenantId === tenantId);
+      res.json(customers);
+    } catch (error: any) {
+      console.error("Error fetching tenant customers:", error);
+      res.status(500).json({ message: "Failed to fetch customers" });
+    }
+  });
+  
+  // ============================================================================
+  // LEGACY ROUTES (maintained for compatibility)
+  // ============================================================================
   
   // Venues
   app.get("/api/venues", async (req, res) => {
@@ -5336,7 +5401,378 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     }
   });
 
+  // ============================================================================
+  // SUPER ADMIN ROUTES
+  // ============================================================================
 
+  // Super Admin - Login
+  app.post("/api/super-admin/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+      
+      const result = await authenticateSuperAdmin(email, password);
+      
+      if (!result) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error during super admin login:", error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  // Super Admin - Get all tenants
+  app.get("/api/super-admin/tenants", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    try {
+      const tenants = Array.from(storage.tenants.values());
+      res.json(tenants);
+    } catch (error: any) {
+      console.error("Error fetching tenants:", error);
+      res.status(500).json({ message: "Failed to fetch tenants" });
+    }
+  });
+
+  // Super Admin - Get all subscription packages
+  app.get("/api/super-admin/packages", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    try {
+      const packages = Array.from(storage.subscriptionPackages.values()).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+      res.json(packages);
+    } catch (error: any) {
+      console.error("Error fetching packages:", error);
+      res.status(500).json({ message: "Failed to fetch packages" });
+    }
+  });
+
+  // Super Admin - Create subscription package
+  app.post("/api/super-admin/packages", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    try {
+      const packageData = req.body;
+      const newPackage = await storage.createSubscriptionPackage(packageData);
+      res.json(newPackage);
+    } catch (error: any) {
+      console.error("Error creating package:", error);
+      res.status(500).json({ message: "Failed to create package" });
+    }
+  });
+
+  // Super Admin - Update subscription package
+  app.put("/api/super-admin/packages/:id", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      const updatedPackage = await storage.updateSubscriptionPackage(id, updateData);
+      if (!updatedPackage) {
+        return res.status(404).json({ message: "Package not found" });
+      }
+      res.json(updatedPackage);
+    } catch (error: any) {
+      console.error("Error updating package:", error);
+      res.status(500).json({ message: "Failed to update package" });
+    }
+  });
+
+  // Super Admin - Get analytics
+  app.get("/api/super-admin/analytics", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    try {
+      const tenants = Array.from(storage.tenants.values());
+      const analytics = {
+        totalTenants: tenants.length,
+        activeTenants: tenants.filter(t => t.status === 'active').length,
+        trialTenants: tenants.filter(t => t.status === 'trial').length,
+        suspendedTenants: tenants.filter(t => t.status === 'suspended').length,
+        monthlyRevenue: 12450, // TODO: Calculate from actual subscription data
+        growthRate: 15.2 // TODO: Calculate actual growth rate
+      };
+      res.json(analytics);
+    } catch (error: any) {
+      console.error("Error fetching analytics:", error);
+      res.status(500).json({ message: "Failed to fetch analytics" });
+    }
+  });
+
+  // ============================================================================
+  // STRIPE WEBHOOK ROUTES
+  // ============================================================================
+
+  // Stripe webhook handler
+  app.post("/api/webhooks/stripe", express.raw({ type: 'application/json' }), async (req, res) => {
+    try {
+      const signature = req.headers['stripe-signature'] as string;
+      const event = await stripeService.handleWebhook(req.body, signature);
+      
+      if (!event) {
+        return res.status(400).json({ message: 'Invalid webhook signature' });
+      }
+
+      // Handle different webhook events
+      switch (event.type) {
+        case 'customer.subscription.created':
+          console.log('Subscription created:', event.data.object);
+          // Update tenant subscription status
+          break;
+          
+        case 'customer.subscription.updated':
+          console.log('Subscription updated:', event.data.object);
+          // Update tenant subscription details
+          break;
+          
+        case 'customer.subscription.deleted':
+          console.log('Subscription cancelled:', event.data.object);
+          // Handle subscription cancellation
+          break;
+          
+        case 'invoice.payment_succeeded':
+          console.log('Payment succeeded:', event.data.object);
+          // Handle successful payment
+          break;
+          
+        case 'invoice.payment_failed':
+          console.log('Payment failed:', event.data.object);
+          // Handle failed payment
+          break;
+          
+        default:
+          console.log(`Unhandled event type: ${event.type}`);
+      }
+
+      res.json({ received: true });
+    } catch (error: any) {
+      console.error('Stripe webhook error:', error);
+      res.status(500).json({ message: 'Webhook processing failed' });
+    }
+  });
+
+  // ============================================================================
+  // TENANT AUTH ROUTES
+  // ============================================================================
+
+  // Tenant Login
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, password, subdomain } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+      
+      // Find user by email
+      const users = Array.from(storage.users.values());
+      const user = users.find(u => u.email === email);
+      
+      if (!user) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // Verify password
+      const isValidPassword = await comparePassword(password, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // Get tenant info
+      const tenant = storage.tenants.get(user.tenantId);
+      if (!tenant) {
+        return res.status(401).json({ message: "Tenant not found" });
+      }
+      
+      // Check if subdomain matches (optional)
+      if (subdomain && tenant.subdomain !== subdomain) {
+        return res.status(401).json({ message: "Invalid subdomain" });
+      }
+      
+      // Generate token
+      const token = generateToken({
+        id: user.id,
+        email: user.email,
+        role: user.role
+      });
+      
+      res.json({
+        token,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role
+        },
+        tenant: {
+          id: tenant.id,
+          name: tenant.name,
+          subdomain: tenant.subdomain,
+          status: tenant.status
+        }
+      });
+    } catch (error: any) {
+      console.error("Error during tenant login:", error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  // ============================================================================
+  // PUBLIC SIGNUP ROUTES
+  // ============================================================================
+
+  // Public - Get active subscription packages for signup
+  app.get("/api/public/packages", async (req, res) => {
+    try {
+      const packages = Array.from(storage.subscriptionPackages.values())
+        .filter(pkg => pkg.isActive)
+        .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+      res.json(packages);
+    } catch (error: any) {
+      console.error("Error fetching public packages:", error);
+      res.status(500).json({ message: "Failed to fetch packages" });
+    }
+  });
+
+  // Public - Tenant signup
+  app.post("/api/public/signup", async (req, res) => {
+    try {
+      const {
+        organizationName,
+        subdomain,
+        fullName,
+        email,
+        password,
+        packageId,
+        agreeToTerms
+      } = req.body;
+
+      // Validation
+      if (!organizationName || !subdomain || !fullName || !email || !password || !packageId || !agreeToTerms) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+
+      // Check if subdomain is available
+      const existingTenant = Array.from(storage.tenants.values()).find(t => t.subdomain === subdomain);
+      if (existingTenant) {
+        return res.status(400).json({ message: "Subdomain already taken" });
+      }
+
+      // Check if email is already used
+      const existingUser = Array.from(storage.users.values()).find(u => u.email === email);
+      if (existingUser) {
+        return res.status(400).json({ message: "Email already registered" });
+      }
+
+      // Validate package exists
+      const selectedPackage = storage.subscriptionPackages.get(packageId);
+      if (!selectedPackage) {
+        return res.status(400).json({ message: "Invalid package selected" });
+      }
+
+      // Create tenant
+      const tenantData = {
+        name: organizationName,
+        slug: subdomain.toLowerCase(),
+        subdomain: subdomain.toLowerCase(),
+        subscriptionPackageId: packageId,
+        status: "trial" as const,
+        trialEndsAt: new Date(Date.now() + (selectedPackage.trialDays || 14) * 24 * 60 * 60 * 1000),
+        currentUsers: 1,
+        currentVenues: 0,
+        monthlyBookings: 0
+      };
+
+      const newTenant = await storage.createTenant(tenantData);
+
+      // Create admin user for the tenant
+      const hashedPassword = await hashPassword(password);
+      const userData = {
+        username: email,
+        password: hashedPassword,
+        name: fullName,
+        email: email,
+        tenantId: newTenant.id,
+        role: "tenant_admin" as const,
+        permissions: ["manage_users", "manage_venues", "manage_bookings"],
+        isActive: true
+      };
+
+      const newUser = await storage.createUser(userData);
+
+      // Create Stripe customer and setup subscription (if not in trial)
+      let stripeCustomerId = null;
+      let checkoutUrl = null;
+      
+      try {
+        const stripeCustomer = await stripeService.createCustomer({
+          email: email,
+          name: fullName,
+          metadata: {
+            tenantId: newTenant.id,
+            userId: newUser.id,
+            packageId: packageId
+          }
+        });
+        stripeCustomerId = stripeCustomer.id;
+
+        // Create checkout session for payment setup (after trial)
+        const checkoutSession = await stripeService.createCheckoutSession({
+          customerId: stripeCustomer.id,
+          priceId: `price_${packageId}`, // This should map to actual Stripe price IDs
+          successUrl: `${process.env.FRONTEND_URL || 'http://localhost:5000'}/dashboard?setup=success`,
+          cancelUrl: `${process.env.FRONTEND_URL || 'http://localhost:5000'}/dashboard?setup=cancelled`,
+          trialPeriodDays: selectedPackage.trialDays,
+          metadata: {
+            tenantId: newTenant.id,
+            packageId: packageId
+          }
+        });
+        checkoutUrl = checkoutSession.url;
+      } catch (stripeError) {
+        console.error('Stripe setup failed:', stripeError);
+        // Continue without Stripe - tenant can set up payment later
+      }
+
+      // Send welcome email
+      try {
+        await notificationEmailService.sendWelcomeEmail({
+          name: fullName,
+          email: email,
+          organizationName: organizationName,
+          subdomain: subdomain,
+          trialDays: selectedPackage.trialDays || 14,
+          loginUrl: `${process.env.FRONTEND_URL || 'http://localhost:5000'}/dashboard`,
+          checkoutUrl: checkoutUrl || undefined
+        });
+      } catch (emailError) {
+        console.error('Failed to send welcome email:', emailError);
+        // Continue without email - not a critical failure
+      }
+
+      res.json({
+        message: "Account created successfully",
+        tenant: {
+          id: newTenant.id,
+          name: newTenant.name,
+          subdomain: newTenant.subdomain,
+          status: newTenant.status,
+          trialEndsAt: newTenant.trialEndsAt
+        },
+        user: {
+          id: newUser.id,
+          name: newUser.name,
+          email: newUser.email,
+          role: newUser.role
+        },
+        stripe: {
+          customerId: stripeCustomerId,
+          checkoutUrl: checkoutUrl
+        }
+      });
+
+    } catch (error: any) {
+      console.error("Signup error:", error);
+      res.status(500).json({ message: "Failed to create account" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

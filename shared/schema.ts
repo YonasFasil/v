@@ -9,17 +9,23 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   name: text("name").notNull(),
   email: text("email").notNull(),
-  role: text("role").notNull().default("manager"),
+  tenantId: varchar("tenant_id").references(() => tenants.id), // null for super admin
+  role: text("role").notNull().default("tenant_user"), // super_admin, tenant_admin, tenant_user
+  permissions: jsonb("permissions").default('[]'), // Granular permissions array
+  isActive: boolean("is_active").default(true),
+  lastLoginAt: timestamp("last_login_at"),
   stripeAccountId: text("stripe_account_id"), // Stripe Connect account ID
   stripeAccountStatus: text("stripe_account_status"), // pending, active, restricted, etc.
   stripeOnboardingCompleted: boolean("stripe_onboarding_completed").default(false),
   stripeChargesEnabled: boolean("stripe_charges_enabled").default(false),
   stripePayoutsEnabled: boolean("stripe_payouts_enabled").default(false),
   stripeConnectedAt: timestamp("stripe_connected_at"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const venues = pgTable("venues", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   description: text("description"),
   capacity: integer("capacity").notNull(),
@@ -27,6 +33,7 @@ export const venues = pgTable("venues", {
   amenities: text("amenities").array(),
   imageUrl: text("image_url"),
   isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const setupStyles = pgTable("setup_styles", {
@@ -60,6 +67,7 @@ export const spaces = pgTable("spaces", {
 // Companies table for B2B organizations
 export const companies = pgTable("companies", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   industry: text("industry"),
   description: text("description"),
@@ -75,6 +83,7 @@ export const companies = pgTable("companies", {
 
 export const customers = pgTable("customers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone"),
@@ -91,6 +100,7 @@ export const customers = pgTable("customers", {
 // Contract table to group multiple events together
 export const contracts = pgTable("contracts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   customerId: varchar("customer_id").references(() => customers.id).notNull(),
   contractName: text("contract_name").notNull(),
   status: text("status").notNull().default("draft"), // draft, active, completed, cancelled
@@ -101,6 +111,7 @@ export const contracts = pgTable("contracts", {
 
 export const bookings = pgTable("bookings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   contractId: varchar("contract_id").references(() => contracts.id), // Link to contract
   eventName: text("event_name").notNull(),
   eventType: text("event_type").notNull(),
@@ -113,9 +124,9 @@ export const bookings = pgTable("bookings", {
   endTime: text("end_time").notNull(),
   guestCount: integer("guest_count").notNull(),
   setupStyle: text("setup_style"), // round-tables, u-shape, classroom, theater, cocktail, banquet, conference, custom
-  packageId: varchar("package_id").references(() => packages.id),
+  packageId: varchar("package_id"),
   // Proposal integration
-  proposalId: varchar("proposal_id").references(() => proposals.id), // Direct link to proposal
+  proposalId: varchar("proposal_id"), // Direct link to proposal
   proposalStatus: text("proposal_status").default("none"), // none, sent, viewed, accepted, declined
   proposalSentAt: timestamp("proposal_sent_at"),
   proposalViewedAt: timestamp("proposal_viewed_at"),
@@ -151,7 +162,7 @@ export const proposals = pgTable("proposals", {
   depositAmount: decimal("deposit_amount", { precision: 10, scale: 2 }),
   depositType: text("deposit_type").default("percentage"), // percentage, fixed
   depositValue: decimal("deposit_value", { precision: 5, scale: 2 }),
-  packageId: varchar("package_id").references(() => packages.id),
+  packageId: varchar("package_id"),
   selectedServices: text("selected_services").array(),
   status: text("status").notNull().default("draft"), // draft, sent, viewed, accepted, rejected, converted
   validUntil: timestamp("valid_until"),
@@ -364,6 +375,49 @@ export const tours = pgTable("tours", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Multi-tenant tables for SaaS functionality
+export const subscriptionPackages = pgTable("subscription_packages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // "Starter", "Professional", "Enterprise"
+  description: text("description"),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  billingInterval: text("billing_interval").notNull().default("monthly"), // "monthly", "yearly"
+  trialDays: integer("trial_days").default(14),
+  maxVenues: integer("max_venues").default(1),
+  maxUsers: integer("max_users").default(3),
+  maxBookingsPerMonth: integer("max_bookings_per_month").default(100),
+  features: jsonb("features").default('[]'), // Array of feature flags like ["advanced_analytics", "custom_branding"]
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const tenants = pgTable("tenants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(), // URL-friendly name for subdomains
+  subdomain: text("subdomain").unique(), // e.g., "marriott"  
+  customDomain: text("custom_domain"), // e.g., "bookings.marriott.com"
+  subscriptionPackageId: varchar("subscription_package_id").references(() => subscriptionPackages.id).notNull(),
+  status: text("status").notNull().default("trial"), // trial, active, suspended, cancelled
+  trialEndsAt: timestamp("trial_ends_at"),
+  subscriptionStartedAt: timestamp("subscription_started_at"),
+  subscriptionEndsAt: timestamp("subscription_ends_at"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  // Branding options
+  logoUrl: text("logo_url"),
+  primaryColor: text("primary_color").default("#3b82f6"),
+  customCss: text("custom_css"),
+  // Usage tracking
+  currentUsers: integer("current_users").default(0),
+  currentVenues: integer("current_venues").default(0),
+  monthlyBookings: integer("monthly_bookings").default(0),
+  lastBillingDate: timestamp("last_billing_date"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertVenueSchema = createInsertSchema(venues).omit({ id: true });
@@ -418,6 +472,8 @@ export const insertLeadSchema = createInsertSchema(leads, {
 export const insertLeadActivitySchema = createInsertSchema(leadActivities).omit({ id: true, createdAt: true });
 export const insertLeadTaskSchema = createInsertSchema(leadTasks).omit({ id: true, createdAt: true });
 export const insertTourSchema = createInsertSchema(tours).omit({ id: true, createdAt: true });
+export const insertSubscriptionPackageSchema = createInsertSchema(subscriptionPackages).omit({ id: true, createdAt: true });
+export const insertTenantSchema = createInsertSchema(tenants).omit({ id: true, createdAt: true, updatedAt: true });
 
 // Types
 export type User = typeof users.$inferSelect;
@@ -466,3 +522,23 @@ export type LeadTask = typeof leadTasks.$inferSelect;
 export type InsertLeadTask = z.infer<typeof insertLeadTaskSchema>;
 export type Tour = typeof tours.$inferSelect;
 export type InsertTour = z.infer<typeof insertTourSchema>;
+export type SubscriptionPackage = typeof subscriptionPackages.$inferSelect;
+export type InsertSubscriptionPackage = z.infer<typeof insertSubscriptionPackageSchema>;
+export type Tenant = typeof tenants.$inferSelect;
+export type InsertTenant = z.infer<typeof insertTenantSchema>;
+
+// Add foreign key references after all tables are defined to avoid circular dependencies
+export const bookingsRelations = {
+  packageId: {
+    foreignKey: () => packages.id
+  },
+  proposalId: {
+    foreignKey: () => proposals.id
+  }
+};
+
+export const proposalsRelations = {
+  packageId: {
+    foreignKey: () => packages.id
+  }
+};

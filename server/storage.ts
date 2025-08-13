@@ -21,8 +21,11 @@ import {
   type LeadActivity, type InsertLeadActivity,
   type LeadTask, type InsertLeadTask,
   type Tour, type InsertTour,
+  type Tenant, type InsertTenant,
+  type SubscriptionPackage, type InsertSubscriptionPackage,
 
 } from "@shared/schema";
+import { randomUUID } from "crypto";
 
 // Additional types for new features
 
@@ -236,6 +239,10 @@ export class MemStorage implements IStorage {
   private leadTasks: Map<string, LeadTask>;
   private tours: Map<string, Tour>;
   private leadTags: Set<string>; // Store leadId:tagId combinations
+  
+  // Multi-tenant Maps
+  public tenants: Map<string, Tenant>;
+  public subscriptionPackages: Map<string, SubscriptionPackage>;
 
 
   constructor() {
@@ -265,7 +272,10 @@ export class MemStorage implements IStorage {
     this.leadTasks = new Map();
     this.tours = new Map();
     this.leadTags = new Set();
-
+    
+    // Multi-tenant initialization
+    this.tenants = new Map();
+    this.subscriptionPackages = new Map();
 
     // Initialize data synchronously  
     try {
@@ -277,6 +287,7 @@ export class MemStorage implements IStorage {
   }
 
   private initializeData() {
+    this.initializeSubscriptionPackages();
     this.initializeSamplePackagesAndServices();
     this.initializeSampleSetupStyles(); 
     this.initializeLeadManagementData();
@@ -1072,7 +1083,7 @@ export class MemStorage implements IStorage {
       notes: insertCustomer.notes || null,
       status: insertCustomer.status || "lead",
       phone: insertCustomer.phone || null,
-      company: insertCustomer.company || null,
+      companyId: insertCustomer.companyId || null,
       leadScore: insertCustomer.leadScore || 0
     };
     this.customers.set(id, customer);
@@ -1473,14 +1484,6 @@ export class MemStorage implements IStorage {
     return updated;
   }
 
-  async updateVenue(id: string, venueData: Partial<Venue>): Promise<Venue | null> {
-    const venue = this.venues.get(id);
-    if (!venue) return null;
-    
-    const updated = { ...venue, ...venueData };
-    this.venues.set(id, updated);
-    return updated;
-  }
 
   // Tax Settings methods
   async getTaxSettings(): Promise<TaxSetting[]> {
@@ -1537,14 +1540,6 @@ export class MemStorage implements IStorage {
     return newProposal;
   }
 
-  async updateProposal(id: string, proposal: Partial<InsertProposal>): Promise<Proposal | undefined> {
-    const existing = this.proposals.get(id);
-    if (!existing) return undefined;
-    
-    const updated = { ...existing, ...proposal };
-    this.proposals.set(id, updated);
-    return updated;
-  }
 
   async deleteProposal(id: string): Promise<boolean> {
     return this.proposals.delete(id);
@@ -2068,6 +2063,163 @@ export class MemStorage implements IStorage {
 
   async removeLeadTag(leadId: string, tagId: string): Promise<void> {
     this.leadTags.delete(`${leadId}:${tagId}`);
+  }
+
+  // ============================================================================
+  // MULTI-TENANT METHODS
+  // ============================================================================
+
+  // Subscription Packages
+  async getSubscriptionPackages(): Promise<SubscriptionPackage[]> {
+    return Array.from(this.subscriptionPackages.values());
+  }
+
+  async getSubscriptionPackage(id: string): Promise<SubscriptionPackage | undefined> {
+    return this.subscriptionPackages.get(id);
+  }
+
+  async createSubscriptionPackage(packageData: InsertSubscriptionPackage): Promise<SubscriptionPackage> {
+    const id = randomUUID();
+    const subscriptionPackage: SubscriptionPackage = {
+      id,
+      ...packageData,
+      description: packageData.description || null,
+      billingInterval: packageData.billingInterval || "monthly",
+      trialDays: packageData.trialDays || null,
+      maxVenues: packageData.maxVenues || null,
+      maxUsers: packageData.maxUsers || null,
+      maxBookingsPerMonth: packageData.maxBookingsPerMonth || null,
+      features: packageData.features || [],
+      isActive: packageData.isActive ?? null,
+      sortOrder: packageData.sortOrder || null,
+      createdAt: new Date(),
+    };
+    this.subscriptionPackages.set(id, subscriptionPackage);
+    return subscriptionPackage;
+  }
+
+  async updateSubscriptionPackage(id: string, packageData: Partial<InsertSubscriptionPackage>): Promise<SubscriptionPackage | undefined> {
+    const existing = this.subscriptionPackages.get(id);
+    if (!existing) return undefined;
+    
+    const updated = { ...existing, ...packageData };
+    this.subscriptionPackages.set(id, updated);
+    return updated;
+  }
+
+  async deleteSubscriptionPackage(id: string): Promise<boolean> {
+    return this.subscriptionPackages.delete(id);
+  }
+
+  // Tenants
+  async getTenants(): Promise<Tenant[]> {
+    return Array.from(this.tenants.values());
+  }
+
+  async getTenant(id: string): Promise<Tenant | undefined> {
+    return this.tenants.get(id);
+  }
+
+  async getTenantBySubdomain(subdomain: string): Promise<Tenant | undefined> {
+    return Array.from(this.tenants.values()).find(t => t.subdomain === subdomain);
+  }
+
+  async createTenant(tenantData: InsertTenant): Promise<Tenant> {
+    const id = randomUUID();
+    const tenant: Tenant = {
+      id,
+      ...tenantData,
+      subdomain: tenantData.subdomain || null,
+      customDomain: tenantData.customDomain || null,
+      trialEndsAt: tenantData.trialEndsAt || null,
+      subscriptionStartedAt: tenantData.subscriptionStartedAt || null,
+      subscriptionEndsAt: tenantData.subscriptionEndsAt || null,
+      stripeCustomerId: tenantData.stripeCustomerId || null,
+      stripeSubscriptionId: tenantData.stripeSubscriptionId || null,
+      logoUrl: tenantData.logoUrl || null,
+      primaryColor: tenantData.primaryColor || "#3b82f6",
+      customCss: tenantData.customCss || null,
+      currentUsers: tenantData.currentUsers || 0,
+      currentVenues: tenantData.currentVenues || 0,
+      monthlyBookings: tenantData.monthlyBookings || 0,
+      lastBillingDate: tenantData.lastBillingDate || null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.tenants.set(id, tenant);
+    return tenant;
+  }
+
+  async updateTenant(id: string, tenantData: Partial<InsertTenant>): Promise<Tenant | undefined> {
+    const existing = this.tenants.get(id);
+    if (!existing) return undefined;
+    
+    const updated = { ...existing, ...tenantData, updatedAt: new Date() };
+    this.tenants.set(id, updated);
+    return updated;
+  }
+
+  async deleteTenant(id: string): Promise<boolean> {
+    return this.tenants.delete(id);
+  }
+
+  // ============================================================================
+  // INITIALIZATION METHODS
+  // ============================================================================
+
+  private initializeSubscriptionPackages() {
+    // Create sample subscription packages
+    const starterPackage: SubscriptionPackage = {
+      id: randomUUID(),
+      name: "Starter",
+      description: "Perfect for small venues getting started",
+      price: "29.99",
+      billingInterval: "monthly",
+      trialDays: 14,
+      maxVenues: 1,
+      maxUsers: 3,
+      maxBookingsPerMonth: 50,
+      features: ["basic_analytics", "email_support"],
+      isActive: true,
+      sortOrder: 1,
+      createdAt: new Date(),
+    };
+
+    const professionalPackage: SubscriptionPackage = {
+      id: randomUUID(),
+      name: "Professional",
+      description: "For growing venue businesses",
+      price: "79.99",
+      billingInterval: "monthly",
+      trialDays: 14,
+      maxVenues: 3,
+      maxUsers: 10,
+      maxBookingsPerMonth: 200,
+      features: ["advanced_analytics", "priority_support", "api_access", "custom_fields"],
+      isActive: true,
+      sortOrder: 2,
+      createdAt: new Date(),
+    };
+
+    const enterprisePackage: SubscriptionPackage = {
+      id: randomUUID(),
+      name: "Enterprise",
+      description: "For large venue management companies",
+      price: "199.99",
+      billingInterval: "monthly",
+      trialDays: 30,
+      maxVenues: 10,
+      maxUsers: 50,
+      maxBookingsPerMonth: 1000,
+      features: ["advanced_analytics", "priority_support", "api_access", "custom_fields", "custom_branding", "advanced_integrations", "team_collaboration"],
+      isActive: true,
+      sortOrder: 3,
+      createdAt: new Date(),
+    };
+
+    this.subscriptionPackages.set(starterPackage.id, starterPackage);
+    this.subscriptionPackages.set(professionalPackage.id, professionalPackage);
+    this.subscriptionPackages.set(enterprisePackage.id, enterprisePackage);
   }
 
 

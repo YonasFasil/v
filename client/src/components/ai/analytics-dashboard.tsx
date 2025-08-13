@@ -23,6 +23,28 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useFormattedCurrency } from "@/lib/currency";
 
+interface AnalyticsData {
+  totalRevenue: number;
+  bookingsGrowth: number;
+  avgBookingValue: number;
+  utilizationRate: number;
+  topPerformingPackages: Array<{
+    name: string;
+    revenue: number;
+    bookings: number;
+  }>;
+  predictions: {
+    nextMonth: {
+      revenue: number;
+      bookings: number;
+    };
+    nextQuarter: {
+      revenue: number;
+      bookings: number;
+    };
+  };
+}
+
 
 interface SeasonalRecommendation {
   season: string;
@@ -149,24 +171,26 @@ export function AnalyticsDashboard({ onCreatePackage, onCreateService }: Props =
   const displaySeason = selectedSeason === "current" ? currentSeason : selectedSeason;
   const seasonData = seasonalData.find(s => s.season === displaySeason) || seasonalData[0];
 
-  // Fetch analytics data
-  const { data: analyticsData } = useQuery({
-    queryKey: ["/api/ai/analytics", timeRange],
-    select: (data) => data || {
-      totalRevenue: 125000,
-      bookingsGrowth: 23,
-      avgBookingValue: 3200,
-      utilizationRate: 78,
-      topPerformingPackages: [
-        { name: "Premium Wedding Package", revenue: 45000, bookings: 12 },
-        { name: "Corporate Events", revenue: 38000, bookings: 18 },
-        { name: "Social Celebrations", revenue: 25000, bookings: 15 }
-      ],
-      predictions: {
-        nextMonth: { revenue: 42000, bookings: 28 },
-        nextQuarter: { revenue: 135000, bookings: 95 }
-      }
+  // Fetch analytics data with default fallback
+  const defaultAnalyticsData: AnalyticsData = {
+    totalRevenue: 125000,
+    bookingsGrowth: 23,
+    avgBookingValue: 3200,
+    utilizationRate: 78,
+    topPerformingPackages: [
+      { name: "Premium Wedding Package", revenue: 45000, bookings: 12 },
+      { name: "Corporate Events", revenue: 38000, bookings: 18 },
+      { name: "Social Celebrations", revenue: 25000, bookings: 15 }
+    ],
+    predictions: {
+      nextMonth: { revenue: 42000, bookings: 28 },
+      nextQuarter: { revenue: 135000, bookings: 95 }
     }
+  };
+
+  const { data: analyticsData = defaultAnalyticsData } = useQuery<AnalyticsData>({
+    queryKey: ["/api/ai/analytics", timeRange],
+    select: (data) => data || defaultAnalyticsData
   });
 
   const SeasonIcon = seasonData.icon;

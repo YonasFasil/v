@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, DollarSign, Users, BarChart3, TrendingUp, Clock, CheckCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useFormattedCurrency } from "@/lib/currency";
+import { type Booking, type Venue, type Customer } from "@shared/schema";
 
 export function MetricsGrid() {
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
@@ -14,15 +15,15 @@ export function MetricsGrid() {
     queryKey: ["/api/dashboard/metrics"],
   });
 
-  const { data: bookings = [] } = useQuery({
+  const { data: bookings = [] } = useQuery<Booking[]>({
     queryKey: ["/api/bookings"],
   });
 
-  const { data: customers = [] } = useQuery({
+  const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ["/api/customers"],
   });
 
-  const { data: venues = [] } = useQuery({
+  const { data: venues = [] } = useQuery<Venue[]>({
     queryKey: ["/api/venues"],
   });
 
@@ -206,7 +207,7 @@ export function MetricsGrid() {
                 </div>
               </div>
               <div className="space-y-3 max-h-80 overflow-y-auto">
-                {venueBookings.map((venue: any) => (
+                {venueBookings.map((venue) => (
                   <div key={venue.id} className="p-3 border rounded-lg">
                     <div className="flex justify-between items-center mb-2">
                       <div className="font-medium">{venue.name}</div>
