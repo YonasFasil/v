@@ -24,6 +24,7 @@ import {
 import { type Tenant, type SubscriptionPackage } from "@shared/schema";
 import { PackageManagementModal } from "@/components/super-admin/package-management-modal";
 import { TenantManagementModal } from "@/components/super-admin/tenant-management-modal";
+import { TenantDetailModal } from "@/components/super-admin/tenant-detail-modal";
 import SuperAdminSettings from "@/components/super-admin/super-admin-settings";
 
 export default function SuperAdminDashboard() {
@@ -34,6 +35,8 @@ export default function SuperAdminDashboard() {
   const [showPackageModal, setShowPackageModal] = useState(false);
   const [editingPackage, setEditingPackage] = useState<SubscriptionPackage | undefined>();
   const [showTenantModal, setShowTenantModal] = useState(false);
+  const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
+  const [showTenantDetail, setShowTenantDetail] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem('super_admin_token');
@@ -207,7 +210,14 @@ export default function SuperAdminDashboard() {
                       <div className="text-sm text-muted-foreground">
                         {tenant.currentUsers || 0} users
                       </div>
-                      <Button variant="ghost" size="sm">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTenant(tenant);
+                          setShowTenantDetail(true);
+                        }}
+                      >
                         <MoreVertical className="w-4 h-4" />
                       </Button>
                     </div>
@@ -303,6 +313,15 @@ export default function SuperAdminDashboard() {
       <TenantManagementModal
         open={showTenantModal}
         onOpenChange={setShowTenantModal}
+      />
+
+      <TenantDetailModal
+        tenant={selectedTenant}
+        open={showTenantDetail}
+        onOpenChange={(open) => {
+          setShowTenantDetail(open);
+          if (!open) setSelectedTenant(null);
+        }}
       />
     </div>
   );

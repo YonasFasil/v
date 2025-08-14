@@ -89,7 +89,8 @@ export default function Customers() {
       name: "",
       email: "",
       phone: "",
-      companyId: "",
+      companyId: "none",
+      customerType: "individual",
       status: "lead",
       notes: "",
     }
@@ -131,6 +132,7 @@ export default function Customers() {
       email: "",
       phone: "",
       companyId: "",
+      customerType: "individual",
       status: "customer",
       notes: "",
     }
@@ -138,7 +140,10 @@ export default function Customers() {
 
   const createCustomerMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest("POST", "/api/customers", data);
+      console.log("Making API request to create customer:", data);
+      const result = await apiRequest("POST", "/api/customers", data);
+      console.log("Customer creation result:", result);
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers/analytics"] });
@@ -150,10 +155,12 @@ export default function Customers() {
         description: "Customer created successfully!",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error("Customer creation error:", error);
+      const errorMessage = error?.message || "Failed to create customer. Please try again.";
       toast({
         title: "Error",
-        description: "Failed to create customer. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -171,7 +178,8 @@ export default function Customers() {
           data.employees.map(employee => 
             apiRequest("POST", "/api/customers", {
               ...employee,
-              companyId: company.id
+              companyId: company.id,
+              customerType: "individual"
             })
           )
         );
@@ -210,7 +218,8 @@ export default function Customers() {
           data.employees.map(employee => 
             apiRequest("POST", "/api/customers", {
               ...employee,
-              companyId: data.id
+              companyId: data.id,
+              customerType: "individual"
             })
           )
         );
@@ -264,7 +273,7 @@ export default function Customers() {
       if (data.type === "customers") {
         // Import customers
         const results = await Promise.allSettled(
-          data.items.map(customer => apiRequest("POST", "/api/customers", customer))
+          data.items.map(customer => apiRequest("POST", "/api/customers", { ...customer, customerType: "individual" }))
         );
         return results;
       } else {
@@ -279,7 +288,8 @@ export default function Customers() {
                 employees.map((employee: any) => 
                   apiRequest("POST", "/api/customers", {
                     ...employee,
-                    companyId: createdCompany.id
+                    companyId: createdCompany.id,
+                    customerType: "individual"
                   })
                 )
               );
@@ -546,7 +556,8 @@ export default function Customers() {
     mutationFn: async (data: any) => {
       return apiRequest("POST", "/api/customers", {
         ...data,
-        companyId: viewingCompany?.id
+        companyId: viewingCompany?.id,
+        customerType: "individual"
       });
     },
     onSuccess: () => {
@@ -573,11 +584,18 @@ export default function Customers() {
   };
 
   const onSubmit = async (data: any) => {
+    console.log("Form submitted with data:", data);
+    console.log("Auth token:", localStorage.getItem('auth_token'));
+    console.log("Super admin token:", localStorage.getItem('super_admin_token'));
+    
     // Handle "none" company selection by setting companyId to null
     const submitData = {
       ...data,
-      companyId: data.companyId === "none" ? null : data.companyId
+      companyId: data.companyId === "none" ? null : data.companyId,
+      customerType: "individual" // Ensure customerType is always set
     };
+    
+    console.log("Submitting customer data:", submitData);
     createCustomerMutation.mutate(submitData);
   };
 

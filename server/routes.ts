@@ -11,6 +11,7 @@ import { stripeService } from "./services/stripe";
 import { notificationEmailService } from "./services/notification-email";
 import { sendCustomerCommunicationEmail, sendUserVerificationEmail } from "./services/super-admin-email";
 import { resolveTenant, requireTenant, checkTrialStatus, filterByTenant, type TenantRequest } from "./middleware/tenant";
+import { addFeatureAccess, requireFeature, getFeaturesForTenant, requireWithinLimits, type FeatureRequest } from "./middleware/feature-access";
 import { 
   insertBookingSchema, 
   insertCustomerSchema, 
@@ -58,16 +59,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const getTenantIdFromAuth = (req: any): string | null => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log("No auth header or invalid format");
       return null;
     }
     
     const token = authHeader.substring(7);
     const decoded = verifyToken(token);
-    if (!decoded) return null;
+    if (!decoded) {
+      console.log("Token verification failed");
+      return null;
+    }
     
     // Get user to find their tenant ID
     const users = Array.from(storage.users.values());
     const user = users.find(u => u.id === decoded.id);
+    console.log(`User found: ${user?.id}, tenant: ${user?.tenantId}`);
     return user?.tenantId || null;
   };
   
@@ -169,6 +175,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a new user for a tenant (tenant admin only)
   app.post("/api/tenant/users", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
       // Check if user is tenant admin
       const authHeader = req.headers.authorization;
       if (!authHeader) return res.status(401).json({ message: "Authorization required" });
@@ -195,11 +206,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allowedRoles = ['tenant_user', 'tenant_admin'];
       if (role && !allowedRoles.includes(role)) {
         return res.status(400).json({ message: "Invalid role specified" });
-      }
-
-      const tenantId = getTenantIdFromAuth(req);
-      if (!tenantId) {
-        return res.status(401).json({ message: "Tenant not found" });
       }
       const hashedPassword = await hashPassword(password);
       
@@ -567,9 +573,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get customer analytics
   app.get("/api/customers/analytics", async (req, res) => {
     try {
-      const customers = await storage.getCustomers();
-      const bookings = await storage.getBookings();
-      const payments = await storage.getPayments();
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const allCustomers = await storage.getCustomers();
+      const allBookings = await storage.getBookings();
+      const allPayments = await storage.getPayments();
+      
+      // CRITICAL: Filter by tenant to prevent data leaks
+      const customers = allCustomers.filter(c => c.tenantId === tenantId);
+      const bookings = allBookings.filter(b => b.tenantId === tenantId);
+      const payments = allPayments.filter(p => {
+        // Payment is tenant-specific if its booking belongs to this tenant
+        const booking = bookings.find(b => b.id === p.bookingId);
+        return !!booking;
+      });
       
       const customerAnalytics = customers.map(customer => {
         // Find all bookings for this customer
@@ -647,9 +667,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       const customer = await storage.createCustomer(validatedData);
       res.json(customer);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating customer:", error);
-      res.status(400).json({ message: "Invalid customer data" });
+      res.status(400).json({ 
+        message: error.message || "Invalid customer data",
+        details: error.toString()
+      });
     }
   });
 
@@ -876,6 +899,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/bookings", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
       console.log('Creating booking with data:', req.body);
       
       // Convert date strings to Date objects if they're strings
@@ -1615,9 +1643,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reports - Cancellation Analytics
-  app.get("/api/reports/cancellations", async (req, res) => {
+  app.get("/api/reports/cancellations", requireTenant, addFeatureAccess, requireFeature('advanced_reports'), async (req, res) => {
     try {
-      const bookings = await storage.getBookings();
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const allBookings = await storage.getBookings();
+      const bookings = allBookings.filter(b => b.tenantId === tenantId);
       const cancelledBookings = bookings.filter(booking => booking.status === 'cancelled');
       
       // Group cancellations by reason
@@ -1848,7 +1882,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/ai/insights", async (req, res) => {
+  app.get("/api/ai/insights", requireTenant, addFeatureAccess, requireFeature('ai_analytics'), async (req, res) => {
     try {
       const insights = await storage.getActiveAiInsights();
       res.json(insights);
@@ -1857,7 +1891,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/ai/smart-scheduling", async (req, res) => {
+  app.post("/api/ai/smart-scheduling", requireTenant, addFeatureAccess, requireFeature('ai_analytics'), async (req, res) => {
     try {
       const { eventType, duration = 4, guestCount, venuePreferences } = req.body;
       const suggestion = await generateSmartScheduling(eventType, duration, guestCount, venuePreferences);
@@ -1898,14 +1932,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Enhanced AI Analytics endpoint
-  app.get("/api/ai/analytics/:period", async (req, res) => {
+  app.get("/api/ai/analytics/:period", requireTenant, addFeatureAccess, requireFeature('ai_analytics'), async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
       const period = req.params.period;
+      const allBookings = await storage.getBookings();
+      const allCustomers = await storage.getCustomers();
+      const allVenues = await storage.getVenues();
+      
+      // CRITICAL: Filter by tenant to prevent data leaks
       const analyticsData = {
         period,
-        bookings: await storage.getBookings(),
-        customers: await storage.getCustomers(),
-        venues: await storage.getVenues()
+        bookings: allBookings.filter(b => b.tenantId === tenantId),
+        customers: allCustomers.filter(c => c.tenantId === tenantId),
+        venues: allVenues.filter(v => v.tenantId === tenantId)
       };
       const insights = await generateAIInsights(analyticsData);
       res.json(insights);
@@ -2009,8 +2053,13 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
   });
 
   // Enhanced Reports API endpoints
-  app.get("/api/reports/analytics/:dateRange?", async (req, res) => {
+  app.get("/api/reports/analytics/:dateRange?", requireTenant, addFeatureAccess, requireFeature('advanced_reports'), async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
       const dateRange = req.params.dateRange || "3months";
       
       // Calculate date range filter
@@ -2036,12 +2085,32 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
           startDate.setMonth(now.getMonth() - 3);
       }
 
-      const bookings = await storage.getBookings();
-      const customers = await storage.getCustomers();
-      const venues = await storage.getVenues();
-      const payments = await storage.getPayments();
-      const proposals = await storage.getProposals();
-      const leads = await storage.getLeads();
+      const allBookings = await storage.getBookings();
+      const allCustomers = await storage.getCustomers();
+      const allVenues = await storage.getVenues();
+      const allPayments = await storage.getPayments();
+      const allProposals = await storage.getProposals();
+      const allLeads = await storage.getLeads();
+      
+      // CRITICAL: Filter by tenant to prevent data leaks
+      const bookings = allBookings.filter(b => b.tenantId === tenantId);
+      const customers = allCustomers.filter(c => c.tenantId === tenantId);
+      const venues = allVenues.filter(v => v.tenantId === tenantId);
+      const payments = allPayments.filter(p => {
+        // Payment belongs to tenant if its booking belongs to tenant
+        const booking = bookings.find(b => b.id === p.bookingId);
+        return !!booking;
+      });
+      const proposals = allProposals.filter(p => {
+        // Proposal belongs to tenant if its customer belongs to tenant
+        const customer = customers.find(c => c.id === p.customerId);
+        return !!customer;
+      });
+      const leads = allLeads.filter(l => {
+        // Lead belongs to tenant if its venue belongs to tenant
+        const venue = venues.find(v => v.id === l.venueId);
+        return !!venue || !l.venueId; // Include leads without venue if they might belong to tenant via other criteria
+      });
       
       // Filter data by date range
       const filteredBookings = bookings.filter(booking => 
@@ -2288,8 +2357,13 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
   });
 
   // AI Insights for Reports
-  app.get("/api/ai/insights/reports/:dateRange?", async (req, res) => {
+  app.get("/api/ai/insights/reports/:dateRange?", requireTenant, addFeatureAccess, requireFeature('ai_analytics'), async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
       const dateRange = req.params.dateRange || "3months";
       
       // Generate AI insights using Gemini
@@ -2512,12 +2586,25 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
   });
 
   // Revenue Analytics Endpoint
-  app.get("/api/reports/revenue/:dateRange?", async (req, res) => {
+  app.get("/api/reports/revenue/:dateRange?", requireTenant, addFeatureAccess, requireFeature('advanced_reports'), async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
       const dateRange = req.params.dateRange || "3months";
-      const bookings = await storage.getBookings();
-      const payments = await storage.getPayments();
-      const customers = await storage.getCustomers();
+      const allBookings = await storage.getBookings();
+      const allPayments = await storage.getPayments();
+      const allCustomers = await storage.getCustomers();
+      
+      // CRITICAL: Filter by tenant
+      const bookings = allBookings.filter(b => b.tenantId === tenantId);
+      const customers = allCustomers.filter(c => c.tenantId === tenantId);
+      const payments = allPayments.filter(p => {
+        const booking = bookings.find(b => b.id === p.bookingId);
+        return !!booking;
+      });
       
       // Revenue breakdown by payment status
       const revenueByStatus = {
@@ -2609,12 +2696,32 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
   });
 
   // Customer Analytics Endpoint
-  app.get("/api/reports/customers/:dateRange?", async (req, res) => {
+  app.get("/api/reports/customers/:dateRange?", requireTenant, addFeatureAccess, requireFeature('advanced_reports'), async (req, res) => {
     try {
-      const customers = await storage.getCustomers();
-      const bookings = await storage.getBookings();
-      const leads = await storage.getLeads();
-      const proposals = await storage.getProposals();
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const allCustomers = await storage.getCustomers();
+      const allBookings = await storage.getBookings();
+      const allLeads = await storage.getLeads();
+      const allProposals = await storage.getProposals();
+      
+      // CRITICAL: Filter by tenant
+      const customers = allCustomers.filter(c => c.tenantId === tenantId);
+      const bookings = allBookings.filter(b => b.tenantId === tenantId);
+      const proposals = allProposals.filter(p => {
+        const customer = customers.find(c => c.id === p.customerId);
+        return !!customer;
+      });
+      // For leads, we need to be careful as they may not have direct tenant linkage
+      const venues = await storage.getVenues();
+      const tenantVenues = venues.filter(v => v.tenantId === tenantId);
+      const leads = allLeads.filter(l => {
+        const venue = tenantVenues.find(v => v.id === l.venueId);
+        return !!venue || !l.venueId; // Include leads without venue for now
+      });
       
       // Customer acquisition over time
       const acquisitionTrends = [];
@@ -2697,11 +2804,24 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
   });
 
   // Venue Performance Analytics
-  app.get("/api/reports/venues/:dateRange?", async (req, res) => {
+  app.get("/api/reports/venues/:dateRange?", requireTenant, addFeatureAccess, requireFeature('advanced_reports'), async (req, res) => {
     try {
-      const venues = await storage.getVenues();
-      const bookings = await storage.getBookings();
-      const spaces = await storage.getSpaces();
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const allVenues = await storage.getVenues();
+      const allBookings = await storage.getBookings();
+      const allSpaces = await storage.getSpaces();
+      
+      // CRITICAL: Filter by tenant
+      const venues = allVenues.filter(v => v.tenantId === tenantId);
+      const bookings = allBookings.filter(b => b.tenantId === tenantId);
+      const spaces = allSpaces.filter(s => {
+        const venue = venues.find(v => v.id === s.venueId);
+        return !!venue;
+      });
       
       // Venue performance metrics
       const venueMetrics = venues.map(venue => {
@@ -3406,13 +3526,21 @@ This is a test email from your Venuine venue management system.
       if (eventData) {
         try {
           // Find or create customer
-          let customer = await storage.getCustomerByEmail(to);
+          const tenantId = getTenantIdFromAuth(req);
+          if (!tenantId) {
+            return res.status(401).json({ message: "Authentication required for customer operations" });
+          }
+          
+          let customer = await storage.getCustomerByEmail(to, tenantId);
           if (!customer) {
+            // CRITICAL: Must include tenantId when creating customers
+            
             customer = await storage.createCustomer({
               name: customerName,
               email: to,
               phone: null,
-              notes: `Created from proposal on ${new Date().toDateString()}`
+              notes: `Created from proposal on ${new Date().toDateString()}`,
+              tenantId
             });
           }
 
@@ -3715,7 +3843,7 @@ This is a test email from your Venuine venue management system.
   });
 
   // AI-powered features
-  app.post("/api/ai/process-voice-booking", async (req, res) => {
+  app.post("/api/ai/process-voice-booking", requireTenant, addFeatureAccess, requireFeature('voice_booking'), async (req, res) => {
     try {
       const { transcript } = req.body;
       
@@ -3746,9 +3874,15 @@ This is a test email from your Venuine venue management system.
     }
   });
 
-  app.get("/api/ai/analytics", async (req, res) => {
+  app.get("/api/ai/analytics", requireTenant, addFeatureAccess, requireFeature('ai_analytics'), async (req, res) => {
     try {
-      const bookings = await storage.getBookings();
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const allBookings = await storage.getBookings();
+      const bookings = allBookings.filter(b => b.tenantId === tenantId);
       
       const analytics = {
         totalRevenue: bookings.reduce((sum, booking) => sum + parseFloat(booking.totalAmount || '0'), 0),
@@ -5078,13 +5212,29 @@ This is a test email from your Venuine venue management system.
   // Leads
   app.get("/api/leads", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
       const { status, source, q } = req.query;
       const filters = {
         status: status as string,
         source: source as string,
         q: q as string
       };
-      const leads = await storage.getLeads(filters);
+      const allLeads = await storage.getLeads(filters);
+      
+      // CRITICAL: Filter leads by tenant
+      // Since leads might not have direct tenant linkage, we need to filter by venue
+      const venues = await storage.getVenues();
+      const tenantVenues = venues.filter(v => v.tenantId === tenantId);
+      const tenantVenueIds = tenantVenues.map(v => v.id);
+      
+      const leads = allLeads.filter(lead => 
+        !lead.venueId || tenantVenueIds.includes(lead.venueId)
+      );
+      
       res.json(leads);
     } catch (error) {
       console.error("Error fetching leads:", error);
@@ -5094,11 +5244,24 @@ This is a test email from your Venuine venue management system.
 
   app.get("/api/leads/:id", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
       const { id } = req.params;
       const lead = await storage.getLead(id);
       
       if (!lead) {
         return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      // CRITICAL: Verify lead belongs to this tenant
+      if (lead.venueId) {
+        const venue = await storage.getVenue(lead.venueId);
+        if (!venue || venue.tenantId !== tenantId) {
+          return res.status(404).json({ message: "Lead not found" });
+        }
       }
 
       // Get additional lead data
@@ -5193,6 +5356,12 @@ This is a test email from your Venuine venue management system.
       }
 
       // Create customer from lead data
+      // CRITICAL: Must get tenant context for customer creation
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required for customer creation" });
+      }
+      
       const customerData = {
         name: `${lead.firstName} ${lead.lastName}`,
         email: lead.email,
@@ -5200,7 +5369,8 @@ This is a test email from your Venuine venue management system.
         notes: lead.notes || "",
         eventType: lead.eventType,
         status: "ACTIVE",
-        source: "Lead Conversion"
+        source: "Lead Conversion",
+        tenantId
       };
 
       const customer = await storage.createCustomer(customerData);
@@ -5236,13 +5406,20 @@ This is a test email from your Venuine venue management system.
       }
 
       // First, check if lead has a customer, if not create one
+      // CRITICAL: Must check customer within tenant scope
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required for customer operations" });
+      }
+      
       let customer;
-      const existingCustomer = await storage.getCustomerByEmail(lead.email);
+      const existingCustomer = await storage.getCustomerByEmail(lead.email, tenantId);
       
       if (existingCustomer) {
         customer = existingCustomer;
       } else {
         // Create customer from lead data
+        
         const customerData = {
           name: `${lead.firstName} ${lead.lastName}`,
           email: lead.email,
@@ -5250,7 +5427,8 @@ This is a test email from your Venuine venue management system.
           notes: lead.notes || "",
           eventType: lead.eventType,
           status: "ACTIVE",
-          source: "Lead Proposal"
+          source: "Lead Proposal",
+          tenantId
         };
         customer = await storage.createCustomer(customerData);
       }
@@ -5475,12 +5653,19 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
       }
 
       // Create customer from lead data
+      // CRITICAL: Must get tenant context for customer creation
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required for customer creation" });
+      }
+      
       const customer = await storage.createCustomer({
         name: `${lead.firstName} ${lead.lastName}`,
         email: lead.email,
         phone: lead.phone || "",
         company: "", // Could be added to lead model if needed
-        notes: lead.notes || ""
+        notes: lead.notes || "",
+        tenantId
       });
 
       // Update lead with converted customer ID and status
@@ -6133,12 +6318,149 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     }
   });
 
+  // Super Admin - Update tenant
+  app.put("/api/super-admin/tenants/:id", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    try {
+      const tenantId = req.params.id;
+      const updateData = req.body;
+      
+      const tenant = storage.tenants.get(tenantId);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+
+      // Update tenant
+      const updatedTenant = {
+        ...tenant,
+        ...updateData,
+        updatedAt: new Date()
+      };
+      
+      storage.tenants.set(tenantId, updatedTenant);
+      res.json(updatedTenant);
+    } catch (error: any) {
+      console.error("Error updating tenant:", error);
+      res.status(500).json({ message: "Failed to update tenant" });
+    }
+  });
+
+  // Super Admin - Get tenant users
+  app.get("/api/super-admin/tenants/:id/users", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    try {
+      const tenantId = req.params.id;
+      const tenantUsers = Array.from(storage.users.values()).filter(u => u.tenantId === tenantId);
+      res.json(tenantUsers);
+    } catch (error: any) {
+      console.error("Error fetching tenant users:", error);
+      res.status(500).json({ message: "Failed to fetch tenant users" });
+    }
+  });
+
+  // Super Admin - Add user to tenant
+  app.post("/api/super-admin/tenants/:id/users", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    try {
+      const tenantId = req.params.id;
+      const { username, name, email, password, role } = req.body;
+      
+      if (!username || !name || !email || !password) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+
+      // Check if tenant exists
+      const tenant = storage.tenants.get(tenantId);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+
+      // Check if username or email already exists
+      const existingUser = Array.from(storage.users.values()).find(u => 
+        u.username === username || u.email === email
+      );
+      if (existingUser) {
+        return res.status(400).json({ message: "Username or email already exists" });
+      }
+
+      // Create user
+      const hashedPassword = await hashPassword(password);
+      const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      const newUser = {
+        id: userId,
+        username,
+        name,
+        email,
+        password: hashedPassword,
+        tenantId,
+        role: role || "tenant_user",
+        permissions: [],
+        isActive: true,
+        lastLoginAt: null,
+        stripeAccountId: null,
+        stripeAccountStatus: null,
+        stripeOnboardingCompleted: false,
+        stripeChargesEnabled: false,
+        stripePayoutsEnabled: false,
+        stripeConnectedAt: null,
+        createdAt: new Date()
+      };
+
+      storage.users.set(userId, newUser);
+
+      // Update tenant user count
+      const updatedTenant = {
+        ...tenant,
+        currentUsers: (tenant.currentUsers || 0) + 1,
+        updatedAt: new Date()
+      };
+      storage.tenants.set(tenantId, updatedTenant);
+
+      res.json(newUser);
+    } catch (error: any) {
+      console.error("Error adding user to tenant:", error);
+      res.status(500).json({ message: "Failed to add user to tenant" });
+    }
+  });
+
+  // Super Admin - Remove user from tenant
+  app.delete("/api/super-admin/tenants/:tenantId/users/:userId", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { tenantId, userId } = req.params;
+      
+      const user = storage.users.get(userId);
+      if (!user || user.tenantId !== tenantId) {
+        return res.status(404).json({ message: "User not found in this tenant" });
+      }
+
+      // Remove user
+      storage.users.delete(userId);
+
+      // Update tenant user count
+      const tenant = storage.tenants.get(tenantId);
+      if (tenant) {
+        const updatedTenant = {
+          ...tenant,
+          currentUsers: Math.max((tenant.currentUsers || 1) - 1, 0),
+          updatedAt: new Date()
+        };
+        storage.tenants.set(tenantId, updatedTenant);
+      }
+
+      res.json({ message: "User removed successfully" });
+    } catch (error: any) {
+      console.error("Error removing user from tenant:", error);
+      res.status(500).json({ message: "Failed to remove user from tenant" });
+    }
+  });
+
   // ============================================================================
   // PATH-BASED TENANT ROUTES (for development/replit)
   // ============================================================================
   
+  // Tenant features endpoint
+  app.get("/api/tenant/:tenantSlug/features", requireTenant, addFeatureAccess, getFeaturesForTenant);
+
   // Tenant dashboard via path
-  app.get("/api/tenant/:tenantSlug/dashboard", requireTenant, checkTrialStatus, async (req: TenantRequest, res) => {
+  app.get("/api/tenant/:tenantSlug/dashboard", requireTenant, checkTrialStatus, addFeatureAccess, requireFeature('dashboard_analytics'), async (req: TenantRequest, res) => {
     try {
       const tenantId = req.tenant!.id;
       
