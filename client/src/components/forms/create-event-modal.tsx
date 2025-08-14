@@ -1472,20 +1472,6 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                     dateInfo.endTime
                                   );
                                   
-                                  // Debug log for UI availability check
-                                  console.log(`🔍 UI availability check for ${dateInfo.date.toDateString()}:`, {
-                                    dateString: dateInfo.date.toDateString(),
-                                    spaceId: dateInfo.spaceId,
-                                    startTime: dateInfo.startTime,
-                                    endTime: dateInfo.endTime,
-                                    available: availability.available,
-                                    conflictingBooking: availability.conflictingBooking ? {
-                                      eventName: availability.conflictingBooking.eventName,
-                                      status: availability.conflictingBooking.status,
-                                      eventDate: new Date(availability.conflictingBooking.eventDate).toDateString()
-                                    } : null,
-                                    totalExistingBookings: (existingBookings as any[])?.length
-                                  });
                                   
                                   if (availability.available) {
                                     return (
