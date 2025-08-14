@@ -28,6 +28,9 @@ export default function TenantLogin() {
       // Clear any previous tenant cache to prevent cross-contamination
       clearTenantCache();
       
+      // Clear any other potential cached data
+      sessionStorage.clear();
+      
       // Store auth token
       localStorage.setItem("auth_token", response.token);
       toast({ title: "Login successful", description: `Welcome back, ${response.user.name}!` });

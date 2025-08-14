@@ -111,13 +111,16 @@ export const queryClient = new QueryClient({
 
 // Utility function to clear tenant-specific cache when switching tenants
 export function clearTenantCache() {
+  console.log("🔥 CLEARING TENANT CACHE - Removing all cached data to prevent cross-tenant contamination");
+  
   // Clear all queries to prevent cross-tenant data contamination
   queryClient.clear();
   
-  // Also clear any specific tenant-related queries
+  // Also clear any specific tenant-related queries including analytics
   const tenantQueries = [
     '/api/bookings',
     '/api/customers', 
+    '/api/customers/analytics', // Critical: Clear customer analytics cache
     '/api/companies',
     '/api/venues',
     '/api/spaces',
@@ -130,6 +133,7 @@ export function clearTenantCache() {
     '/api/setup-styles',
     '/api/leads',
     '/api/dashboard',
+    '/api/dashboard/metrics',
     '/api/reports',
     '/api/users'
   ];
@@ -138,4 +142,6 @@ export function clearTenantCache() {
     queryClient.removeQueries({ queryKey: [queryKey] });
     queryClient.invalidateQueries({ queryKey: [queryKey] });
   });
+  
+  console.log("✅ Tenant cache cleared successfully");
 }
