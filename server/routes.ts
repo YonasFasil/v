@@ -986,6 +986,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Skip cancelled bookings
         if (existing.status === 'cancelled') return false;
         
+        // Skip if this is the same proposal booking (check by proposalId if provided)
+        if (validatedData.proposalId && existing.proposalId === validatedData.proposalId) {
+          console.log('Skipping conflict check for same proposal:', validatedData.proposalId);
+          return false;
+        }
+        
         // Check if same space and same date (more specific than venue)
         if (existing.spaceId === spaceId && 
             existing.eventDate.toDateString() === eventDate.toDateString()) {
