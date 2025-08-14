@@ -89,7 +89,7 @@ export default function Customers() {
       name: "",
       email: "",
       phone: "",
-      companyId: "none",
+      companyId: undefined,
       customerType: "individual",
       status: "lead",
       notes: "",
@@ -597,10 +597,10 @@ export default function Customers() {
       return;
     }
     
-    // Handle "none" company selection by setting companyId to null
+    // Handle "none" company selection or undefined by setting companyId to null
     const submitData = {
       ...data,
-      companyId: data.companyId === "none" ? null : data.companyId,
+      companyId: data.companyId === "none" || !data.companyId ? null : data.companyId,
       customerType: "individual" // Ensure customerType is always set
     };
     
@@ -918,7 +918,7 @@ export default function Customers() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Company (Optional)</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
+                              <Select onValueChange={field.onChange} value={field.value || "none"}>
                                 <FormControl>
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select a company" />
