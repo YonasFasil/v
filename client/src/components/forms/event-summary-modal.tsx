@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,14 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [showProposalModal, setShowProposalModal] = useState(false);
   
+  // Local state to track current status for immediate UI updates
+  const [currentStatus, setCurrentStatus] = useState(booking?.status);
+  
+  // Update local status when booking prop changes
+  useEffect(() => {
+    setCurrentStatus(booking?.status);
+  }, [booking?.status]);
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -70,7 +78,9 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
     mutationFn: async ({ bookingId, newStatus }: { bookingId: string; newStatus: EventStatus }) => {
       return apiRequest("PATCH", `/api/bookings/${bookingId}`, { status: newStatus });
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      // Update local status immediately for responsive UI
+      setCurrentStatus(variables.newStatus);
       toast({
         title: "Status updated",
         description: "Event status has been successfully updated."
@@ -142,10 +152,11 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-slate-600">Status:</span>
               <StatusSelector
-                currentStatus={booking.status as EventStatus}
+                currentStatus={currentStatus as EventStatus}
                 onStatusChange={handleStatusChange}
                 eventId={booking.id}
                 eventTitle={booking.eventName}
+                cancellationReason={booking.cancellationReason}
               />
             </div>
           </div>
@@ -188,8 +199,8 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Status</span>
-                  <Badge className={`${getStatusConfig(booking.status).bgColor} ${getStatusConfig(booking.status).textColor} ${getStatusConfig(booking.status).borderColor} border`}>
-                    {getStatusConfig(booking.status).label}
+                  <Badge className={`${getStatusConfig(currentStatus).bgColor} ${getStatusConfig(currentStatus).textColor} ${getStatusConfig(currentStatus).borderColor} border`}>
+                    {getStatusConfig(currentStatus).label}
                   </Badge>
                 </div>
                 

@@ -10,6 +10,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { getStatusConfig, type EventStatus } from "@shared/status-utils";
+import { StatusSelector } from "../events/status-selector";
 
 interface Props {
   open: boolean;
@@ -32,6 +34,7 @@ export function EditEventModal({ open, onOpenChange, booking }: Props) {
   // Data queries
   const { data: customers = [] } = useQuery({ queryKey: ["/api/customers"] });
   const { data: venues = [] } = useQuery({ queryKey: ["/api/venues-with-spaces"] });
+  const { data: existingBookings = [] } = useQuery({ queryKey: ["/api/bookings"] });
 
   // Initialize form with booking data
   useEffect(() => {
@@ -48,11 +51,105 @@ export function EditEventModal({ open, onOpenChange, booking }: Props) {
   const selectedCustomer = customers.find((c: any) => c.id === booking?.customerId);
   const selectedVenue = venues.find((v: any) => v.id === booking?.venueId);
 
+  // Function to check space availability for a specific date and time (excluding current booking)
+  const getSpaceAvailability = (spaceId: string, date: Date, startTime: string, endTime: string) => {
+    console.log('🔍 EDIT MODAL CONFLICT CHECK:', {
+      spaceId,
+      date: date.toDateString(),
+      startTime,
+      endTime,
+      totalBookings: existingBookings.length,
+      currentBookingId: booking?.id
+    });
+    
+    if (!spaceId || !(existingBookings as any[])?.length) {
+      console.log('❌ No space ID or no existing bookings');
+      return { available: true, conflictingBooking: null };
+    }
+    
+    const conflicts = (existingBookings as any[]).filter(existingBooking => {
+      console.log('📋 Checking booking:', {
+        id: existingBooking.id,
+        status: existingBooking.status,
+        spaceId: existingBooking.spaceId,
+        eventDate: existingBooking.eventDate,
+        startTime: existingBooking.startTime,
+        endTime: existingBooking.endTime
+      });
+      
+      // Exclude the current booking being edited
+      if (existingBooking.id === booking.id) {
+        console.log('⏭️ Skipping current booking');
+        return false;
+      }
+      if (existingBooking.status === 'cancelled') {
+        console.log('⏭️ Skipping cancelled booking');
+        return false;
+      }
+      if (existingBooking.spaceId !== spaceId) {
+        console.log('⏭️ Different space, skipping');
+        return false;
+      }
+      
+      const bookingDate = new Date(existingBooking.eventDate);
+      if (bookingDate.toDateString() !== date.toDateString()) {
+        console.log('⏭️ Different date, skipping');
+        return false;
+      }
+
+      // Parse times - handle both 24hr format and 12hr format
+      const parseTime = (timeStr: string) => {
+        if (!timeStr) return 0;
+        
+        if (timeStr.includes('AM') || timeStr.includes('PM')) {
+          // 12-hour format (like "09:00 AM", "05:00 PM")
+          const [time, period] = timeStr.split(' ');
+          const [hours, minutes] = time.split(':').map(Number);
+          let hour24 = hours;
+          if (period === 'PM' && hours !== 12) hour24 += 12;
+          if (period === 'AM' && hours === 12) hour24 = 0;
+          return hour24 + (minutes || 0) / 60;
+        } else {
+          // 24-hour format (like "09:00", "17:00")
+          const [hours, minutes] = timeStr.split(':').map(Number);
+          return hours + (minutes || 0) / 60;
+        }
+      };
+
+      const newStart = parseTime(startTime);
+      const newEnd = parseTime(endTime);
+      const existingStart = parseTime(existingBooking.startTime);
+      const existingEnd = parseTime(existingBooking.endTime);
+
+      const overlaps = (newStart < existingEnd && newEnd > existingStart);
+      
+      console.log('⏰ Time overlap check:', {
+        newTime: `${startTime}(${newStart}) - ${endTime}(${newEnd})`,
+        existingTime: `${existingBooking.startTime}(${existingStart}) - ${existingBooking.endTime}(${existingEnd})`,
+        overlaps
+      });
+
+      // Check for time overlap
+      return overlaps;
+    });
+    
+    console.log('🎯 FINAL RESULT:', {
+      conflictsFound: conflicts.length,
+      available: conflicts.length === 0,
+      conflictingBooking: conflicts[0]
+    });
+    
+    return {
+      available: conflicts.length === 0,
+      conflictingBooking: conflicts[0] || null
+    };
+  };
+
   // Update booking mutation
   const updateBooking = useMutation({
     mutationFn: async (bookingData: any) => {
       const response = await apiRequest("PATCH", `/api/bookings/${booking.id}`, bookingData);
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
@@ -93,6 +190,42 @@ export function EditEventModal({ open, onOpenChange, booking }: Props) {
   });
 
   const handleSave = () => {
+    // Check for conflicts before saving
+    if (booking.spaceId && booking.eventDate) {
+      const availability = getSpaceAvailability(
+        booking.spaceId,
+        new Date(booking.eventDate),
+        startTime,
+        endTime
+      );
+
+      if (!availability.available && availability.conflictingBooking) {
+        const conflict = availability.conflictingBooking;
+        const blockingStatuses = ['confirmed_deposit_paid', 'confirmed_fully_paid'];
+        
+        if (blockingStatuses.includes(conflict.status)) {
+          const statusLabel = getStatusConfig(conflict.status).label;
+          toast({
+            title: "❌ Cannot Save - Booking Conflict",
+            description: `Cannot save changes due to confirmed paid booking conflict. "${conflict.eventName}" (${conflict.startTime} - ${conflict.endTime}, Status: ${statusLabel}) has confirmed payment and cannot be overbooked.`,
+            variant: "destructive",
+            duration: 10000
+          });
+          return; // Block the save
+        } else {
+          // Warning for tentative bookings - allow save but warn
+          const statusLabel = getStatusConfig(conflict.status).label;
+          toast({
+            title: "⚠️ Time Overlap Warning",
+            description: `This time overlaps with "${conflict.eventName}" (${conflict.startTime} - ${conflict.endTime}, Status: ${statusLabel}). Since it's not confirmed, both bookings can coexist.`,
+            variant: "default",
+            duration: 6000
+          });
+          // Continue with save for tentative bookings
+        }
+      }
+    }
+
     const updates = {
       eventName,
       guestCount,
@@ -109,6 +242,24 @@ export function EditEventModal({ open, onOpenChange, booking }: Props) {
     if (confirm("Are you sure you want to delete this event? This action cannot be undone.")) {
       deleteBooking.mutate();
     }
+  };
+
+  // Helper function to check for blocking conflicts
+  const hasBlockingConflicts = () => {
+    if (!booking.spaceId || !booking.eventDate || !startTime || !endTime) return false;
+    
+    const availability = getSpaceAvailability(
+      booking.spaceId,
+      new Date(booking.eventDate),
+      startTime,
+      endTime
+    );
+
+    if (!availability.available && availability.conflictingBooking) {
+      const blockingStatuses = ['confirmed_deposit_paid', 'confirmed_fully_paid'];
+      return blockingStatuses.includes(availability.conflictingBooking.status);
+    }
+    return false;
   };
 
   if (!booking) return null;
@@ -160,17 +311,15 @@ export function EditEventModal({ open, onOpenChange, booking }: Props) {
 
               <div>
                 <Label className="text-base font-medium">Status</Label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger className="mt-2">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="inquiry">Lead</SelectItem>
-                    <SelectItem value="confirmed">Booked</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="mt-2">
+                  <StatusSelector
+                    currentStatus={status as EventStatus}
+                    onStatusChange={(newStatus) => setStatus(newStatus)}
+                    eventId={booking?.id}
+                    eventTitle={eventName}
+                    cancellationReason={booking?.cancellationReason}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -225,6 +374,70 @@ export function EditEventModal({ open, onOpenChange, booking }: Props) {
                   </Select>
                 </div>
               </div>
+
+              {/* Real-time availability and conflict detection */}
+              {booking.spaceId && booking.eventDate && startTime && endTime && (() => {
+                const availability = getSpaceAvailability(
+                  booking.spaceId,
+                  new Date(booking.eventDate),
+                  startTime,
+                  endTime
+                );
+
+                if (availability.available) {
+                  return (
+                    <div className="mt-3 p-3 rounded-lg border bg-green-50 border-green-200">
+                      <div className="flex items-center gap-2 text-sm font-medium text-green-800">
+                        <div className="w-2 h-2 rounded-full bg-green-500" />
+                        ✅ Time Slot Available
+                      </div>
+                      <div className="mt-1 text-sm text-green-700">
+                        No conflicts detected for the selected time
+                      </div>
+                    </div>
+                  );
+                } else if (availability.conflictingBooking) {
+                  const conflict = availability.conflictingBooking;
+                  const statusConfig = getStatusConfig(conflict.status);
+                  const blockingStatuses = ['confirmed_deposit_paid', 'confirmed_fully_paid'];
+                  const isBlocking = blockingStatuses.includes(conflict.status);
+
+                  return (
+                    <div className={`mt-3 p-4 rounded-lg border-2 ${isBlocking ? 'bg-red-50 border-red-300' : 'bg-yellow-50 border-yellow-300'}`}>
+                      <div className={`flex items-center gap-2 text-base font-semibold ${isBlocking ? 'text-red-800' : 'text-yellow-800'}`}>
+                        <div className={`w-3 h-3 rounded-full ${isBlocking ? 'bg-red-500' : 'bg-yellow-500'}`} />
+                        {isBlocking ? '❌ BLOCKING CONFLICT' : '⚠️ TIME OVERLAP WARNING'}
+                      </div>
+                      <div className={`mt-2 text-sm ${isBlocking ? 'text-red-700' : 'text-yellow-700'}`}>
+                        <div className="font-medium">Conflicting Event:</div>
+                        <div className="mt-1">
+                          <strong>"{conflict.eventName}"</strong>
+                          <br />
+                          📅 {conflict.startTime} - {conflict.endTime}
+                          <br />
+                          <span className="inline-flex items-center gap-1 mt-1">
+                            <div 
+                              className="w-2 h-2 rounded-full" 
+                              style={{ backgroundColor: statusConfig.color }}
+                            />
+                            <strong>Status: {statusConfig.label}</strong>
+                          </span>
+                        </div>
+                      </div>
+                      {isBlocking ? (
+                        <div className="mt-3 p-2 bg-red-100 border border-red-300 rounded text-sm text-red-800 font-medium">
+                          🚫 Cannot save changes - This booking has confirmed payment and cannot be overbooked
+                        </div>
+                      ) : (
+                        <div className="mt-3 p-2 bg-yellow-100 border border-yellow-300 rounded text-sm text-yellow-800">
+                          ℹ️ Both bookings can coexist since the conflicting booking isn't confirmed with payment
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
           </div>
 
@@ -285,11 +498,16 @@ export function EditEventModal({ open, onOpenChange, booking }: Props) {
             </Button>
             <Button 
               onClick={handleSave}
-              disabled={updateBooking.isPending || !eventName.trim()}
-              className="flex items-center gap-2"
+              disabled={updateBooking.isPending || !eventName.trim() || hasBlockingConflicts()}
+              className={`flex items-center gap-2 ${hasBlockingConflicts() ? 'bg-red-600 hover:bg-red-700' : ''}`}
             >
               <Save className="h-4 w-4" />
-              {updateBooking.isPending ? 'Saving...' : 'Save Changes'}
+              {updateBooking.isPending 
+                ? 'Saving...' 
+                : hasBlockingConflicts() 
+                  ? '❌ Conflicts Detected' 
+                  : 'Save Changes'
+              }
             </Button>
           </div>
         </div>

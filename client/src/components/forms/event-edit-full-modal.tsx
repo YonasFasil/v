@@ -8,11 +8,12 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, getDay } from "date-fns";
-import { ChevronLeft, ChevronRight, X, Plus, RotateCcw, Trash2, Save, Edit, Minus, FileText, Send, MessageSquare, Mail, Phone, Users, Grid3X3, MapPin, Calendar as CalendarIcon } from "lucide-react";
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, getDay, isBefore, isToday, startOfDay } from "date-fns";
+import { ChevronLeft, ChevronRight, X, Plus, Trash2, Save, Edit, Minus, FileText, Send, MessageSquare, Mail, Phone, Users, Grid3X3, MapPin, Calendar as CalendarIcon } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { type EventStatus, getStatusConfig } from "@shared/status-utils";
 
 interface Props {
   open: boolean;
@@ -135,6 +136,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   const { data: services = [] } = useQuery({ queryKey: ["/api/services"] });
   const { data: customers = [] } = useQuery({ queryKey: ["/api/customers"] });
   const { data: taxSettings = [] } = useQuery({ queryKey: ["/api/tax-settings"] });
+  const { data: existingBookings = [] } = useQuery({ queryKey: ["/api/bookings"] });
 
   // Initialize form data when booking changes
   useEffect(() => {
@@ -214,6 +216,53 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
     }),
     ...calendarDays
   ];
+
+  // Function to check space availability for a specific date and time (excluding current booking)
+  const getSpaceAvailability = (spaceId: string, date: Date, startTime: string, endTime: string) => {
+    if (!spaceId || !(existingBookings as any[])?.length) return { available: true, conflictingBooking: null };
+    
+    const conflicts = (existingBookings as any[]).filter(existingBooking => {
+      // Exclude the current booking being edited
+      if (existingBooking.id === booking?.id) return false;
+      if (existingBooking.status === 'cancelled') return false;
+      if (existingBooking.spaceId !== spaceId) return false;
+      
+      const bookingDate = new Date(existingBooking.eventDate);
+      if (bookingDate.toDateString() !== date.toDateString()) return false;
+
+      // Parse times - handle both 24hr format and 12hr format
+      const parseTime = (timeStr: string) => {
+        if (!timeStr) return 0;
+        
+        if (timeStr.includes('AM') || timeStr.includes('PM')) {
+          // 12-hour format (like "09:00 AM", "05:00 PM")
+          const [time, period] = timeStr.split(' ');
+          const [hours, minutes] = time.split(':').map(Number);
+          let hour24 = hours;
+          if (period === 'PM' && hours !== 12) hour24 += 12;
+          if (period === 'AM' && hours === 12) hour24 = 0;
+          return hour24 + (minutes || 0) / 60;
+        } else {
+          // 24-hour format (like "09:00", "17:00")
+          const [hours, minutes] = timeStr.split(':').map(Number);
+          return hours + (minutes || 0) / 60;
+        }
+      };
+
+      const newStart = parseTime(startTime);
+      const newEnd = parseTime(endTime);
+      const existingStart = parseTime(existingBooking.startTime);
+      const existingEnd = parseTime(existingBooking.endTime);
+
+      // Check for time overlap
+      return (newStart < existingEnd && newEnd > existingStart);
+    });
+    
+    return {
+      available: conflicts.length === 0,
+      conflictingBooking: conflicts[0] || null
+    };
+  };
 
   // Per-date configuration helpers (same as create modal)
   const updateDateTime = (index: number, field: keyof SelectedDate, value: any) => {
@@ -331,7 +380,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   const createService = useMutation({
     mutationFn: async (serviceData: any) => {
       const response = await apiRequest("POST", "/api/services", serviceData);
-      return response.json();
+      return response;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });
@@ -351,7 +400,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   const updateBooking = useMutation({
     mutationFn: async (bookingData: any) => {
       const response = await apiRequest("PATCH", `/api/bookings/${booking.id}`, bookingData);
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
@@ -368,7 +417,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   const deleteBooking = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("DELETE", `/api/bookings/${booking.id}`);
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
@@ -382,8 +431,113 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
     }
   });
 
-  const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 3));
+  const nextStep = () => {
+    // Validate step 1 requirements before proceeding
+    if (currentStep === 1) {
+      if (selectedDates.length === 0) {
+        toast({ title: "Please select at least one date", variant: "destructive" });
+        return;
+      }
+
+      // Validate that all selected dates have spaces selected
+      const missingSpaces = selectedDates.filter(date => !date.spaceId);
+      if (missingSpaces.length > 0) {
+        toast({ 
+          title: "Space selection required", 
+          description: `Please select a space for ${missingSpaces.length} event date${missingSpaces.length > 1 ? 's' : ''}`,
+          variant: "destructive" 
+        });
+        return;
+      }
+
+      // Check for past dates
+      const today = startOfDay(new Date());
+      const pastDates = selectedDates.filter(dateInfo => isBefore(dateInfo.date, today));
+      if (pastDates.length > 0) {
+        const pastDatesList = pastDates.map(d => format(d.date, 'MMM d, yyyy')).join(', ');
+        toast({
+          title: "❌ Cannot Proceed - Past Date Selected",
+          description: `Past dates cannot be used for event booking: ${pastDatesList}. Please remove past dates and select future dates only.`,
+          variant: "destructive",
+          duration: 8000
+        });
+        return;
+      }
+
+      // Check for blocking conflicts before proceeding to step 2
+      const blockingStatuses = ['confirmed_deposit_paid', 'confirmed_fully_paid'];
+      const blockingConflicts = selectedDates.filter(dateInfo => {
+        const availability = getSpaceAvailability(
+          dateInfo.spaceId!,
+          dateInfo.date,
+          dateInfo.startTime,
+          dateInfo.endTime
+        );
+        
+        if (!availability.available && availability.conflictingBooking) {
+          const conflictStatus = availability.conflictingBooking.status;
+          return blockingStatuses.includes(conflictStatus);
+        }
+        return false;
+      });
+
+      if (blockingConflicts.length > 0) {
+        const firstConflict = getSpaceAvailability(
+          blockingConflicts[0].spaceId!,
+          blockingConflicts[0].date,
+          blockingConflicts[0].startTime,
+          blockingConflicts[0].endTime
+        ).conflictingBooking;
+        
+        const statusLabel = getStatusConfig(firstConflict!.status).label;
+        
+        toast({
+          title: "❌ Cannot Proceed - Booking Conflict",
+          description: `Cannot proceed due to confirmed paid booking conflict on ${format(blockingConflicts[0].date, 'MMM d, yyyy')}. "${firstConflict!.eventName}" (${firstConflict!.startTime} - ${firstConflict!.endTime}, Status: ${statusLabel}) has confirmed payment and cannot be overbooked.`,
+          variant: "destructive",
+          duration: 10000
+        });
+        return;
+      }
+    }
+    
+    setCurrentStep(prev => Math.min(prev + 1, 3));
+  };
+  
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
+
+  // Helper function to check for blocking conflicts and past dates
+  const hasBlockingConflicts = () => {
+    try {
+      const today = startOfDay(new Date());
+      
+      return selectedDates.some(dateInfo => {
+        // Check for past dates
+        if (isBefore(dateInfo.date, today)) {
+          return true;
+        }
+        
+        if (!dateInfo.spaceId) return false;
+        
+        // Check for booking conflicts
+        const blockingStatuses = ['confirmed_deposit_paid', 'confirmed_fully_paid'];
+        const availability = getSpaceAvailability(
+          dateInfo.spaceId,
+          dateInfo.date,
+          dateInfo.startTime,
+          dateInfo.endTime
+        );
+        
+        if (!availability.available && availability.conflictingBooking) {
+          return blockingStatuses.includes(availability.conflictingBooking.status);
+        }
+        return false;
+      });
+    } catch (error) {
+      console.error('Error in hasBlockingConflicts:', error);
+      return false;
+    }
+  };
 
   // Handle new service creation
   const handleCreateNewService = () => {
@@ -420,6 +574,18 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   const handleDateClick = (day: Date) => {
     if (!isSameMonth(day, currentDate)) return;
     
+    // Block past date selection
+    const today = startOfDay(new Date());
+    if (isBefore(day, today)) {
+      toast({
+        title: "❌ Cannot Select Past Date",
+        description: "Past dates cannot be selected for event booking. Please choose today or a future date.",
+        variant: "destructive",
+        duration: 5000
+      });
+      return;
+    }
+    
     const existingIndex = selectedDates.findIndex(d => isSameDay(d.date, day));
     if (existingIndex >= 0) {
       setSelectedDates(prev => prev.filter((_, i) => i !== existingIndex));
@@ -453,6 +619,58 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
         title: "Required fields missing",
         description: "Please fill in event name, customer, and select at least one date",
         variant: "destructive"
+      });
+      return;
+    }
+
+    // Check for past dates before saving
+    const today = startOfDay(new Date());
+    const pastDates = selectedDates.filter(dateInfo => isBefore(dateInfo.date, today));
+    if (pastDates.length > 0) {
+      const pastDatesList = pastDates.map(d => format(d.date, 'MMM d, yyyy')).join(', ');
+      toast({
+        title: "❌ Cannot Save - Past Date Selected",
+        description: `Past dates cannot be used for event booking: ${pastDatesList}. Please remove past dates and select future dates only.`,
+        variant: "destructive",
+        duration: 8000
+      });
+      return;
+    }
+
+    // Check for blocking conflicts before saving
+    const blockingStatuses = ['confirmed_deposit_paid', 'confirmed_fully_paid'];
+    const blockingConflicts = selectedDates.filter(dateInfo => {
+      if (!dateInfo.spaceId) return false;
+      
+      const availability = getSpaceAvailability(
+        dateInfo.spaceId,
+        dateInfo.date,
+        dateInfo.startTime,
+        dateInfo.endTime
+      );
+      
+      if (!availability.available && availability.conflictingBooking) {
+        const conflictStatus = availability.conflictingBooking.status;
+        return blockingStatuses.includes(conflictStatus);
+      }
+      return false;
+    });
+
+    if (blockingConflicts.length > 0) {
+      const firstConflict = getSpaceAvailability(
+        blockingConflicts[0].spaceId!,
+        blockingConflicts[0].date,
+        blockingConflicts[0].startTime,
+        blockingConflicts[0].endTime
+      ).conflictingBooking;
+      
+      const statusLabel = getStatusConfig(firstConflict!.status).label;
+      
+      toast({
+        title: "❌ Cannot Save - Booking Conflict",
+        description: `Cannot save changes due to confirmed paid booking conflict on ${format(blockingConflicts[0].date, 'MMM d, yyyy')}. "${firstConflict!.eventName}" (${firstConflict!.startTime} - ${firstConflict!.endTime}, Status: ${statusLabel}) has confirmed payment and cannot be overbooked.`,
+        variant: "destructive",
+        duration: 10000
       });
       return;
     }
@@ -623,16 +841,6 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
     }
   };
 
-  const resetForm = () => {
-    setCurrentStep(1);
-    setSelectedDates([]);
-    setSelectedVenue("");
-    setEventName("");
-    setSelectedCustomer("");
-    setEventStatus("inquiry");
-    setShowNewCustomerForm(false);
-    setNewCustomer({ name: "", email: "", phone: "", company: "" });
-  };
 
   const handleCreateCustomer = () => {
     if (!newCustomer.name || !newCustomer.email) {
@@ -781,12 +989,6 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                       {booking?.isContract ? "Edit Contract" : "Edit Event"}
                     </h2>
                   </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Button variant="ghost" size="sm" onClick={resetForm}>
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                    Reset
-                  </Button>
                 </div>
               </div>
               
@@ -1004,17 +1206,24 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                       {paddedDays.map((day, index) => {
                         const isCurrentMonth = isSameMonth(day, currentDate);
                         const isSelected = selectedDates.some(d => isSameDay(d.date, day));
+                        const today = startOfDay(new Date());
+                        const isPast = isBefore(day, today);
+                        const isTodayDate = isToday(day);
                         
                         return (
                           <button
                             key={index}
                             onClick={() => handleDateClick(day)}
+                            disabled={isPast}
                             className={cn(
                               "h-12 w-12 rounded-full flex items-center justify-center text-sm font-medium transition-colors",
-                              isCurrentMonth 
-                                ? "text-slate-900 hover:bg-slate-100" 
-                                : "text-slate-400",
-                              isSelected && "bg-blue-600 text-white hover:bg-blue-700"
+                              isPast 
+                                ? "text-slate-300 cursor-not-allowed bg-slate-50" 
+                                : isCurrentMonth 
+                                  ? "text-slate-900 hover:bg-slate-100" 
+                                  : "text-slate-400",
+                              isSelected && !isPast && "bg-blue-600 text-white hover:bg-blue-700",
+                              isTodayDate && !isSelected && !isPast && "bg-green-50 text-green-700 border border-green-200"
                             )}
                           >
                             {format(day, 'd')}
@@ -1079,10 +1288,45 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                                   </div>
                                   
                                   {/* Availability indicator */}
-                                  <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                    Available
-                                  </div>
+                                  {(() => {
+                                    const availability = getSpaceAvailability(
+                                      slot.spaceId || '',
+                                      slot.date,
+                                      slot.startTime,
+                                      slot.endTime
+                                    );
+                                    
+                                    if (availability.available) {
+                                      return (
+                                        <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                          Available
+                                        </div>
+                                      );
+                                    } else {
+                                      const conflict = availability.conflictingBooking;
+                                      const statusConfig = getStatusConfig(conflict?.status || 'inquiry');
+                                      return (
+                                        <div className="text-right">
+                                          <div className="flex items-center gap-2 px-3 py-1.5 bg-red-100 text-red-700 rounded-full text-xs font-medium mb-1">
+                                            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                            Conflict
+                                          </div>
+                                          <div className="text-xs text-red-600">
+                                            {conflict?.eventName}<br/>
+                                            {conflict?.startTime} - {conflict?.endTime}<br/>
+                                            <span className="inline-flex items-center gap-1 mt-1">
+                                              <div 
+                                                className="w-2 h-2 rounded-full" 
+                                                style={{ backgroundColor: statusConfig.color }}
+                                              />
+                                              {statusConfig.label}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      );
+                                    }
+                                  })()}
                                 </div>
                               </div>
 
@@ -2777,10 +3021,18 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                 {currentStep < 3 ? (
                   <Button 
                     onClick={nextStep}
-                    className="bg-blue-600 hover:bg-blue-700"
-                    disabled={currentStep === 1 && selectedDates.length === 0}
+                    className={`${hasBlockingConflicts() && currentStep === 1 ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                    disabled={
+                      (currentStep === 1 && selectedDates.length === 0) ||
+                      (currentStep === 1 && hasBlockingConflicts())
+                    }
                   >
-                    {currentStep === 1 ? `Configure ${selectedDates.length} Event Slot(s)` : 'Next'}
+                    {currentStep === 1 && hasBlockingConflicts() 
+                      ? '❌ Conflicts Detected'
+                      : currentStep === 1 
+                        ? `Configure ${selectedDates.length} Event Slot(s)` 
+                        : 'Next'
+                    }
                   </Button>
                 ) : (
                   <Button 

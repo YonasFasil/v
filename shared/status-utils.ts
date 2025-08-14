@@ -91,8 +91,8 @@ export const STATUS_CONFIGS: Record<EventStatus, StatusConfig> = {
     bgColor: "bg-green-50",
     borderColor: "border-green-200",
     textColor: "text-green-700",
-    nextStatuses: [],
-    canEdit: false,
+    nextStatuses: ["inquiry", "pending", "tentative", "confirmed_deposit_paid", "confirmed_fully_paid"],
+    canEdit: true, // Allow changing back from completed
     isCompleted: true,
     isActive: false
   },
@@ -103,8 +103,8 @@ export const STATUS_CONFIGS: Record<EventStatus, StatusConfig> = {
     bgColor: "bg-red-50",
     borderColor: "border-red-200", 
     textColor: "text-red-700",
-    nextStatuses: [],
-    canEdit: false,
+    nextStatuses: [], // Will be dynamically determined based on cancellation reason
+    canEdit: true, // Can be edited if no cancellation reason provided
     isCompleted: true,
     isActive: false
   }
@@ -187,7 +187,7 @@ export function getNextStatuses(currentStatus: EventStatus | string): EventStatu
 }
 
 // Check if status can be edited
-export function canEditStatus(status: EventStatus | string): boolean {
+export function canEditStatus(status: EventStatus | string, cancellationReason?: string | null): boolean {
   // Handle legacy statuses by mapping them to new ones
   const statusMap: Record<string, EventStatus> = {
     'confirmed': 'tentative', // Legacy confirmed maps to tentative
@@ -200,6 +200,12 @@ export function canEditStatus(status: EventStatus | string): boolean {
   };
   
   const mappedStatus = statusMap[status] || status as EventStatus;
+  
+  // Special case: cancelled events with a cancellation reason cannot be edited
+  if (mappedStatus === 'cancelled' && cancellationReason) {
+    return false;
+  }
+  
   return STATUS_CONFIGS[mappedStatus]?.canEdit ?? true; // Default to true if status not found
 }
 

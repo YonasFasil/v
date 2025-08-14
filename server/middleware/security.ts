@@ -56,7 +56,7 @@ export function setupSecurity(app: Express) {
   // General rate limit (more permissive in development)
   const generalLimiter = rateLimit({
     windowMs: rateLimitWindowMs,
-    max: process.env.NODE_ENV === 'development' ? 10000 : rateLimitMax, // Much higher limit in dev
+    max: process.env.NODE_ENV === 'development' ? 50000 : rateLimitMax, // Much higher limit in dev
     message: {
       error: 'Too many requests from this IP, please try again later.',
       retryAfter: Math.ceil(rateLimitWindowMs / 1000),
@@ -76,7 +76,7 @@ export function setupSecurity(app: Express) {
   // Strict rate limit for auth endpoints
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: process.env.NODE_ENV === 'development' ? 1000 : 5, // Higher limit in dev
+    max: process.env.NODE_ENV === 'development' ? 5000 : 5, // Higher limit in dev
     message: {
       error: 'Too many authentication attempts, please try again later.',
       retryAfter: 900, // 15 minutes
@@ -92,7 +92,7 @@ export function setupSecurity(app: Express) {
   // API rate limit for high-frequency endpoints
   const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 1000, // Higher limit for API endpoints
+    max: process.env.NODE_ENV === 'development' ? 10000 : 1000, // Higher limit for API endpoints in dev
     message: {
       error: 'API rate limit exceeded, please try again later.',
       retryAfter: 900,

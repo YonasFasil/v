@@ -17,7 +17,7 @@ import { VoiceBookingPanel } from "../voice/voice-booking-panel";
 import { ProposalCreationModal } from "../proposals/proposal-creation-modal";
 import { ProposalEmailModal } from "../proposals/proposal-email-modal";
 import { StatusSelector } from "../events/status-selector";
-import { type EventStatus } from "@shared/status-utils";
+import { type EventStatus, getStatusConfig } from "@shared/status-utils";
 import { type TaxSetting } from "@shared/schema";
 
 interface Props {
@@ -59,6 +59,11 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
   // Step 1: Date & Venue Selection
   const [selectedVenue, setSelectedVenue] = useState("");
   const [selectedDates, setSelectedDates] = useState<SelectedDate[]>([]);
+  
+  // Monitor selectedDates changes for debugging
+  useEffect(() => {
+    console.log('📊 selectedDates changed:', selectedDates.length, selectedDates.map(d => d.date));
+  }, [selectedDates]);
   
   // Step 2: Event Configuration - now managed per date
   const [activeTabIndex, setActiveTabIndex] = useState(0);
@@ -129,8 +134,21 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
   const { data: services = [] } = useQuery({ queryKey: ["/api/services"] });
   const { data: customers = [] } = useQuery({ queryKey: ["/api/customers"] });
   const { data: companies = [] } = useQuery({ queryKey: ["/api/companies"] });
-  const { data: existingBookings = [] } = useQuery({ queryKey: ["/api/bookings"] });
+  const { data: existingBookings = [], isLoading: bookingsLoading, refetch: refetchBookings } = useQuery({ 
+    queryKey: ["/api/bookings"],
+    staleTime: 0, // Always fetch fresh data
+    refetchOnWindowFocus: true,
+    refetchOnMount: true
+  });
   const { data: taxSettings = [] } = useQuery<TaxSetting[]>({ queryKey: ["/api/tax-settings"] });
+
+  // Refetch bookings when modal opens to ensure fresh conflict data
+  useEffect(() => {
+    if (open) {
+      console.log('🔄 Modal opened, refetching bookings for fresh conflict detection');
+      refetchBookings();
+    }
+  }, [open, refetchBookings]);
 
   // Initialize form with duplicate data when provided
   useEffect(() => {
@@ -489,27 +507,59 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
 
   // Handle date selection
   const handleDateClick = (date: Date) => {
-    if (!isSameMonth(date, currentDate)) return;
+    console.log('📅 Date clicked:', date, 'Current selectedDates:', selectedDates.length);
+    
+    if (!isSameMonth(date, currentDate)) {
+      console.log('❌ Date not in current month, ignoring');
+      return;
+    }
+    
+    // Prevent selecting past dates
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to start of day for comparison
+    const selectedDate = new Date(date);
+    selectedDate.setHours(0, 0, 0, 0);
+    
+    if (selectedDate < today) {
+      console.log('❌ Date is in past, blocking selection');
+      toast({
+        title: "Invalid Date",
+        description: "Cannot select past dates for event booking. Please choose a future date.",
+        variant: "destructive",
+        duration: 5000
+      });
+      return;
+    }
     
     const existingIndex = selectedDates.findIndex(d => isSameDay(d.date, date));
     if (existingIndex >= 0) {
-      setSelectedDates(prev => prev.filter((_, i) => i !== existingIndex));
+      console.log('🗑️ Removing existing date at index:', existingIndex);
+      setSelectedDates(prev => {
+        const newDates = prev.filter((_, i) => i !== existingIndex);
+        console.log('📅 After removal, selectedDates will be:', newDates.length);
+        return newDates;
+      });
       if (activeTabIndex >= selectedDates.length - 1) {
         setActiveTabIndex(Math.max(0, selectedDates.length - 2));
       }
     } else {
+      console.log('➕ Adding new date');
       const defaultSpace = selectedVenueData?.spaces?.[0];
-      setSelectedDates(prev => [...prev, {
-        date,
-        startTime: "09:00 AM",
-        endTime: "05:00 PM",
-        spaceId: defaultSpace?.id || "",
-        guestCount: 1,
-        packageId: "",
-        selectedServices: [],
-        itemQuantities: {},
-        pricingOverrides: {}
-      }]);
+      setSelectedDates(prev => {
+        const newDates = [...prev, {
+          date,
+          startTime: "09:00 AM",
+          endTime: "05:00 PM",
+          spaceId: defaultSpace?.id || "",
+          guestCount: 1,
+          packageId: "",
+          selectedServices: [],
+          itemQuantities: {},
+          pricingOverrides: {}
+        }];
+        console.log('📅 After addition, selectedDates will be:', newDates.length, newDates.map(d => d.date));
+        return newDates;
+      });
     }
   };
 
@@ -519,28 +569,63 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
 
   // Function to check space availability for a specific date and time
   const getSpaceAvailability = (spaceId: string, date: Date, startTime: string, endTime: string) => {
-    if (!spaceId || !(existingBookings as any[])?.length) return { available: true, conflictingBooking: null };
+    try {
+      if (!spaceId || !(existingBookings as any[])?.length) return { available: true, conflictingBooking: null };
+
+    console.log('🔍 getSpaceAvailability called with:', {
+      spaceId,
+      date: date.toDateString(),
+      startTime,
+      endTime,
+      totalExistingBookings: (existingBookings as any[])?.length,
+      existingBookingsForSpace: (existingBookings as any[])?.filter(b => b.spaceId === spaceId).map(b => ({
+        id: b.id,
+        eventName: b.eventName,
+        status: b.status,
+        eventDate: new Date(b.eventDate).toDateString(),
+        startTime: b.startTime,
+        endTime: b.endTime
+      }))
+    });
 
     const conflicts = (existingBookings as any[]).filter(booking => {
       if (booking.status === 'cancelled') return false;
       if (booking.spaceId !== spaceId) return false;
       
       const bookingDate = new Date(booking.eventDate);
-      if (bookingDate.toDateString() !== date.toDateString()) return false;
+      const dateMatch = bookingDate.toDateString() === date.toDateString();
+      
+      console.log('🔍 Date comparison:', {
+        bookingId: booking.id,
+        bookingEventName: booking.eventName,
+        bookingDate: bookingDate.toDateString(),
+        targetDate: date.toDateString(),
+        dateMatch,
+        bookingStatus: booking.status
+      });
+      
+      if (!dateMatch) return false;
 
       // Parse times - handle both 24hr format and 12hr format
       const parseTime = (timeStr: string) => {
-        if (timeStr.includes('AM') || timeStr.includes('PM')) {
-          // Convert 12hr format to 24hr
-          const cleanTime = timeStr.replace(/\s(AM|PM)/g, '');
-          const [hours, minutes] = cleanTime.split(':').map(Number);
-          const isAM = timeStr.includes('AM');
-          const hour24 = isAM ? (hours === 12 ? 0 : hours) : (hours === 12 ? 12 : hours + 12);
-          return hour24 * 60 + minutes;
-        } else {
-          // Already 24hr format
-          const [hours, minutes] = timeStr.split(':').map(Number);
-          return hours * 60 + minutes;
+        if (!timeStr) return 0;
+        
+        try {
+          if (timeStr.includes('AM') || timeStr.includes('PM')) {
+            // Convert 12hr format to 24hr
+            const cleanTime = timeStr.replace(/\s(AM|PM)/g, '');
+            const [hours, minutes] = cleanTime.split(':').map(Number);
+            const isAM = timeStr.includes('AM');
+            const hour24 = isAM ? (hours === 12 ? 0 : hours) : (hours === 12 ? 12 : hours + 12);
+            return hour24 * 60 + (minutes || 0);
+          } else {
+            // Already 24hr format
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return (hours || 0) * 60 + (minutes || 0);
+          }
+        } catch (e) {
+          console.error('Time parsing error:', e, timeStr);
+          return 0;
         }
       };
 
@@ -552,10 +637,32 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
       return (newStart < existingEnd && newEnd > existingStart);
     });
 
-    return {
+    const result = {
       available: conflicts.length === 0,
       conflictingBooking: conflicts[0] || null
     };
+    
+    // Debug logging to help track availability checks
+    if (conflicts.length > 0) {
+      console.log('🔍 getSpaceAvailability found conflict:', {
+        spaceId,
+        date: date.toDateString(),
+        startTime,
+        endTime,
+        conflictingBooking: {
+          eventName: conflicts[0]?.eventName,
+          status: conflicts[0]?.status,
+          startTime: conflicts[0]?.startTime,
+          endTime: conflicts[0]?.endTime
+        }
+      });
+    }
+    
+    return result;
+    } catch (error) {
+      console.error('Error in getSpaceAvailability:', error);
+      return { available: true, conflictingBooking: null };
+    }
   };
 
   // Copy configuration to other dates
@@ -671,7 +778,21 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
   // Create contract with multiple bookings mutation
   const createContract = useMutation({
     mutationFn: async (contractData: any) => {
-      return await apiRequest("POST", "/api/bookings/contract", contractData);
+      console.log('🌐 Making API request to /api/bookings/contract with:', contractData);
+      try {
+        const result = await apiRequest("POST", "/api/bookings/contract", contractData);
+        console.log('✅ API request successful:', result);
+        return result;
+      } catch (error) {
+        console.error('🔥 API request failed:', error);
+        console.error('🔥 Error details:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack,
+          response: error.response
+        });
+        throw error;
+      }
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
@@ -825,7 +946,10 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
   };
 
   const handleSubmit = async (submitType: 'inquiry' | 'proposal' = 'inquiry') => {
+    console.log('🚀 handleSubmit called with:', { submitType, eventName, selectedCustomer, selectedDatesCount: selectedDates.length });
+    
     if (!eventName || !selectedCustomer || selectedDates.length === 0) {
+      console.error('❌ Missing required fields:', { eventName: !!eventName, selectedCustomer: !!selectedCustomer, selectedDatesLength: selectedDates.length });
       toast({ title: "Please fill in all required fields", variant: "destructive" });
       return;
     }
@@ -847,7 +971,10 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
       return;
     }
 
+    console.log('🔀 Routing decision: selectedDates.length =', selectedDates.length);
+    
     if (selectedDates.length === 1) {
+      console.log('📝 Taking SINGLE event path');
       // Single event - use regular booking endpoint
       const firstDate = selectedDates[0];
       const bookingData = {
@@ -891,30 +1018,43 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
               });
             } else {
               // Warning for tentative bookings - allow creation but warn
+              const statusLabel = getStatusConfig(conflictData.status).label;
               toast({
                 title: "⚠️ Time Slot Overlap",
-                description: `This time overlaps with "${conflictData.eventName}" by ${conflictData.customerName} (${conflictData.startTime} - ${conflictData.endTime}, Status: ${conflictData.status}). Since it's not confirmed, both bookings can coexist.`,
+                description: `This time overlaps with "${conflictData.eventName}" by ${conflictData.customerName} (${conflictData.startTime} - ${conflictData.endTime}, Status: ${statusLabel}). Since it's not confirmed, both bookings can coexist.`,
                 variant: "default",
                 duration: 6000
               });
             }
           } else {
+            const errorMessage = error.response?.data?.message || error.message || "An unexpected error occurred";
+            
             toast({
               title: "Error creating booking",
-              description: error.response?.data?.message || "An unexpected error occurred",
+              description: errorMessage,
               variant: "destructive"
+            });
+            
+            console.error('📋 Single booking error details:', {
+              status: error.response?.status,
+              message: errorMessage,
+              fullResponse: error.response?.data,
+              fullError: error
             });
           }
         }
       });
     } else {
+      console.log('📝 Taking MULTIPLE events path');
       // Multiple events - create contract with multiple bookings
       const contractData = {
         customerId: selectedCustomer,
         contractName: eventName,
-        description: `Multi-date event with ${selectedDates.length} dates`,
         status: submitType === 'proposal' ? 'pending' : eventStatus
       };
+
+      console.log('🔧 Creating contract with data:', contractData);
+      console.log('🔧 Selected dates for contract:', selectedDates);
 
       const bookingsData = selectedDates.map((date, index) => {
         // Calculate individual date price using the same logic as calculateDateTotal
@@ -945,8 +1085,21 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         };
       });
 
+      console.log('🔧 Final bookingsData for contract:', bookingsData);
+      console.log('🔧 About to call createContract.mutate with payload:', { contractData, bookingsData });
+
       createContract.mutate({ contractData, bookingsData }, {
+        onSuccess: (data) => {
+          console.log('✅ Contract creation SUCCESS:', data);
+        },
         onError: (error: any) => {
+          console.error('📋 Contract creation error details:', {
+            status: error.response?.status,
+            message: error.response?.data?.message || error.message,
+            fullResponse: error.response?.data,
+            fullError: error
+          });
+          
           if (error.response?.status === 409) {
             const conflictData = error.response.data.conflictingBooking;
             const conflictType = error.response.data.conflictType;
@@ -961,18 +1114,28 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
               });
             } else {
               // Warning for tentative bookings - allow creation but warn  
+              const statusLabel = getStatusConfig(conflictData.status).label;
               toast({
                 title: "⚠️ Date Overlap Detected",
-                description: `One or more dates overlap with tentative bookings. First overlap: "${conflictData.eventName}" by ${conflictData.customerName} (${conflictData.startTime} - ${conflictData.endTime}, Status: ${conflictData.status}). Since these aren't confirmed, both bookings can coexist.`,
+                description: `One or more dates overlap with tentative bookings. First overlap: "${conflictData.eventName}" by ${conflictData.customerName} (${conflictData.startTime} - ${conflictData.endTime}, Status: ${statusLabel}). Since these aren't confirmed, both bookings can coexist.`,
                 variant: "default",
                 duration: 6000
               });
             }
           } else {
+            const errorMessage = error.response?.data?.message || error.message || "An unexpected error occurred";
+            
             toast({
               title: "Error creating contract",
-              description: error.response?.data?.message || "An unexpected error occurred",
+              description: errorMessage,
               variant: "destructive"
+            });
+            
+            console.error('📋 Contract creation error details:', {
+              status: error.response?.status,
+              message: errorMessage,
+              fullResponse: error.response?.data,
+              fullError: error
             });
           }
         }
@@ -1035,6 +1198,42 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         return;
       }
 
+      // Check for blocking conflicts before proceeding to step 2
+      const blockingStatuses = ['confirmed_deposit_paid', 'confirmed_fully_paid'];
+      const blockingConflicts = selectedDates.filter(dateInfo => {
+        const availability = getSpaceAvailability(
+          dateInfo.spaceId!,
+          dateInfo.date,
+          dateInfo.startTime,
+          dateInfo.endTime
+        );
+        
+        if (!availability.available && availability.conflictingBooking) {
+          const conflictStatus = availability.conflictingBooking.status;
+          return blockingStatuses.includes(conflictStatus);
+        }
+        return false;
+      });
+
+      if (blockingConflicts.length > 0) {
+        const firstConflict = getSpaceAvailability(
+          blockingConflicts[0].spaceId!,
+          blockingConflicts[0].date,
+          blockingConflicts[0].startTime,
+          blockingConflicts[0].endTime
+        ).conflictingBooking;
+        
+        const statusLabel = getStatusConfig(firstConflict!.status).label;
+        
+        toast({
+          title: "❌ Cannot Proceed - Booking Conflict",
+          description: `Cannot proceed due to confirmed paid booking conflict on ${format(blockingConflicts[0].date, 'MMM d, yyyy')}. "${firstConflict!.eventName}" (${firstConflict!.startTime} - ${firstConflict!.endTime}, Status: ${statusLabel}) has confirmed payment and cannot be overbooked.`,
+          variant: "destructive",
+          duration: 10000
+        });
+        return;
+      }
+
       // Reset active tab index to first date when moving to step 2
       setActiveTabIndex(0);
     }
@@ -1043,6 +1242,47 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
 
   const prevStep = () => {
     if (currentStep > 1) setCurrentStep(currentStep - 1);
+  };
+
+  // Helper function to check for blocking conflicts
+  const hasBlockingConflicts = () => {
+    try {
+      const blockingStatuses = ['confirmed_deposit_paid', 'confirmed_fully_paid'];
+      return selectedDates.some(dateInfo => {
+        if (!dateInfo.spaceId) return false;
+      
+      const availability = getSpaceAvailability(
+        dateInfo.spaceId,
+        dateInfo.date,
+        dateInfo.startTime,
+        dateInfo.endTime
+      );
+      
+      if (!availability.available && availability.conflictingBooking) {
+        const conflictStatus = availability.conflictingBooking.status;
+        const isBlocking = blockingStatuses.includes(conflictStatus);
+        
+        // Debug logging to help identify the issue
+        console.log('🔍 Conflict detected:', {
+          conflictStatus,
+          isBlocking,
+          blockingStatuses,
+          eventName: availability.conflictingBooking.eventName,
+          dateInfo: {
+            date: dateInfo.date,
+            startTime: dateInfo.startTime,
+            endTime: dateInfo.endTime
+          }
+        });
+        
+        return isBlocking;
+      }
+      return false;
+    });
+    } catch (error) {
+      console.error('Error in hasBlockingConflicts:', error);
+      return false;
+    }
   };
 
   return (
@@ -1167,17 +1407,29 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                         const isCurrentMonth = isSameMonth(day, currentDate);
                         const isSelected = selectedDates.some(d => isSameDay(d.date, day));
                         
+                        // Check if date is in the past
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const dayForComparison = new Date(day);
+                        dayForComparison.setHours(0, 0, 0, 0);
+                        const isPastDate = dayForComparison < today;
+                        
                         return (
                           <button
                             key={index}
                             onClick={() => handleDateClick(day)}
+                            disabled={isPastDate}
                             className={cn(
                               "h-12 w-12 rounded-full flex items-center justify-center text-sm font-medium transition-colors",
                               isCurrentMonth 
-                                ? "text-slate-900 hover:bg-slate-100" 
+                                ? isPastDate 
+                                  ? "text-slate-300 cursor-not-allowed bg-slate-50" 
+                                  : "text-slate-900 hover:bg-slate-100"
                                 : "text-slate-400",
-                              isSelected && "bg-blue-600 text-white hover:bg-blue-700"
+                              isSelected && !isPastDate && "bg-blue-600 text-white hover:bg-blue-700",
+                              isPastDate && "opacity-50"
                             )}
+                            title={isPastDate ? "Past dates cannot be selected" : undefined}
                           >
                             {format(day, 'd')}
                           </button>
@@ -1220,6 +1472,21 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                     dateInfo.endTime
                                   );
                                   
+                                  // Debug log for UI availability check
+                                  console.log(`🔍 UI availability check for ${dateInfo.date.toDateString()}:`, {
+                                    dateString: dateInfo.date.toDateString(),
+                                    spaceId: dateInfo.spaceId,
+                                    startTime: dateInfo.startTime,
+                                    endTime: dateInfo.endTime,
+                                    available: availability.available,
+                                    conflictingBooking: availability.conflictingBooking ? {
+                                      eventName: availability.conflictingBooking.eventName,
+                                      status: availability.conflictingBooking.status,
+                                      eventDate: new Date(availability.conflictingBooking.eventDate).toDateString()
+                                    } : null,
+                                    totalExistingBookings: (existingBookings as any[])?.length
+                                  });
+                                  
                                   if (availability.available) {
                                     return (
                                       <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
@@ -1229,6 +1496,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                     );
                                   } else {
                                     const conflict = availability.conflictingBooking;
+                                    const statusConfig = getStatusConfig(conflict?.status || 'inquiry');
                                     return (
                                       <div className="text-right">
                                         <div className="flex items-center gap-2 px-3 py-1.5 bg-red-100 text-red-700 rounded-full text-xs font-medium mb-1">
@@ -1237,7 +1505,14 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                         </div>
                                         <div className="text-xs text-red-600">
                                           {conflict?.eventName}<br/>
-                                          {conflict?.startTime} - {conflict?.endTime}
+                                          {conflict?.startTime} - {conflict?.endTime}<br/>
+                                          <span className="inline-flex items-center gap-1 mt-1">
+                                            <div 
+                                              className="w-2 h-2 rounded-full" 
+                                              style={{ backgroundColor: statusConfig.color }}
+                                            />
+                                            <span className="font-medium">Status: {statusConfig.label}</span>
+                                          </span>
                                         </div>
                                       </div>
                                     );
@@ -2823,29 +3098,40 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                 {currentStep < 3 ? (
                   <Button 
                     onClick={nextStep}
-                    className="bg-blue-600 hover:bg-blue-700"
-                    disabled={currentStep === 1 && (selectedDates.length === 0 || (Array.isArray(venues) && venues.length > 1 && !selectedVenue))}
+                    className={hasBlockingConflicts() && currentStep === 1 ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"}
+                    disabled={
+                      currentStep === 1 && (
+                        selectedDates.length === 0 || 
+                        (Array.isArray(venues) && venues.length > 1 && !selectedVenue) ||
+                        hasBlockingConflicts()
+                      )
+                    }
                   >
-                    {currentStep === 1 ? `Configure ${selectedDates.length} Event Date${selectedDates.length !== 1 ? 's' : ''}` : 'Next'}
+                    {currentStep === 1 
+                      ? hasBlockingConflicts()
+                        ? `❌ Blocking Conflicts Detected`
+                        : `Configure ${selectedDates.length} Event Date${selectedDates.length !== 1 ? 's' : ''}` 
+                      : 'Next'
+                    }
                   </Button>
                 ) : (
                   <div className="flex gap-2">
                     <Button 
                       variant="outline"
                       onClick={() => handleSubmit('proposal')}
-                      disabled={!eventName || !selectedCustomer || selectedDates.length === 0 || createBooking.isPending}
+                      disabled={!eventName || !selectedCustomer || selectedDates.length === 0 || (selectedDates.length === 1 ? createBooking.isPending : createContract.isPending)}
                       className="border-blue-500 text-blue-600 hover:bg-blue-50"
                     >
                       <FileText className="h-4 w-4 mr-2" />
-                      {createBooking.isPending ? 'Sending...' : 'Send as Proposal'}
+                      {(selectedDates.length === 1 ? createBooking.isPending : createContract.isPending) ? 'Sending...' : 'Send as Proposal'}
                     </Button>
                     <Button 
                       onClick={() => handleSubmit('inquiry')}
                       className="bg-blue-600 hover:bg-blue-700"
-                      disabled={createBooking.isPending}
+                      disabled={selectedDates.length === 1 ? createBooking.isPending : createContract.isPending}
                     >
                       <Save className="h-4 w-4 mr-2" />
-                      {createBooking.isPending ? 'Creating...' : 'Save Event'}
+                      {(selectedDates.length === 1 ? createBooking.isPending : createContract.isPending) ? 'Creating...' : 'Save Event'}
                     </Button>
                   </div>
                 )}
@@ -3444,7 +3730,6 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
               const contractData = {
                 customerId: selectedCustomer,
                 contractName: eventName,
-                description: `Multi-date event with ${selectedDates.length} dates`,
                 status: 'pending',
                 proposalId: proposalId // CRITICAL: Pass proposalId to link with contract
               };

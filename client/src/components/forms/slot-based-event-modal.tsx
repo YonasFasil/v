@@ -370,7 +370,7 @@ export default function SlotBasedEventModal({
   const createBookingMutation = useMutation({
     mutationFn: async (bookingData: any) => {
       const response = await apiRequest("POST", "/api/bookings", bookingData);
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });

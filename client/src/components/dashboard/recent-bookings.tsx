@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useBookings } from "@/hooks/use-bookings";
-import { Calendar, Clock, MapPin, Users } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, DollarSign, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { getStatusConfig } from "@shared/status-utils";
 
@@ -47,92 +47,108 @@ export function RecentBookings() {
   const recentBookings = bookings?.slice(0, 5) || [];
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="border border-slate-200 bg-white">
+      <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <CardTitle>Recent Bookings</CardTitle>
-          <Button variant="ghost" className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+          <div>
+            <CardTitle className="text-lg font-semibold text-slate-900">
+              Recent Bookings
+            </CardTitle>
+            <p className="text-sm text-slate-600 mt-1">Latest booking activity</p>
+          </div>
+          <Button variant="ghost" className="text-slate-700 hover:text-slate-900 hover:bg-slate-50 text-sm font-medium">
+            <Eye className="w-4 h-4 mr-2" />
             View All
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-0">
         {recentBookings.length === 0 ? (
-          <div className="text-center py-8">
-            <Calendar className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-            <p className="text-sm text-gray-600">No recent bookings</p>
+          <div className="text-center py-12">
+            <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <Calendar className="w-6 h-6 text-slate-500" />
+            </div>
+            <p className="text-base font-medium text-slate-700 mb-2">No recent bookings</p>
+            <p className="text-sm text-slate-500">New bookings will appear here</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Event
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Date
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Venue
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Value
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-slate-200">
-                {recentBookings.map((booking) => (
-                  <tr key={booking.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-10 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center mr-3">
-                          <Calendar className="w-4 h-4 text-white" />
-                        </div>
-                        <div>
-                          <div className="text-sm font-medium text-slate-900">
-                            {booking.eventName}
-                          </div>
-                          <div className="text-sm text-slate-500">
-                            {booking.eventType}
-                          </div>
-                        </div>
+          <div className="space-y-3">
+            {recentBookings.map((booking, index) => {
+              const statusConfig = getStatusConfig(booking.status);
+              return (
+                <div 
+                  key={booking.id} 
+                  className="bg-white border border-slate-200 hover:bg-slate-50 transition-colors duration-200 p-4 rounded-lg"
+                >
+                  {/* Status indicator */}
+                  <div 
+                    className="absolute left-0 top-4 bottom-4 w-1 rounded-r-full"
+                    style={{ backgroundColor: statusConfig.color }}
+                  />
+                  
+                  <div className="pl-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-slate-900 mb-1">
+                          {booking.eventName}
+                        </h4>
+                        <p className="text-sm text-slate-600 capitalize">{booking.eventType}</p>
                       </div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="text-sm text-slate-900">
-                        {booking.eventDate ? format(new Date(booking.eventDate), "MMM dd, yyyy") : "TBD"}
-                      </div>
-                      <div className="text-sm text-slate-500">
-                        {booking.startTime} - {booking.endTime}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="text-sm text-slate-900">
-                        {booking.venueId || "TBD"}
-                      </div>
-                      <div className="text-sm text-slate-500 flex items-center">
-                        <Users className="w-3 h-3 mr-1" />
-                        {booking.guestCount} guests
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <Badge className={`${getStatusConfig(booking.status).bgColor} ${getStatusConfig(booking.status).textColor} ${getStatusConfig(booking.status).borderColor} border`}>
-                        {getStatusConfig(booking.status).label}
+                      <Badge 
+                        className="ml-4 text-xs border"
+                        style={{ 
+                          backgroundColor: statusConfig.color + '15',
+                          color: statusConfig.color,
+                          borderColor: statusConfig.color + '30'
+                        }}
+                      >
+                        {statusConfig.label}
                       </Badge>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-slate-900">
-                        {booking.totalAmount ? `$${parseFloat(booking.totalAmount).toLocaleString()}` : "TBD"}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="flex items-center text-sm">
+                        <Calendar className="w-4 h-4 text-slate-600 mr-2 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-slate-800">
+                            {booking.eventDate ? format(new Date(booking.eventDate), "MMM dd") : "TBD"}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {booking.eventDate ? format(new Date(booking.eventDate), "yyyy") : ""}
+                          </p>
+                        </div>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      
+                      <div className="flex items-center text-sm">
+                        <Clock className="w-4 h-4 text-slate-600 mr-2 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-slate-800">{booking.startTime}</p>
+                          <p className="text-xs text-slate-500">to {booking.endTime}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center text-sm">
+                        <Users className="w-4 h-4 text-slate-600 mr-2 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-slate-800">{booking.guestCount}</p>
+                          <p className="text-xs text-slate-500">guests</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center text-sm">
+                        <DollarSign className="w-4 h-4 text-slate-600 mr-2 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-slate-800">
+                            {booking.totalAmount ? `$${parseFloat(booking.totalAmount).toLocaleString()}` : "TBD"}
+                          </p>
+                          <p className="text-xs text-slate-500">total</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </CardContent>

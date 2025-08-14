@@ -9,7 +9,8 @@
       "Bash(npm run:*)",
       "Bash(curl:*)",
       "Bash(npx update-browserslist-db:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(PORT=5001 npm run dev)"
     ],
     "deny": [],
     "ask": [],

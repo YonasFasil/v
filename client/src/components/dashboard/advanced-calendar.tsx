@@ -107,7 +107,38 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
 
   return (
     <div className="w-full space-y-6">
-      {/* Minimal Header */}
+      {/* Status Legend - Moved to top */}
+      <div className="bg-white rounded-lg border border-slate-200 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-sm font-semibold text-slate-700">Event Status Legend</h4>
+          <div className="text-xs text-slate-500">Hover for details</div>
+        </div>
+        
+        <div className="flex flex-wrap gap-3">
+          {getAllStatuses().map((status) => {
+            const config = getStatusConfig(status.value);
+            return (
+              <div 
+                key={status.value} 
+                className="group relative"
+                title={`${config.label}: ${config.description}`}
+              >
+                <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all duration-200 cursor-help">
+                  <div 
+                    className={`w-3 h-3 rounded-full border border-white shadow-sm`}
+                    style={{ backgroundColor: config.color }}
+                  />
+                  <span className="text-xs font-medium text-slate-700 whitespace-nowrap">
+                    {config.label}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      
+      {/* Calendar Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <h2 className="text-2xl font-light text-slate-900">
@@ -286,42 +317,6 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
                           +{dayEvents.length - 3} more
                         </div>
                       )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          {/* Status Legend */}
-          <div className="mt-6 pt-4 border-t border-slate-200">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-semibold text-slate-700">Status Legend</h4>
-              <div className="text-xs text-slate-500">Hover for details</div>
-            </div>
-            
-            <div className="flex flex-wrap gap-3">
-              {getAllStatuses().map((status) => {
-                const config = getStatusConfig(status.value);
-                return (
-                  <div 
-                    key={status.value} 
-                    className="group relative"
-                    title={`${config.label}: ${config.description}`}
-                  >
-                    <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all duration-200 cursor-help">
-                      <div 
-                        className={`w-3 h-3 rounded-full border border-white shadow-sm`}
-                        style={{ backgroundColor: config.color }}
-                      />
-                      <span className="text-xs font-medium text-slate-700 whitespace-nowrap">
-                        {config.label}
-                      </span>
-                    </div>
-                    
-                    {/* Tooltip on hover */}
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-slate-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10 whitespace-nowrap">
-                      {config.description}
-                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-slate-900"></div>
                     </div>
                   </div>
                 );

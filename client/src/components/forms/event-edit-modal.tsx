@@ -113,7 +113,7 @@ export function EventEditModal({ open, onOpenChange, booking }: Props) {
   const updateBooking = useMutation({
     mutationFn: async (updates: any) => {
       const response = await apiRequest("PATCH", `/api/bookings/${booking?.id}`, updates);
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
@@ -129,7 +129,7 @@ export function EventEditModal({ open, onOpenChange, booking }: Props) {
   const deleteBooking = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("DELETE", `/api/bookings/${booking?.id}`);
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });

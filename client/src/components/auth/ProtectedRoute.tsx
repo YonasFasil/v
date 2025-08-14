@@ -25,7 +25,8 @@ export function ProtectedRoute({
       const token = superAdminToken || regularToken;
       
       if (!token) {
-        setIsAuthenticated(false);
+        // Add delay to prevent rapid redirects
+        setTimeout(() => setIsAuthenticated(false), 100);
         return;
       }
 
@@ -39,7 +40,8 @@ export function ProtectedRoute({
         if (exp && Date.now() >= exp * 1000) {
           localStorage.removeItem('super_admin_token');
           localStorage.removeItem('auth_token');
-          setIsAuthenticated(false);
+          // Add delay to prevent rapid redirects and reduce rate limiting
+          setTimeout(() => setIsAuthenticated(false), 100);
           return;
         }
         
@@ -77,6 +79,8 @@ export function ProtectedRoute({
 
   useEffect(() => {
     if (isAuthenticated === false) {
+      // Clear any cached data to prevent cross-contamination
+      sessionStorage.clear();
       setLocation(redirectTo);
     }
   }, [isAuthenticated, redirectTo, setLocation]);

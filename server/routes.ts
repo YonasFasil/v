@@ -994,12 +994,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Check if same space and same date (more specific than venue)
         if (existing.spaceId === spaceId && 
-            existing.eventDate.toDateString() === eventDate.toDateString()) {
+            new Date(existing.eventDate).toDateString() === eventDate.toDateString()) {
           
           // Convert times to minutes for easier comparison
           const parseTime = (timeStr: string) => {
-            const [hours, minutes] = timeStr.split(':').map(Number);
-            return hours * 60 + minutes;
+            if (!timeStr) return 0;
+            
+            try {
+              if (timeStr.includes('AM') || timeStr.includes('PM')) {
+                // Convert 12hr format to 24hr
+                const cleanTime = timeStr.replace(/\s(AM|PM)/g, '');
+                const [hours, minutes] = cleanTime.split(':').map(Number);
+                const isAM = timeStr.includes('AM');
+                const hour24 = isAM ? (hours === 12 ? 0 : hours) : (hours === 12 ? 12 : hours + 12);
+                return hour24 * 60 + (minutes || 0);
+              } else {
+                // Already 24hr format
+                const [hours, minutes] = timeStr.split(':').map(Number);
+                return (hours || 0) * 60 + (minutes || 0);
+              }
+            } catch (e) {
+              console.error('Time parsing error:', e, timeStr);
+              return 0;
+            }
           };
           
           const newStart = parseTime(startTime);
@@ -1007,8 +1024,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const existingStart = parseTime(existing.startTime);
           const existingEnd = parseTime(existing.endTime);
           
-          // Check for overlap: new booking starts before existing ends AND new booking ends after existing starts
-          return (newStart < existingEnd && newEnd > existingStart);
+          const hasOverlap = (newStart < existingEnd && newEnd > existingStart);
+          
+          if (hasOverlap) {
+            console.log('🔍 Contract booking conflict detected:', {
+              existingBooking: {
+                id: existing.id,
+                eventName: existing.eventName,
+                status: existing.status,
+                eventDate: new Date(existing.eventDate).toDateString(),
+                startTime: existing.startTime,
+                endTime: existing.endTime,
+                spaceId: existing.spaceId
+              },
+              newBooking: {
+                eventDate: eventDate.toDateString(),
+                startTime,
+                endTime,
+                spaceId
+              },
+              timeComparison: {
+                newStart,
+                newEnd,
+                existingStart,
+                existingEnd
+              }
+            });
+          }
+          
+          return hasOverlap;
         }
         return false;
       });
@@ -1016,7 +1060,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (conflict) {
         // Only block if the conflicting booking has confirmed status (paid bookings)
         const blockingStatuses = ['confirmed_deposit_paid', 'confirmed_fully_paid'];
-        const warningStatuses = ['inquiry', 'pending', 'tentative'];
+        const warningStatuses = ['inquiry', 'pending', 'tentative', 'proposal_shared'];
         
         if (blockingStatuses.includes(conflict.status)) {
           // Get customer info for the conflicting booking
@@ -1224,11 +1268,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const conflict = existingBookings.find(existing => {
           if (existing.status === 'cancelled') return false;
           if (existing.spaceId !== spaceId) return false;
-          if (existing.eventDate.toDateString() !== eventDate.toDateString()) return false;
+          const existingEventDate = new Date(existing.eventDate);
+          if (existingEventDate.toDateString() !== eventDate.toDateString()) return false;
 
           const parseTime = (timeStr: string) => {
-            const [hours, minutes] = timeStr.split(':').map(Number);
-            return hours * 60 + minutes;
+            if (!timeStr) return 0;
+            
+            try {
+              if (timeStr.includes('AM') || timeStr.includes('PM')) {
+                // Convert 12hr format to 24hr
+                const cleanTime = timeStr.replace(/\s(AM|PM)/g, '');
+                const [hours, minutes] = cleanTime.split(':').map(Number);
+                const isAM = timeStr.includes('AM');
+                const hour24 = isAM ? (hours === 12 ? 0 : hours) : (hours === 12 ? 12 : hours + 12);
+                return hour24 * 60 + (minutes || 0);
+              } else {
+                // Already 24hr format
+                const [hours, minutes] = timeStr.split(':').map(Number);
+                return (hours || 0) * 60 + (minutes || 0);
+              }
+            } catch (e) {
+              console.error('Time parsing error:', e, timeStr);
+              return 0;
+            }
           };
           
           const newStart = parseTime(startTime);
@@ -1236,25 +1298,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const existingStart = parseTime(existing.startTime);
           const existingEnd = parseTime(existing.endTime);
           
-          return (newStart < existingEnd && newEnd > existingStart);
+          const hasOverlap = (newStart < existingEnd && newEnd > existingStart);
+          
+          if (hasOverlap) {
+            console.log('🔍 Single booking conflict detected:', {
+              existingBooking: {
+                id: existing.id,
+                eventName: existing.eventName,
+                status: existing.status,
+                eventDate: new Date(existing.eventDate).toDateString(),
+                startTime: existing.startTime,
+                endTime: existing.endTime,
+                spaceId: existing.spaceId
+              },
+              newBooking: {
+                eventDate: eventDate.toDateString(),
+                startTime,
+                endTime,
+                spaceId
+              },
+              timeComparison: {
+                newStart,
+                newEnd,
+                existingStart,
+                existingEnd
+              }
+            });
+          }
+          
+          return hasOverlap;
         });
         
         if (conflict) {
-          const customers = await storage.getCustomers();
-          const conflictCustomer = customers.find(c => c.id === conflict.customerId);
+          // Only block if the conflicting booking has confirmed status (paid bookings)
+          const blockingStatuses = ['confirmed_deposit_paid', 'confirmed_fully_paid'];
+          const warningStatuses = ['inquiry', 'pending', 'tentative', 'proposal_shared'];
           
-          return res.status(409).json({ 
-            message: "Time slot conflict in multi-date booking", 
-            conflictingBooking: {
-              id: conflict.id,
-              eventName: conflict.eventName,
-              customerName: conflictCustomer?.name || 'Unknown Customer',
-              startTime: conflict.startTime,
-              endTime: conflict.endTime,
-              status: conflict.status,
-              eventDate: conflict.eventDate
-            }
-          });
+          if (blockingStatuses.includes(conflict.status)) {
+            const customers = await storage.getCustomers();
+            const conflictCustomer = customers.find(c => c.id === conflict.customerId);
+            
+            return res.status(409).json({ 
+              message: "Time slot conflict in multi-date booking", 
+              conflictType: "blocking",
+              conflictingBooking: {
+                id: conflict.id,
+                eventName: conflict.eventName,
+                customerName: conflictCustomer?.name || 'Unknown Customer',
+                startTime: conflict.startTime,
+                endTime: conflict.endTime,
+                status: conflict.status,
+                eventDate: conflict.eventDate
+              }
+            });
+          } else if (warningStatuses.includes(conflict.status)) {
+            // Log warning but allow contract creation to proceed
+            console.log(`Warning: Time slot overlap with ${conflict.status} booking "${conflict.eventName}" in multi-date contract but allowing creation`);
+          }
         }
       }
       
@@ -1309,7 +1409,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ contract, bookings });
     } catch (error) {
       console.error('Contract booking creation error:', error);
-      res.status(400).json({ message: "Invalid contract or booking data" });
+      
+      // Provide more detailed error information
+      const errorMessage = error instanceof Error ? error.message : "Invalid contract or booking data";
+      
+      // Check for Zod validation errors
+      if (error.name === 'ZodError' || errorMessage.includes('ZodError')) {
+        return res.status(422).json({ 
+          message: "Data validation failed", 
+          details: error.issues ? JSON.stringify(error.issues) : errorMessage,
+          type: "validation_error"
+        });
+      }
+      
+      // Check for common validation errors
+      if (errorMessage.includes('unique constraint') || errorMessage.includes('UNIQUE constraint')) {
+        return res.status(409).json({ 
+          message: "Duplicate booking data detected",
+          details: "One or more bookings conflict with existing data"
+        });
+      }
+      
+      if (errorMessage.includes('required') || errorMessage.includes('validation')) {
+        return res.status(422).json({ 
+          message: "Validation error in booking data", 
+          details: errorMessage
+        });
+      }
+      
+      res.status(500).json({ 
+        message: "Failed to create contract with multiple bookings", 
+        details: errorMessage 
+      });
     }
   });
 

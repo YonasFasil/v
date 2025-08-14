@@ -1061,11 +1061,34 @@ export class MemStorage implements IStorage {
   }
 
   async createMultipleBookings(bookings: InsertBooking[], contractId: string): Promise<Booking[]> {
+    console.log(`🔧 createMultipleBookings called with ${bookings.length} bookings:`, bookings.map(b => ({
+      eventName: b.eventName,
+      eventDate: b.eventDate,
+      startTime: b.startTime,
+      endTime: b.endTime
+    })));
+    
     const createdBookings: Booking[] = [];
-    for (const insertBooking of bookings) {
-      const booking = await this.createBooking({ ...insertBooking, contractId });
-      createdBookings.push(booking);
+    for (let i = 0; i < bookings.length; i++) {
+      const insertBooking = bookings[i];
+      console.log(`🔧 Creating booking ${i + 1}/${bookings.length}:`, {
+        eventName: insertBooking.eventName,
+        eventDate: insertBooking.eventDate,
+        startTime: insertBooking.startTime,
+        endTime: insertBooking.endTime
+      });
+      
+      try {
+        const booking = await this.createBooking({ ...insertBooking, contractId });
+        createdBookings.push(booking);
+        console.log(`✅ Successfully created booking ${i + 1}: ${booking.id}`);
+      } catch (error) {
+        console.error(`❌ Failed to create booking ${i + 1}:`, error);
+        throw error; // Re-throw to fail the entire contract creation
+      }
     }
+    
+    console.log(`🔧 createMultipleBookings completed. Created ${createdBookings.length} bookings`);
     return createdBookings;
   }
 
