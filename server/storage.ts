@@ -277,16 +277,13 @@ export class MemStorage implements IStorage {
     this.tenants = new Map();
     this.subscriptionPackages = new Map();
 
-    // Initialize data synchronously  
-    try {
-      this.initializeData();
-      console.log('Storage initialized with', this.companies.size, 'companies and', this.customers.size, 'customers');
-    } catch (error) {
+    // Initialize data asynchronously  
+    this.initializeData().catch(error => {
       console.error('Error initializing storage:', error);
-    }
+    });
   }
 
-  private initializeData() {
+  private async initializeData() {
     this.initializeSubscriptionPackages();
     this.initializeSamplePackagesAndServices();
     this.initializeSampleSetupStyles(); 
@@ -409,253 +406,81 @@ export class MemStorage implements IStorage {
       pkg.applicableSpaceIds = spaceIds; // Make packages available for all spaces
     });
 
-    // Initialize sample bookings with simplified approach (non-async)
+    // Initialize sample bookings with simplified approach
     this.initializeSampleData();
+    console.log('Storage initialized with', this.companies.size, 'companies,', this.customers.size, 'customers, and', this.users.size, 'users');
   }
 
   private initializeSampleData() {
     const venues = Array.from(this.venues.values());
     const spaces = Array.from(this.spaces.values());
-    
-    // Create sample companies first
-    const company1: Company = {
-      id: randomUUID(),
-      name: "United Nations",
-      industry: "International Organization",
-      description: "Global intergovernmental organization",
-      website: "https://www.un.org",
-      address: "405 E 42nd St, New York, NY 10017",
-      phone: "212-963-1234",
-      email: "info@un.org",
-      notes: "Major corporate client with multiple departments and frequent large events",
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
 
-    const company2: Company = {
-      id: randomUUID(),
-      name: "TechCorp Solutions",
-      industry: "Technology",
-      description: "Enterprise software development company",
-      website: "https://www.techcorp.com",
-      address: "123 Innovation Drive, San Francisco, CA 94105",
-      phone: "415-555-0100",
-      email: "events@techcorp.com",
-      notes: "Regular client for product launches and team building events",
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+    // Create demo tenant first
+    if (this.tenants.size === 0) {
+      const demoTenant: Tenant = {
+        id: randomUUID(),
+        name: "Demo Venue",
+        subdomain: "demo",
+        customDomain: null,
+        subscriptionPackageId: null,
+        subscriptionStatus: "trial",
+        trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+        isActive: true,
+        monthlyBookings: 0,
+        lastBillingDate: null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      this.tenants.set(demoTenant.id, demoTenant);
 
-    const company3: Company = {
-      id: randomUUID(),
-      name: "Creative Studio LLC",
-      industry: "Marketing & Advertising",
-      description: "Full-service creative agency",
-      website: "https://www.creativestudio.com",
-      address: "456 Design Way, Los Angeles, CA 90210",
-      phone: "323-555-0200",
-      email: "bookings@creativestudio.com",
-      notes: "Frequent client for client presentations and agency parties",
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+      // Create demo users for this tenant with pre-hashed passwords
+      // demo123 hashed
+      const demoUser: User = {
+        id: randomUUID(),
+        name: "Demo User",
+        email: "demo@venue.com",
+        password: "$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi", // demo123
+        role: "tenant_admin",
+        tenantId: demoTenant.id,
+        isActive: true,
+        stripeAccountId: null,
+        stripeAccountStatus: null,
+        stripeOnboardingCompleted: false,
+        stripeChargesEnabled: false,
+        stripePayoutsEnabled: false,
+        stripeConnectedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      this.users.set(demoUser.id, demoUser);
 
-    // Add companies to storage
-    this.companies.set(company1.id, company1);
-    this.companies.set(company2.id, company2);
-    this.companies.set(company3.id, company3);
-
-    // Create sample customers with B2B/B2C mix
-    const customers = Array.from(this.customers.values());
-    if (customers.length === 0) {
-      const sampleCustomers = [
-        {
-          name: "Sarah Johnson",
-          email: "sarah.johnson@un.org",
-          phone: "212-963-4567",
-          customerType: "business" as const,
-          companyId: company1.id, // UN
-          jobTitle: "Event Coordinator",
-          department: "Protocol and Liaison Service",
-          status: "customer" as const,
-          leadScore: 95
-        },
-        {
-          name: "David Kim",
-          email: "david.kim@un.org", 
-          phone: "212-963-4890",
-          customerType: "business" as const,
-          companyId: company1.id, // UN
-          jobTitle: "Senior Program Officer",
-          department: "Department of Global Communications",
-          status: "customer" as const,
-          leadScore: 88
-        },
-        {
-          name: "Michael Chen", 
-          email: "michael.chen@techcorp.com",
-          phone: "415-555-0456",
-          customerType: "business" as const,
-          companyId: company2.id, // TechCorp
-          jobTitle: "VP of Marketing",
-          department: "Marketing",
-          status: "customer" as const,
-          leadScore: 85
-        },
-        {
-          name: "Emily Rodriguez",
-          email: "emily@creativestudio.com", 
-          phone: "323-555-0789",
-          customerType: "business" as const,
-          companyId: company3.id, // Creative Studio
-          jobTitle: "Creative Director",
-          department: "Creative",
-          status: "customer" as const,
-          leadScore: 92
-        },
-        {
-          name: "Jessica Williams",
-          email: "jessica.williams@gmail.com",
-          phone: "555-0321",
-          customerType: "individual" as const,
-          companyId: null,
-          jobTitle: null,
-          department: null,
-          status: "lead" as const,
-          leadScore: 75,
-          notes: "Planning wedding reception for June 2025"
-        },
-        {
-          name: "Robert Taylor",
-          email: "robert.taylor@gmail.com",
-          phone: "555-0654",
-          customerType: "individual" as const,
-          companyId: null,
-          jobTitle: null,
-          department: null,
-          status: "customer" as const,
-          leadScore: 82,
-          notes: "Regular client for family celebrations and private parties"
-        }
-      ];
-      
-      sampleCustomers.forEach(customer => {
-        const newCustomer: Customer = {
-          id: randomUUID(),
-          ...customer,
-          createdAt: new Date(),
-          notes: customer.notes || null,
-          phone: customer.phone || null
-        };
-        this.customers.set(newCustomer.id, newCustomer);
-      });
+      // manager123 hashed  
+      const demoManager: User = {
+        id: randomUUID(),
+        name: "Venue Manager",
+        email: "manager@venue.com",
+        password: "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy", // manager123
+        role: "tenant_user",
+        tenantId: demoTenant.id,
+        isActive: true,
+        stripeAccountId: null,
+        stripeAccountStatus: null,
+        stripeOnboardingCompleted: false,
+        stripeChargesEnabled: false,
+        stripePayoutsEnabled: false,
+        stripeConnectedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      this.users.set(demoManager.id, demoManager);
     }
 
-    // Create sample bookings
-    const updatedCustomers = Array.from(this.customers.values());
-    const today = new Date();
-    
-    if (venues.length > 0 && spaces.length > 0 && updatedCustomers.length > 0) {
-      const sampleBookings = [
-        {
-          eventName: "Corporate Annual Gala",
-          eventType: "corporate",
-          eventDate: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000), // Next week
-          startTime: "18:00",
-          endTime: "23:00",
-          guestCount: 150,
-          status: "confirmed_fully_paid", // Updated to new 7-status system
-          customerId: updatedCustomers[0]?.id,
-          venueId: venues[0]?.id,
-          spaceId: spaces[0]?.id,
-          totalAmount: "8500.00",
-          depositAmount: "2550.00",
-          depositPaid: true,
-          notes: "Premium catering and entertainment package"
-        },
-        {
-          eventName: "Wedding Reception",
-          eventType: "wedding", 
-          eventDate: new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000), // Two weeks
-          startTime: "17:00",
-          endTime: "22:00",
-          guestCount: 80,
-          status: "proposal_shared", // Updated to new 7-status system
-          customerId: updatedCustomers[1]?.id,
-          venueId: venues[0]?.id,
-          spaceId: spaces[1]?.id,
-          totalAmount: "6200.00",
-          depositAmount: "1860.00",
-          depositPaid: false,
-          notes: "Garden ceremony with indoor reception"
-        },
-        {
-          eventName: "Product Launch Event",
-          eventType: "corporate",
-          eventDate: new Date(today.getTime() + 21 * 24 * 60 * 60 * 1000), // Three weeks
-          startTime: "19:00", 
-          endTime: "21:30",
-          guestCount: 45,
-          status: "confirmed_deposit_paid", // Updated to new 7-status system
-          customerId: updatedCustomers[2]?.id,
-          venueId: venues[1]?.id,
-          spaceId: spaces[2]?.id,
-          totalAmount: "3200.00",
-          depositAmount: "960.00",
-          depositPaid: true,
-          notes: "Tech presentation with networking reception"
-        },
-        {
-          eventName: "Birthday Celebration",
-          eventType: "private",
-          eventDate: new Date(today.getTime() + 28 * 24 * 60 * 60 * 1000), // Four weeks
-          startTime: "15:00",
-          endTime: "18:00", 
-          guestCount: 25,
-          status: "tentative", // Updated to new 7-status system
-          customerId: updatedCustomers[0]?.id,
-          venueId: venues[2]?.id,
-          spaceId: spaces[4]?.id,
-          totalAmount: "1800.00",
-          depositAmount: "540.00",
-          depositPaid: true,
-          notes: "Intimate family gathering with custom menu"
-        }
-      ];
+    // Get the demo tenant ID for sample data
+    const demoTenantId = Array.from(this.tenants.values())[0]?.id;
 
-      sampleBookings.forEach(booking => {
-        if (booking.customerId && booking.venueId && booking.spaceId) {
-          this.createBooking(booking);
-        }
-      });
+    // No sample customers - tenants create their own data
 
-      // Create sample proposal for Wedding Reception booking (to test proposal tracking)
-      const weddingBooking = sampleBookings.find(b => b.eventName === "Wedding Reception");
-      if (weddingBooking && weddingBooking.customerId) {
-        const sampleProposal = {
-          customerId: weddingBooking.customerId,
-          eventName: weddingBooking.eventName,
-          eventDate: weddingBooking.eventDate,
-          startTime: weddingBooking.startTime,
-          endTime: weddingBooking.endTime,
-          guestCount: weddingBooking.guestCount,
-          venueId: weddingBooking.venueId,
-          spaceId: weddingBooking.spaceId,
-          totalAmount: weddingBooking.totalAmount,
-          depositAmount: weddingBooking.depositAmount,
-          status: "sent" as const,
-          sentAt: new Date(),
-          emailOpened: false,
-          emailOpenedAt: null,
-          openCount: 0,
-          notes: "Wedding reception proposal with premium package options"
-        };
-        this.createProposal(sampleProposal);
-      }
-    }
+    // No sample bookings - tenants create their own data
   }
 
   private initializeSamplePackagesAndServices() {
@@ -1727,118 +1552,7 @@ export class MemStorage implements IStorage {
     this.tags.set(corporateTag.id, corporateTag);
     this.tags.set(weddingTag.id, weddingTag);
 
-    // Sample leads
-    const sampleLead1: Lead = {
-      id: randomUUID(),
-      venueId: Array.from(this.venues.keys())[0] || null,
-      firstName: "Emma",
-      lastName: "Wilson",
-      email: "emma.wilson@techcorp.com",
-      phone: "(555) 234-5678",
-      eventType: "corporate",
-      guestCount: 150,
-      dateStart: new Date("2025-09-15"),
-      dateEnd: new Date("2025-09-15"),
-      budgetMin: 8000,
-      budgetMax: 12000,
-      preferredContact: "email",
-      notes: "Looking for corporate annual meeting venue with AV capabilities",
-      status: "NEW",
-      sourceId: websiteSource.id,
-      utmSource: "google",
-      utmMedium: "organic",
-      utmCampaign: null,
-      consentEmail: true,
-      consentSms: false,
-      convertedCustomerId: null,
-      createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
-      updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000)
-    };
-
-    const sampleLead2: Lead = {
-      id: randomUUID(),
-      venueId: Array.from(this.venues.keys())[0] || null,
-      firstName: "Michael",
-      lastName: "Chen",
-      email: "michael.chen@gmail.com",
-      phone: "(555) 345-6789",
-      eventType: "wedding",
-      guestCount: 80,
-      dateStart: new Date("2025-10-20"),
-      dateEnd: new Date("2025-10-20"),
-      budgetMin: 15000,
-      budgetMax: 25000,
-      preferredContact: "phone",
-      notes: "Intimate wedding ceremony and reception",
-      status: "CONTACTED",
-      sourceId: socialMediaSource.id,
-      utmSource: "facebook",
-      utmMedium: "social",
-      utmCampaign: "wedding-promo",
-      consentEmail: true,
-      consentSms: true,
-      convertedCustomerId: null,
-      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
-      updatedAt: new Date(Date.now() - 12 * 60 * 60 * 1000) // 12 hours ago
-    };
-
-    this.leads.set(sampleLead1.id, sampleLead1);
-    this.leads.set(sampleLead2.id, sampleLead2);
-
-    // Sample lead activities
-    const activity1: LeadActivity = {
-      id: randomUUID(),
-      leadId: sampleLead1.id,
-      type: "NOTE",
-      body: "Lead submitted inquiry through website contact form",
-      meta: { source: "website_form" },
-      createdBy: null,
-      createdAt: sampleLead1.createdAt
-    };
-
-    const activity2: LeadActivity = {
-      id: randomUUID(),
-      leadId: sampleLead2.id,
-      type: "EMAIL",
-      body: "Initial follow-up email sent",
-      meta: { template: "initial_followup", email_sent: true },
-      createdBy: null,
-      createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000)
-    };
-
-    this.leadActivities.set(activity1.id, activity1);
-    this.leadActivities.set(activity2.id, activity2);
-
-    // Sample lead tasks
-    const task1: LeadTask = {
-      id: randomUUID(),
-      leadId: sampleLead1.id,
-      title: "Call potential client",
-      description: "Follow up on venue inquiry for corporate event",
-      dueAt: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
-      assignedTo: null,
-      status: "OPEN",
-      createdAt: new Date()
-    };
-
-    const task2: LeadTask = {
-      id: randomUUID(),
-      leadId: sampleLead2.id,
-      title: "Send proposal",
-      description: "Prepare and send wedding package proposal",
-      dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
-      assignedTo: null,
-      status: "OPEN",
-      createdAt: new Date()
-    };
-
-    this.leadTasks.set(task1.id, task1);
-    this.leadTasks.set(task2.id, task2);
-
-    // Add some lead tags
-    this.leadTags.add(`${sampleLead1.id}:${corporateTag.id}`);
-    this.leadTags.add(`${sampleLead2.id}:${weddingTag.id}`);
-    this.leadTags.add(`${sampleLead2.id}:${hotLeadTag.id}`);
+    // No sample leads - tenants create their own data
   }
 
   // Campaign Sources implementation
@@ -2179,7 +1893,7 @@ export class MemStorage implements IStorage {
       maxVenues: 1,
       maxUsers: 3,
       maxBookingsPerMonth: 50,
-      features: ["basic_analytics", "email_support"],
+      features: ["dashboard_analytics", "venue_management", "event_booking", "customer_management", "proposal_system"],
       isActive: true,
       sortOrder: 1,
       createdAt: new Date(),
@@ -2195,7 +1909,7 @@ export class MemStorage implements IStorage {
       maxVenues: 3,
       maxUsers: 10,
       maxBookingsPerMonth: 200,
-      features: ["advanced_analytics", "priority_support", "api_access", "custom_fields"],
+      features: ["dashboard_analytics", "venue_management", "event_booking", "customer_management", "proposal_system", "payment_processing", "leads_management", "ai_analytics", "advanced_reports", "task_management"],
       isActive: true,
       sortOrder: 2,
       createdAt: new Date(),
@@ -2211,7 +1925,7 @@ export class MemStorage implements IStorage {
       maxVenues: 10,
       maxUsers: 50,
       maxBookingsPerMonth: 1000,
-      features: ["advanced_analytics", "priority_support", "api_access", "custom_fields", "custom_branding", "advanced_integrations", "team_collaboration"],
+      features: ["dashboard_analytics", "venue_management", "event_booking", "customer_management", "proposal_system", "payment_processing", "leads_management", "ai_analytics", "voice_booking", "floor_plans", "advanced_reports", "task_management", "custom_branding", "api_access", "priority_support", "advanced_integrations", "multi_location", "custom_fields"],
       isActive: true,
       sortOrder: 3,
       createdAt: new Date(),

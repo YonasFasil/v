@@ -6,9 +6,10 @@ import { EmailService } from "./services/email";
 import { gmailService } from "./services/gmail";
 import { emailMonitorService } from "./services/email-monitor";
 import { NotificationService } from "./services/notification";
-import { requireSuperAdmin, authenticateSuperAdmin, hashPassword, comparePassword, generateToken, type AuthenticatedRequest } from "./middleware/auth";
+import { requireSuperAdmin, authenticateSuperAdmin, hashPassword, comparePassword, generateToken, verifyToken, type AuthenticatedRequest } from "./middleware/auth";
 import { stripeService } from "./services/stripe";
 import { notificationEmailService } from "./services/notification-email";
+import { sendCustomerCommunicationEmail, sendUserVerificationEmail } from "./services/super-admin-email";
 import { resolveTenant, requireTenant, checkTrialStatus, filterByTenant, type TenantRequest } from "./middleware/tenant";
 import { 
   insertBookingSchema, 
@@ -52,6 +53,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Apply tenant resolution middleware to all routes
   app.use(resolveTenant);
+
+  // Helper function to get tenant ID from authenticated user
+  const getTenantIdFromAuth = (req: any): string | null => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return null;
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = verifyToken(token);
+    if (!decoded) return null;
+    
+    // Get user to find their tenant ID
+    const users = Array.from(storage.users.values());
+    const user = users.find(u => u.id === decoded.id);
+    return user?.tenantId || null;
+  };
   
   // ============================================================================
   // TENANT-SPECIFIC ROUTES (with subdomain context)
@@ -106,15 +124,221 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch customers" });
     }
   });
+
+  // ============================================================================
+  // TENANT USER MANAGEMENT ROUTES
+  // ============================================================================
+  
+  // Get all users for a tenant (tenant admin only)
+  app.get("/api/tenant/users", async (req, res) => {
+    try {
+      // Check if user is tenant admin
+      const authHeader = req.headers.authorization;
+      if (!authHeader) return res.status(401).json({ message: "Authorization required" });
+      
+      const token = authHeader.substring(7);
+      const decoded = verifyToken(token);
+      if (!decoded || decoded.role !== 'tenant_admin') {
+        return res.status(403).json({ message: "Tenant admin access required" });
+      }
+
+      // Get tenant ID from user
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Tenant not found" });
+      }
+      const users = Array.from(storage.users.values())
+        .filter(u => u.tenantId === tenantId)
+        .map(u => ({ 
+          id: u.id, 
+          name: u.name, 
+          email: u.email, 
+          role: u.role, 
+          permissions: u.permissions,
+          isActive: u.isActive, 
+          lastLoginAt: u.lastLoginAt,
+          createdAt: u.createdAt 
+        }));
+      res.json(users);
+    } catch (error: any) {
+      console.error("Error fetching tenant users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  // Create a new user for a tenant (tenant admin only)
+  app.post("/api/tenant/users", async (req, res) => {
+    try {
+      // Check if user is tenant admin
+      const authHeader = req.headers.authorization;
+      if (!authHeader) return res.status(401).json({ message: "Authorization required" });
+      
+      const token = authHeader.substring(7);
+      const decoded = verifyToken(token);
+      if (!decoded || decoded.role !== 'tenant_admin') {
+        return res.status(403).json({ message: "Tenant admin access required" });
+      }
+
+      const { name, email, password, role, permissions } = req.body;
+      
+      if (!name || !email || !password) {
+        return res.status(400).json({ message: "Name, email, and password are required" });
+      }
+
+      // Check if email is already used
+      const existingUser = Array.from(storage.users.values()).find(u => u.email === email);
+      if (existingUser) {
+        return res.status(400).json({ message: "Email already in use" });
+      }
+
+      // Validate role - only allow tenant_user or tenant_admin for tenant-created users
+      const allowedRoles = ['tenant_user', 'tenant_admin'];
+      if (role && !allowedRoles.includes(role)) {
+        return res.status(400).json({ message: "Invalid role specified" });
+      }
+
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Tenant not found" });
+      }
+      const hashedPassword = await hashPassword(password);
+      
+      const user = await storage.createUser({
+        username: email,
+        password: hashedPassword,
+        name,
+        email,
+        tenantId,
+        role: role || 'tenant_user',
+        permissions: permissions || [],
+        isActive: true
+      });
+
+      // Return user without password
+      const { password: _, ...userResponse } = user;
+      res.json(userResponse);
+    } catch (error: any) {
+      console.error("Error creating tenant user:", error);
+      res.status(500).json({ message: "Failed to create user" });
+    }
+  });
+
+  // Update a user (tenant admin only)
+  app.put("/api/tenant/users/:userId", async (req, res) => {
+    try {
+      // Check if user is tenant admin
+      const authHeader = req.headers.authorization;
+      if (!authHeader) return res.status(401).json({ message: "Authorization required" });
+      
+      const token = authHeader.substring(7);
+      const decoded = verifyToken(token);
+      if (!decoded || decoded.role !== 'tenant_admin') {
+        return res.status(403).json({ message: "Tenant admin access required" });
+      }
+
+      const { userId } = req.params;
+      const { name, email, role, permissions, isActive } = req.body;
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Tenant not found" });
+      }
+
+      // Verify user belongs to this tenant
+      const user = await storage.getUser(userId);
+      if (!user || user.tenantId !== tenantId) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Validate role if provided
+      const allowedRoles = ['tenant_user', 'tenant_admin'];
+      if (role && !allowedRoles.includes(role)) {
+        return res.status(400).json({ message: "Invalid role specified" });
+      }
+
+      // Prevent admin from deactivating themselves
+      if (decoded.id === userId && isActive === false) {
+        return res.status(400).json({ message: "Cannot deactivate your own account" });
+      }
+
+      const updatedUser = await storage.updateUser(userId, {
+        ...(name && { name }),
+        ...(email && { email }),
+        ...(role && { role }),
+        ...(permissions && { permissions }),
+        ...(typeof isActive === 'boolean' && { isActive })
+      });
+
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Return user without password
+      const { password, ...userResponse } = updatedUser;
+      res.json(userResponse);
+    } catch (error: any) {
+      console.error("Error updating tenant user:", error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  // Delete a user (tenant admin only)
+  app.delete("/api/tenant/users/:userId", async (req, res) => {
+    try {
+      // Check if user is tenant admin
+      const authHeader = req.headers.authorization;
+      if (!authHeader) return res.status(401).json({ message: "Authorization required" });
+      
+      const token = authHeader.substring(7);
+      const decoded = verifyToken(token);
+      if (!decoded || decoded.role !== 'tenant_admin') {
+        return res.status(403).json({ message: "Tenant admin access required" });
+      }
+
+      const { userId } = req.params;
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Tenant not found" });
+      }
+
+      // Verify user belongs to this tenant
+      const user = await storage.getUser(userId);
+      if (!user || user.tenantId !== tenantId) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Prevent admin from deleting themselves
+      if (decoded.id === userId) {
+        return res.status(400).json({ message: "Cannot delete your own account" });
+      }
+
+      // For now, just deactivate the user instead of hard delete
+      const updatedUser = await storage.updateUser(userId, { isActive: false });
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json({ message: "User deactivated successfully" });
+    } catch (error: any) {
+      console.error("Error deleting tenant user:", error);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
   
   // ============================================================================
   // LEGACY ROUTES (maintained for compatibility)
   // ============================================================================
   
-  // Venues
+  // Venues - with tenant filtering
   app.get("/api/venues", async (req, res) => {
     try {
-      const venues = await storage.getVenues();
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const allVenues = await storage.getVenues();
+      const venues = allVenues.filter(v => v.tenantId === tenantId);
       res.json(venues);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch venues" });
@@ -135,7 +359,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/venues", async (req, res) => {
     try {
-      const venue = await storage.createVenue(req.body);
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // Add tenant ID to the venue data
+      const venueData = { ...req.body, tenantId };
+      const venue = await storage.createVenue(venueData);
       res.status(201).json(venue);
     } catch (error) {
       res.status(500).json({ message: "Failed to create venue" });
@@ -231,10 +462,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Note: Space update route is handled later in the file with better error logging
 
-  // Enhanced venues API that includes spaces
+  // Enhanced venues API that includes spaces - with tenant filtering
   app.get("/api/venues-with-spaces", async (req, res) => {
     try {
-      const venues = await storage.getVenues();
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const allVenues = await storage.getVenues();
+      const venues = allVenues.filter(v => v.tenantId === tenantId);
       const venuesWithSpaces = await Promise.all(
         venues.map(async (venue) => {
           const spaces = await storage.getSpacesByVenue(venue.id);
@@ -247,10 +484,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Packages
+  // Packages - with tenant filtering
   app.get("/api/packages", async (req, res) => {
     try {
-      const packages = await storage.getPackages();
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const allPackages = await storage.getPackages();
+      const packages = allPackages.filter(p => p.tenantId === tenantId);
       res.json(packages);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch packages" });
@@ -259,17 +502,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/packages", async (req, res) => {
     try {
-      const packageData = await storage.createPackage(req.body);
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // Add tenant ID to the package data
+      const packageDataWithTenant = { ...req.body, tenantId };
+      const packageData = await storage.createPackage(packageDataWithTenant);
       res.status(201).json(packageData);
     } catch (error) {
       res.status(500).json({ message: "Failed to create package" });
     }
   });
 
-  // Services
+  // Services - with tenant filtering
   app.get("/api/services", async (req, res) => {
     try {
-      const services = await storage.getServices();
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const allServices = await storage.getServices();
+      const services = allServices.filter(s => s.tenantId === tenantId);
       res.json(services);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch services" });
@@ -278,17 +534,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/services", async (req, res) => {
     try {
-      const service = await storage.createService(req.body);
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // Add tenant ID to the service data
+      const serviceDataWithTenant = { ...req.body, tenantId };
+      const service = await storage.createService(serviceDataWithTenant);
       res.status(201).json(service);
     } catch (error) {
       res.status(500).json({ message: "Failed to create service" });
     }
   });
 
-  // Customers
+  // Customers - with tenant filtering
   app.get("/api/customers", async (req, res) => {
     try {
-      const customers = await storage.getCustomers();
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const allCustomers = await storage.getCustomers();
+      const customers = allCustomers.filter(c => c.tenantId === tenantId);
       res.json(customers);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch customers" });
@@ -367,16 +636,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/customers", async (req, res) => {
     try {
-      const validatedData = insertCustomerSchema.parse(req.body);
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized - no tenant access" });
+      }
+      
+      const validatedData = insertCustomerSchema.parse({
+        ...req.body,
+        tenantId
+      });
       const customer = await storage.createCustomer(validatedData);
       res.json(customer);
     } catch (error) {
+      console.error("Error creating customer:", error);
       res.status(400).json({ message: "Invalid customer data" });
     }
   });
 
   app.patch("/api/customers/:id", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // First verify the customer belongs to this tenant
+      const existingCustomer = await storage.getCustomer(req.params.id);
+      if (!existingCustomer || existingCustomer.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
       const customer = await storage.updateCustomer(req.params.id, req.body);
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
@@ -411,16 +700,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/companies", async (req, res) => {
     try {
-      const validatedData = insertCompanySchema.parse(req.body);
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized - no tenant access" });
+      }
+      
+      const validatedData = insertCompanySchema.parse({
+        ...req.body,
+        tenantId
+      });
       const company = await storage.createCompany(validatedData);
       res.json(company);
     } catch (error) {
+      console.error("Error creating company:", error);
       res.status(400).json({ message: "Invalid company data" });
     }
   });
 
   app.patch("/api/companies/:id", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // First verify the company belongs to this tenant
+      const existingCompany = await storage.getCompany(req.params.id);
+      if (!existingCompany || existingCompany.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Company not found" });
+      }
+      
       const company = await storage.updateCompany(req.params.id, req.body);
       if (!company) {
         return res.status(404).json({ message: "Company not found" });
@@ -433,6 +742,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/companies/:id", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // First verify the company belongs to this tenant
+      const existingCompany = await storage.getCompany(req.params.id);
+      if (!existingCompany || existingCompany.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Company not found" });
+      }
+      
       const deleted = await storage.deleteCompany(req.params.id);
       if (!deleted) {
         return res.status(404).json({ message: "Company not found" });
@@ -507,10 +827,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Bookings
+  // Bookings - with tenant filtering
   app.get("/api/bookings", async (req, res) => {
     try {
-      const bookings = await storage.getBookings();
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const allBookings = await storage.getBookings();
+      const bookings = allBookings.filter(b => b.tenantId === tenantId);
       const contracts = await storage.getContracts();
       
       // Group bookings by contract and add contract info
@@ -686,6 +1012,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/bookings/:id", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // First verify the booking belongs to this tenant
+      const existingBooking = await storage.getBooking(req.params.id);
+      if (!existingBooking || existingBooking.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+      
       const updateData = { ...req.body };
 
       // Auto-complete booking if status is being set to completed and event date has passed
@@ -717,6 +1054,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/bookings/:id", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // First verify the booking belongs to this tenant
+      const existingBooking = await storage.getBooking(req.params.id);
+      if (!existingBooking || existingBooking.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+      
       const deleted = await storage.deleteBooking(req.params.id);
       if (!deleted) {
         return res.status(404).json({ message: "Booking not found" });
@@ -891,6 +1239,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Venues
   app.patch("/api/venues/:id", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // First verify the venue belongs to this tenant
+      const existingVenue = await storage.getVenue(req.params.id);
+      if (!existingVenue || existingVenue.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Venue not found" });
+      }
+      
       const venue = await storage.updateVenue(req.params.id, req.body);
       if (!venue) {
         return res.status(404).json({ message: "Venue not found" });
@@ -904,6 +1263,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/venues/:id", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // First verify the venue belongs to this tenant
+      const existingVenue = await storage.getVenue(req.params.id);
+      if (!existingVenue || existingVenue.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Venue not found" });
+      }
+      
       const deleted = await storage.deleteVenue(req.params.id);
       if (!deleted) {
         return res.status(404).json({ message: "Venue not found" });
@@ -917,6 +1287,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/customers/:id", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // First verify the customer belongs to this tenant
+      const existingCustomer = await storage.getCustomer(req.params.id);
+      if (!existingCustomer || existingCustomer.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
       const deleted = await storage.deleteCustomer(req.params.id);
       if (!deleted) {
         return res.status(404).json({ message: "Customer not found" });
@@ -931,6 +1312,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Packages
   app.patch("/api/packages/:id", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // First verify the package belongs to this tenant
+      const existingPackage = await storage.getPackage(req.params.id);
+      if (!existingPackage || existingPackage.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Package not found" });
+      }
+      
       const packageData = await storage.updatePackage(req.params.id, req.body);
       if (!packageData) {
         return res.status(404).json({ message: "Package not found" });
@@ -944,6 +1336,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/packages/:id", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // First verify the package belongs to this tenant
+      const existingPackage = await storage.getPackage(req.params.id);
+      if (!existingPackage || existingPackage.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Package not found" });
+      }
+      
       const deleted = await storage.deletePackage(req.params.id);
       if (!deleted) {
         return res.status(404).json({ message: "Package not found" });
@@ -958,6 +1361,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Services
   app.patch("/api/services/:id", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // First verify the service belongs to this tenant
+      const existingService = await storage.getService(req.params.id);
+      if (!existingService || existingService.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+      
       const service = await storage.updateService(req.params.id, req.body);
       if (!service) {
         return res.status(404).json({ message: "Service not found" });
@@ -971,6 +1385,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/services/:id", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // First verify the service belongs to this tenant
+      const existingService = await storage.getService(req.params.id);
+      if (!existingService || existingService.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+      
       const deleted = await storage.deleteService(req.params.id);
       if (!deleted) {
         return res.status(404).json({ message: "Service not found" });
@@ -1015,6 +1440,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/spaces/:id", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // First verify the space belongs to this tenant (through its venue)
+      const existingSpace = await storage.getSpace(req.params.id);
+      if (!existingSpace) {
+        return res.status(404).json({ message: "Space not found" });
+      }
+      
+      const venue = await storage.getVenue(existingSpace.venueId);
+      if (!venue || venue.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Space not found" });
+      }
+      
       const space = await storage.updateSpace(req.params.id, req.body);
       if (!space) {
         return res.status(404).json({ message: "Space not found" });
@@ -1028,6 +1469,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/spaces/:id", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // First verify the space belongs to this tenant (through its venue)
+      const existingSpace = await storage.getSpace(req.params.id);
+      if (!existingSpace) {
+        return res.status(404).json({ message: "Space not found" });
+      }
+      
+      const venue = await storage.getVenue(existingSpace.venueId);
+      if (!venue || venue.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Space not found" });
+      }
+      
       const deleted = await storage.deleteSpace(req.params.id);
       if (!deleted) {
         return res.status(404).json({ message: "Space not found" });
@@ -1042,6 +1499,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Proposals
   app.patch("/api/proposals/:id", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // First verify the proposal belongs to this tenant
+      const existingProposal = await storage.getProposal(req.params.id);
+      if (!existingProposal || existingProposal.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+      
       const proposal = await storage.updateProposal(req.params.id, req.body);
       if (!proposal) {
         return res.status(404).json({ message: "Proposal not found" });
@@ -3187,43 +3655,6 @@ This is a test email from your Venuine venue management system.
     }
   });
 
-  // Packages
-  app.get("/api/packages", async (req, res) => {
-    try {
-      const packages = await storage.getPackages();
-      res.json(packages);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  app.post("/api/packages", async (req, res) => {
-    try {
-      const pkg = await storage.createPackage(req.body);
-      res.json(pkg);
-    } catch (error: any) {
-      res.status(400).json({ message: error.message });
-    }
-  });
-
-  // Services
-  app.get("/api/services", async (req, res) => {
-    try {
-      const services = await storage.getServices();
-      res.json(services);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  app.post("/api/services", async (req, res) => {
-    try {
-      const service = await storage.createService(req.body);
-      res.json(service);
-    } catch (error: any) {
-      res.status(400).json({ message: error.message });
-    }
-  });
 
   // Tax Settings
   app.get("/api/tax-settings", async (req, res) => {
@@ -3886,6 +4317,17 @@ This is a test email from your Venuine venue management system.
 
   app.patch("/api/proposals/:id", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // First verify the proposal belongs to this tenant
+      const existingProposal = await storage.getProposal(req.params.id);
+      if (!existingProposal || existingProposal.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+      
       const { id } = req.params;
       const updateData = req.body;
       const proposal = await storage.updateProposal(id, updateData);
@@ -3955,13 +4397,9 @@ This is a test email from your Venuine venue management system.
         return res.status(404).json({ message: "Proposal not found" });
       }
 
-      // Send email via Gmail
+      // Send email via Super Admin Email Configuration
       try {
-        if (!gmailService.isConfigured()) {
-          return res.status(400).json({ message: "Gmail not configured. Please set up Gmail credentials in Settings > Integrations." });
-        }
-
-        await gmailService.sendEmail({
+        const emailSent = await sendCustomerCommunicationEmail({
           to: emailData.to,
           subject: emailData.subject,
           html: emailData.message || `
@@ -3973,6 +4411,12 @@ This is a test email from your Venuine venue management system.
           `,
           text: `Event Proposal\n\nPlease view your complete proposal at: ${emailData.proposalViewLink}\n\nBest regards,\nVenuine Events Team`
         });
+
+        if (!emailSent) {
+          return res.status(500).json({ 
+            message: "Failed to send email. Please check super admin email configuration." 
+          });
+        }
 
         // Log communication in database with proposal tracking
         const communicationData = {
@@ -4118,13 +4562,12 @@ This is a test email from your Venuine venue management system.
             contentType: file.mimetype
           })) : [];
 
-          // Send email using Gmail service
-          const emailSent = await gmailService.sendMessage({
+          // Send email using Super Admin Email Configuration
+          const emailSent = await sendCustomerCommunicationEmail({
             to: customer.email,
             subject: validatedData.subject || "Follow-up on your event proposal",
-            content: validatedData.message,
-            customerName: customer.name,
-            attachments: attachments.length > 0 ? attachments : undefined
+            html: validatedData.message,
+            text: validatedData.message?.replace(/<[^>]*>/g, '') || '' // Strip HTML for text version
           });
 
           if (emailSent) {
@@ -4381,6 +4824,17 @@ This is a test email from your Venuine venue management system.
 
   app.delete("/api/proposals/:id", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // First verify the proposal belongs to this tenant
+      const existingProposal = await storage.getProposal(req.params.id);
+      if (!existingProposal || existingProposal.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+      
       await storage.deleteProposal(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -5496,6 +5950,255 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     }
   });
 
+  // Super Admin - Create tenant
+  app.post("/api/super-admin/create-tenant", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { name, subdomain, adminEmail, adminName, password, packageId } = req.body;
+      
+      if (!name || !subdomain || !adminEmail || !adminName || !password) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+      
+      // Check if subdomain is available
+      const existingTenant = Array.from(storage.tenants.values()).find(t => t.subdomain === subdomain);
+      if (existingTenant) {
+        return res.status(400).json({ message: "Subdomain already taken" });
+      }
+      
+      // Check if email is already used
+      const existingUser = Array.from(storage.users.values()).find(u => u.email === adminEmail);
+      if (existingUser) {
+        return res.status(400).json({ message: "Email already in use" });
+      }
+      
+      // Create tenant
+      const tenant = await storage.createTenant({
+        name,
+        subdomain,
+        status: 'trial',
+        trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days from now
+      });
+      
+      // Create admin user
+      const hashedPassword = await hashPassword(password);
+      const user = await storage.createUser({
+        username: adminEmail,
+        password: hashedPassword,
+        name: adminName,
+        email: adminEmail,
+        tenantId: tenant.id,
+        role: 'tenant_admin',
+        isActive: true
+      });
+      
+      res.json({
+        message: "Tenant created successfully",
+        tenant,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role
+        }
+      });
+    } catch (error: any) {
+      console.error("Error creating tenant:", error);
+      res.status(500).json({ message: "Failed to create tenant" });
+    }
+  });
+
+  // Super Admin - Configuration endpoints
+  app.get("/api/super-admin/config", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    try {
+      // Get current configuration from storage/settings
+      const stripeConfig = await storage.getSetting('super_admin_stripe_config') || { value: { secretKey: '', publishableKey: '', webhookSecret: '' } };
+      const emailConfig = await storage.getSetting('super_admin_email_config') || { 
+        value: { 
+          smtpHost: '', 
+          smtpPort: 587, 
+          smtpUser: '', 
+          smtpPass: '', 
+          fromName: 'Venuine Support', 
+          fromEmail: '' 
+        } 
+      };
+
+      res.json({
+        stripe: stripeConfig.value,
+        email: emailConfig.value
+      });
+    } catch (error: any) {
+      console.error("Error fetching super admin config:", error);
+      res.status(500).json({ message: "Failed to fetch configuration" });
+    }
+  });
+
+  app.put("/api/super-admin/config/stripe", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { secretKey, publishableKey, webhookSecret } = req.body;
+      
+      if (!secretKey || !publishableKey) {
+        return res.status(400).json({ message: "Secret key and publishable key are required" });
+      }
+
+      await storage.updateSetting('super_admin_stripe_config', {
+        secretKey,
+        publishableKey,
+        webhookSecret
+      });
+
+      res.json({ message: "Stripe configuration updated successfully" });
+    } catch (error: any) {
+      console.error("Error updating Stripe config:", error);
+      res.status(500).json({ message: "Failed to update Stripe configuration" });
+    }
+  });
+
+  app.put("/api/super-admin/config/email", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { smtpHost, smtpPort, smtpUser, smtpPass, fromName, fromEmail } = req.body;
+      
+      if (!smtpHost || !smtpUser || !smtpPass || !fromEmail) {
+        return res.status(400).json({ message: "SMTP host, user, password, and from email are required" });
+      }
+
+      await storage.updateSetting('super_admin_email_config', {
+        smtpHost,
+        smtpPort: parseInt(smtpPort) || 587,
+        smtpUser,
+        smtpPass,
+        fromName: fromName || 'Venuine Support',
+        fromEmail
+      });
+
+      res.json({ message: "Email configuration updated successfully" });
+    } catch (error: any) {
+      console.error("Error updating email config:", error);
+      res.status(500).json({ message: "Failed to update email configuration" });
+    }
+  });
+
+  app.post("/api/super-admin/config/email/test", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    try {
+      // Get current email configuration
+      const emailConfig = await storage.getSetting('super_admin_email_config');
+      
+      if (!emailConfig?.value) {
+        return res.status(400).json({ message: "Email configuration not found. Please configure email settings first." });
+      }
+
+      const config = emailConfig.value;
+      
+      // Test email configuration by sending a test email
+      try {
+        await notificationEmailService.configure({
+          host: config.smtpHost,
+          port: config.smtpPort,
+          secure: config.smtpPort === 465,
+          auth: {
+            user: config.smtpUser,
+            pass: config.smtpPass,
+          },
+        });
+
+        await notificationEmailService.sendEmail({
+          to: config.smtpUser, // Send test email to the configured user
+          from: `${config.fromName} <${config.fromEmail}>`,
+          subject: 'Super Admin Email Configuration Test',
+          html: `
+            <h2>Email Configuration Test</h2>
+            <p>This is a test email to verify your super admin email configuration is working correctly.</p>
+            <p><strong>Configuration details:</strong></p>
+            <ul>
+              <li>SMTP Host: ${config.smtpHost}</li>
+              <li>SMTP Port: ${config.smtpPort}</li>
+              <li>From Name: ${config.fromName}</li>
+              <li>From Email: ${config.fromEmail}</li>
+            </ul>
+            <p>If you received this email, your configuration is working correctly!</p>
+          `
+        });
+
+        res.json({ message: "Test email sent successfully!" });
+      } catch (emailError: any) {
+        console.error("Email test error:", emailError);
+        res.status(400).json({ 
+          message: "Failed to send test email. Please check your SMTP configuration.", 
+          error: emailError.message 
+        });
+      }
+    } catch (error: any) {
+      console.error("Error testing email config:", error);
+      res.status(500).json({ message: "Failed to test email configuration" });
+    }
+  });
+
+  // ============================================================================
+  // PATH-BASED TENANT ROUTES (for development/replit)
+  // ============================================================================
+  
+  // Tenant dashboard via path
+  app.get("/api/tenant/:tenantSlug/dashboard", requireTenant, checkTrialStatus, async (req: TenantRequest, res) => {
+    try {
+      const tenantId = req.tenant!.id;
+      
+      // Get tenant-specific metrics
+      const bookings = Array.from(storage.bookings.values()).filter(b => b.tenantId === tenantId);
+      const customers = Array.from(storage.customers.values()).filter(c => c.tenantId === tenantId);
+      const venues = Array.from(storage.venues.values()).filter(v => v.tenantId === tenantId);
+      
+      const metrics = {
+        totalBookings: bookings.length,
+        totalCustomers: customers.length,
+        totalVenues: venues.length,
+        revenue: bookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0),
+        recentBookings: bookings.slice(-5),
+        tenant: req.tenant
+      };
+      
+      res.json(metrics);
+    } catch (error: any) {
+      console.error("Error fetching tenant dashboard:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard data" });
+    }
+  });
+
+  // Tenant bookings via path
+  app.get("/api/tenant/:tenantSlug/bookings", requireTenant, checkTrialStatus, async (req: TenantRequest, res) => {
+    try {
+      const tenantId = req.tenant!.id;
+      const bookings = Array.from(storage.bookings.values()).filter(b => b.tenantId === tenantId);
+      res.json(bookings);
+    } catch (error: any) {
+      console.error("Error fetching tenant bookings:", error);
+      res.status(500).json({ message: "Failed to fetch bookings" });
+    }
+  });
+
+  // Tenant customers via path  
+  app.get("/api/tenant/:tenantSlug/customers", requireTenant, checkTrialStatus, async (req: TenantRequest, res) => {
+    try {
+      const tenantId = req.tenant!.id;
+      const customers = Array.from(storage.customers.values()).filter(c => c.tenantId === tenantId);
+      res.json(customers);
+    } catch (error: any) {
+      console.error("Error fetching tenant customers:", error);
+      res.status(500).json({ message: "Failed to fetch customers" });
+    }
+  });
+
+  // Tenant venues via path
+  app.get("/api/tenant/:tenantSlug/venues", requireTenant, checkTrialStatus, async (req: TenantRequest, res) => {
+    try {
+      const tenantId = req.tenant!.id;
+      const venues = Array.from(storage.venues.values()).filter(v => v.tenantId === tenantId);
+      res.json(venues);
+    } catch (error: any) {
+      console.error("Error fetching tenant venues:", error);
+      res.status(500).json({ message: "Failed to fetch venues" });
+    }
+  });
+
   // ============================================================================
   // STRIPE WEBHOOK ROUTES
   // ============================================================================
@@ -5590,6 +6293,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
       const token = generateToken({
         id: user.id,
         email: user.email,
+        name: user.name,
         role: user.role
       });
       

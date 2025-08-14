@@ -3,10 +3,13 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { X, Edit, Save, Trash2 } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import type { Company } from "@shared/schema";
 
 interface Props {
   open: boolean;
@@ -18,26 +21,37 @@ export function EditCustomerModal({ open, onOpenChange, customer }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
+  // Fetch companies for the dropdown
+  const { data: companies = [] } = useQuery<Company[]>({
+    queryKey: ["/api/companies"],
+  });
+  
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [company, setCompany] = useState("");
-  const [address, setAddress] = useState("");
+  const [companyId, setCompanyId] = useState("");
+  const [status, setStatus] = useState("");
+  const [notes, setNotes] = useState("");
 
   useEffect(() => {
     if (customer && open) {
       setName(customer.name || "");
       setEmail(customer.email || "");
       setPhone(customer.phone || "");
-      setCompany(customer.company || "");
-      setAddress(customer.address || "");
+      setCompanyId(customer.companyId || "");
+      setStatus(customer.status || "lead");
+      setNotes(customer.notes || "");
     }
   }, [customer, open]);
 
   const updateCustomer = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("PATCH", `/api/customers/${customer.id}`, data);
-      return response.json();
+      // Handle "none" company selection by setting companyId to null
+      const submitData = {
+        ...data,
+        companyId: data.companyId === "none" ? null : data.companyId
+      };
+      return await apiRequest("PATCH", `/api/customers/${customer.id}`, submitData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
@@ -65,7 +79,7 @@ export function EditCustomerModal({ open, onOpenChange, customer }: Props) {
   });
 
   const handleSave = () => {
-    updateCustomer.mutate({ name, email, phone, company, address });
+    updateCustomer.mutate({ name, email, phone, companyId: companyId || null, status, notes });
   };
 
   const handleDelete = () => {
@@ -109,17 +123,44 @@ export function EditCustomerModal({ open, onOpenChange, customer }: Props) {
           </div>
           
           <div>
-            <Label>Company</Label>
-            <Input value={company} onChange={(e) => setCompany(e.target.value)} className="mt-1" />
+            <Label>Company (Optional)</Label>
+            <Select value={companyId} onValueChange={setCompanyId}>
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select a company" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No Company</SelectItem>
+                {companies.map((company) => (
+                  <SelectItem key={company.id} value={company.id}>
+                    {company.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           <div>
-            <Label>Address</Label>
-            <textarea
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="w-full p-2 border rounded-md mt-1 h-20 resize-none text-sm"
-              placeholder="Full address..."
+            <Label>Status</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="lead">Lead</SelectItem>
+                <SelectItem value="customer">Customer</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div>
+            <Label>Notes (Optional)</Label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="mt-1"
+              placeholder="Enter any notes about this customer"
+              rows={3}
             />
           </div>
         </div>

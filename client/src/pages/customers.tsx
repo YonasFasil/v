@@ -89,7 +89,7 @@ export default function Customers() {
       name: "",
       email: "",
       phone: "",
-      company: "",
+      companyId: "",
       status: "lead",
       notes: "",
     }
@@ -130,7 +130,7 @@ export default function Customers() {
       name: "",
       email: "",
       phone: "",
-      company: "",
+      companyId: "",
       status: "customer",
       notes: "",
     }
@@ -163,8 +163,7 @@ export default function Customers() {
   const createCompanyMutation = useMutation({
     mutationFn: async (data: { companyData: typeof companyFormData; employees: any[] }) => {
       // Create company first
-      const companyResponse = await apiRequest("POST", "/api/companies", data.companyData);
-      const company = await companyResponse.json();
+      const company = await apiRequest("POST", "/api/companies", data.companyData);
       
       // Then create employees if any
       if (data.employees.length > 0) {
@@ -203,8 +202,7 @@ export default function Customers() {
   const updateCompanyMutation = useMutation({
     mutationFn: async (data: { id: string; updates: Partial<typeof companyFormData>; employees?: any[] }) => {
       // Update company first
-      const companyResponse = await apiRequest("PATCH", `/api/companies/${data.id}`, data.updates);
-      const company = await companyResponse.json();
+      const company = await apiRequest("PATCH", `/api/companies/${data.id}`, data.updates);
       
       // Then create any new employees if provided
       if (data.employees && data.employees.length > 0) {
@@ -274,8 +272,7 @@ export default function Customers() {
         const results = await Promise.allSettled(
           data.items.map(async (company) => {
             const { employees, ...companyData } = company;
-            const companyResponse = await apiRequest("POST", "/api/companies", companyData);
-            const createdCompany = await companyResponse.json();
+            const createdCompany = await apiRequest("POST", "/api/companies", companyData);
             
             if (employees && employees.length > 0) {
               await Promise.allSettled(
@@ -576,7 +573,12 @@ export default function Customers() {
   };
 
   const onSubmit = async (data: any) => {
-    createCustomerMutation.mutate(data);
+    // Handle "none" company selection by setting companyId to null
+    const submitData = {
+      ...data,
+      companyId: data.companyId === "none" ? null : data.companyId
+    };
+    createCustomerMutation.mutate(submitData);
   };
 
   const handleSubmitCompany = () => {
@@ -882,13 +884,25 @@ export default function Customers() {
 
                         <FormField
                           control={form.control}
-                          name="company"
+                          name="companyId"
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Company (Optional)</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Enter company name" {...field} />
-                              </FormControl>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select a company" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="none">No Company</SelectItem>
+                                  {companies.map((company) => (
+                                    <SelectItem key={company.id} value={company.id}>
+                                      {company.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                               <FormMessage />
                             </FormItem>
                           )}

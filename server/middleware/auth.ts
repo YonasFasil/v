@@ -16,6 +16,7 @@ export interface AuthenticatedRequest extends Request {
   user?: {
     id: string;
     email: string;
+    name?: string;
     role: string;
   };
 }
@@ -32,7 +33,7 @@ export async function comparePassword(password: string, hash: string): Promise<b
 }
 
 // Generate JWT token
-export function generateToken(payload: { id: string; email: string; role: string }): string {
+export function generateToken(payload: { id: string; email: string; name?: string; role: string }): string {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
 }
 

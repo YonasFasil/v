@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,14 +18,27 @@ import {
   MoreVertical,
   CheckCircle,
   AlertCircle,
-  XCircle
+  XCircle,
+  LogOut
 } from "lucide-react";
 import { type Tenant, type SubscriptionPackage } from "@shared/schema";
+import { PackageManagementModal } from "@/components/super-admin/package-management-modal";
+import { TenantManagementModal } from "@/components/super-admin/tenant-management-modal";
+import SuperAdminSettings from "@/components/super-admin/super-admin-settings";
 
 export default function SuperAdminDashboard() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
+  const [showPackageModal, setShowPackageModal] = useState(false);
+  const [editingPackage, setEditingPackage] = useState<SubscriptionPackage | undefined>();
+  const [showTenantModal, setShowTenantModal] = useState(false);
+
+  const handleLogout = () => {
+    localStorage.removeItem('super_admin_token');
+    setLocation('/super-admin/login');
+  };
 
   // Fetch data
   const { data: tenants = [] } = useQuery<Tenant[]>({
@@ -78,10 +92,16 @@ export default function SuperAdminDashboard() {
           <h1 className="text-3xl font-bold">Super Admin Dashboard</h1>
           <p className="text-muted-foreground">Manage your SaaS platform</p>
         </div>
-        <Button>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Tenant
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setShowTenantModal(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Tenant
+          </Button>
+          <Button variant="outline" onClick={handleLogout}>
+            <LogOut className="w-4 h-4 mr-2" />
+            Logout
+          </Button>
+        </div>
       </div>
 
       {/* Analytics Cards */}
@@ -155,7 +175,7 @@ export default function SuperAdminDashboard() {
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
-                  <Button>
+                  <Button onClick={() => setShowTenantModal(true)}>
                     <Plus className="w-4 h-4 mr-2" />
                     Add Tenant
                   </Button>
@@ -203,7 +223,7 @@ export default function SuperAdminDashboard() {
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle>Subscription Packages</CardTitle>
-                <Button>
+                <Button onClick={() => setShowPackageModal(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   Create Package
                 </Button>
@@ -233,7 +253,14 @@ export default function SuperAdminDashboard() {
                         <Badge variant={pkg.isActive ? "default" : "secondary"}>
                           {pkg.isActive ? "Active" : "Inactive"}
                         </Badge>
-                        <Button variant="ghost" size="sm">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => {
+                            setEditingPackage(pkg);
+                            setShowPackageModal(true);
+                          }}
+                        >
                           <Settings className="w-4 h-4" />
                         </Button>
                       </div>
@@ -259,18 +286,24 @@ export default function SuperAdminDashboard() {
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Platform Settings</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                Platform settings coming soon...
-              </div>
-            </CardContent>
-          </Card>
+          <SuperAdminSettings />
         </TabsContent>
       </Tabs>
+
+      {/* Modals */}
+      <PackageManagementModal
+        open={showPackageModal}
+        onOpenChange={(open) => {
+          setShowPackageModal(open);
+          if (!open) setEditingPackage(undefined);
+        }}
+        package={editingPackage}
+      />
+      
+      <TenantManagementModal
+        open={showTenantModal}
+        onOpenChange={setShowTenantModal}
+      />
     </div>
   );
 }

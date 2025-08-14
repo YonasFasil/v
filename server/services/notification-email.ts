@@ -22,6 +22,7 @@ export interface WelcomeEmailData {
 
 export interface EmailTemplateData {
   to: string;
+  from?: string;
   subject: string;
   html: string;
   text?: string;
@@ -53,6 +54,11 @@ export class NotificationEmailService {
     }
   }
 
+  // Allow dynamic configuration (used by super admin config)
+  async configure(config: EmailConfig) {
+    this.transporter = nodemailer.createTransporter(config);
+  }
+
   async sendEmail(data: EmailTemplateData): Promise<boolean> {
     if (!this.transporter) {
       console.warn('Email service not configured - cannot send email');
@@ -61,7 +67,7 @@ export class NotificationEmailService {
 
     try {
       const mailOptions = {
-        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        from: data.from || process.env.SMTP_FROM || process.env.SMTP_USER,
         to: data.to,
         subject: data.subject,
         html: data.html,

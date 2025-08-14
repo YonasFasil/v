@@ -595,8 +595,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
   // Create customer mutation
   const createCustomer = useMutation({
     mutationFn: async (customerData: any) => {
-      const response = await apiRequest("POST", "/api/customers", customerData);
-      return response.json();
+      return await apiRequest("POST", "/api/customers", customerData);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
@@ -623,8 +622,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
   // Create service mutation
   const createService = useMutation({
     mutationFn: async (serviceData: any) => {
-      const response = await apiRequest("POST", "/api/services", serviceData);
-      return response.json();
+      return await apiRequest("POST", "/api/services", serviceData);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });
@@ -645,8 +643,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
   // Create booking mutation (single event)
   const createBooking = useMutation({
     mutationFn: async (bookingData: any) => {
-      const response = await apiRequest("POST", "/api/bookings", bookingData);
-      return response.json();
+      return await apiRequest("POST", "/api/bookings", bookingData);
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
@@ -674,8 +671,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
   // Create contract with multiple bookings mutation
   const createContract = useMutation({
     mutationFn: async (contractData: any) => {
-      const response = await apiRequest("POST", "/api/bookings/contract", contractData);
-      return response.json();
+      return await apiRequest("POST", "/api/bookings/contract", contractData);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });

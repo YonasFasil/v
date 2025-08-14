@@ -63,6 +63,10 @@ export function setupSecurity(app: Express) {
     },
     standardHeaders: true,
     legacyHeaders: false,
+    // Fix for trust proxy issue in development
+    keyGenerator: process.env.NODE_ENV === 'development' 
+      ? (req) => 'dev-key' // Single key for all requests in dev
+      : undefined, // Use default IP-based key in production
     skip: (req) => {
       // Skip rate limiting for static assets and vite HMR
       return req.path.includes('.') || req.path.startsWith('/src/') || req.path.startsWith('/@vite') || req.path.startsWith('/node_modules');
@@ -72,13 +76,17 @@ export function setupSecurity(app: Express) {
   // Strict rate limit for auth endpoints
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // Limit each IP to 5 requests per windowMs
+    max: process.env.NODE_ENV === 'development' ? 1000 : 5, // Higher limit in dev
     message: {
       error: 'Too many authentication attempts, please try again later.',
       retryAfter: 900, // 15 minutes
     },
     standardHeaders: true,
     legacyHeaders: false,
+    // Fix for trust proxy issue in development
+    keyGenerator: process.env.NODE_ENV === 'development' 
+      ? (req) => 'dev-auth-key' // Single key for all requests in dev
+      : undefined, // Use default IP-based key in production
   });
 
   // API rate limit for high-frequency endpoints

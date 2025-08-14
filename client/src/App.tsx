@@ -24,32 +24,101 @@ import PaymentSuccess from "@/pages/payment-success";
 import NotFound from "@/pages/not-found";
 import SuperAdminDashboard from "@/pages/super-admin-dashboard";
 import SuperAdminLogin from "@/pages/super-admin-login";
+import TenantLogin from "@/pages/tenant-login";
+import Users from "@/pages/users";
 import Landing from "@/pages/landing";
 import Signup from "@/pages/signup";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/events" component={Events} />
-      <Route path="/customers" component={Customers} />
-      <Route path="/leads" component={Leads} />
-      <Route path="/payments" component={Payments} />
-      <Route path="/tasks" component={Tasks} />
-      <Route path="/venues" component={Venues} />
-      <Route path="/setup-styles" component={SetupStyles} />
-      <Route path="/packages" component={Packages} />
-      <Route path="/ai-analytics" component={AIAnalytics} />
-      <Route path="/reports" component={Reports} />
-      <Route path="/voice-booking" component={VoiceBooking} />
-      <Route path="/settings" component={Settings} />
-      <Route path="/proposals" component={Proposals} />
+      <Route path="/dashboard">
+        <ProtectedRoute>
+          <Dashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/events">
+        <ProtectedRoute>
+          <Events />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/customers">
+        <ProtectedRoute>
+          <Customers />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/leads">
+        <ProtectedRoute>
+          <Leads />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/payments">
+        <ProtectedRoute>
+          <Payments />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/tasks">
+        <ProtectedRoute>
+          <Tasks />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/venues">
+        <ProtectedRoute>
+          <Venues />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/setup-styles">
+        <ProtectedRoute>
+          <SetupStyles />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/packages">
+        <ProtectedRoute>
+          <Packages />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/ai-analytics">
+        <ProtectedRoute>
+          <AIAnalytics />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/reports">
+        <ProtectedRoute>
+          <Reports />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/voice-booking">
+        <ProtectedRoute>
+          <VoiceBooking />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/settings">
+        <ProtectedRoute>
+          <Settings />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/proposals">
+        <ProtectedRoute>
+          <Proposals />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/users">
+        <ProtectedRoute requiredRole="tenant_admin">
+          <Users />
+        </ProtectedRoute>
+      </Route>
       <Route path="/proposal/:proposalId" component={ProposalView} />
       <Route path="/proposal/:proposalId/payment" component={PaymentCheckout} />
       <Route path="/proposal/:proposalId/success" component={PaymentSuccess} />
-      <Route path="/super-admin" component={SuperAdminDashboard} />
+      <Route path="/super-admin">
+        <ProtectedRoute requiredRole="super_admin" redirectTo="/super-admin/login">
+          <SuperAdminDashboard />
+        </ProtectedRoute>
+      </Route>
       <Route path="/super-admin/login" component={SuperAdminLogin} />
+      <Route path="/login" component={TenantLogin} />
       <Route path="/signup" component={Signup} />
       <Route component={NotFound} />
     </Switch>

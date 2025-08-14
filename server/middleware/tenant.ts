@@ -11,39 +11,24 @@ export interface TenantRequest extends Request {
   };
 }
 
-// Extract subdomain from host header
-export function extractSubdomain(host: string): string | null {
-  if (!host) return null;
-  
-  // Remove port if present
-  const hostname = host.split(':')[0];
-  
-  // Check if it's a subdomain (not localhost or IP)
-  if (hostname === 'localhost' || /^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
-    return null;
-  }
-  
-  const parts = hostname.split('.');
-  
-  // Need at least 3 parts for subdomain (subdomain.domain.tld)
-  if (parts.length < 3) {
-    return null;
-  }
-  
-  // Return the first part as subdomain
-  return parts[0];
+// Removed subdomain functionality - using path-based routing only
+
+// Extract tenant from path (e.g., /api/tenant/testvenue/dashboard)
+export function extractTenantFromPath(path: string): string | null {
+  const pathMatch = path.match(/^\/api\/tenant\/([^\/]+)/);
+  return pathMatch ? pathMatch[1] : null;
 }
 
-// Middleware to resolve tenant from subdomain
+// Middleware to resolve tenant from path only
 export async function resolveTenant(req: TenantRequest, res: Response, next: NextFunction) {
   try {
-    const host = req.headers.host;
-    const subdomain = extractSubdomain(host || '');
+    // Extract tenant from path (/api/tenant/slug/...)
+    const tenantSlug = extractTenantFromPath(req.path);
     
-    if (subdomain) {
-      // Find tenant by subdomain
+    if (tenantSlug) {
+      // Find tenant by slug
       const tenants = Array.from(storage.tenants.values());
-      const tenant = tenants.find(t => t.subdomain === subdomain);
+      const tenant = tenants.find(t => t.subdomain === tenantSlug); // Keep using subdomain field as tenant slug
       
       if (tenant) {
         req.tenant = {
@@ -67,7 +52,7 @@ export async function resolveTenant(req: TenantRequest, res: Response, next: Nex
 export function requireTenant(req: TenantRequest, res: Response, next: NextFunction) {
   if (!req.tenant) {
     return res.status(404).json({ 
-      message: 'Tenant not found. Please check your subdomain.',
+      message: 'Tenant not found. Please check your tenant path.',
       code: 'TENANT_NOT_FOUND'
     });
   }

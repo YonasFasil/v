@@ -20,14 +20,29 @@ interface Props {
 }
 
 const AVAILABLE_FEATURES = [
-  { id: "advanced_analytics", name: "Advanced Analytics", description: "Detailed reporting and insights" },
-  { id: "custom_branding", name: "Custom Branding", description: "White-label your platform" },
-  { id: "api_access", name: "API Access", description: "Full REST API access" },
-  { id: "priority_support", name: "Priority Support", description: "24/7 premium support" },
-  { id: "unlimited_bookings", name: "Unlimited Bookings", description: "No monthly booking limits" },
-  { id: "advanced_integrations", name: "Advanced Integrations", description: "Connect to external systems" },
-  { id: "team_collaboration", name: "Team Collaboration", description: "Advanced team management" },
-  { id: "custom_fields", name: "Custom Fields", description: "Create custom booking fields" },
+  // Core Venue Management
+  { id: "dashboard_analytics", name: "Dashboard & Analytics", description: "Core dashboard with basic metrics and insights" },
+  { id: "venue_management", name: "Venue Management", description: "Create and manage venue spaces and amenities" },
+  { id: "event_booking", name: "Event Booking", description: "Calendar view and event booking system" },
+  { id: "customer_management", name: "Customer Management", description: "Manage customer profiles and contact information" },
+  { id: "proposal_system", name: "Proposal System", description: "Generate and send event proposals to customers" },
+  { id: "payment_processing", name: "Payment Processing", description: "Accept payments and manage transactions" },
+  
+  // Advanced Features
+  { id: "leads_management", name: "Leads Management", description: "Advanced lead tracking and conversion tools" },
+  { id: "ai_analytics", name: "AI-Powered Analytics", description: "Smart insights and predictive analytics" },
+  { id: "voice_booking", name: "Voice-to-Text Booking", description: "Create bookings using voice commands" },
+  { id: "floor_plans", name: "Floor Plans & Setup Styles", description: "Interactive floor plan designer and setup templates" },
+  { id: "advanced_reports", name: "Advanced Reports", description: "Detailed revenue and performance reports" },
+  { id: "task_management", name: "Task Management", description: "Team collaboration and task tracking" },
+  
+  // Premium Features
+  { id: "custom_branding", name: "Custom Branding", description: "White-label your venue platform" },
+  { id: "api_access", name: "API Access", description: "Full REST API access for integrations" },
+  { id: "priority_support", name: "Priority Support", description: "24/7 premium customer support" },
+  { id: "advanced_integrations", name: "Advanced Integrations", description: "Connect to external CRM and marketing tools" },
+  { id: "multi_location", name: "Multi-Location Support", description: "Manage multiple venue locations" },
+  { id: "custom_fields", name: "Custom Fields", description: "Create custom booking and customer fields" },
 ];
 
 export function PackageManagementModal({ open, onOpenChange, package: editPackage }: Props) {

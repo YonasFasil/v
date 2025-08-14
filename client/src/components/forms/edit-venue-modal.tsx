@@ -22,7 +22,6 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
   
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [capacity, setCapacity] = useState("");
   const [address, setAddress] = useState("");
   const [showCreateSpaceModal, setShowCreateSpaceModal] = useState(false);
   const [editingSpace, setEditingSpace] = useState<any>(null);
@@ -40,24 +39,28 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
     if (venue && open) {
       setName(venue.name || "");
       setDescription(venue.description || "");
-      setCapacity(venue.capacity?.toString() || "");
       setAddress(venue.address || "");
     }
   }, [venue, open]);
 
   const updateVenue = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("PATCH", `/api/venues/${venue.id}`, data);
-      return response.json();
+      if (venue?.id) {
+        // Update existing venue
+        return await apiRequest("PATCH", `/api/venues/${venue.id}`, data);
+      } else {
+        // Create new venue
+        return await apiRequest("POST", "/api/venues", data);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/venues"] });
       queryClient.invalidateQueries({ queryKey: ["/api/venues-with-spaces"] });
-      toast({ title: "Venue updated successfully!" });
+      toast({ title: venue?.id ? "Venue updated successfully!" : "Venue created successfully!" });
       onOpenChange(false);
     },
     onError: (error: any) => {
-      toast({ title: "Failed to update venue", description: error.message, variant: "destructive" });
+      toast({ title: venue?.id ? "Failed to update venue" : "Failed to create venue", description: error.message, variant: "destructive" });
     }
   });
 
@@ -81,7 +84,6 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
     updateVenue.mutate({
       name,
       description,
-      capacity: capacity ? parseInt(capacity) : null,
       address
     });
   };
@@ -109,8 +111,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
 
   const updateSpace = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("PATCH", `/api/venues/${venue.id}/spaces/${editingSpace.id}`, data);
-      return response.json();
+      return await apiRequest("PATCH", `/api/venues/${venue.id}/spaces/${editingSpace.id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/venues/${venue.id}/spaces`] });
@@ -157,25 +158,16 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
         
         <div className="border-b border-slate-200 p-6 flex items-center gap-3">
           <Edit className="h-5 w-5 text-blue-600" />
-          <h2 className="text-xl font-semibold">Edit Venue Property</h2>
+          <h2 className="text-xl font-semibold">
+            {venue?.id ? 'Edit Venue Property' : 'Create New Venue'}
+          </h2>
         </div>
 
         <div className="overflow-y-auto flex-1 p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-4">
             <div>
               <Label>Venue Name *</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" />
-            </div>
-            
-            <div>
-              <Label>Total Capacity</Label>
-              <Input 
-                type="number" 
-                value={capacity} 
-                onChange={(e) => setCapacity(e.target.value)} 
-                className="mt-1"
-                placeholder="Maximum guests"
-              />
             </div>
           </div>
           
@@ -203,15 +195,16 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
 
           </div>
 
-          {/* Spaces Section */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <Label className="text-base font-medium">Spaces in this Venue</Label>
-              <Button variant="outline" size="sm" onClick={() => setShowCreateSpaceModal(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Space
-              </Button>
-            </div>
+          {/* Spaces Section - only show for existing venues */}
+          {venue?.id && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <Label className="text-base font-medium">Spaces in this Venue</Label>
+                <Button variant="outline" size="sm" onClick={() => setShowCreateSpaceModal(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Space
+                </Button>
+              </div>
             
             {spaces.length > 0 ? (
               <div className="space-y-2 max-h-40 overflow-y-auto">
@@ -295,20 +288,27 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
                 <p className="text-xs text-slate-500 mt-1">Add bookable spaces within this property</p>
               </div>
             )}
-          </div>
+            </div>
+          )}
         </div>
 
         <div className="border-t border-slate-200 p-6 flex justify-between bg-white flex-shrink-0">
-          <Button variant="destructive" onClick={handleDelete} disabled={deleteVenue.isPending}>
-            <Trash2 className="h-4 w-4 mr-2" />
-            {deleteVenue.isPending ? 'Deleting...' : 'Delete Venue'}
-          </Button>
+          {venue?.id && (
+            <Button variant="destructive" onClick={handleDelete} disabled={deleteVenue.isPending}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              {deleteVenue.isPending ? 'Deleting...' : 'Delete Venue'}
+            </Button>
+          )}
+          {!venue?.id && <div></div>}
           
           <div className="flex gap-3">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={updateVenue.isPending || !name.trim()}>
               <Save className="h-4 w-4 mr-2" />
-              {updateVenue.isPending ? 'Saving...' : 'Save Changes'}
+              {updateVenue.isPending 
+                ? (venue?.id ? 'Updating...' : 'Creating...') 
+                : (venue?.id ? 'Save Changes' : 'Create Venue')
+              }
             </Button>
           </div>
         </div>

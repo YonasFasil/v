@@ -29,15 +29,35 @@ function createHeaders(includeContentType: boolean = false): Record<string, stri
   return headers;
 }
 
+// Overload signatures
+export async function apiRequest(url: string, options?: { method?: string; body?: string; headers?: Record<string, string> }): Promise<any>;
+export async function apiRequest(method: string, url: string, data?: any): Promise<any>;
+
+// Implementation
 export async function apiRequest(
-  url: string,
-  options: {
-    method?: string;
-    body?: string;
-    headers?: Record<string, string>;
-  } = {}
+  urlOrMethod: string,
+  optionsOrUrl?: { method?: string; body?: string; headers?: Record<string, string> } | string,
+  data?: any
 ): Promise<any> {
-  const { method = 'GET', body, headers: customHeaders = {} } = options;
+  let url: string;
+  let method: string;
+  let body: string | undefined;
+  let customHeaders: Record<string, string> = {};
+
+  // Handle different call patterns
+  if (typeof optionsOrUrl === 'string') {
+    // Pattern: apiRequest("POST", "/api/venues", data)
+    method = urlOrMethod;
+    url = optionsOrUrl;
+    body = data ? JSON.stringify(data) : undefined;
+  } else {
+    // Pattern: apiRequest("/api/venues", { method: "POST", body: "..." })
+    url = urlOrMethod;
+    const options = optionsOrUrl || {};
+    method = options.method || 'GET';
+    body = options.body;
+    customHeaders = options.headers || {};
+  }
   
   const headers = {
     ...createHeaders(!!body),
@@ -88,3 +108,34 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+// Utility function to clear tenant-specific cache when switching tenants
+export function clearTenantCache() {
+  // Clear all queries to prevent cross-tenant data contamination
+  queryClient.clear();
+  
+  // Also clear any specific tenant-related queries
+  const tenantQueries = [
+    '/api/bookings',
+    '/api/customers', 
+    '/api/companies',
+    '/api/venues',
+    '/api/spaces',
+    '/api/proposals',
+    '/api/communications',
+    '/api/tasks',
+    '/api/packages',
+    '/api/services',
+    '/api/tax-settings',
+    '/api/setup-styles',
+    '/api/leads',
+    '/api/dashboard',
+    '/api/reports',
+    '/api/users'
+  ];
+  
+  tenantQueries.forEach(queryKey => {
+    queryClient.removeQueries({ queryKey: [queryKey] });
+    queryClient.invalidateQueries({ queryKey: [queryKey] });
+  });
+}
