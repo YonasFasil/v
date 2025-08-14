@@ -883,6 +883,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const allBookings = await storage.getBookings();
       const bookings = allBookings.filter(b => b.tenantId === tenantId);
+      
+      // Debug: Log what bookings exist for conflict detection
+      console.log('🔍 GET /api/bookings - returning bookings for conflict detection:', bookings.map(b => ({
+        id: b.id,
+        eventName: b.eventName,
+        eventDate: new Date(b.eventDate).toDateString(),
+        startTime: b.startTime,
+        endTime: b.endTime,
+        status: b.status,
+        spaceId: b.spaceId
+      })));
+      
+      // Disable caching for bookings to ensure fresh conflict detection data
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
       const contracts = await storage.getContracts();
       
       // Group bookings by contract and add contract info
