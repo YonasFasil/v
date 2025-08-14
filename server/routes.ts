@@ -961,6 +961,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           : req.body.proposalRespondedAt,
       };
       
+      // Add tenantId to booking data
+      bookingData.tenantId = tenantId;
+      
       // Validate required fields
       if (!bookingData.eventName || !bookingData.eventType || !bookingData.eventDate || 
           !bookingData.startTime || !bookingData.endTime || !bookingData.guestCount) {
@@ -1183,6 +1186,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create multiple bookings under a contract
   app.post("/api/bookings/contract", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
       const { contractData, bookingsData } = req.body;
       
       console.log('Creating contract with data:', contractData);
@@ -1235,12 +1243,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // No conflicts found, proceed with creation
-      const validatedContract = insertContractSchema.parse(contractData);
+      const validatedContract = insertContractSchema.parse({ ...contractData, tenantId });
       const contract = await storage.createContract(validatedContract);
       
       // Create all bookings under this contract - schema now handles date conversion
       const validatedBookings = bookingsData.map((booking: any) => 
-        insertBookingSchema.parse({ ...booking, contractId: contract.id })
+        insertBookingSchema.parse({ ...booking, contractId: contract.id, tenantId })
       );
       
       const bookings = await storage.createMultipleBookings(validatedBookings, contract.id);
