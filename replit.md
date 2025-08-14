@@ -85,3 +85,15 @@ Preferred communication style: Simple, everyday language.
 - **Build System**: Vite.
 - **Type Checking**: TypeScript.
 - **Code Quality**: ESLint, Prettier.
+
+## Recent Technical Fixes (August 2025)
+
+### Critical Bug Fixes
+- **Booking Creation Validation Error (August 14, 2025)**: Fixed missing `tenantId` field in booking creation that was causing Zod validation failures. Added proper tenant isolation to both single event bookings and multi-event contract creation endpoints.
+- **API Endpoint Corrections**: Fixed space management endpoints from `/api/venues/{id}/spaces/{id}` to correct `/api/spaces/{id}` pattern.
+- **Enhanced Venue Management**: Implemented separate "Add Space" functionality with proper TypeScript error handling and blue outlined styling.
+
+### System Stability
+- All booking creation workflows now properly validated and working
+- Tenant isolation maintained throughout all booking operations
+- Space management operations correctly routing through dedicated endpoints

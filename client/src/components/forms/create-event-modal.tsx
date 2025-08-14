@@ -857,7 +857,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         startTime: convertTimeToHours(firstDate.startTime),
         endTime: convertTimeToHours(firstDate.endTime),
         guestCount: firstDate.guestCount || 1,
-        status: (submitType === 'proposal' ? 'pending' : eventStatus) as "inquiry" | "pending" | "tentative" | "confirmed_deposit_paid" | "confirmed_fully_paid" | "completed" | "cancelled_refunded",
+        status: (submitType === 'proposal' ? 'pending' : eventStatus),
         customerId: selectedCustomer,
         venueId: selectedVenue,
         spaceId: firstDate.spaceId,
@@ -870,7 +870,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         serviceTaxOverrides: firstDate.serviceTaxOverrides || null,
         totalAmount: totalPrice.toString(),
         notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${firstDate.selectedServices?.length || 0} selected`,
-        proposalStatus: (submitType === 'proposal' ? 'sent' : 'none') as "none" | "sent" | "viewed" | "accepted" | "declined",
+        proposalStatus: (submitType === 'proposal' ? 'sent' : 'none'),
         proposalSentAt: submitType === 'proposal' ? new Date().toISOString() : null
       };
 
@@ -914,7 +914,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
           startTime: convertTimeToHours(date.startTime),
           endTime: convertTimeToHours(date.endTime),
           guestCount: date.guestCount || 1,
-          status: (submitType === 'proposal' ? 'pending' : eventStatus) as "inquiry" | "pending" | "tentative" | "confirmed_deposit_paid" | "confirmed_fully_paid" | "completed" | "cancelled_refunded",
+          status: (submitType === 'proposal' ? 'pending' : eventStatus),
           customerId: selectedCustomer,
           venueId: selectedVenue,
           spaceId: date.spaceId,
@@ -927,7 +927,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
           serviceTaxOverrides: date.serviceTaxOverrides || null,
           totalAmount: datePrice.toString(),
           notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${date.selectedServices?.length || 0} selected`,
-          proposalStatus: (submitType === 'proposal' ? 'sent' : 'none') as "none" | "sent" | "viewed" | "accepted" | "declined",
+          proposalStatus: (submitType === 'proposal' ? 'sent' : 'none'),
           proposalSentAt: submitType === 'proposal' ? new Date().toISOString() : null
         };
       });
