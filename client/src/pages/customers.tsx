@@ -585,8 +585,17 @@ export default function Customers() {
 
   const onSubmit = async (data: any) => {
     console.log("Form submitted with data:", data);
-    console.log("Auth token:", localStorage.getItem('auth_token'));
-    console.log("Super admin token:", localStorage.getItem('super_admin_token'));
+    console.log("Form validation errors:", form.formState.errors);
+    
+    // Validate required fields
+    if (!data.name || !data.email) {
+      toast({
+        title: "Validation Error",
+        description: "Name and email are required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     // Handle "none" company selection by setting companyId to null
     const submitData = {
@@ -855,6 +864,9 @@ export default function Customers() {
                   <DialogContent className="w-[95vw] max-w-md max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Add New Customer</DialogTitle>
+                      <DialogDescription>
+                        Create a new customer record with their contact information and preferences.
+                      </DialogDescription>
                     </DialogHeader>
                     <Form {...form}>
                       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pb-4">
@@ -967,6 +979,7 @@ export default function Customers() {
                           type="submit" 
                           className="w-full"
                           disabled={createCustomerMutation.isPending}
+                          data-testid="button-create-customer-submit"
                         >
                           {createCustomerMutation.isPending ? "Creating..." : "Create Customer"}
                         </Button>
