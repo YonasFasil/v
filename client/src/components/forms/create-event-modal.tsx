@@ -82,7 +82,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
   // Step 3: Final Details
   const [eventName, setEventName] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState("");
-  const [eventStatus, setEventStatus] = useState<"inquiry" | "pending" | "tentative" | "confirmed_deposit_paid" | "confirmed_fully_paid" | "completed" | "cancelled_refunded">("inquiry");
+  const [eventStatus, setEventStatus] = useState<"inquiry" | "pending" | "tentative" | "confirmed_deposit_paid" | "confirmed_fully_paid" | "completed" | "cancelled">("inquiry");
 
   // Voice booking integration
   const [showVoicePanel, setShowVoicePanel] = useState(false);
@@ -879,12 +879,25 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
           if (error.response?.status === 409) {
             // Handle booking conflict
             const conflictData = error.response.data.conflictingBooking;
-            toast({
-              title: "⚠️ Booking Conflict Detected",
-              description: `The selected time slot conflicts with "${conflictData.eventName}" by ${conflictData.customerName} (${conflictData.startTime} - ${conflictData.endTime}, Status: ${conflictData.status}). Would you like to overbook anyway?`,
-              variant: "destructive",
-              duration: 8000
-            });
+            const conflictType = error.response.data.conflictType;
+            
+            if (conflictType === "blocking") {
+              // Paid bookings - block creation
+              toast({
+                title: "❌ Cannot Create Booking",
+                description: `This time slot is already booked with confirmed payment by "${conflictData.customerName}" for "${conflictData.eventName}" (${conflictData.startTime} - ${conflictData.endTime}). Paid bookings cannot be overbooked.`,
+                variant: "destructive",
+                duration: 8000
+              });
+            } else {
+              // Warning for tentative bookings - allow creation but warn
+              toast({
+                title: "⚠️ Time Slot Overlap",
+                description: `This time overlaps with "${conflictData.eventName}" by ${conflictData.customerName} (${conflictData.startTime} - ${conflictData.endTime}, Status: ${conflictData.status}). Since it's not confirmed, both bookings can coexist.`,
+                variant: "default",
+                duration: 6000
+              });
+            }
           } else {
             toast({
               title: "Error creating booking",
@@ -936,12 +949,25 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         onError: (error: any) => {
           if (error.response?.status === 409) {
             const conflictData = error.response.data.conflictingBooking;
-            toast({
-              title: "⚠️ Booking Conflict Detected",
-              description: `One or more dates conflict with existing bookings. First conflict: "${conflictData.eventName}" by ${conflictData.customerName} (${conflictData.startTime} - ${conflictData.endTime}, Status: ${conflictData.status}).`,
-              variant: "destructive",
-              duration: 8000
-            });
+            const conflictType = error.response.data.conflictType;
+            
+            if (conflictType === "blocking") {
+              // Paid bookings - block creation
+              toast({
+                title: "❌ Cannot Create Contract",
+                description: `One or more dates conflict with confirmed paid bookings. First conflict: "${conflictData.eventName}" by ${conflictData.customerName} (${conflictData.startTime} - ${conflictData.endTime}). Paid bookings cannot be overbooked.`,
+                variant: "destructive",
+                duration: 8000
+              });
+            } else {
+              // Warning for tentative bookings - allow creation but warn  
+              toast({
+                title: "⚠️ Date Overlap Detected",
+                description: `One or more dates overlap with tentative bookings. First overlap: "${conflictData.eventName}" by ${conflictData.customerName} (${conflictData.startTime} - ${conflictData.endTime}, Status: ${conflictData.status}). Since these aren't confirmed, both bookings can coexist.`,
+                variant: "default",
+                duration: 6000
+              });
+            }
           } else {
             toast({
               title: "Error creating contract",

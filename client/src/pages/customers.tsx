@@ -1069,7 +1069,7 @@ export default function Customers() {
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center space-x-4 text-sm">
-                                <span className="text-green-600">{customer.analytics.confirmedBookings}</span>
+                                <span className="text-green-600">{(customer.analytics.confirmedBookings || 0) + (customer.analytics.completedBookings || 0)}</span>
                                 <span className="text-orange-600">{customer.analytics.pendingBookings}</span>
                                 <span className="text-red-600">{customer.analytics.cancelledBookings}</span>
                               </div>
@@ -1546,8 +1546,8 @@ export default function Customers() {
                       <div className="text-sm text-gray-500">Total</div>
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-green-600">{selectedCustomer.analytics.confirmedBookings}</div>
-                      <div className="text-sm text-gray-500">Confirmed</div>
+                      <div className="text-2xl font-bold text-green-600">{(selectedCustomer.analytics.confirmedBookings || 0) + (selectedCustomer.analytics.completedBookings || 0)}</div>
+                      <div className="text-sm text-gray-500">Paid</div>
                     </div>
                     <div>
                       <div className="text-2xl font-bold text-orange-600">{selectedCustomer.analytics.pendingBookings}</div>

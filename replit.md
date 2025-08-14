@@ -89,11 +89,22 @@ Preferred communication style: Simple, everyday language.
 ## Recent Technical Fixes (August 2025)
 
 ### Critical Bug Fixes
+- **Proposal Sending 409 Conflict Fixed (August 14, 2025)**: Resolved time slot conflict error when sending proposals by fixing conflict detection logic to use `validatedData.proposalId` instead of `bookingData.proposalId`. Proposals can now be successfully sent and linked to bookings.
+- **Intelligent Conflict Detection Implemented (August 14, 2025)**: Updated conflict detection to be more user-friendly:
+  - **Blocks creation** for `confirmed_deposit_paid` and `confirmed_fully_paid` bookings (paid bookings cannot be overbooked)
+  - **Shows warning but allows creation** for `inquiry`, `pending`, and `tentative` bookings (tentative bookings can coexist)
+- **'Confirmed' Status Removal (August 14, 2025)**: Completely removed the deprecated 'confirmed' status from the system:
+  - Updated EventStatus type to exclude 'confirmed'
+  - Fixed all legacy status mappings to map 'confirmed' to 'tentative'
+  - Updated customer analytics to show "Paid" instead of "Confirmed" bookings
 - **Booking Creation Validation Error (August 14, 2025)**: Fixed missing `tenantId` field in booking creation that was causing Zod validation failures. Added proper tenant isolation to both single event bookings and multi-event contract creation endpoints.
 - **API Endpoint Corrections**: Fixed space management endpoints from `/api/venues/{id}/spaces/{id}` to correct `/api/spaces/{id}` pattern.
 - **Enhanced Venue Management**: Implemented separate "Add Space" functionality with proper TypeScript error handling and blue outlined styling.
 
 ### System Stability
 - All booking creation workflows now properly validated and working
+- Proposal sending and booking creation from proposals fully functional
+- Intelligent conflict detection prevents overbooking paid events while allowing flexible tentative bookings
 - Tenant isolation maintained throughout all booking operations
 - Space management operations correctly routing through dedicated endpoints
+- All TypeScript errors resolved, system running without LSP diagnostics

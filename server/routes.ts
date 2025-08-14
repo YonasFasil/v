@@ -1014,22 +1014,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       if (conflict) {
-        // Get customer info for the conflicting booking
-        const customers = await storage.getCustomers();
-        const conflictCustomer = customers.find(c => c.id === conflict.customerId);
+        // Only block if the conflicting booking has confirmed status (paid bookings)
+        const blockingStatuses = ['confirmed_deposit_paid', 'confirmed_fully_paid'];
+        const warningStatuses = ['inquiry', 'pending', 'tentative'];
         
-        return res.status(409).json({ 
-          message: "Time slot conflict", 
-          conflictingBooking: {
-            id: conflict.id,
-            eventName: conflict.eventName,
-            customerName: conflictCustomer?.name || 'Unknown Customer',
-            startTime: conflict.startTime,
-            endTime: conflict.endTime,
-            status: conflict.status,
-            eventDate: conflict.eventDate
-          }
-        });
+        if (blockingStatuses.includes(conflict.status)) {
+          // Get customer info for the conflicting booking
+          const customers = await storage.getCustomers();
+          const conflictCustomer = customers.find(c => c.id === conflict.customerId);
+          
+          return res.status(409).json({ 
+            message: "Time slot conflict", 
+            conflictType: "blocking",
+            conflictingBooking: {
+              id: conflict.id,
+              eventName: conflict.eventName,
+              customerName: conflictCustomer?.name || 'Unknown Customer',
+              startTime: conflict.startTime,
+              endTime: conflict.endTime,
+              status: conflict.status,
+              eventDate: conflict.eventDate
+            }
+          });
+        } else if (warningStatuses.includes(conflict.status)) {
+          // Log warning but allow booking to proceed
+          console.log(`Warning: Time slot overlap with ${conflict.status} booking "${conflict.eventName}" but allowing creation`);
+        }
       }
       
       const booking = await storage.createBooking(validatedData);

@@ -4,7 +4,6 @@ export type EventStatus =
   | "inquiry" 
   | "pending" 
   | "tentative" 
-  | "confirmed" 
   | "confirmed_deposit_paid" 
   | "confirmed_fully_paid" 
   | "completed" 
@@ -60,18 +59,7 @@ export const STATUS_CONFIGS: Record<EventStatus, StatusConfig> = {
     isCompleted: false,
     isActive: true
   },
-  confirmed: {
-    label: "Confirmed",
-    description: "Booking confirmed by client",
-    color: "#10b981", // emerald-500
-    bgColor: "bg-emerald-50",
-    borderColor: "border-emerald-200",
-    textColor: "text-emerald-700",
-    nextStatuses: ["completed", "cancelled"],
-    canEdit: true,
-    isCompleted: false,
-    isActive: true
-  },
+
   confirmed_deposit_paid: {
     label: "Confirmed Deposited",
     description: "Deposit received, balance payment pending",
@@ -126,7 +114,7 @@ export const STATUS_CONFIGS: Record<EventStatus, StatusConfig> = {
 export function getStatusConfig(status: EventStatus | string): StatusConfig {
   // Handle legacy statuses by mapping them to new ones
   const statusMap: Record<string, EventStatus> = {
-    'confirmed': 'confirmed',
+    'confirmed': 'tentative', // Legacy confirmed maps to tentative
     'confirmed_fully_paid': 'confirmed_fully_paid',
     'confirmed_deposit_paid': 'confirmed_deposit_paid',
     'pending': 'pending',
@@ -145,7 +133,7 @@ export function getStatusConfig(status: EventStatus | string): StatusConfig {
 export function getStatusColor(status: EventStatus | string): string {
   // Handle legacy statuses by mapping them to new ones
   const statusMap: Record<string, EventStatus> = {
-    'confirmed': 'confirmed',
+    'confirmed': 'tentative', // Legacy confirmed maps to tentative
     'confirmed_fully_paid': 'confirmed_fully_paid',
     'confirmed_deposit_paid': 'confirmed_deposit_paid',
     'pending': 'pending',
@@ -164,7 +152,7 @@ export function getStatusColor(status: EventStatus | string): string {
 export function getStatusLabel(status: EventStatus | string): string {
   // Handle legacy statuses by mapping them to new ones
   const statusMap: Record<string, EventStatus> = {
-    'confirmed': 'confirmed',
+    'confirmed': 'tentative', // Legacy confirmed maps to tentative
     'confirmed_fully_paid': 'confirmed_fully_paid',
     'confirmed_deposit_paid': 'confirmed_deposit_paid',
     'pending': 'pending',
@@ -183,7 +171,7 @@ export function getStatusLabel(status: EventStatus | string): string {
 export function getNextStatuses(currentStatus: EventStatus | string): EventStatus[] {
   // Handle legacy statuses by mapping them to new ones
   const statusMap: Record<string, EventStatus> = {
-    'confirmed': 'confirmed',
+    'confirmed': 'tentative', // Legacy confirmed maps to tentative
     'confirmed_fully_paid': 'confirmed_fully_paid',
     'confirmed_deposit_paid': 'confirmed_deposit_paid',
     'pending': 'pending',
@@ -202,9 +190,9 @@ export function getNextStatuses(currentStatus: EventStatus | string): EventStatu
 export function canEditStatus(status: EventStatus | string): boolean {
   // Handle legacy statuses by mapping them to new ones
   const statusMap: Record<string, EventStatus> = {
-    'confirmed': 'tentative',
-    'confirmed_fully_paid': 'confirmed',
-    'confirmed_deposit_paid': 'confirmed',
+    'confirmed': 'tentative', // Legacy confirmed maps to tentative
+    'confirmed_fully_paid': 'confirmed_fully_paid',
+    'confirmed_deposit_paid': 'confirmed_deposit_paid',
     'pending': 'pending',
     'proposal_shared': 'pending',
     'completed': 'completed',
