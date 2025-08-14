@@ -25,7 +25,11 @@ import { MobileNav } from "@/components/layout/mobile-nav";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertCustomerSchema } from "@shared/schema";
+import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+
+// Frontend customer schema (without tenantId requirement)
+const frontendCustomerSchema = insertCustomerSchema.omit({ tenantId: true });
 
 // Types for customer analytics
 interface CustomerAnalytics {
@@ -84,12 +88,12 @@ export default function Customers() {
   });
 
   const form = useForm({
-    resolver: zodResolver(insertCustomerSchema),
+    resolver: zodResolver(frontendCustomerSchema),
     defaultValues: {
       name: "",
       email: "",
       phone: "",
-      companyId: undefined,
+      companyId: null,
       customerType: "individual",
       status: "lead",
       notes: "",
@@ -588,7 +592,7 @@ export default function Customers() {
     console.log("Form validation errors:", form.formState.errors);
     
     // Validate required fields
-    if (!data.name || !data.email) {
+    if (!data.name?.trim() || !data.email?.trim()) {
       toast({
         title: "Validation Error",
         description: "Name and email are required fields.",
@@ -600,7 +604,7 @@ export default function Customers() {
     // Handle "none" company selection or undefined by setting companyId to null
     const submitData = {
       ...data,
-      companyId: data.companyId === "none" || !data.companyId ? null : data.companyId,
+      companyId: (!data.companyId || data.companyId === "none") ? null : data.companyId,
       customerType: "individual" // Ensure customerType is always set
     };
     
@@ -918,7 +922,7 @@ export default function Customers() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Company (Optional)</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value || "none"}>
+                              <Select onValueChange={field.onChange} value={field.value === null ? "none" : field.value}>
                                 <FormControl>
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select a company" />
@@ -980,6 +984,13 @@ export default function Customers() {
                           className="w-full"
                           disabled={createCustomerMutation.isPending}
                           data-testid="button-create-customer-submit"
+                          onClick={() => {
+                            console.log("Button clicked!");
+                            console.log("Form values:", form.getValues());
+                            console.log("Form errors:", form.formState.errors);
+                            console.log("Form valid:", form.formState.isValid);
+                            console.log("Mutation pending:", createCustomerMutation.isPending);
+                          }}
                         >
                           {createCustomerMutation.isPending ? "Creating..." : "Create Customer"}
                         </Button>

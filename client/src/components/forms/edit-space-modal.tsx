@@ -18,6 +18,7 @@ interface EditSpaceModalProps {
   onOpenChange: (open: boolean) => void;
   space: any;
   venueId: string;
+  venueName?: string;
 }
 
 const SETUP_STYLES = [
@@ -31,7 +32,7 @@ const SETUP_STYLES = [
   { value: 'custom', label: 'Custom', description: 'Design your own unique layout' },
 ];
 
-export function EditSpaceModal({ open, onOpenChange, space, venueId }: EditSpaceModalProps) {
+export function EditSpaceModal({ open, onOpenChange, space, venueId, venueName }: EditSpaceModalProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("details");
   const [isSaving, setIsSaving] = useState(false);
@@ -40,20 +41,40 @@ export function EditSpaceModal({ open, onOpenChange, space, venueId }: EditSpace
     name: '',
     description: '',
     capacity: '',
+    spaceType: 'hall',
+    features: '',
     amenities: [] as string[],
     availableSetupStyles: [] as string[],
   });
 
+  const isCreating = !space?.id;
+
   useEffect(() => {
-    if (space && open) {
-      console.log('Loading space data:', space);
-      setFormData({
-        name: space.name || '',
-        description: space.description || '',
-        capacity: space.capacity?.toString() || '',
-        amenities: space.amenities || [],
-        availableSetupStyles: space.availableSetupStyles || [],
-      });
+    if (open) {
+      if (space && space.id) {
+        // Editing existing space
+        console.log('Loading space data:', space);
+        setFormData({
+          name: space.name || '',
+          description: space.description || '',
+          capacity: space.capacity?.toString() || '',
+          spaceType: space.spaceType || 'hall',
+          features: space.features || '',
+          amenities: space.amenities || [],
+          availableSetupStyles: space.availableSetupStyles || [],
+        });
+      } else {
+        // Creating new space
+        setFormData({
+          name: '',
+          description: '',
+          capacity: '',
+          spaceType: 'hall',
+          features: '',
+          amenities: [],
+          availableSetupStyles: [],
+        });
+      }
       setActiveTab("details"); // Reset to details tab when modal opens
     }
   }, [space, open]);
@@ -70,33 +91,39 @@ export function EditSpaceModal({ open, onOpenChange, space, venueId }: EditSpace
 
     setIsSaving(true);
     try {
-      const updateData = {
+      const spaceData = {
         name: formData.name,
         description: formData.description,
         capacity: parseInt(formData.capacity),
+        spaceType: formData.spaceType,
+        features: formData.features,
         amenities: formData.amenities,
         availableSetupStyles: formData.availableSetupStyles,
+        ...(isCreating && { venueId })
       };
       
-      console.log('Updating space with data:', updateData);
-      const response = await apiRequest("PATCH", `/api/spaces/${space.id}`, updateData);
-      console.log('Update response:', response);
+      const response = isCreating 
+        ? await apiRequest("POST", "/api/spaces", spaceData)
+        : await apiRequest("PATCH", `/api/spaces/${space.id}`, spaceData);
 
       // Invalidate multiple relevant queries to ensure UI updates
       await queryClient.invalidateQueries({ queryKey: ["/api/venues"] });
       await queryClient.invalidateQueries({ queryKey: ["/api/venues-with-spaces"] });
       await queryClient.invalidateQueries({ queryKey: ["/api/spaces"] });
+      if (venueId) {
+        await queryClient.invalidateQueries({ queryKey: [`/api/venues/${venueId}/spaces`] });
+      }
       
       toast({
-        title: "Space updated",
-        description: `${formData.name} has been updated successfully`
+        title: isCreating ? "Space created" : "Space updated",
+        description: `${formData.name} has been ${isCreating ? 'created' : 'updated'} successfully`
       });
       
       onOpenChange(false);
     } catch (error) {
       toast({
-        title: "Update failed",
-        description: "Could not update space",
+        title: isCreating ? "Creation failed" : "Update failed",
+        description: `Could not ${isCreating ? 'create' : 'update'} space`,
         variant: "destructive"
       });
     } finally {
@@ -136,7 +163,7 @@ export function EditSpaceModal({ open, onOpenChange, space, venueId }: EditSpace
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="w-5 h-5" />
-            Edit Space: {space?.name}
+            {isCreating ? `Add Space to ${venueName}` : `Edit Space: ${space?.name}`}
           </DialogTitle>
         </DialogHeader>
 
@@ -203,7 +230,33 @@ export function EditSpaceModal({ open, onOpenChange, space, venueId }: EditSpace
                         placeholder="Max guests"
                       />
                     </div>
+                    <div>
+                      <Label htmlFor="spaceType">Space Type</Label>
+                      <select
+                        id="spaceType"
+                        value={formData.spaceType}
+                        onChange={(e) => setFormData(prev => ({ ...prev, spaceType: e.target.value }))}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <option value="hall">Hall</option>
+                        <option value="ballroom">Ballroom</option>
+                        <option value="conference">Conference Room</option>
+                        <option value="garden">Garden/Outdoor</option>
+                        <option value="pavilion">Pavilion</option>
+                        <option value="terrace">Terrace</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                  </div>
 
+                  <div>
+                    <Label htmlFor="features">Features & Amenities</Label>
+                    <Input
+                      id="features"
+                      value={formData.features}
+                      onChange={(e) => setFormData(prev => ({ ...prev, features: e.target.value }))}
+                      placeholder="Stage, Dance floor, Projector, etc."
+                    />
                   </div>
                 </div>
 
@@ -299,7 +352,10 @@ export function EditSpaceModal({ open, onOpenChange, space, venueId }: EditSpace
           </Button>
           <Button onClick={handleSave} disabled={isSaving}>
             <Save className="w-4 h-4 mr-2" />
-            {isSaving ? "Saving..." : "Save Changes"}
+            {isSaving 
+              ? (isCreating ? "Creating..." : "Saving...") 
+              : (isCreating ? "Create Space" : "Save Changes")
+            }
           </Button>
         </div>
       </DialogContent>

@@ -91,6 +91,19 @@ export default function Venues() {
                         {venue.spaces?.length || 0} spaces
                       </Badge>
                       <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedVenueForSpaces(venue);
+                          setEditingSpace({});
+                        }}
+                        className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        Add Space
+                      </Button>
+                      <Button
                         variant="ghost"
                         size="sm"
                         onClick={(e) => {
@@ -125,35 +138,55 @@ export default function Venues() {
                       <div className="text-sm font-medium text-slate-700">Spaces:</div>
                       <div className="space-y-1">
                         {venue.spaces.slice(0, 3).map((space: any) => (
-                          <div key={space.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg text-sm">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{space.name}</span>
-                              <Badge variant="secondary" className="text-xs">
-                                {space.capacity} guests
-                              </Badge>
+                          <div key={space.id} className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-slate-900">{space.name}</span>
+                                <Badge variant="secondary" className="text-xs">
+                                  {space.spaceType || 'hall'}
+                                </Badge>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingSpace(space);
+                                  setSelectedVenueForSpaces(venue);
+                                }}
+                                className="h-6 w-6 p-0"
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                            </div>
+                            
+                            <div className="flex items-center gap-4 text-sm text-slate-600 mb-2">
+                              <div className="flex items-center gap-1">
+                                <Users className="w-3 h-3" />
+                                <span>{space.capacity} guests</span>
+                              </div>
+                              {space.amenities && space.amenities.length > 0 && (
+                                <Badge variant="outline" className="text-xs">
+                                  {space.amenities.length} amenities
+                                </Badge>
+                              )}
                               {space.availableSetupStyles && space.availableSetupStyles.length > 0 && (
                                 <Badge variant="outline" className="text-xs">
                                   {space.availableSetupStyles.length} setups
                                 </Badge>
                               )}
-                              {space.floorPlan && space.floorPlan.elements && (
-                                <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
-                                  Floor Plan
-                                </Badge>
-                              )}
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingSpace(space);
-                                setSelectedVenueForSpaces(venue);
-                              }}
-                              className="h-6 w-6 p-0"
-                            >
-                              <Edit className="w-3 h-3" />
-                            </Button>
+                            
+                            {space.description && (
+                              <p className="text-xs text-slate-500 line-clamp-1 mb-2">{space.description}</p>
+                            )}
+                            
+                            {space.features && (
+                              <div className="text-xs text-slate-600">
+                                <span className="font-medium">Features: </span>
+                                <span className="line-clamp-1">{space.features}</span>
+                              </div>
+                            )}
                           </div>
                         ))}
                         {venue.spaces.length > 3 && (
@@ -182,6 +215,7 @@ export default function Venues() {
             onOpenChange={(open) => !open && setEditingSpace(null)} 
             space={editingSpace}
             venueId={selectedVenueForSpaces?.id}
+            venueName={selectedVenueForSpaces?.name}
           />
         </main>
       </div>

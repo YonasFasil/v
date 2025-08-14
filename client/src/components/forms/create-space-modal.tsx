@@ -29,7 +29,7 @@ export function CreateSpaceModal({ open, onOpenChange, venueId, venueName }: Pro
   const createSpace = useMutation({
     mutationFn: async (spaceData: any) => {
       const response = await apiRequest("POST", "/api/spaces", spaceData);
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/venues"] });
