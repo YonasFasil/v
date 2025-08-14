@@ -33,7 +33,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
   const { data: spaces = [] } = useQuery({
     queryKey: [`/api/venues/${venue?.id}/spaces`],
     enabled: !!venue?.id && open
-  });
+  }) as { data: any[] };
 
   useEffect(() => {
     if (venue && open) {
@@ -96,7 +96,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
 
   const deleteSpace = useMutation({
     mutationFn: async (spaceId: string) => {
-      const response = await apiRequest("DELETE", `/api/venues/${venue.id}/spaces/${spaceId}`, {});
+      const response = await apiRequest("DELETE", `/api/spaces/${spaceId}`, {});
       return response;
     },
     onSuccess: () => {
@@ -111,7 +111,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
 
   const updateSpace = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("PATCH", `/api/venues/${venue.id}/spaces/${editingSpace.id}`, data);
+      return await apiRequest("PATCH", `/api/spaces/${editingSpace.id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/venues/${venue.id}/spaces`] });
