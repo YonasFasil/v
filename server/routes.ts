@@ -563,9 +563,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const allCustomers = await storage.getCustomers();
+      console.log(`DEBUG: Total customers in system: ${allCustomers.length}`);
+      console.log(`DEBUG: Customers by tenant:`, allCustomers.map(c => ({ id: c.id, name: c.name, tenantId: c.tenantId })));
+      console.log(`DEBUG: Current user's tenantId: ${tenantId}`);
+      
       const customers = allCustomers.filter(c => c.tenantId === tenantId);
+      console.log(`DEBUG: Filtered customers for tenant ${tenantId}: ${customers.length} customers`);
+      
       res.json(customers);
     } catch (error) {
+      console.error("Error fetching customers:", error);
       res.status(500).json({ message: "Failed to fetch customers" });
     }
   });
@@ -702,17 +709,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Companies
   app.get("/api/companies", async (req, res) => {
     try {
-      const companies = await storage.getCompanies();
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const allCompanies = await storage.getCompanies();
+      console.log(`DEBUG: Total companies in system: ${allCompanies.length}`);
+      console.log(`DEBUG: Companies by tenant:`, allCompanies.map(c => ({ id: c.id, name: c.name, tenantId: c.tenantId })));
+      console.log(`DEBUG: Current user's tenantId: ${tenantId}`);
+      
+      const companies = allCompanies.filter(c => c.tenantId === tenantId);
+      console.log(`DEBUG: Filtered companies for tenant ${tenantId}: ${companies.length} companies`);
+      
       res.json(companies);
     } catch (error) {
+      console.error("Error fetching companies:", error);
       res.status(500).json({ message: "Failed to fetch companies" });
     }
   });
 
   app.get("/api/companies/:id", async (req, res) => {
     try {
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
       const company = await storage.getCompany(req.params.id);
-      if (!company) {
+      if (!company || company.tenantId !== tenantId) {
         return res.status(404).json({ message: "Company not found" });
       }
       res.json(company);
@@ -790,7 +815,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get customers by company
   app.get("/api/companies/:id/customers", async (req, res) => {
     try {
-      const customers = await storage.getCustomersByCompany(req.params.id);
+      const tenantId = getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // First verify the company belongs to this tenant
+      const company = await storage.getCompany(req.params.id);
+      if (!company || company.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Company not found" });
+      }
+      
+      const allCustomers = await storage.getCustomersByCompany(req.params.id);
+      const customers = allCustomers.filter(c => c.tenantId === tenantId);
       res.json(customers);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch company customers" });
@@ -901,10 +938,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const tenantId = getTenantIdFromAuth(req);
       if (!tenantId) {
+        console.log("Booking creation failed: No tenant ID found");
         return res.status(401).json({ message: "Authentication required" });
       }
       
       console.log('Creating booking with data:', req.body);
+      console.log('Tenant ID:', tenantId);
       
       // Convert date strings to Date objects if they're strings
       const bookingData = {

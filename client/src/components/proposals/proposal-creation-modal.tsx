@@ -80,8 +80,7 @@ export function ProposalCreationModal({
   // New customer creation mutation
   const createCustomerMutation = useMutation({
     mutationFn: async (customerData: any) => {
-      const response = await apiRequest("POST", "/api/customers", customerData);
-      return response.json();
+      return await apiRequest("POST", "/api/customers", customerData);
     },
     onSuccess: (newCustomer) => {
       toast({
@@ -860,7 +859,8 @@ export function ProposalCreationModal({
                       createCustomerMutation.mutate({
                         name: newCustomerName,
                         email: newCustomerEmail,
-                        phone: newCustomerPhone
+                        phone: newCustomerPhone,
+                        customerType: "individual" // CRITICAL: Add missing customerType
                       });
                     }}
                     disabled={createCustomerMutation.isPending}

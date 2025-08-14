@@ -313,8 +313,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   // Create customer mutation
   const createCustomer = useMutation({
     mutationFn: async (customerData: any) => {
-      const response = await apiRequest("POST", "/api/customers", customerData);
-      return response.json();
+      return await apiRequest("POST", "/api/customers", customerData);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
@@ -644,7 +643,13 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
       });
       return;
     }
-    createCustomer.mutate(newCustomer);
+    
+    const customerData = {
+      ...newCustomer,
+      customerType: "individual" // CRITICAL: Add missing customerType
+    };
+    
+    createCustomer.mutate(customerData);
   };
 
   const handleCreateService = () => {
