@@ -57,20 +57,32 @@ app.use((req, res, next) => {
   next();
 });
 
-// Register API routes
-(async () => {
+// Health check endpoint
+app.get('/health', (req: Request, res: Response) => {
+  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
+
+// Initialize routes synchronously
+let routesInitialized = false;
+const initializeRoutes = async () => {
+  if (routesInitialized) return;
   try {
     await registerRoutes(app);
     setupErrorHandling(app);
-    
-    // Health check endpoint
-    app.get('/api/health', (req: Request, res: Response) => {
-      res.json({ status: 'healthy', timestamp: new Date().toISOString() });
-    });
+    routesInitialized = true;
+    console.log('Routes initialized successfully');
   } catch (error) {
     console.error('Failed to register routes:', error);
   }
-})();
+};
+
+// Middleware to ensure routes are initialized
+app.use(async (req: Request, res: Response, next: NextFunction) => {
+  if (!routesInitialized) {
+    await initializeRoutes();
+  }
+  next();
+});
 
 // Export the Express app for Vercel
 export default app;
