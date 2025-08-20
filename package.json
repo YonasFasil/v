@@ -8,6 +8,7 @@
     "build": "vite build",
     "build:client": "vite build",
     "start": "NODE_ENV=production node dist/index.js",
+    "vercel-build": "npm rebuild bcrypt --build-from-source",
     "check": "tsc",
     "db:push": "drizzle-kit push",
     "test:tenant-isolation": "NODE_ENV=test tsx tests/tenant-isolation.test.js"
