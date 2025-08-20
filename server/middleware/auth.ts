@@ -1,16 +1,13 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import type { Request, Response, NextFunction } from 'express';
+import { db } from '../db';
+import { users } from '../../shared/schema';
+import { eq, and } from 'drizzle-orm';
 
 // JWT secret from environment variable
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 
-// Super admin credentials from environment variables
-const SUPER_ADMIN_CREDENTIALS = {
-  email: process.env.SUPER_ADMIN_EMAIL || 'admin@yourcompany.com',
-  // Hash of 'admin123' - generated using bcrypt
-  passwordHash: process.env.SUPER_ADMIN_PASSWORD_HASH || '$2b$10$k2KY5y8NLuW62L1cMITlQeV/f05mB7uOiyGz2OgIByabbtp4T8Utq'
-};
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -50,23 +47,42 @@ export function verifyToken(token: string): { id: string; email: string; role: s
 
 // Super admin authentication
 export async function authenticateSuperAdmin(email: string, password: string): Promise<{ token: string; user: any } | null> {
-  if (email !== SUPER_ADMIN_CREDENTIALS.email) {
+  try {
+    // Look up super admin user in database
+    const [superAdmin] = await db
+      .select()
+      .from(users)
+      .where(and(
+        eq(users.email, email),
+        eq(users.role, 'super_admin')
+      ))
+      .limit(1);
+
+    if (!superAdmin) {
+      console.log('Super admin user not found with email:', email);
+      return null;
+    }
+
+    const isValidPassword = await comparePassword(password, superAdmin.password);
+    if (!isValidPassword) {
+      console.log('Invalid password for super admin');
+      return null;
+    }
+
+    const user = {
+      id: superAdmin.id,
+      email: superAdmin.email,
+      name: superAdmin.name,
+      role: superAdmin.role,
+      permissions: superAdmin.permissions as string[]
+    };
+
+    const token = generateToken(user);
+    return { token, user };
+  } catch (error) {
+    console.error('Error authenticating super admin:', error);
     return null;
   }
-
-  const isValidPassword = await comparePassword(password, SUPER_ADMIN_CREDENTIALS.passwordHash);
-  if (!isValidPassword) {
-    return null;
-  }
-
-  const user = {
-    id: 'super-admin-1',
-    email: SUPER_ADMIN_CREDENTIALS.email,
-    role: 'super_admin'
-  };
-
-  const token = generateToken(user);
-  return { token, user };
 }
 
 // Middleware to require super admin authentication
