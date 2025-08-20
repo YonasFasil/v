@@ -54,6 +54,33 @@ const upload = multer({
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // Health check endpoint with database test
+  app.get("/api/health", async (req, res) => {
+    try {
+      // Test database connection
+      const { db } = await import('./db');
+      const { users } = await import('../shared/schema');
+      
+      // Simple query to test database connectivity
+      const result = await db.select().from(users).limit(1);
+      
+      res.json({ 
+        status: 'healthy', 
+        timestamp: new Date().toISOString(),
+        database: 'connected',
+        environment: process.env.NODE_ENV || 'unknown'
+      });
+    } catch (error) {
+      console.error('Health check failed:', error);
+      res.status(500).json({ 
+        status: 'error', 
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message : 'Unknown error',
+        database: 'failed'
+      });
+    }
+  });
+  
   // Apply tenant resolution middleware to all routes
   app.use(resolveTenant);
   
@@ -7371,22 +7398,32 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
   // Super Admin - Login
   app.post("/api/super-admin/login", async (req, res) => {
     try {
+      console.log("Super admin login attempt");
       const { email, password } = req.body;
       
       if (!email || !password) {
+        console.log("Missing email or password");
         return res.status(400).json({ message: "Email and password are required" });
       }
       
+      console.log("Attempting authentication for email:", email);
       const result = await authenticateSuperAdmin(email, password);
       
       if (!result) {
+        console.log("Authentication failed for:", email);
         return res.status(401).json({ message: "Invalid credentials" });
       }
       
+      console.log("Authentication successful for:", email);
       res.json(result);
     } catch (error: any) {
       console.error("Error during super admin login:", error);
-      res.status(500).json({ message: "Login failed" });
+      console.error("Error stack:", error.stack);
+      console.error("Database URL exists:", !!process.env.DATABASE_URL);
+      res.status(500).json({ 
+        message: "Login failed", 
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined 
+      });
     }
   });
 
