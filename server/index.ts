@@ -92,10 +92,11 @@ app.use((req, res, next) => {
       if (emailSettings && emailSettings.value) {
         const config = emailSettings.value;
         if (config.email && config.appPassword && !emailMonitorService.isMonitoring()) {
-          await emailMonitorService.startMonitoring({
+          emailMonitorService.configure({
             email: config.email,
             appPassword: config.appPassword
           });
+          await emailMonitorService.startMonitoring();
           log(`📧 Email monitoring auto-started for ${config.email}`);
         }
       }
@@ -104,3 +105,5 @@ app.use((req, res, next) => {
     }
   });
 })();
+
+export default app;
