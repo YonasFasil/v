@@ -1,15 +1,15 @@
 import { sql } from "drizzle-orm";
-import { mysqlTable, text, varchar, int, decimal, timestamp, boolean, json } from "drizzle-orm/mysql-core";
+import { pgTable, text, varchar, integer, decimal, timestamp, boolean, jsonb, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = mysqlTable("users", {
-  id: varchar("id", { length: 36 }).primaryKey().default(sql`(UUID())`),
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   name: text("name").notNull(),
   email: text("email").notNull(),
-  tenantId: varchar("tenant_id").references(() => tenants.id), // null for super admin
+  tenantId: uuid("tenant_id").references(() => tenants.id), // null for super admin
   role: text("role").notNull().default("tenant_user"), // super_admin, tenant_admin, tenant_user
   permissions: jsonb("permissions").default('[]'), // Granular permissions array
   isActive: boolean("is_active").default(true),
@@ -24,8 +24,8 @@ export const users = mysqlTable("users", {
 });
 
 export const venues = pgTable("venues", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   description: text("description"),
   capacity: integer("capacity").notNull(),
@@ -395,7 +395,7 @@ export const tours = pgTable("tours", {
 
 // Multi-tenant tables for SaaS functionality
 export const subscriptionPackages = pgTable("subscription_packages", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(), // "Starter", "Professional", "Enterprise"
   description: text("description"),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
@@ -411,12 +411,12 @@ export const subscriptionPackages = pgTable("subscription_packages", {
 });
 
 export const tenants = pgTable("tenants", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(), // URL-friendly name for subdomains
   subdomain: text("subdomain").unique(), // e.g., "marriott"  
   customDomain: text("custom_domain"), // e.g., "bookings.marriott.com"
-  subscriptionPackageId: varchar("subscription_package_id").references(() => subscriptionPackages.id).notNull(),
+  subscriptionPackageId: uuid("subscription_package_id").references(() => subscriptionPackages.id).notNull(),
   status: text("status").notNull().default("trial"), // trial, active, suspended, cancelled
   trialEndsAt: timestamp("trial_ends_at"),
   subscriptionStartedAt: timestamp("subscription_started_at"),

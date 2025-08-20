@@ -19,7 +19,10 @@
       "Bash(sed:*)",
       "Bash(rm:*)",
       "Bash(npm start)",
-      "Bash(npx drizzle-kit:*)"
+      "Bash(npx drizzle-kit:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": [],
