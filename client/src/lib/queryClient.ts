@@ -135,7 +135,8 @@ export function clearTenantCache() {
     '/api/dashboard',
     '/api/dashboard/metrics',
     '/api/reports',
-    '/api/users'
+    '/api/users',
+    '/api/calendar/events' // Add calendar endpoints to tenant cache clearing
   ];
   
   tenantQueries.forEach(queryKey => {

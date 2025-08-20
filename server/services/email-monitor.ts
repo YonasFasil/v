@@ -387,14 +387,6 @@ export class EmailMonitorService {
   isConfigured(): boolean {
     return this.config !== null;
   }
-
-  isMonitoring(): boolean {
-    return this.monitoringActive;
-  }
-
-  isConfigured(): boolean {
-    return this.config !== null;
-  }
 }
 
 // Global instance

@@ -13,8 +13,10 @@ export function usePermissions() {
   const [permissions, setPermissions] = useState<string[]>([]);
 
   useEffect(() => {
+    console.log('[PERMISSIONS] usePermissions hook starting...');
     // Get user info from token
     const token = localStorage.getItem('auth_token') || localStorage.getItem('super_admin_token');
+    console.log('[PERMISSIONS] Found token:', token ? 'YES' : 'NO');
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
@@ -27,34 +29,62 @@ export function usePermissions() {
         };
         setUser(userData);
         
-        // Set permissions based on role and explicit permissions
-        let userPermissions = userData.permissions || [];
+        console.log('[PERMISSIONS] User data from token:', userData);
+        console.log('[PERMISSIONS] Raw permissions from token:', userData.permissions);
         
-        // Super admin has all permissions
+        // Set permissions based on role and explicit permissions
+        let rawPermissions = userData.permissions || [];
+        
+        // Map detailed permissions to simple sidebar permissions
+        const detailedToSimpleMap: Record<string, string[]> = {
+          'view_dashboard': ['dashboard'],
+          'manage_events': ['bookings'],
+          'view_events': ['bookings'],
+          'manage_customers': ['customers'],
+          'view_customers': ['customers'],
+          'manage_venues': ['venues'],
+          'view_venues': ['venues'],
+          'manage_payments': ['payments'],
+          'view_payments': ['payments'],
+          'manage_proposals': ['proposals'],
+          'view_proposals': ['proposals'],
+          'manage_settings': ['settings', 'users'],
+          'view_reports': ['settings'],
+          'manage_leads': ['customers'],
+          'use_ai_features': ['settings'],
+          // Legacy permissions (already simple)
+          'dashboard': ['dashboard'],
+          'users': ['users'],
+          'venues': ['venues'],
+          'bookings': ['bookings'],
+          'customers': ['customers'],
+          'proposals': ['proposals'],
+          'tasks': ['tasks'],
+          'payments': ['payments'],
+          'settings': ['settings']
+        };
+        
+        // Convert detailed permissions to simple permissions for sidebar
+        let userPermissions: string[] = [];
+        
         if (userData.role === 'super_admin') {
-          userPermissions = [
-            'view_dashboard', 'manage_events', 'view_events', 'manage_customers', 'view_customers',
-            'manage_venues', 'view_venues', 'manage_payments', 'view_payments', 'manage_proposals',
-            'view_proposals', 'manage_settings', 'view_reports', 'manage_leads', 'use_ai_features',
-            'manage_users', 'manage_tenants'
-          ];
+          userPermissions = ['dashboard', 'users', 'venues', 'bookings', 'customers', 'proposals', 'tasks', 'payments', 'settings'];
         }
-        // Tenant admin has most permissions by default
         else if (userData.role === 'tenant_admin') {
-          userPermissions = userPermissions.length > 0 ? userPermissions : [
-            'view_dashboard', 'manage_events', 'view_events', 'manage_customers', 'view_customers',
-            'manage_venues', 'view_venues', 'manage_payments', 'view_payments', 'manage_proposals',
-            'view_proposals', 'manage_settings', 'view_reports', 'manage_leads', 'use_ai_features',
-            'manage_users'
-          ];
+          // For tenant_admin, always grant all permissions
+          userPermissions = ['dashboard', 'users', 'venues', 'bookings', 'customers', 'proposals', 'tasks', 'payments', 'settings'];
         }
-        // Tenant user has basic permissions by default
-        else if (userData.role === 'tenant_user') {
-          userPermissions = userPermissions.length > 0 ? userPermissions : [
-            'view_dashboard', 'view_events', 'manage_events', 'view_customers', 'manage_customers',
-            'view_venues', 'view_proposals', 'manage_proposals'
-          ];
+        else {
+          // For regular users, map their detailed permissions to simple ones
+          const simplePermissionsSet = new Set<string>();
+          rawPermissions.forEach(perm => {
+            const mappedPerms = detailedToSimpleMap[perm] || [];
+            mappedPerms.forEach(simplePerm => simplePermissionsSet.add(simplePerm));
+          });
+          userPermissions = Array.from(simplePermissionsSet);
         }
+        
+        console.log('[PERMISSIONS] Final permissions assigned:', userPermissions);
         
         setPermissions(userPermissions);
       } catch (error) {
@@ -63,6 +93,7 @@ export function usePermissions() {
         setPermissions([]);
       }
     } else {
+      console.log('[PERMISSIONS] No token found, clearing user and permissions');
       setUser(null);
       setPermissions([]);
     }

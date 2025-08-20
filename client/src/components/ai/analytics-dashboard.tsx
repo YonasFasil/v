@@ -65,25 +65,21 @@ interface SeasonalRecommendation {
   insights: string[];
 }
 
-const seasonalData: SeasonalRecommendation[] = [
+// Fallback seasonal templates if no data available
+const fallbackSeasonalData: SeasonalRecommendation[] = [
   {
     season: "Winter",
     icon: Snowflake,
     color: "blue",
     packages: [
-      { name: "Holiday Corporate Events", demand: 95, revenue: 8500, trend: 'up' },
-      { name: "New Year Celebrations", demand: 88, revenue: 7200, trend: 'up' },
-      { name: "Indoor Wedding Package", demand: 65, revenue: 5800, trend: 'stable' }
+      { name: "No winter events yet", demand: 0, revenue: 0, trend: 'stable' }
     ],
     services: [
-      { name: "Indoor Heating & Comfort", bookingRate: 98, seasonality: 95, suggestion: "Essential for winter events" },
-      { name: "Hot Beverage Stations", bookingRate: 85, seasonality: 90, suggestion: "High demand in cold months" },
-      { name: "Coat Check Service", bookingRate: 78, seasonality: 85, suggestion: "Necessary convenience" }
+      { name: "Indoor Heating Setup", bookingRate: 0, seasonality: 0, suggestion: "Create your first winter service" }
     ],
     insights: [
-      "Corporate events increase 40% in December for holiday parties",
-      "Indoor venues see 60% higher booking rates during winter months",
-      "Warm lighting and heating are most requested winter amenities"
+      "No winter events data available yet",
+      "Start hosting winter events to see insights here"
     ]
   },
   {
@@ -91,19 +87,14 @@ const seasonalData: SeasonalRecommendation[] = [
     icon: Leaf,
     color: "green", 
     packages: [
-      { name: "Garden Wedding Package", demand: 92, revenue: 9200, trend: 'up' },
-      { name: "Corporate Retreat", demand: 78, revenue: 6800, trend: 'up' },
-      { name: "Graduation Celebrations", demand: 85, revenue: 5500, trend: 'stable' }
+      { name: "No spring events yet", demand: 0, revenue: 0, trend: 'stable' }
     ],
     services: [
-      { name: "Outdoor Setup & Tenting", bookingRate: 89, seasonality: 88, suggestion: "Perfect weather for outdoor events" },
-      { name: "Floral Arrangements", bookingRate: 94, seasonality: 95, suggestion: "Peak season for fresh flowers" },
-      { name: "Garden Lighting", bookingRate: 76, seasonality: 80, suggestion: "Evening events benefit from ambient lighting" }
+      { name: "Outdoor Setup Service", bookingRate: 0, seasonality: 0, suggestion: "Create your first spring service" }
     ],
     insights: [
-      "Wedding bookings increase 65% in spring months",
-      "Outdoor venues see highest utilization rates",
-      "Fresh floral services are in peak demand"
+      "No spring events data available yet",
+      "Start hosting spring events to see insights here"
     ]
   },
   {
@@ -111,19 +102,14 @@ const seasonalData: SeasonalRecommendation[] = [
     icon: Sun,
     color: "yellow",
     packages: [
-      { name: "Outdoor Wedding Extravaganza", demand: 98, revenue: 12000, trend: 'up' },
-      { name: "Corporate Summer Party", demand: 89, revenue: 7800, trend: 'up' },
-      { name: "Festival & Concert Package", demand: 82, revenue: 6200, trend: 'stable' }
+      { name: "No summer events yet", demand: 0, revenue: 0, trend: 'stable' }
     ],
     services: [
-      { name: "Cooling & Air Conditioning", bookingRate: 96, seasonality: 98, suggestion: "Essential for summer comfort" },
-      { name: "Outdoor Bar Service", bookingRate: 91, seasonality: 95, suggestion: "Perfect for summer gatherings" },
-      { name: "Shade Structures", bookingRate: 87, seasonality: 92, suggestion: "Protect guests from sun exposure" }
+      { name: "Cooling Service", bookingRate: 0, seasonality: 0, suggestion: "Create your first summer service" }
     ],
     insights: [
-      "Summer is peak wedding season with 45% of annual weddings",
-      "Outdoor events generate 30% more revenue than indoor equivalents",
-      "Cooling services are booked in 98% of summer events"
+      "No summer events data available yet",
+      "Start hosting summer events to see insights here"
     ]
   },
   {
@@ -131,19 +117,14 @@ const seasonalData: SeasonalRecommendation[] = [
     icon: CloudRain,
     color: "orange",
     packages: [
-      { name: "Harvest Corporate Events", demand: 83, revenue: 7100, trend: 'up' },
-      { name: "Autumn Wedding Package", demand: 79, revenue: 8900, trend: 'stable' },
-      { name: "Conference & Meeting Package", demand: 91, revenue: 5600, trend: 'up' }
+      { name: "No fall events yet", demand: 0, revenue: 0, trend: 'stable' }
     ],
     services: [
-      { name: "Weather Contingency Setup", bookingRate: 84, seasonality: 88, suggestion: "Important for unpredictable fall weather" },
-      { name: "Seasonal Decorations", bookingRate: 88, seasonality: 92, suggestion: "Autumn themes are highly popular" },
-      { name: "Indoor/Outdoor Flexibility", bookingRate: 76, seasonality: 85, suggestion: "Weather backup plans essential" }
+      { name: "Weather Contingency", bookingRate: 0, seasonality: 0, suggestion: "Create your first fall service" }
     ],
     insights: [
-      "Conference bookings peak in fall as businesses plan for year-end",
-      "Weather contingency services see 85% booking rate",
-      "Seasonal decoration services are most profitable in fall"
+      "No fall events data available yet",
+      "Start hosting fall events to see insights here"
     ]
   }
 ];
@@ -167,31 +148,31 @@ export function AnalyticsDashboard({ onCreatePackage, onCreateService }: Props =
     return "Winter";
   };
 
+  // Fetch real analytics data from bookings
+  const { data: analyticsData, isLoading: analyticsLoading } = useQuery<AnalyticsData>({
+    queryKey: ["/api/ai/analytics", timeRange],
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    retry: 2
+  });
+
+  // Fetch real AI insights 
+  const { data: aiInsights } = useQuery({
+    queryKey: ["/api/ai/insights"],
+    staleTime: 10 * 60 * 1000 // Cache for 10 minutes
+  });
+
+  // Fetch seasonal data from bookings
+  const { data: realSeasonalData } = useQuery({
+    queryKey: ["/api/ai/seasonal-analysis"],
+    staleTime: 30 * 60 * 1000 // Cache for 30 minutes
+  });
+
   const currentSeason = getCurrentSeason();
   const displaySeason = selectedSeason === "current" ? currentSeason : selectedSeason;
-  const seasonData = seasonalData.find(s => s.season === displaySeason) || seasonalData[0];
-
-  // Fetch analytics data with default fallback
-  const defaultAnalyticsData: AnalyticsData = {
-    totalRevenue: 125000,
-    bookingsGrowth: 23,
-    avgBookingValue: 3200,
-    utilizationRate: 78,
-    topPerformingPackages: [
-      { name: "Premium Wedding Package", revenue: 45000, bookings: 12 },
-      { name: "Corporate Events", revenue: 38000, bookings: 18 },
-      { name: "Social Celebrations", revenue: 25000, bookings: 15 }
-    ],
-    predictions: {
-      nextMonth: { revenue: 42000, bookings: 28 },
-      nextQuarter: { revenue: 135000, bookings: 95 }
-    }
-  };
-
-  const { data: analyticsData = defaultAnalyticsData } = useQuery<AnalyticsData>({
-    queryKey: ["/api/ai/analytics", timeRange],
-    select: (data) => data || defaultAnalyticsData
-  });
+  
+  // Use real seasonal data if available, otherwise fallback
+  const availableSeasonalData = realSeasonalData || fallbackSeasonalData;
+  const seasonData = availableSeasonalData.find(s => s.season === displaySeason) || availableSeasonalData[0];
 
   const SeasonIcon = seasonData.icon;
 
@@ -291,6 +272,39 @@ export function AnalyticsDashboard({ onCreatePackage, onCreateService }: Props =
     if (serviceName.includes('Equipment') || serviceName.includes('Setup')) return 'per event';
     return 'per hour';
   };
+
+  // Show loading state
+  if (analyticsLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-purple-600" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">AI Analytics & Insights</h1>
+              <p className="text-gray-600">Loading your analytics data...</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="space-y-0 pb-2">
+                <div className="h-4 bg-gray-200 rounded w-24"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 bg-gray-200 rounded w-16 mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-32"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

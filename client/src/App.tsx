@@ -4,117 +4,159 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QuickActions } from "@/components/dashboard/quick-actions";
-import Dashboard from "@/pages/dashboard";
-import Events from "@/pages/events";
-import Customers from "@/pages/customers";
-import Payments from "@/pages/payments";
-import Tasks from "@/pages/tasks";
-import Venues from "@/pages/venues";
-import Leads from "@/pages/Leads";
-import SetupStyles from "@/pages/setup-styles";
-import Packages from "@/pages/packages";
-import Settings from "@/pages/settings";
-import AIAnalytics from "@/pages/ai-analytics";
-import Reports from "@/pages/reports";
-import VoiceBooking from "@/pages/voice-booking";
-import ProposalView from "@/pages/proposal-view";
-import Proposals from "@/pages/proposals";
-import PaymentCheckout from "@/pages/payment-checkout";
-import PaymentSuccess from "@/pages/payment-success";
-import NotFound from "@/pages/not-found";
-import SuperAdminDashboard from "@/pages/super-admin-dashboard";
-import SuperAdminLogin from "@/pages/super-admin-login";
-import TenantLogin from "@/pages/tenant-login";
-import Users from "@/pages/users";
+import { FloatingChatbot } from "@/components/chat/floating-chatbot";
+import { Suspense, lazy } from "react";
+
+// Eager load critical pages
 import Landing from "@/pages/landing";
+import TenantLogin from "@/pages/tenant-login";
+import SuperAdminLogin from "@/pages/super-admin-login";
 import Signup from "@/pages/signup";
+import NotFound from "@/pages/not-found";
+
+// Lazy load secondary pages
+const Dashboard = lazy(() => import("@/pages/dashboard"));
+const Events = lazy(() => import("@/pages/events"));
+const Customers = lazy(() => import("@/pages/customers"));
+const Payments = lazy(() => import("@/pages/payments"));
+const Tasks = lazy(() => import("@/pages/tasks"));
+const Venues = lazy(() => import("@/pages/venues"));
+const Leads = lazy(() => import("@/pages/Leads"));
+const SetupStyles = lazy(() => import("@/pages/setup-styles"));
+const Packages = lazy(() => import("@/pages/packages"));
+const Settings = lazy(() => import("@/pages/settings"));
+const AIAnalytics = lazy(() => import("@/pages/ai-analytics"));
+const Reports = lazy(() => import("@/pages/reports"));
+const VoiceBooking = lazy(() => import("@/pages/voice-booking"));
+const ProposalView = lazy(() => import("@/pages/proposal-view"));
+const Proposals = lazy(() => import("@/pages/proposals"));
+const PaymentCheckout = lazy(() => import("@/pages/payment-checkout"));
+const PaymentSuccess = lazy(() => import("@/pages/payment-success"));
+const SuperAdminDashboard = lazy(() => import("@/pages/super-admin-dashboard"));
+const Users = lazy(() => import("@/pages/users"));
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+
+// Loading component for lazy-loaded routes
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    </div>
+  );
+}
+
+// Wrapper for lazy-loaded protected routes
+function LazyProtectedRoute({ children }: { children: React.ReactNode }) {
+  return (
+    <ProtectedRoute>
+      <Suspense fallback={<PageLoader />}>
+        {children}
+      </Suspense>
+    </ProtectedRoute>
+  );
+}
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
       <Route path="/dashboard">
-        <ProtectedRoute>
+        <LazyProtectedRoute>
           <Dashboard />
-        </ProtectedRoute>
+        </LazyProtectedRoute>
       </Route>
       <Route path="/events">
-        <ProtectedRoute>
+        <LazyProtectedRoute>
           <Events />
-        </ProtectedRoute>
+        </LazyProtectedRoute>
       </Route>
       <Route path="/customers">
-        <ProtectedRoute>
+        <LazyProtectedRoute>
           <Customers />
-        </ProtectedRoute>
+        </LazyProtectedRoute>
       </Route>
       <Route path="/leads">
-        <ProtectedRoute>
+        <LazyProtectedRoute>
           <Leads />
-        </ProtectedRoute>
+        </LazyProtectedRoute>
       </Route>
       <Route path="/payments">
-        <ProtectedRoute>
+        <LazyProtectedRoute>
           <Payments />
-        </ProtectedRoute>
+        </LazyProtectedRoute>
       </Route>
       <Route path="/tasks">
-        <ProtectedRoute>
+        <LazyProtectedRoute>
           <Tasks />
-        </ProtectedRoute>
+        </LazyProtectedRoute>
       </Route>
       <Route path="/venues">
-        <ProtectedRoute>
+        <LazyProtectedRoute>
           <Venues />
-        </ProtectedRoute>
+        </LazyProtectedRoute>
       </Route>
       <Route path="/setup-styles">
-        <ProtectedRoute>
+        <LazyProtectedRoute>
           <SetupStyles />
-        </ProtectedRoute>
+        </LazyProtectedRoute>
       </Route>
       <Route path="/packages">
-        <ProtectedRoute>
+        <LazyProtectedRoute>
           <Packages />
-        </ProtectedRoute>
+        </LazyProtectedRoute>
       </Route>
       <Route path="/ai-analytics">
-        <ProtectedRoute>
+        <LazyProtectedRoute>
           <AIAnalytics />
-        </ProtectedRoute>
+        </LazyProtectedRoute>
       </Route>
       <Route path="/reports">
-        <ProtectedRoute>
+        <LazyProtectedRoute>
           <Reports />
-        </ProtectedRoute>
+        </LazyProtectedRoute>
       </Route>
       <Route path="/voice-booking">
-        <ProtectedRoute>
+        <LazyProtectedRoute>
           <VoiceBooking />
-        </ProtectedRoute>
+        </LazyProtectedRoute>
       </Route>
       <Route path="/settings">
-        <ProtectedRoute>
+        <LazyProtectedRoute>
           <Settings />
-        </ProtectedRoute>
+        </LazyProtectedRoute>
       </Route>
       <Route path="/proposals">
-        <ProtectedRoute>
+        <LazyProtectedRoute>
           <Proposals />
-        </ProtectedRoute>
+        </LazyProtectedRoute>
       </Route>
       <Route path="/users">
         <ProtectedRoute requiredRole="tenant_admin">
-          <Users />
+          <Suspense fallback={<PageLoader />}>
+            <Users />
+          </Suspense>
         </ProtectedRoute>
       </Route>
-      <Route path="/proposal/:proposalId" component={ProposalView} />
-      <Route path="/proposal/:proposalId/payment" component={PaymentCheckout} />
-      <Route path="/proposal/:proposalId/success" component={PaymentSuccess} />
+      <Route path="/proposal/:proposalId">
+        <Suspense fallback={<PageLoader />}>
+          <ProposalView />
+        </Suspense>
+      </Route>
+      <Route path="/proposal/:proposalId/payment">
+        <Suspense fallback={<PageLoader />}>
+          <PaymentCheckout />
+        </Suspense>
+      </Route>
+      <Route path="/proposal/:proposalId/success">
+        <Suspense fallback={<PageLoader />}>
+          <PaymentSuccess />
+        </Suspense>
+      </Route>
       <Route path="/super-admin">
         <ProtectedRoute requiredRole="super_admin" redirectTo="/super-admin/login">
-          <SuperAdminDashboard />
+          <Suspense fallback={<PageLoader />}>
+            <SuperAdminDashboard />
+          </Suspense>
         </ProtectedRoute>
       </Route>
       <Route path="/super-admin/login" component={SuperAdminLogin} />
@@ -132,6 +174,7 @@ function App() {
         <Toaster />
         <Router />
         <QuickActions />
+        <FloatingChatbot />
       </TooltipProvider>
     </QueryClientProvider>
   );

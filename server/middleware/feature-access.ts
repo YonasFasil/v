@@ -3,7 +3,7 @@ import { storage } from "../storage";
 import { type TenantRequest } from "./tenant";
 
 export interface FeatureRequest extends TenantRequest {
-  hasFeature?: (featureId: string) => boolean;
+  hasFeature?: (featureId: string) => Promise<boolean>;
 }
 
 // Mapping of feature IDs to their descriptions and categories
@@ -116,8 +116,8 @@ const TRIAL_FEATURES = [
 /**
  * Get the features available to a tenant based on their subscription package
  */
-export function getTenantFeatures(tenantId: string): string[] {
-  const tenant = storage.tenants.get(tenantId);
+export async function getTenantFeatures(tenantId: string): Promise<string[]> {
+  const tenant = await storage.getTenant(tenantId);
   if (!tenant) {
     return TRIAL_FEATURES;
   }
@@ -128,7 +128,7 @@ export function getTenantFeatures(tenantId: string): string[] {
   }
 
   // Get the subscription package
-  const subscriptionPackage = storage.subscriptionPackages.get(tenant.subscriptionPackageId);
+  const subscriptionPackage = await storage.getSubscriptionPackage(tenant.subscriptionPackageId);
   if (!subscriptionPackage || !subscriptionPackage.isActive) {
     return TRIAL_FEATURES;
   }
@@ -141,8 +141,8 @@ export function getTenantFeatures(tenantId: string): string[] {
 /**
  * Check if a tenant has access to a specific feature
  */
-export function hasFeatureAccess(tenantId: string, featureId: string): boolean {
-  const availableFeatures = getTenantFeatures(tenantId);
+export async function hasFeatureAccess(tenantId: string, featureId: string): Promise<boolean> {
+  const availableFeatures = await getTenantFeatures(tenantId);
   return availableFeatures.includes(featureId);
 }
 
@@ -155,8 +155,8 @@ export function addFeatureAccess(req: FeatureRequest, res: Response, next: NextF
   }
 
   // Add hasFeature function to request object
-  req.hasFeature = (featureId: string) => {
-    return hasFeatureAccess(req.tenant!.id, featureId);
+  req.hasFeature = async (featureId: string) => {
+    return await hasFeatureAccess(req.tenant!.id, featureId);
   };
 
   next();
@@ -192,12 +192,12 @@ export function requireFeature(featureId: string) {
 /**
  * Endpoint to get available features for a tenant
  */
-export function getFeaturesForTenant(req: FeatureRequest, res: Response) {
+export async function getFeaturesForTenant(req: FeatureRequest, res: Response) {
   if (!req.tenant) {
     return res.status(401).json({ message: "Authentication required" });
   }
 
-  const availableFeatures = getTenantFeatures(req.tenant.id);
+  const availableFeatures = await getTenantFeatures(req.tenant.id);
   const featureDetails = availableFeatures.map(featureId => ({
     id: featureId,
     ...AVAILABLE_FEATURES[featureId as keyof typeof AVAILABLE_FEATURES],
@@ -216,7 +216,7 @@ export function getFeaturesForTenant(req: FeatureRequest, res: Response) {
 
   res.json({
     tenant: req.tenant,
-    package: req.tenant.subscriptionPackageId ? storage.subscriptionPackages.get(req.tenant.subscriptionPackageId) : null,
+    package: req.tenant.subscriptionPackageId ? await storage.getSubscriptionPackage(req.tenant.subscriptionPackageId) : null,
     features: {
       enabled: featureDetails,
       disabled: disabledFeatures,
@@ -229,7 +229,7 @@ export function getFeaturesForTenant(req: FeatureRequest, res: Response) {
 /**
  * Check package limits (users, venues, bookings)
  */
-export function checkPackageLimits(tenantId: string): {
+export async function checkPackageLimits(tenantId: string): Promise< {
   usersWithinLimit: boolean;
   venuesWithinLimit: boolean;
   bookingsWithinLimit: boolean;
@@ -241,8 +241,8 @@ export function checkPackageLimits(tenantId: string): {
     currentVenues: number;
     currentBookings: number;
   };
-} {
-  const tenant = storage.tenants.get(tenantId);
+}> {
+  const tenant = await storage.getTenant(tenantId);
   if (!tenant) {
     return {
       usersWithinLimit: false,
@@ -265,7 +265,7 @@ export function checkPackageLimits(tenantId: string): {
   let maxBookingsPerMonth = 50;
 
   if (tenant.subscriptionPackageId) {
-    const subscriptionPackage = storage.subscriptionPackages.get(tenant.subscriptionPackageId);
+    const subscriptionPackage = await storage.getSubscriptionPackage(tenant.subscriptionPackageId);
     if (subscriptionPackage && subscriptionPackage.isActive) {
       maxUsers = subscriptionPackage.maxUsers || 3;
       maxVenues = subscriptionPackage.maxVenues || 1;
@@ -296,12 +296,12 @@ export function checkPackageLimits(tenantId: string): {
  * Middleware to check package limits before allowing actions
  */
 export function requireWithinLimits(limitType: 'users' | 'venues' | 'bookings') {
-  return (req: FeatureRequest, res: Response, next: NextFunction) => {
+  return async (req: FeatureRequest, res: Response, next: NextFunction) => {
     if (!req.tenant) {
       return res.status(401).json({ message: "Authentication required" });
     }
 
-    const limits = checkPackageLimits(req.tenant.id);
+    const limits = await checkPackageLimits(req.tenant.id);
     
     let withinLimit = false;
     let limitName = '';

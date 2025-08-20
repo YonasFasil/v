@@ -786,10 +786,10 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
       } catch (error) {
         console.error('🔥 API request failed:', error);
         console.error('🔥 Error details:', {
-          message: error.message,
-          name: error.name,
-          stack: error.stack,
-          response: error.response
+          message: error instanceof Error ? error.message : 'Unknown error',
+          name: error instanceof Error ? error.name : 'Unknown',
+          stack: error instanceof Error ? error.stack : undefined,
+          response: (error as any)?.response
         });
         throw error;
       }
@@ -966,7 +966,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
     }
 
     // If this is a proposal submission, show the email modal instead
-    if (submitType === 'proposal') {
+    if ((submitType as string) === 'proposal') {
       setShowProposalEmail(true);
       return;
     }
@@ -984,7 +984,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         startTime: convertTimeToHours(firstDate.startTime),
         endTime: convertTimeToHours(firstDate.endTime),
         guestCount: firstDate.guestCount || 1,
-        status: (submitType === 'proposal' ? 'pending' : eventStatus),
+        status: ((submitType as string) === 'proposal' ? 'pending' : eventStatus) as string,
         customerId: selectedCustomer,
         venueId: selectedVenue,
         spaceId: firstDate.spaceId,
@@ -997,8 +997,8 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         serviceTaxOverrides: firstDate.serviceTaxOverrides || null,
         totalAmount: totalPrice.toString(),
         notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${firstDate.selectedServices?.length || 0} selected`,
-        proposalStatus: (submitType === 'proposal' ? 'sent' : 'none'),
-        proposalSentAt: submitType === 'proposal' ? new Date().toISOString() : null
+        proposalStatus: ((submitType as string) === 'proposal' ? 'sent' : 'none') as string,
+        proposalSentAt: ((submitType as string) === 'proposal' ? new Date().toISOString() : null) as string | null
       };
 
       createBooking.mutate(bookingData, {
@@ -1050,7 +1050,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
       const contractData = {
         customerId: selectedCustomer,
         contractName: eventName,
-        status: submitType === 'proposal' ? 'pending' : eventStatus
+        status: ((submitType as string) === 'proposal' ? 'pending' : eventStatus) as string
       };
 
       console.log('🔧 Creating contract with data:', contractData);
@@ -1067,7 +1067,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
           startTime: convertTimeToHours(date.startTime),
           endTime: convertTimeToHours(date.endTime),
           guestCount: date.guestCount || 1,
-          status: (submitType === 'proposal' ? 'pending' : eventStatus),
+          status: ((submitType as string) === 'proposal' ? 'pending' : eventStatus) as string,
           customerId: selectedCustomer,
           venueId: selectedVenue,
           spaceId: date.spaceId,
@@ -1080,8 +1080,8 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
           serviceTaxOverrides: date.serviceTaxOverrides || null,
           totalAmount: datePrice.toString(),
           notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${date.selectedServices?.length || 0} selected`,
-          proposalStatus: (submitType === 'proposal' ? 'sent' : 'none'),
-          proposalSentAt: submitType === 'proposal' ? new Date().toISOString() : null
+          proposalStatus: ((submitType as string) === 'proposal' ? 'sent' : 'none') as string,
+          proposalSentAt: ((submitType as string) === 'proposal' ? new Date().toISOString() : null) as string | null
         };
       });
 
@@ -1373,7 +1373,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
               {currentStep === 1 && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
                   {/* Left: Calendar */}
-                  <div>
+                  <div className="sticky top-0 self-start">
                     <div className="flex items-center justify-between mb-4">
                       <Button
                         variant="ghost" 
@@ -1635,7 +1635,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                           return (
                                             <div className="flex items-center gap-1 text-xs text-amber-600">
                                               <div className="w-1 h-1 bg-amber-400 rounded-full"></div>
-                                              Exceeds capacity ({capacity})
+                                              Exceeds ({capacity})
                                             </div>
                                           );
                                         }

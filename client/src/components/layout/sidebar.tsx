@@ -26,30 +26,30 @@ import {
 } from "lucide-react";
 
 const navigationItems = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, permission: "view_dashboard" },
-  { name: "Events & Bookings", href: "/events", icon: Calendar, permission: "view_events" },
-  { name: "Customers", href: "/customers", icon: Users, permission: "view_customers" },
-  { name: "Leads", href: "/leads", icon: UserPlus, permission: "manage_leads" },
-  { name: "Proposals", href: "/proposals", icon: FileText, permission: "view_proposals" },
-  { name: "Payments", href: "/payments", icon: CreditCard, permission: "view_payments" },
-  { name: "Tasks & Team", href: "/tasks", icon: CheckSquare, permission: "view_events" },
-  { name: "Venues", href: "/venues", icon: MapPin, permission: "view_venues" },
-  { name: "Setup Styles", href: "/setup-styles", icon: Grid3X3, permission: "manage_venues" },
-  { name: "Packages & Services", href: "/packages", icon: Package, permission: "manage_venues" },
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, permission: "dashboard" },
+  { name: "Events & Bookings", href: "/events", icon: Calendar, permission: "bookings" },
+  { name: "Customers", href: "/customers", icon: Users, permission: "customers" },
+  { name: "Leads", href: "/leads", icon: UserPlus, permission: "customers" },
+  { name: "Proposals", href: "/proposals", icon: FileText, permission: "proposals" },
+  { name: "Payments", href: "/payments", icon: CreditCard, permission: "payments" },
+  { name: "Tasks & Team", href: "/tasks", icon: CheckSquare, permission: "tasks" },
+  { name: "Venues", href: "/venues", icon: MapPin, permission: "venues" },
+  { name: "Setup Styles", href: "/setup-styles", icon: Grid3X3, permission: "venues" },
+  { name: "Packages & Services", href: "/packages", icon: Package, permission: "venues" },
 ];
 
 const aiFeatures = [
-  { name: "AI Analytics & Reports", href: "/ai-analytics", icon: BarChart3, permission: "use_ai_features" },
-  { name: "Voice Booking", href: "/voice-booking", icon: Mic, permission: "use_ai_features" },
+  { name: "AI Analytics & Reports", href: "/ai-analytics", icon: BarChart3, permission: "settings" },
+  { name: "Voice Booking", href: "/voice-booking", icon: Mic, permission: "bookings" },
 ];
 
 const analyticsItems = [
-  { name: "Reports & Analytics", href: "/reports", icon: BarChart3, permission: "view_reports" },
-  { name: "Settings", href: "/settings", icon: Settings, permission: "manage_settings" },
+  { name: "Reports & Analytics", href: "/reports", icon: BarChart3, permission: "settings" },
+  { name: "Settings", href: "/settings", icon: Settings, permission: "settings" },
 ];
 
 const adminItems = [
-  { name: "User Management", href: "/users", icon: Users, permission: "manage_users" },
+  { name: "User Management", href: "/users", icon: Users, permission: "users" },
 ];
 
 interface SidebarProps {

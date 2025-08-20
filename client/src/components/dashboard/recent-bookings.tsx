@@ -47,8 +47,8 @@ export function RecentBookings() {
   const recentBookings = bookings?.slice(0, 5) || [];
 
   return (
-    <Card className="border border-slate-200 bg-white">
-      <CardHeader className="pb-4">
+    <Card className="border border-slate-200 bg-white h-full flex flex-col">
+      <CardHeader className="pb-4 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-lg font-semibold text-slate-900">
@@ -62,9 +62,9 @@ export function RecentBookings() {
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="pt-0 flex-1 flex flex-col">
         {recentBookings.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="text-center flex-1 flex flex-col justify-center py-12">
             <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center mx-auto mb-4">
               <Calendar className="w-6 h-6 text-slate-500" />
             </div>

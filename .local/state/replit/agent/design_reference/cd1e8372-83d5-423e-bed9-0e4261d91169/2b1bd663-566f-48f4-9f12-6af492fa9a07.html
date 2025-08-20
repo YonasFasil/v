@@ -1,0 +1,1045 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Venuine - AI-Powered Venue Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2563EB',
+                        secondary: '#7C3AED',
+                        accent: '#059669',
+                        warning: '#D97706',
+                        error: '#DC2626'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/heroicons@2.0.18/24/outline/index.js" type="module"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+        .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+        .sidebar-scroll::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 2px; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+    <!-- @COMPONENT: AppLayout [main application layout with sidebar and content] -->
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar Navigation -->
+        <!-- @COMPONENT: Sidebar [navigation and menu] -->
+        <div class="w-64 bg-white border-r border-slate-200 flex flex-col">
+            <!-- Logo and Brand -->
+            <div class="flex items-center px-6 py-4 border-b border-slate-200">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center">
+                        <span class="text-white font-bold text-sm">V</span>
+                    </div>
+                    <span class="text-xl font-semibold text-slate-900">Venuine</span>
+                </div>
+            </div>
+
+            <!-- Navigation Menu -->
+            <nav class="flex-1 px-4 py-4 space-y-1 sidebar-scroll overflow-y-auto">
+                <div class="space-y-1">
+                    <a href="#" class="bg-primary text-white flex items-center px-3 py-2 rounded-lg text-sm font-medium">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v3H8V5z"/>
+                        </svg>
+                        Dashboard
+                    </a>
+                    <a href="#" class="text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center px-3 py-2 rounded-lg text-sm font-medium">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v16a2 2 0 002 2z"/>
+                        </svg>
+                        Events & Bookings
+                    </a>
+                    <a href="#" class="text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center px-3 py-2 rounded-lg text-sm font-medium">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                        Customers & Leads
+                    </a>
+                    <a href="#" class="text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center px-3 py-2 rounded-lg text-sm font-medium">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        Proposals & Contracts
+                    </a>
+                    <a href="#" class="text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center px-3 py-2 rounded-lg text-sm font-medium">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+                        </svg>
+                        Payments
+                    </a>
+                    <a href="#" class="text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center px-3 py-2 rounded-lg text-sm font-medium">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                        </svg>
+                        Tasks & Team
+                    </a>
+                </div>
+
+                <!-- AI Features Section -->
+                <div class="pt-4">
+                    <div class="px-3 mb-2">
+                        <div class="flex items-center">
+                            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">AI Features</span>
+                            <div class="ml-2 px-2 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full">
+                                <span class="text-xs text-white font-medium">NEW</span>
+                            </div>
+                        </div>
+                    </div>
+                    <a href="#" class="text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center px-3 py-2 rounded-lg text-sm font-medium">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                        Smart Scheduling
+                    </a>
+                    <a href="#" class="text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center px-3 py-2 rounded-lg text-sm font-medium">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                        </svg>
+                        Auto Email Replies
+                    </a>
+                    <a href="#" class="text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center px-3 py-2 rounded-lg text-sm font-medium">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                        Predictive Analytics
+                    </a>
+                    <a href="#" class="text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center px-3 py-2 rounded-lg text-sm font-medium">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                        </svg>
+                        Lead Scoring
+                    </a>
+                </div>
+
+                <!-- Analytics Section -->
+                <div class="pt-4">
+                    <div class="px-3 mb-2">
+                        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Analytics</span>
+                    </div>
+                    <a href="#" class="text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center px-3 py-2 rounded-lg text-sm font-medium">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        Reports & Insights
+                    </a>
+                    <a href="#" class="text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center px-3 py-2 rounded-lg text-sm font-medium">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        Settings
+                    </a>
+                </div>
+            </nav>
+
+            <!-- User Profile -->
+            <div class="border-t border-slate-200 p-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-slate-300 rounded-full flex items-center justify-center">
+                        <span class="text-sm font-medium text-slate-700">JD</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-slate-900 truncate" data-bind="user.name">John Doe</p>
+                        <p class="text-xs text-slate-500 truncate" data-bind="user.role">Venue Manager</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: Sidebar -->
+
+        <!-- Main Content Area -->
+        <!-- @COMPONENT: MainContent [dashboard content and header] -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <!-- @COMPONENT: Header [top navigation and search] -->
+            <header class="bg-white border-b border-slate-200 px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <h1 class="text-2xl font-semibold text-slate-900">Dashboard</h1>
+                        <p class="text-sm text-slate-600 mt-1">Welcome back! Here's what's happening at your venues today.</p>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <!-- Search Bar -->
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg class="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                </svg>
+                            </div>
+                            <input type="text" class="block w-80 pl-10 pr-3 py-2 border border-slate-300 rounded-lg leading-5 bg-white placeholder-slate-500 focus:outline-none focus:placeholder-slate-400 focus:ring-1 focus:ring-primary focus:border-primary" placeholder="Search events, customers, or venues...">
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <button class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors" data-event="click:createNewBooking">
+                            + New Booking
+                        </button>
+
+                        <!-- Notifications -->
+                        <button class="relative p-2 text-slate-400 hover:text-slate-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-3.5-3.5a.5.5 0 010-.707L19 9V7a3 3 0 00-3-3H8a3 3 0 00-3 3v2l2.5 3.5a.5.5 0 010 .707L5 17h5m5 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                            </svg>
+                            <span class="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400"></span>
+                        </button>
+                    </div>
+                </div>
+            </header>
+            <!-- @END_COMPONENT: Header -->
+
+            <!-- Dashboard Content -->
+            <!-- @COMPONENT: DashboardContent [main dashboard widgets and data] -->
+            <main class="flex-1 overflow-y-auto p-6">
+                <!-- AI Insights Banner -->
+                <!-- @COMPONENT: AIInsightsBanner [AI-powered recommendations] -->
+                <div class="mb-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-6 text-white">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <div class="flex items-center mb-2">
+                                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                </svg>
+                                <h3 class="text-lg font-semibold">AI Insights</h3>
+                            </div>
+                            <p class="text-purple-100 mb-3">Your venue utilization is 15% higher than last month. AI suggests focusing on weekend evening slots for maximum revenue.</p>
+                            <div class="flex space-x-4 text-sm">
+                                <span class="bg-white/20 px-3 py-1 rounded-full">+23% Booking Rate</span>
+                                <span class="bg-white/20 px-3 py-1 rounded-full">3 High-Value Leads</span>
+                                <span class="bg-white/20 px-3 py-1 rounded-full">$12K Revenue Opportunity</span>
+                            </div>
+                        </div>
+                        <button class="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                            View Details
+                        </button>
+                    </div>
+                </div>
+                <!-- @END_COMPONENT: AIInsightsBanner -->
+
+                <!-- Key Metrics Cards -->
+                <!-- @COMPONENT: MetricsGrid [dashboard statistics cards] -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-xl p-6 border border-slate-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-600">Total Bookings</p>
+                                <p class="text-3xl font-bold text-slate-900" data-bind="metrics.totalBookings">127</p>
+                                <p class="text-sm text-accent font-medium">+12% from last month</p>
+                            </div>
+                            <div class="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
+                                <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v16a2 2 0 002 2z"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl p-6 border border-slate-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-600">Revenue</p>
+                                <p class="text-3xl font-bold text-slate-900" data-bind="metrics.revenue">$84,250</p>
+                                <p class="text-sm text-accent font-medium">+8% from last month</p>
+                            </div>
+                            <div class="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center">
+                                <svg class="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl p-6 border border-slate-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-600">Active Leads</p>
+                                <p class="text-3xl font-bold text-slate-900" data-bind="metrics.activeLeads">43</p>
+                                <p class="text-sm text-warning font-medium">5 high priority</p>
+                            </div>
+                            <div class="w-12 h-12 bg-orange-50 rounded-lg flex items-center justify-center">
+                                <svg class="w-6 h-6 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl p-6 border border-slate-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-slate-600">Venue Utilization</p>
+                                <p class="text-3xl font-bold text-slate-900" data-bind="metrics.utilization">76%</p>
+                                <p class="text-sm text-accent font-medium">Above average</p>
+                            </div>
+                            <div class="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center">
+                                <svg class="w-6 h-6 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- @END_COMPONENT: MetricsGrid -->
+
+                <!-- Main Dashboard Content Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Left Column: Calendar and Recent Bookings -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <!-- Quick Calendar View -->
+                        <!-- @COMPONENT: CalendarWidget [interactive calendar with events] -->
+                        <div class="bg-white rounded-xl border border-slate-200">
+                            <div class="p-6 border-b border-slate-200">
+                                <div class="flex items-center justify-between">
+                                    <h3 class="text-lg font-semibold text-slate-900">Event Calendar</h3>
+                                    <div class="flex space-x-2">
+                                        <button class="px-3 py-1 text-sm bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors">Month</button>
+                                        <button class="px-3 py-1 text-sm bg-primary text-white rounded-lg">Week</button>
+                                        <button class="px-3 py-1 text-sm bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors">Day</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="p-6">
+                                <!-- Calendar Grid -->
+                                <div class="mb-4">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <h4 class="text-lg font-medium">December 2024</h4>
+                                        <div class="flex space-x-2">
+                                            <button class="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                                                </svg>
+                                            </button>
+                                            <button class="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-7 gap-1 mb-2">
+                                        <div class="p-3 text-xs font-medium text-slate-500 text-center">Sun</div>
+                                        <div class="p-3 text-xs font-medium text-slate-500 text-center">Mon</div>
+                                        <div class="p-3 text-xs font-medium text-slate-500 text-center">Tue</div>
+                                        <div class="p-3 text-xs font-medium text-slate-500 text-center">Wed</div>
+                                        <div class="p-3 text-xs font-medium text-slate-500 text-center">Thu</div>
+                                        <div class="p-3 text-xs font-medium text-slate-500 text-center">Fri</div>
+                                        <div class="p-3 text-xs font-medium text-slate-500 text-center">Sat</div>
+                                    </div>
+                                    <div class="grid grid-cols-7 gap-1">
+                                        <!-- Calendar days with events -->
+                                        <div class="p-3 text-center text-slate-400">1</div>
+                                        <div class="p-3 text-center text-slate-400">2</div>
+                                        <div class="p-3 text-center text-slate-400">3</div>
+                                        <div class="p-3 text-center">4</div>
+                                        <div class="p-3 text-center">5</div>
+                                        <div class="p-3 text-center">6</div>
+                                        <div class="p-3 text-center relative">
+                                            <span>7</span>
+                                            <div class="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-primary rounded-full"></div>
+                                        </div>
+                                        <div class="p-3 text-center">8</div>
+                                        <div class="p-3 text-center">9</div>
+                                        <div class="p-3 text-center">10</div>
+                                        <div class="p-3 text-center">11</div>
+                                        <div class="p-3 text-center relative">
+                                            <span>12</span>
+                                            <div class="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-accent rounded-full"></div>
+                                        </div>
+                                        <div class="p-3 text-center">13</div>
+                                        <div class="p-3 text-center relative">
+                                            <span>14</span>
+                                            <div class="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-warning rounded-full"></div>
+                                        </div>
+                                        <div class="p-3 text-center bg-primary text-white rounded-lg">15</div>
+                                        <div class="p-3 text-center">16</div>
+                                        <div class="p-3 text-center">17</div>
+                                        <div class="p-3 text-center relative">
+                                            <span>18</span>
+                                            <div class="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-secondary rounded-full"></div>
+                                        </div>
+                                        <div class="p-3 text-center">19</div>
+                                        <div class="p-3 text-center">20</div>
+                                        <div class="p-3 text-center">21</div>
+                                        <div class="p-3 text-center relative">
+                                            <span>22</span>
+                                            <div class="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-primary rounded-full"></div>
+                                        </div>
+                                        <div class="p-3 text-center">23</div>
+                                        <div class="p-3 text-center">24</div>
+                                        <div class="p-3 text-center">25</div>
+                                        <div class="p-3 text-center">26</div>
+                                        <div class="p-3 text-center">27</div>
+                                        <div class="p-3 text-center">28</div>
+                                        <div class="p-3 text-center">29</div>
+                                        <div class="p-3 text-center">30</div>
+                                        <div class="p-3 text-center">31</div>
+                                    </div>
+                                </div>
+                                <!-- Event Legend -->
+                                <div class="flex flex-wrap gap-4 pt-4 border-t border-slate-200">
+                                    <div class="flex items-center space-x-2">
+                                        <div class="w-3 h-3 bg-primary rounded-full"></div>
+                                        <span class="text-sm text-slate-600">Corporate Events</span>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <div class="w-3 h-3 bg-accent rounded-full"></div>
+                                        <span class="text-sm text-slate-600">Weddings</span>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <div class="w-3 h-3 bg-warning rounded-full"></div>
+                                        <span class="text-sm text-slate-600">Social Events</span>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <div class="w-3 h-3 bg-secondary rounded-full"></div>
+                                        <span class="text-sm text-slate-600">Private Dining</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- @END_COMPONENT: CalendarWidget -->
+
+                        <!-- Recent Bookings -->
+                        <!-- @COMPONENT: RecentBookings [table of recent booking activity] -->
+                        <div class="bg-white rounded-xl border border-slate-200">
+                            <div class="p-6 border-b border-slate-200">
+                                <div class="flex items-center justify-between">
+                                    <h3 class="text-lg font-semibold text-slate-900">Recent Bookings</h3>
+                                    <button class="text-primary hover:text-blue-600 text-sm font-medium">View All</button>
+                                </div>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <!-- @MAP: recentBookings.map(booking => ( -->
+                                <table class="w-full">
+                                    <thead class="bg-slate-50">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Event</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Client</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Venue</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-slate-200">
+                                        <tr class="hover:bg-slate-50">
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="flex items-center">
+                                                    <!-- Modern elegant wedding reception hall with crystal chandeliers -->
+                                                    <img src="https://images.unsplash.com/photo-1469371670807-013ccf25f16a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=80&h=60" alt="Wedding reception venue" class="w-12 h-9 rounded-lg object-cover">
+                                                    <div class="ml-3">
+                                                        <div class="text-sm font-medium text-slate-900" data-bind="booking.name">Johnson Wedding</div>
+                                                        <div class="text-sm text-slate-500" data-bind="booking.type">Wedding Reception</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="text-sm font-medium text-slate-900" data-bind="booking.client">Sarah Johnson</div>
+                                                <div class="text-sm text-slate-500" data-bind="booking.clientEmail">sarah.j@email.com</div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-900" data-bind="booking.date">Dec 22, 2024</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-900" data-bind="booking.venue">Grand Ballroom</td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800" data-bind="booking.status">Confirmed</span>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900" data-bind="booking.value">$8,500</td>
+                                        </tr>
+                                        <tr class="hover:bg-slate-50">
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="flex items-center">
+                                                    <!-- Professional corporate meeting room with conference table -->
+                                                    <img src="https://images.unsplash.com/photo-1560472354-b33ff0c44a43?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=80&h=60" alt="Corporate meeting room" class="w-12 h-9 rounded-lg object-cover">
+                                                    <div class="ml-3">
+                                                        <div class="text-sm font-medium text-slate-900" data-bind="booking.name">TechCorp Annual</div>
+                                                        <div class="text-sm text-slate-500" data-bind="booking.type">Corporate Event</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="text-sm font-medium text-slate-900" data-bind="booking.client">Mike Chen</div>
+                                                <div class="text-sm text-slate-500" data-bind="booking.clientEmail">m.chen@techcorp.com</div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-900" data-bind="booking.date">Dec 18, 2024</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-900" data-bind="booking.venue">Conference Center</td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800" data-bind="booking.status">Pending</span>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900" data-bind="booking.value">$12,200</td>
+                                        </tr>
+                                        <tr class="hover:bg-slate-50">
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="flex items-center">
+                                                    <!-- Upscale restaurant private dining room with elegant table setting -->
+                                                    <img src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=80&h=60" alt="Private dining room" class="w-12 h-9 rounded-lg object-cover">
+                                                    <div class="ml-3">
+                                                        <div class="text-sm font-medium text-slate-900" data-bind="booking.name">Birthday Celebration</div>
+                                                        <div class="text-sm text-slate-500" data-bind="booking.type">Private Dining</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="text-sm font-medium text-slate-900" data-bind="booking.client">Emily Rodriguez</div>
+                                                <div class="text-sm text-slate-500" data-bind="booking.clientEmail">emily.r@gmail.com</div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-900" data-bind="booking.date">Dec 15, 2024</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-900" data-bind="booking.venue">Private Dining</td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800" data-bind="booking.status">Confirmed</span>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900" data-bind="booking.value">$2,800</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <!-- @END_MAP )) -->
+                            </div>
+                        </div>
+                        <!-- @END_COMPONENT: RecentBookings -->
+                    </div>
+
+                    <!-- Right Column: AI Recommendations and Quick Actions -->
+                    <div class="space-y-6">
+                        <!-- AI Smart Recommendations -->
+                        <!-- @COMPONENT: AIRecommendations [AI-powered insights and suggestions] -->
+                        <div class="bg-white rounded-xl border border-slate-200">
+                            <div class="p-6 border-b border-slate-200">
+                                <div class="flex items-center space-x-2">
+                                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                    </svg>
+                                    <h3 class="text-lg font-semibold text-slate-900">AI Recommendations</h3>
+                                </div>
+                            </div>
+                            <div class="p-6 space-y-4">
+                                <!-- @MAP: aiRecommendations.map(recommendation => ( -->
+                                <div class="border border-purple-200 rounded-lg p-4 bg-purple-50">
+                                    <div class="flex items-start space-x-3">
+                                        <div class="w-2 h-2 bg-purple-600 rounded-full mt-2"></div>
+                                        <div class="flex-1">
+                                            <h4 class="text-sm font-medium text-slate-900" data-bind="recommendation.title">Optimize Weekend Pricing</h4>
+                                            <p class="text-sm text-slate-600 mt-1" data-bind="recommendation.description">AI suggests increasing weekend rates by 15% based on demand patterns.</p>
+                                            <button class="text-xs text-purple-600 hover:text-purple-700 font-medium mt-2" data-event="click:applyRecommendation">Apply Suggestion</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="border border-blue-200 rounded-lg p-4 bg-blue-50">
+                                    <div class="flex items-start space-x-3">
+                                        <div class="w-2 h-2 bg-blue-600 rounded-full mt-2"></div>
+                                        <div class="flex-1">
+                                            <h4 class="text-sm font-medium text-slate-900" data-bind="recommendation.title">Follow Up High-Value Lead</h4>
+                                            <p class="text-sm text-slate-600 mt-1" data-bind="recommendation.description">Contact TechStart Inc. today - they viewed your proposal 3 times.</p>
+                                            <button class="text-xs text-blue-600 hover:text-blue-700 font-medium mt-2" data-event="click:followUpLead">Send Follow-up</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="border border-green-200 rounded-lg p-4 bg-green-50">
+                                    <div class="flex items-start space-x-3">
+                                        <div class="w-2 h-2 bg-green-600 rounded-full mt-2"></div>
+                                        <div class="flex-1">
+                                            <h4 class="text-sm font-medium text-slate-900" data-bind="recommendation.title">Upsell Opportunity</h4>
+                                            <p class="text-sm text-slate-600 mt-1" data-bind="recommendation.description">Johnson Wedding could add premium lighting package (+$1,200).</p>
+                                            <button class="text-xs text-green-600 hover:text-green-700 font-medium mt-2" data-event="click:sendUpsellProposal">Send Proposal</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- @END_MAP )) -->
+                            </div>
+                        </div>
+                        <!-- @END_COMPONENT: AIRecommendations -->
+
+                        <!-- Active Leads -->
+                        <!-- @COMPONENT: ActiveLeads [lead management widget] -->
+                        <div class="bg-white rounded-xl border border-slate-200">
+                            <div class="p-6 border-b border-slate-200">
+                                <div class="flex items-center justify-between">
+                                    <h3 class="text-lg font-semibold text-slate-900">Active Leads</h3>
+                                    <span class="text-sm text-slate-500">5 high priority</span>
+                                </div>
+                            </div>
+                            <div class="p-6 space-y-4">
+                                <!-- @MAP: activeLeads.map(lead => ( -->
+                                <div class="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center">
+                                            <span class="text-sm font-medium text-slate-700" data-bind="lead.initials">JD</span>
+                                        </div>
+                                        <div>
+                                            <p class="text-sm font-medium text-slate-900" data-bind="lead.name">Jennifer Davis</p>
+                                            <p class="text-xs text-slate-500" data-bind="lead.company">Davis & Associates</p>
+                                            <div class="flex items-center space-x-2 mt-1">
+                                                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-800" data-bind="lead.priority">High</span>
+                                                <span class="text-xs text-slate-500" data-bind="lead.value">$15,000</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="p-2 text-slate-400 hover:text-slate-600" data-event="click:contactLead">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div class="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center">
+                                            <span class="text-sm font-medium text-slate-700" data-bind="lead.initials">RK</span>
+                                        </div>
+                                        <div>
+                                            <p class="text-sm font-medium text-slate-900" data-bind="lead.name">Robert Kim</p>
+                                            <p class="text-xs text-slate-500" data-bind="lead.company">StartupHub</p>
+                                            <div class="flex items-center space-x-2 mt-1">
+                                                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800" data-bind="lead.priority">Medium</span>
+                                                <span class="text-xs text-slate-500" data-bind="lead.value">$8,500</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="p-2 text-slate-400 hover:text-slate-600" data-event="click:contactLead">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div class="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center">
+                                            <span class="text-sm font-medium text-slate-700" data-bind="lead.initials">AL</span>
+                                        </div>
+                                        <div>
+                                            <p class="text-sm font-medium text-slate-900" data-bind="lead.name">Amanda Lopez</p>
+                                            <p class="text-xs text-slate-500" data-bind="lead.company">Lopez Events</p>
+                                            <div class="flex items-center space-x-2 mt-1">
+                                                <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-800" data-bind="lead.priority">High</span>
+                                                <span class="text-xs text-slate-500" data-bind="lead.value">$22,000</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="p-2 text-slate-400 hover:text-slate-600" data-event="click:contactLead">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <!-- @END_MAP )) -->
+                                <button class="w-full text-primary hover:text-blue-600 text-sm font-medium py-2" data-event="click:viewAllLeads">View All Leads</button>
+                            </div>
+                        </div>
+                        <!-- @END_COMPONENT: ActiveLeads -->
+
+                        <!-- Quick Actions -->
+                        <!-- @COMPONENT: QuickActions [action buttons and shortcuts] -->
+                        <div class="bg-white rounded-xl border border-slate-200">
+                            <div class="p-6 border-b border-slate-200">
+                                <h3 class="text-lg font-semibold text-slate-900">Quick Actions</h3>
+                            </div>
+                            <div class="p-6 space-y-3">
+                                <button class="w-full flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors" data-event="click:createProposal">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                                            <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                            </svg>
+                                        </div>
+                                        <span class="text-sm font-medium text-slate-900">Create Proposal</span>
+                                    </div>
+                                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </button>
+                                
+                                <button class="w-full flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors" data-event="click:generateBEO">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                                            <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                                            </svg>
+                                        </div>
+                                        <span class="text-sm font-medium text-slate-900">Generate BEO</span>
+                                    </div>
+                                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </button>
+
+                                <button class="w-full flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors" data-event="click:sendEmailTemplate">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                                            <svg class="w-4 h-4 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                                            </svg>
+                                        </div>
+                                        <span class="text-sm font-medium text-slate-900">Email Templates</span>
+                                    </div>
+                                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </button>
+
+                                <button class="w-full flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors" data-event="click:processPayment">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                                            <svg class="w-4 h-4 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+                                            </svg>
+                                        </div>
+                                        <span class="text-sm font-medium text-slate-900">Process Payment</span>
+                                    </div>
+                                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <!-- @END_COMPONENT: QuickActions -->
+
+                        <!-- Venue Spaces Overview -->
+                        <!-- @COMPONENT: VenueSpaces [venue availability and utilization] -->
+                        <div class="bg-white rounded-xl border border-slate-200">
+                            <div class="p-6 border-b border-slate-200">
+                                <h3 class="text-lg font-semibold text-slate-900">Venue Spaces</h3>
+                            </div>
+                            <div class="p-6 space-y-4">
+                                <!-- @MAP: venueSpaces.map(space => ( -->
+                                <div class="flex items-center justify-between p-3 border border-slate-200 rounded-lg">
+                                    <div class="flex items-center space-x-3">
+                                        <!-- Luxurious grand ballroom with high ceilings and elegant decor -->
+                                        <img src="https://images.unsplash.com/photo-1519167758481-83f550bb49b3?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=60&h=45" alt="Grand ballroom venue" class="w-12 h-9 rounded-lg object-cover">
+                                        <div>
+                                            <p class="text-sm font-medium text-slate-900" data-bind="space.name">Grand Ballroom</p>
+                                            <p class="text-xs text-slate-500" data-bind="space.capacity">Max 200 guests</p>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-sm font-medium text-slate-900" data-bind="space.utilization">85%</p>
+                                        <p class="text-xs text-accent" data-bind="space.status">Available</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-between p-3 border border-slate-200 rounded-lg">
+                                    <div class="flex items-center space-x-3">
+                                        <!-- Modern conference room with large windows and professional setup -->
+                                        <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=60&h=45" alt="Conference center venue" class="w-12 h-9 rounded-lg object-cover">
+                                        <div>
+                                            <p class="text-sm font-medium text-slate-900" data-bind="space.name">Conference Center</p>
+                                            <p class="text-xs text-slate-500" data-bind="space.capacity">Max 50 guests</p>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-sm font-medium text-slate-900" data-bind="space.utilization">60%</p>
+                                        <p class="text-xs text-warning" data-bind="space.status">Booked Today</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-between p-3 border border-slate-200 rounded-lg">
+                                    <div class="flex items-center space-x-3">
+                                        <!-- Intimate private dining room with warm lighting and elegant table settings -->
+                                        <img src="https://images.unsplash.com/photo-1567521464027-f127ff144326?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=60&h=45" alt="Private dining room" class="w-12 h-9 rounded-lg object-cover">
+                                        <div>
+                                            <p class="text-sm font-medium text-slate-900" data-bind="space.name">Private Dining</p>
+                                            <p class="text-xs text-slate-500" data-bind="space.capacity">Max 25 guests</p>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-sm font-medium text-slate-900" data-bind="space.utilization">45%</p>
+                                        <p class="text-xs text-accent" data-bind="space.status">Available</p>
+                                    </div>
+                                </div>
+                                <!-- @END_MAP )) -->
+                            </div>
+                        </div>
+                        <!-- @END_COMPONENT: VenueSpaces -->
+                    </div>
+                </div>
+
+                <!-- AI-Powered Features Showcase Section -->
+                <!-- @COMPONENT: AIFeaturesShowcase [highlight AI capabilities] -->
+                <div class="mt-8 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-8 border border-indigo-200">
+                    <div class="text-center mb-8">
+                        <h2 class="text-2xl font-bold text-slate-900 mb-4">AI-Powered Features</h2>
+                        <p class="text-slate-600 max-w-2xl mx-auto">Leverage artificial intelligence to streamline your venue management operations and maximize revenue opportunities.</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+                            <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4">
+                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v16a2 2 0 002 2z"/>
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-semibold text-slate-900 mb-2">Smart Scheduling</h3>
+                            <p class="text-sm text-slate-600 mb-4">AI automatically suggests optimal event timing based on venue availability and historical data.</p>
+                            <button class="text-primary hover:text-blue-600 text-sm font-medium" data-event="click:learnMoreSmartScheduling">Learn More →</button>
+                        </div>
+
+                        <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+                            <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mb-4">
+                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-semibold text-slate-900 mb-2">Auto Email Replies</h3>
+                            <p class="text-sm text-slate-600 mb-4">Intelligent email responses handle common inquiries and schedule follow-ups automatically.</p>
+                            <button class="text-primary hover:text-blue-600 text-sm font-medium" data-event="click:learnMoreAutoReplies">Learn More →</button>
+                        </div>
+
+                        <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+                            <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center mb-4">
+                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-semibold text-slate-900 mb-2">Lead Scoring</h3>
+                            <p class="text-sm text-slate-600 mb-4">Machine learning analyzes lead behavior to prioritize high-value opportunities.</p>
+                            <button class="text-primary hover:text-blue-600 text-sm font-medium" data-event="click:learnMoreLeadScoring">Learn More →</button>
+                        </div>
+
+                        <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+                            <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mb-4">
+                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-semibold text-slate-900 mb-2">Predictive Analytics</h3>
+                            <p class="text-sm text-slate-600 mb-4">Forecast revenue trends and optimize pricing based on market demand patterns.</p>
+                            <button class="text-primary hover:text-blue-600 text-sm font-medium" data-event="click:learnMorePredictiveAnalytics">Learn More →</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- @END_COMPONENT: AIFeaturesShowcase -->
+
+                <!-- Venue Gallery Section -->
+                <!-- @COMPONENT: VenueGallery [showcase venue spaces with images] -->
+                <div class="mt-8">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-2xl font-bold text-slate-900">Venue Spaces</h2>
+                        <button class="text-primary hover:text-blue-600 text-sm font-medium" data-event="click:manageSpaces">Manage Spaces</button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <!-- @MAP: venueGallery.map(venue => ( -->
+                        <div class="bg-white rounded-xl overflow-hidden border border-slate-200 hover:shadow-lg transition-shadow">
+                            <!-- Elegant ballroom with crystal chandeliers and marble floors -->
+                            <img src="https://images.unsplash.com/photo-1464207687429-7505649dae38?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=250" alt="Grand ballroom with chandeliers" class="w-full h-48 object-cover" data-mock-image="true">
+                            <div class="p-4">
+                                <h3 class="text-lg font-semibold text-slate-900 mb-1" data-bind="venue.name">Grand Ballroom</h3>
+                                <p class="text-sm text-slate-600 mb-2" data-bind="venue.description">Perfect for weddings and large corporate events</p>
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="text-slate-500" data-bind="venue.capacity">200 guests</span>
+                                    <span class="text-accent font-medium" data-bind="venue.availability">Available</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl overflow-hidden border border-slate-200 hover:shadow-lg transition-shadow">
+                            <!-- Modern conference room with floor-to-ceiling windows -->
+                            <img src="https://images.unsplash.com/photo-1431540015161-0bf868a2d407?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=250" alt="Conference room with windows" class="w-full h-48 object-cover" data-mock-image="true">
+                            <div class="p-4">
+                                <h3 class="text-lg font-semibold text-slate-900 mb-1" data-bind="venue.name">Conference Center</h3>
+                                <p class="text-sm text-slate-600 mb-2" data-bind="venue.description">Ideal for business meetings and presentations</p>
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="text-slate-500" data-bind="venue.capacity">50 guests</span>
+                                    <span class="text-warning font-medium" data-bind="venue.availability">Booked</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl overflow-hidden border border-slate-200 hover:shadow-lg transition-shadow">
+                            <!-- Intimate private dining room with warm ambiance -->
+                            <img src="https://images.unsplash.com/photo-1555244162-803834f70033?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=250" alt="Private dining room" class="w-full h-48 object-cover" data-mock-image="true">
+                            <div class="p-4">
+                                <h3 class="text-lg font-semibold text-slate-900 mb-1" data-bind="venue.name">Private Dining</h3>
+                                <p class="text-sm text-slate-600 mb-2" data-bind="venue.description">Intimate setting for special celebrations</p>
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="text-slate-500" data-bind="venue.capacity">25 guests</span>
+                                    <span class="text-accent font-medium" data-bind="venue.availability">Available</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl overflow-hidden border border-slate-200 hover:shadow-lg transition-shadow">
+                            <!-- Beautiful outdoor terrace with garden views -->
+                            <img src="https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=250" alt="Outdoor terrace venue" class="w-full h-48 object-cover" data-mock-image="true">
+                            <div class="p-4">
+                                <h3 class="text-lg font-semibold text-slate-900 mb-1" data-bind="venue.name">Garden Terrace</h3>
+                                <p class="text-sm text-slate-600 mb-2" data-bind="venue.description">Beautiful outdoor space for cocktail receptions</p>
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="text-slate-500" data-bind="venue.capacity">75 guests</span>
+                                    <span class="text-accent font-medium" data-bind="venue.availability">Available</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl overflow-hidden border border-slate-200 hover:shadow-lg transition-shadow">
+                            <!-- Sophisticated wine cellar for tastings -->
+                            <img src="https://pixabay.com/get/ga5db10e5d3291cf84773459c4d81a4a90c5b2fd08c8ecfb39173b7b5a9484c97c6ce237c8770483718a726a53cc1e09cbb2e249a20071135b92e02107db8d44c_1280.jpg" alt="Wine cellar venue" class="w-full h-48 object-cover" data-mock-image="true">
+                            <div class="p-4">
+                                <h3 class="text-lg font-semibold text-slate-900 mb-1" data-bind="venue.name">Wine Cellar</h3>
+                                <p class="text-sm text-slate-600 mb-2" data-bind="venue.description">Exclusive venue for wine tastings and dinners</p>
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="text-slate-500" data-bind="venue.capacity">20 guests</span>
+                                    <span class="text-accent font-medium" data-bind="venue.availability">Available</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl overflow-hidden border border-slate-200 hover:shadow-lg transition-shadow">
+                            <!-- Rooftop lounge with city skyline views -->
+                            <img src="https://images.unsplash.com/photo-1551632436-cbf8dd35adfa?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=250" alt="Rooftop lounge venue" class="w-full h-48 object-cover" data-mock-image="true">
+                            <div class="p-4">
+                                <h3 class="text-lg font-semibold text-slate-900 mb-1" data-bind="venue.name">Rooftop Lounge</h3>
+                                <p class="text-sm text-slate-600 mb-2" data-bind="venue.description">Stunning city views for cocktail parties</p>
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="text-slate-500" data-bind="venue.capacity">100 guests</span>
+                                    <span class="text-accent font-medium" data-bind="venue.availability">Available</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl overflow-hidden border border-slate-200 hover:shadow-lg transition-shadow">
+                            <!-- Modern art gallery space for cultural events -->
+                            <img src="https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=250" alt="Art gallery venue" class="w-full h-48 object-cover" data-mock-image="true">
+                            <div class="p-4">
+                                <h3 class="text-lg font-semibold text-slate-900 mb-1" data-bind="venue.name">Gallery Space</h3>
+                                <p class="text-sm text-slate-600 mb-2" data-bind="venue.description">Contemporary space for exhibitions and launches</p>
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="text-slate-500" data-bind="venue.capacity">80 guests</span>
+                                    <span class="text-warning font-medium" data-bind="venue.availability">Booked</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl overflow-hidden border border-slate-200 hover:shadow-lg transition-shadow">
+                            <!-- Executive boardroom for high-level meetings -->
+                            <img src="https://images.unsplash.com/photo-1556761175-b413da4baf72?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=400&h=250" alt="Executive boardroom" class="w-full h-48 object-cover" data-mock-image="true">
+                            <div class="p-4">
+                                <h3 class="text-lg font-semibold text-slate-900 mb-1" data-bind="venue.name">Executive Boardroom</h3>
+                                <p class="text-sm text-slate-600 mb-2" data-bind="venue.description">Premium setting for board meetings</p>
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="text-slate-500" data-bind="venue.capacity">15 guests</span>
+                                    <span class="text-accent font-medium" data-bind="venue.availability">Available</span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- @END_MAP )) -->
+                    </div>
+                </div>
+                <!-- @END_COMPONENT: VenueGallery -->
+            </main>
+            <!-- @END_COMPONENT: DashboardContent -->
+        </div>
+        <!-- @END_COMPONENT: MainContent -->
+    </div>
+    <!-- @END_COMPONENT: AppLayout -->
+
+    <!-- Modal for New Booking (Hidden by default) -->
+    <!-- @COMPONENT: NewBookingModal [booking creation modal] -->
+    <div id="newBookingModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="p-6 border-b border-slate-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-slate-900">Create New Booking</h3>
+                        <button class="text-slate-400 hover:text-slate-600" data-event="click:closeModal">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <form class="space-y-6" data-implementation="Handle form submission with validation">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Event Name</label>
+                                <input type="text" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" placeholder="e.g., Johnson Wedding Reception">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Event Type</label>
+                                <select class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+                                    <option>Wedding</option>
+                                    <option>Corporate Event</option>
+                                    <option>Social Event</option>
+                                    <option>Private Dining</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Client Name</label>
+                                <input type="text" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" placeholder="Client full name">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Client Email</label>
+                                <input type="email" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" placeholder="client@email.com">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Event Date</label>
+                                <input type="date" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Start Time</label>
+                                <input type="time" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">End Time</label>
+                                <input type="time" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Venue Space</label>
+                                <select class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+                                    <option>Grand Ballroom</option>
+                                    <option>Conference Center</option>
+                                    <option>Private Dining</option>
+                                    <option>Garden Terrace</option>
+                                    <option>Wine Cellar</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Guest Count</label>
+                                <input type="number" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" placeholder="Number of guests">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Event Details</label>
+                            <textarea rows="3" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" placeholder="Additional event requirements, catering notes, special requests..."></textarea>
+                        </div>
+
+                        <div class="flex justify-end space-x-3 pt-4">
+                            <button type="button" class="px-4 py-2 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors" data-event="click:closeModal">Cancel</button>
+                            <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-600 transition-colors" data-event="click:createBooking">Create Booking</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: NewBookingModal -->
+
+    <script>
+        (function() {
+            // TODO: Implement business logic, API calls, or state management
+            // TODO: Add event listeners for interactive elements
+            // TODO: Implement form validation and submission
+            // TODO: Add data binding for dynamic content updates
+            // TODO: Integrate with AI features and backend services
+            
+            console.log('Venuine Dashboard initialized');
+            console.log('Mock data loaded for demonstration purposes');
+        })();
+    </script>
+</body>
+</html>

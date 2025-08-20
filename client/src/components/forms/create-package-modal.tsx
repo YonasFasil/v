@@ -234,12 +234,12 @@ export function CreatePackageModal({ open, onOpenChange, initialData }: Props) {
           </div>
 
           {/* Included Services */}
-          {services && services.length > 0 && (
+          {services && Array.isArray(services) && services.length > 0 && (
             <div>
               <Label>Included Services</Label>
               <div className="border rounded-lg p-4 max-h-40 overflow-y-auto">
                 <div className="space-y-2">
-                  {services.map((service: any) => (
+                  {(services as any[]).map((service: any) => (
                     <div key={service.id} className="flex items-center space-x-2">
                       <Checkbox
                         id={service.id}

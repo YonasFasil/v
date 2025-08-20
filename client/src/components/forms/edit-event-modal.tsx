@@ -48,8 +48,8 @@ export function EditEventModal({ open, onOpenChange, booking }: Props) {
     }
   }, [booking, open]);
 
-  const selectedCustomer = customers.find((c: any) => c.id === booking?.customerId);
-  const selectedVenue = venues.find((v: any) => v.id === booking?.venueId);
+  const selectedCustomer = (customers as any[])?.find((c: any) => c.id === booking?.customerId);
+  const selectedVenue = (venues as any[])?.find((v: any) => v.id === booking?.venueId);
 
   // Function to check space availability for a specific date and time (excluding current booking)
   const getSpaceAvailability = (spaceId: string, date: Date, startTime: string, endTime: string) => {
@@ -58,7 +58,7 @@ export function EditEventModal({ open, onOpenChange, booking }: Props) {
       date: date.toDateString(),
       startTime,
       endTime,
-      totalBookings: existingBookings.length,
+      totalBookings: (existingBookings as any[])?.length || 0,
       currentBookingId: booking?.id
     });
     

@@ -23,7 +23,9 @@ import {
   Trash2,
   Edit3,
   AlertTriangle,
-  Building
+  Building,
+  Eye,
+  Edit
 } from "lucide-react";
 import { type Tenant, type SubscriptionPackage, type User } from "@shared/schema";
 
@@ -62,13 +64,43 @@ const FEATURE_DESCRIPTIONS = {
   custom_fields: "Create custom booking and customer fields"
 };
 
+const AVAILABLE_PERMISSIONS = [
+  "dashboard_view",
+  "dashboard_edit",
+  "venue_view",
+  "venue_create",
+  "venue_edit",
+  "venue_delete",
+  "event_view",
+  "event_create", 
+  "event_edit",
+  "event_delete",
+  "customer_view",
+  "customer_create",
+  "customer_edit",
+  "customer_delete",
+  "proposal_view",
+  "proposal_create",
+  "proposal_edit",
+  "proposal_delete",
+  "payment_view",
+  "payment_process",
+  "report_view",
+  "report_export",
+  "user_view",
+  "user_create",
+  "user_edit",
+  "user_delete",
+  "settings_view",
+  "settings_edit"
+];
+
 export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
   const [editData, setEditData] = useState({
     name: "",
-    subdomain: "",
     customDomain: "",
     status: "trial",
     subscriptionPackageId: "",
@@ -85,6 +117,9 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
   });
 
   const [showAddUser, setShowAddUser] = useState(false);
+  const [showPermissions, setShowPermissions] = useState<string | null>(null);
+  const [editingPermissions, setEditingPermissions] = useState<string | null>(null);
+  const [userPermissions, setUserPermissions] = useState<{[userId: string]: string[]}>({});
 
   // Fetch tenant details including users
   const { data: tenantUsers = [] } = useQuery<TenantUser[]>({
@@ -107,15 +142,25 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
     if (tenant) {
       setEditData({
         name: tenant.name || "",
-        subdomain: tenant.subdomain || "",
         customDomain: tenant.customDomain || "",
         status: tenant.status || "trial",
-        subscriptionPackageId: tenant.subscriptionPackageId || "",
+        subscriptionPackageId: tenant.subscriptionPackageId || "none",
         primaryColor: tenant.primaryColor || "#3b82f6",
         notes: ""
       });
     }
   }, [tenant]);
+
+  // Initialize user permissions when users data changes
+  useEffect(() => {
+    if (tenantUsers.length > 0) {
+      const permissionsMap: {[userId: string]: string[]} = {};
+      tenantUsers.forEach(user => {
+        permissionsMap[user.id] = user.permissions || [];
+      });
+      setUserPermissions(permissionsMap);
+    }
+  }, [tenantUsers]);
 
   // Update tenant mutation
   const updateTenantMutation = useMutation({
@@ -144,6 +189,10 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
     onSuccess: () => {
       toast({ title: "User added successfully" });
       queryClient.invalidateQueries({ queryKey: [`/api/super-admin/tenants/${tenant?.id}/users`] });
+      // Also invalidate ALL tenant-level queries to ensure sync
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0]?.toString().includes("/api/tenant/")
+      });
       setNewUserData({ username: "", name: "", email: "", password: "", role: "tenant_user" });
       setShowAddUser(false);
     },
@@ -161,14 +210,43 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
     onSuccess: () => {
       toast({ title: "User removed successfully" });
       queryClient.invalidateQueries({ queryKey: [`/api/super-admin/tenants/${tenant?.id}/users`] });
+      // Also invalidate ALL tenant-level queries to ensure sync
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0]?.toString().includes("/api/tenant/")
+      });
     },
     onError: (error: any) => {
       toast({ title: "Error removing user", description: error.message, variant: "destructive" });
     },
   });
 
+  // Update user permissions mutation
+  const updatePermissionsMutation = useMutation({
+    mutationFn: ({ userId, permissions }: { userId: string; permissions: string[] }) =>
+      apiRequest(`/api/super-admin/tenants/${tenant?.id}/users/${userId}/permissions`, {
+        method: "PUT",
+        body: JSON.stringify({ permissions }),
+      }),
+    onSuccess: () => {
+      toast({ title: "Permissions updated successfully" });
+      queryClient.invalidateQueries({ queryKey: [`/api/super-admin/tenants/${tenant?.id}/users`] });
+      // Also invalidate ALL tenant-level queries to ensure sync
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0]?.toString().includes("/api/tenant/")
+      });
+      setEditingPermissions(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Error updating permissions", description: error.message, variant: "destructive" });
+    },
+  });
+
   const handleUpdateTenant = () => {
-    updateTenantMutation.mutate(editData);
+    const payload = {
+      ...editData,
+      subscriptionPackageId: editData.subscriptionPackageId === "none" ? null : editData.subscriptionPackageId
+    };
+    updateTenantMutation.mutate(payload);
   };
 
   const handleAddUser = () => {
@@ -177,6 +255,42 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
       return;
     }
     addUserMutation.mutate({ ...newUserData, tenantId: tenant?.id });
+  };
+
+  const handlePermissionToggle = (userId: string, permission: string) => {
+    setUserPermissions(prev => {
+      const currentPermissions = prev[userId] || [];
+      const hasPermission = currentPermissions.includes(permission);
+      
+      if (hasPermission) {
+        return {
+          ...prev,
+          [userId]: currentPermissions.filter(p => p !== permission)
+        };
+      } else {
+        return {
+          ...prev,
+          [userId]: [...currentPermissions, permission]
+        };
+      }
+    });
+  };
+
+  const handleSavePermissions = (userId: string) => {
+    const permissions = userPermissions[userId] || [];
+    updatePermissionsMutation.mutate({ userId, permissions });
+  };
+
+  const handleCancelPermissions = (userId: string) => {
+    // Reset to original permissions
+    const originalUser = tenantUsers.find(u => u.id === userId);
+    if (originalUser) {
+      setUserPermissions(prev => ({
+        ...prev,
+        [userId]: originalUser.permissions || []
+      }));
+    }
+    setEditingPermissions(null);
   };
 
   const formatFeatureName = (featureId: string) => {
@@ -237,17 +351,6 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
                       value={editData.name}
                       onChange={(e) => setEditData(prev => ({ ...prev, name: e.target.value }))}
                     />
-                  </div>
-                  <div>
-                    <Label htmlFor="subdomain">Subdomain</Label>
-                    <Input
-                      id="subdomain"
-                      value={editData.subdomain}
-                      onChange={(e) => setEditData(prev => ({ ...prev, subdomain: e.target.value }))}
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      URL: /api/tenant/{editData.subdomain}/dashboard
-                    </p>
                   </div>
                   <div>
                     <Label htmlFor="customDomain">Custom Domain</Label>
@@ -348,7 +451,7 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
                       <SelectValue placeholder="Select a package" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No Package (Trial)</SelectItem>
+                      <SelectItem value="none">No Package (Trial)</SelectItem>
                       {packages.map((pkg) => (
                         <SelectItem key={pkg.id} value={pkg.id}>
                           {pkg.name} - ${pkg.price}/{pkg.billingInterval}
@@ -417,7 +520,7 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
                   </div>
                 )}
 
-                {!currentPackage && editData.subscriptionPackageId === "" && (
+                {!currentPackage && (editData.subscriptionPackageId === "" || editData.subscriptionPackageId === "none") && (
                   <div className="p-4 border border-yellow-200 rounded-lg bg-yellow-50">
                     <div className="flex items-center gap-2">
                       <AlertTriangle className="w-5 h-5 text-yellow-600" />
@@ -446,40 +549,127 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
               <CardContent>
                 <div className="space-y-4">
                   {tenantUsers.map((user) => (
-                    <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <Users className="w-5 h-5 text-blue-600" />
+                    <div key={user.id} className="space-y-2">
+                      <div className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <Users className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <div className="font-medium">{user.name}</div>
+                            <div className="text-sm text-muted-foreground">{user.email}</div>
+                            <div className="text-sm text-muted-foreground">@{user.username}</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="font-medium">{user.name}</div>
-                          <div className="text-sm text-muted-foreground">{user.email}</div>
-                          <div className="text-sm text-muted-foreground">@{user.username}</div>
+                        <div className="flex items-center space-x-4">
+                          <Badge className={getRoleColor(user.role)}>
+                            {user.role === 'tenant_admin' ? (
+                              <>
+                                <Crown className="w-3 h-3 mr-1" />
+                                Admin
+                              </>
+                            ) : (
+                              'User'
+                            )}
+                          </Badge>
+                          <Badge variant={user.isActive ? "default" : "secondary"}>
+                            {user.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => setShowPermissions(showPermissions === user.id ? null : user.id)}
+                            title="View Permissions"
+                          >
+                            <Eye className="w-4 h-4 text-blue-500" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
+                              if (editingPermissions === user.id) {
+                                setEditingPermissions(null);
+                              } else {
+                                // Initialize permissions with current user permissions
+                                setUserPermissions(prev => ({
+                                  ...prev,
+                                  [user.id]: user.permissions || []
+                                }));
+                                setEditingPermissions(user.id);
+                              }
+                            }}
+                            title="Edit Permissions"
+                          >
+                            <Edit className="w-4 h-4 text-green-500" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => deleteUserMutation.mutate(user.id)}
+                            disabled={deleteUserMutation.isPending}
+                            title="Remove User"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-4">
-                        <Badge className={getRoleColor(user.role)}>
-                          {user.role === 'tenant_admin' ? (
-                            <>
-                              <Crown className="w-3 h-3 mr-1" />
-                              Admin
-                            </>
+                      {showPermissions === user.id && (
+                        <div className="ml-14 p-4 bg-gray-50 border rounded-lg">
+                          <h5 className="font-medium mb-3">User Permissions</h5>
+                          {user.permissions && user.permissions.length > 0 ? (
+                            <div className="grid grid-cols-2 gap-2">
+                              {user.permissions.map((permission, index) => (
+                                <Badge key={index} variant="outline" className="justify-start">
+                                  {permission.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                </Badge>
+                              ))}
+                            </div>
                           ) : (
-                            'User'
+                            <p className="text-sm text-muted-foreground">
+                              This user has {user.role === 'tenant_admin' ? 'full admin permissions' : 'default user permissions based on their role'}.
+                            </p>
                           )}
-                        </Badge>
-                        <Badge variant={user.isActive ? "default" : "secondary"}>
-                          {user.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => deleteUserMutation.mutate(user.id)}
-                          disabled={deleteUserMutation.isPending}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
-                      </div>
+                        </div>
+                      )}
+                      {editingPermissions === user.id && (
+                        <div className="ml-14 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex justify-between items-center mb-3">
+                            <h5 className="font-medium">Edit User Permissions</h5>
+                            <div className="flex gap-2">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleCancelPermissions(user.id)}
+                              >
+                                Cancel
+                              </Button>
+                              <Button 
+                                size="sm"
+                                onClick={() => handleSavePermissions(user.id)}
+                                disabled={updatePermissionsMutation.isPending}
+                              >
+                                {updatePermissionsMutation.isPending ? "Saving..." : "Save"}
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto">
+                            {AVAILABLE_PERMISSIONS.map((permission) => {
+                              const hasPermission = (userPermissions[user.id] || []).includes(permission);
+                              return (
+                                <div key={permission} className="flex items-center space-x-2">
+                                  <Switch
+                                    checked={hasPermission}
+                                    onCheckedChange={() => handlePermissionToggle(user.id, permission)}
+                                  />
+                                  <label className="text-sm">
+                                    {permission.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                  </label>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
 

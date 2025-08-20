@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { logger } from './logger';
 
 export class EmailService {
   private transporter: nodemailer.Transporter;
@@ -51,7 +52,7 @@ export class EmailService {
         response: result.response
       };
     } catch (error) {
-      console.error('Email sending failed:', error);
+      logger.error('Email sending failed', 'email', { to, subject }, error as Error);
       throw new Error(`Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -61,7 +62,7 @@ export class EmailService {
       await this.transporter.verify();
       return true;
     } catch (error) {
-      console.error('Email service verification failed:', error);
+      logger.error('Email service verification failed', 'email', undefined, error as Error);
       return false;
     }
   }

@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { logger } from "./logger";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
@@ -67,7 +68,7 @@ export async function generateAIInsights(analyticsData?: any): Promise<any[]> {
 
     return JSON.parse(response.text || "[]");
   } catch (error) {
-    console.error("Gemini API error:", error);
+    logger.error("Failed to generate AI insights", "gemini", { analyticsData }, error as Error);
     return [];
   }
 }
@@ -128,7 +129,7 @@ export async function generateSmartScheduling(eventType: string, duration: numbe
 
     return JSON.parse(response.text || '{"recommendedSlots":[],"insights":[],"alternativeOptions":[]}');
   } catch (error) {
-    console.error("Gemini scheduling error:", error);
+    logger.error("Failed to generate smart scheduling", "gemini", { eventType, duration, guestCount }, error as Error);
     return {
       recommendedSlots: [],
       insights: ["Smart scheduling temporarily unavailable"],
@@ -183,7 +184,7 @@ export async function generateEmailReply(customerMessage: string, context: strin
 
     return JSON.parse(response.text || '{"subject":"Re: Your Venue Inquiry","body":"Thank you for your inquiry. We\'ll get back to you soon.","tone":"professional","nextSteps":[],"suggestedFollowUp":"","confidence":50}');
   } catch (error) {
-    console.error("Gemini email error:", error);
+    logger.error("Failed to generate email reply", "gemini", { customerEmail, proposalData }, error as Error);
     return {
       subject: "Re: Your Venue Inquiry",
       body: "Thank you for your inquiry. We'll get back to you soon.",
@@ -258,7 +259,7 @@ export async function scoreLeadPriority(leadData: any, interactionHistory?: any[
 
     return JSON.parse(response.text || '{"score":50,"category":"medium","reasoning":"","keyIndicators":[],"recommendedActions":[],"estimatedValue":0,"closeProbability":50,"priorityFactors":{"budget":50,"timeline":50,"engagement":50,"fitScore":50}}');
   } catch (error) {
-    console.error("Gemini scoring error:", error);
+    logger.error("Failed to score lead priority", "gemini", { leadData }, error as Error);
     return {
       score: 50,
       category: "medium",
@@ -293,7 +294,7 @@ export async function generateProposal(eventDetails: any, venueInfo: any): Promi
 
     return response.text || "Event proposal will be generated shortly.";
   } catch (error) {
-    console.error("Gemini proposal error:", error);
+    logger.error("Failed to generate proposal", "gemini", { eventType, requirements }, error as Error);
     return "Event proposal will be generated shortly.";
   }
 }
@@ -380,7 +381,7 @@ export async function parseVoiceToBooking(transcript: string, context: string = 
 
     return parsedData;
   } catch (error) {
-    console.error("Gemini voice parsing error:", error);
+    logger.error("Failed to parse voice booking", "gemini", { transcript }, error as Error);
     return {
       eventName: "",
       eventType: "",

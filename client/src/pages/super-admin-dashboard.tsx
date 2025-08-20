@@ -85,7 +85,7 @@ export default function SuperAdminDashboard() {
 
   const filteredTenants = tenants.filter(tenant =>
     tenant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    tenant.subdomain?.toLowerCase().includes(searchTerm.toLowerCase())
+    tenant.id?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -196,7 +196,7 @@ export default function SuperAdminDashboard() {
                       <div>
                         <div className="font-medium">{tenant.name}</div>
                         <div className="text-sm text-muted-foreground">
-                          {tenant.subdomain}.yourdomain.com
+                          ID: {tenant.id}
                         </div>
                       </div>
                     </div>

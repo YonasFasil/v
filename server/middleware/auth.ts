@@ -9,7 +9,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-i
 const SUPER_ADMIN_CREDENTIALS = {
   email: process.env.SUPER_ADMIN_EMAIL || 'admin@yourcompany.com',
   // Hash of 'admin123' - generated using bcrypt
-  passwordHash: process.env.SUPER_ADMIN_PASSWORD_HASH || '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi'
+  passwordHash: process.env.SUPER_ADMIN_PASSWORD_HASH || '$2b$10$k2KY5y8NLuW62L1cMITlQeV/f05mB7uOiyGz2OgIByabbtp4T8Utq'
 };
 
 export interface AuthenticatedRequest extends Request {
@@ -18,6 +18,8 @@ export interface AuthenticatedRequest extends Request {
     email: string;
     name?: string;
     role: string;
+    permissions?: string[];
+    tenantId?: string;
   };
 }
 
@@ -33,14 +35,14 @@ export async function comparePassword(password: string, hash: string): Promise<b
 }
 
 // Generate JWT token
-export function generateToken(payload: { id: string; email: string; name?: string; role: string }): string {
+export function generateToken(payload: { id: string; email: string; name?: string; role: string; permissions?: string[]; tenantId?: string }): string {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
 }
 
 // Verify JWT token
-export function verifyToken(token: string): { id: string; email: string; role: string } | null {
+export function verifyToken(token: string): { id: string; email: string; role: string; permissions?: string[]; tenantId?: string } | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as { id: string; email: string; role: string };
+    return jwt.verify(token, JWT_SECRET) as { id: string; email: string; role: string; permissions?: string[]; tenantId?: string };
   } catch (error) {
     return null;
   }

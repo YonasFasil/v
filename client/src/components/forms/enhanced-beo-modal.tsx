@@ -76,7 +76,7 @@ export function EnhancedBeoModal({ isOpen, onClose, booking }: EnhancedBeoModalP
   };
 
   const formatCurrency = (amount: number) => {
-    const currency = settings?.business?.currency || 'USD';
+    const currency = (settings as any)?.business?.currency || 'USD';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currency
@@ -166,7 +166,7 @@ export function EnhancedBeoModal({ isOpen, onClose, booking }: EnhancedBeoModalP
                     <span>{settings?.business?.companyEmail || 'events@venuine.com'}</span>
                   </div>
                   {settings?.business?.website && (
-                    <div className="text-blue-600">{settings.business.website}</div>
+                    <div className="text-blue-600">{(settings as any)?.business.website}</div>
                   )}
                 </div>
                 

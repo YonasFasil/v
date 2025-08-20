@@ -78,22 +78,77 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
     mutationFn: async ({ bookingId, newStatus }: { bookingId: string; newStatus: EventStatus }) => {
       return apiRequest("PATCH", `/api/bookings/${bookingId}`, { status: newStatus });
     },
-    onSuccess: (data, variables) => {
-      // Update local status immediately for responsive UI
-      setCurrentStatus(variables.newStatus);
-      toast({
-        title: "Status updated",
-        description: "Event status has been successfully updated."
+    onMutate: async ({ bookingId, newStatus }) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ['/api/calendar/events'], type: 'all' });
+      await queryClient.cancelQueries({ queryKey: ['/api/bookings'] });
+
+      // Snapshot the previous values for all calendar variants
+      const previousEventsData = queryClient.getQueryData(['/api/calendar/events?mode=events']);
+      const previousVenuesData = queryClient.getQueryData(['/api/calendar/events?mode=venues']);
+      const previousBookingsData = queryClient.getQueryData(['/api/bookings']);
+
+      // Optimistically update calendar events mode
+      queryClient.setQueryData(['/api/calendar/events?mode=events'], (old: any) => {
+        if (!old?.data) return old;
+        return {
+          ...old,
+          data: old.data.map((event: any) => 
+            event.id === bookingId 
+              ? { ...event, status: newStatus }
+              : event
+          )
+        };
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/calendar/events"] });
+
+      // Optimistically update bookings list
+      queryClient.setQueryData(['/api/bookings'], (old: any) => {
+        if (!old) return old;
+        return old.map((b: any) => 
+          b.id === bookingId 
+            ? { ...b, status: newStatus }
+            : b
+        );
+      });
+
+      // Update local status immediately for responsive UI
+      setCurrentStatus(newStatus);
+
+      // Return a context object with the snapshotted values
+      return { previousEventsData, previousVenuesData, previousBookingsData, previousStatus: currentStatus };
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousEventsData) {
+        queryClient.setQueryData(['/api/calendar/events?mode=events'], context.previousEventsData);
+      }
+      if (context?.previousVenuesData) {
+        queryClient.setQueryData(['/api/calendar/events?mode=venues'], context.previousVenuesData);
+      }
+      if (context?.previousBookingsData) {
+        queryClient.setQueryData(['/api/bookings'], context.previousBookingsData);
+      }
+      if (context?.previousStatus) {
+        setCurrentStatus(context.previousStatus);
+      }
+      
       toast({
         title: "Error updating status",
         description: error.response?.data?.message || "An error occurred while updating the status.",
         variant: "destructive"
       });
+    },
+    onSuccess: (data, variables) => {
+      toast({
+        title: "Status updated",
+        description: "Event status has been successfully updated."
+      });
+      
+      // Delay cache invalidation slightly to let optimistic update render
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['/api/calendar/events'], type: 'all' });
+        queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
+      }, 100);
     }
   });
 

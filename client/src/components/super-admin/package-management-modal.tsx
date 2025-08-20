@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -137,6 +137,12 @@ export function PackageManagementModal({ open, onOpenChange, package: editPackag
           <DialogTitle>
             {editPackage ? "Edit Package" : "Create New Package"}
           </DialogTitle>
+          <DialogDescription>
+            {editPackage 
+              ? "Modify the subscription package details and features." 
+              : "Create a new subscription package with pricing and feature selection."
+            }
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">

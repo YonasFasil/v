@@ -10,7 +10,16 @@
       "Bash(curl:*)",
       "Bash(npx update-browserslist-db:*)",
       "Bash(find:*)",
-      "Bash(PORT=5001 npm run dev)"
+      "Bash(PORT=5001 npm run dev)",
+      "Bash(git clean:*)",
+      "Bash(grep:*)",
+      "Bash(npx tsx:*)",
+      "Bash(lsof:*)",
+      "Bash(npx tsc:*)",
+      "Bash(sed:*)",
+      "Bash(rm:*)",
+      "Bash(npm start)",
+      "Bash(npx drizzle-kit:*)"
     ],
     "deny": [],
     "ask": [],

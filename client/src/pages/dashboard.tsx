@@ -6,8 +6,6 @@ import { MobileNav } from "@/components/layout/mobile-nav";
 import { MetricsGrid } from "@/components/dashboard/metrics-grid";
 import { AdvancedCalendar } from "@/components/dashboard/advanced-calendar";
 import { RecentBookings } from "@/components/dashboard/recent-bookings";
-import { AIRecommendations } from "@/components/dashboard/ai-recommendations";
-import { RevenueInsights } from "@/components/dashboard/revenue-insights";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { VenueUtilization } from "@/components/dashboard/venue-utilization";
 import { UpcomingEvents } from "@/components/dashboard/upcoming-events";
@@ -72,26 +70,20 @@ export default function Dashboard() {
           <MetricsGrid />
           
           {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4 flex-1">
             {/* Calendar - Full Width */}
             <div className="lg:col-span-12">
               <AdvancedCalendar onEventClick={handleEventClick} />
             </div>
             
-            {/* Left Column - Main Content */}
-            <div className="lg:col-span-8">
+            {/* Recent Bookings - Full Width */}
+            <div className="lg:col-span-8 h-full min-h-[500px]">
               <RecentBookings />
             </div>
             
             {/* Right Column - Side Widgets */}
             <div className="lg:col-span-4 space-y-4">
               <VenuePerformance />
-              <RevenueInsights />
-            </div>
-            
-            {/* AI Recommendations - Full Width */}
-            <div className="lg:col-span-12">
-              <AIRecommendations />
             </div>
           </div>
         </main>

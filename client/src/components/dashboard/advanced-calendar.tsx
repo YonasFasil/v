@@ -49,12 +49,7 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
 
   // Fetch calendar data based on mode
   const { data: calendarData, isLoading } = useQuery({
-    queryKey: [`/api/calendar/events`, viewMode],
-    queryFn: async () => {
-      const response = await fetch(`/api/calendar/events?mode=${viewMode}`);
-      if (!response.ok) throw new Error('Failed to fetch calendar data');
-      return response.json();
-    }
+    queryKey: [`/api/calendar/events?mode=${viewMode}`]
   });
 
   const events = calendarData?.mode === 'events' ? calendarData.data as CalendarEvent[] : [];

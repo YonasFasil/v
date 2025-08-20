@@ -23,7 +23,6 @@ import { type SubscriptionPackage, type InsertTenant } from "@shared/schema";
 interface SignupFormData {
   // Organization details
   organizationName: string;
-  subdomain: string;
   
   // Admin user details
   fullName: string;
@@ -44,7 +43,6 @@ export default function Signup() {
   const [selectedPackage, setSelectedPackage] = useState<string>("");
   const [formData, setFormData] = useState<SignupFormData>({
     organizationName: "",
-    subdomain: "",
     fullName: "",
     email: "",
     password: "",
@@ -68,7 +66,7 @@ export default function Signup() {
     onSuccess: (response) => {
       toast({ title: "Account created successfully! Welcome aboard!" });
       // Redirect to tenant dashboard or login
-      window.location.href = `https://${formData.subdomain}.yourdomain.com/dashboard`;
+      window.location.href = `/dashboard`;
     },
     onError: (error: any) => {
       toast({ 
@@ -84,7 +82,7 @@ export default function Signup() {
       case 1:
         return selectedPackage !== "";
       case 2:
-        return formData.organizationName && formData.subdomain;
+        return formData.organizationName;
       case 3:
         return formData.fullName && formData.email && formData.password && 
                formData.password === formData.confirmPassword && formData.agreeToTerms;
@@ -277,28 +275,6 @@ export default function Signup() {
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="subdomain">Choose Your Subdomain *</Label>
-                  <div className="flex">
-                    <Input
-                      id="subdomain"
-                      value={formData.subdomain}
-                      onChange={(e) => setFormData(prev => ({ 
-                        ...prev, 
-                        subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') 
-                      }))}
-                      placeholder="yourcompany"
-                      className="rounded-r-none"
-                      required
-                    />
-                    <div className="px-3 py-2 bg-gray-100 border border-l-0 rounded-r text-sm text-gray-600">
-                      .yourdomain.com
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    This will be your unique URL: {formData.subdomain || 'yourcompany'}.yourdomain.com
-                  </p>
-                </div>
 
                 <div className="flex gap-2 pt-4">
                   <Button variant="outline" onClick={() => setStep(1)}>

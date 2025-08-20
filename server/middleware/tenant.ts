@@ -34,7 +34,7 @@ export async function resolveTenant(req: TenantRequest, res: Response, next: Nex
         req.tenant = {
           id: tenant.id,
           name: tenant.name,
-          subdomain: tenant.subdomain,
+          subdomain: tenant.subdomain || '',
           status: tenant.status,
           subscriptionPackageId: tenant.subscriptionPackageId
         };
@@ -76,12 +76,12 @@ export function requireTenant(req: TenantRequest, res: Response, next: NextFunct
 }
 
 // Middleware to check trial status
-export function checkTrialStatus(req: TenantRequest, res: Response, next: NextFunction) {
+export async function checkTrialStatus(req: TenantRequest, res: Response, next: NextFunction) {
   if (!req.tenant) {
     return next();
   }
   
-  const tenant = storage.tenants.get(req.tenant.id);
+  const tenant = await storage.getTenant(req.tenant.id);
   if (!tenant) {
     return next();
   }

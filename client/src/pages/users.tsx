@@ -31,7 +31,7 @@ interface User {
   name: string;
   email: string;
   role: string;
-  permissions: string[];
+  permissions: string[] | string;
   isActive: boolean;
   lastLoginAt?: string;
   createdAt: string;
@@ -78,13 +78,22 @@ export default function Users() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [showPermissions, setShowPermissions] = useState<string | null>(null);
   
   const [createForm, setCreateForm] = useState<CreateUserForm>({
     name: "",
     email: "",
     password: "",
-    role: "tenant_user",
-    permissions: ROLE_PRESETS.tenant_user
+    role: "tenant_admin",
+    permissions: ROLE_PRESETS.tenant_admin
+  });
+
+  const [editForm, setEditForm] = useState<Partial<User>>({
+    name: "",
+    email: "",
+    role: "",
+    permissions: [],
+    isActive: true
   });
 
   // Fetch users
@@ -102,6 +111,10 @@ export default function Users() {
     onSuccess: () => {
       toast({ title: "User created successfully" });
       queryClient.invalidateQueries({ queryKey: ["/api/tenant/users"] });
+      // Also invalidate ALL super admin queries to ensure sync
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0]?.toString().includes("/api/super-admin/")
+      });
       setShowCreateModal(false);
       resetCreateForm();
     },
@@ -124,6 +137,10 @@ export default function Users() {
     onSuccess: () => {
       toast({ title: "User updated successfully" });
       queryClient.invalidateQueries({ queryKey: ["/api/tenant/users"] });
+      // Also invalidate ALL super admin queries to ensure sync
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0]?.toString().includes("/api/super-admin/")
+      });
       setShowEditModal(false);
       setSelectedUser(null);
     },
@@ -145,6 +162,10 @@ export default function Users() {
     onSuccess: () => {
       toast({ title: "User deactivated successfully" });
       queryClient.invalidateQueries({ queryKey: ["/api/tenant/users"] });
+      // Also invalidate ALL super admin queries to ensure sync
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0]?.toString().includes("/api/super-admin/")
+      });
     },
     onError: (error: any) => {
       toast({ 
@@ -160,8 +181,8 @@ export default function Users() {
       name: "",
       email: "",
       password: "",
-      role: "tenant_user",
-      permissions: ROLE_PRESETS.tenant_user
+      role: "tenant_admin",
+      permissions: ROLE_PRESETS.tenant_admin
     });
   };
 
@@ -182,6 +203,35 @@ export default function Users() {
     }));
   };
 
+  const handleEditPermissionToggle = (permissionId: string) => {
+    setEditForm(prev => ({
+      ...prev,
+      permissions: (prev.permissions || []).includes(permissionId)
+        ? (prev.permissions || []).filter(p => p !== permissionId)
+        : [...(prev.permissions || []), permissionId]
+    }));
+  };
+
+  const handleEditRoleChange = (role: string) => {
+    setEditForm(prev => ({
+      ...prev,
+      role,
+      permissions: ROLE_PRESETS[role as keyof typeof ROLE_PRESETS] || []
+    }));
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser || !editForm.name || !editForm.email) {
+      toast({ title: "Please fill in all required fields", variant: "destructive" });
+      return;
+    }
+    updateUserMutation.mutate({
+      userId: selectedUser.id,
+      userData: editForm
+    });
+  };
+
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!createForm.name || !createForm.email || !createForm.password) {
@@ -192,7 +242,28 @@ export default function Users() {
   };
 
   const handleEditUser = (user: User) => {
+    // Ensure permissions is always an array
+    let permissions = [];
+    if (Array.isArray(user.permissions)) {
+      permissions = user.permissions;
+    } else if (typeof user.permissions === 'string') {
+      try {
+        // Try to parse as JSON if it's a string
+        permissions = JSON.parse(user.permissions);
+      } catch {
+        // If not JSON, split by comma or treat as single permission
+        permissions = user.permissions.split(',').map(p => p.trim()).filter(p => p);
+      }
+    }
+    
     setSelectedUser(user);
+    setEditForm({
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      permissions: permissions,
+      isActive: user.isActive
+    });
     setShowEditModal(true);
   };
 
@@ -300,7 +371,32 @@ export default function Users() {
                           
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-slate-600">Permissions</span>
-                            <span className="text-sm font-medium">{user.permissions?.length || 0}</span>
+                            {user.role === 'tenant_admin' ? (
+                              <div className="flex items-center gap-1 text-blue-600">
+                                <Shield className="w-3 h-3" />
+                                <span className="text-sm font-medium">Full Access</span>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setShowPermissions(showPermissions === user.id ? null : user.id)}
+                                className="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer"
+                              >
+                                {(() => {
+                                  if (Array.isArray(user.permissions)) {
+                                    return user.permissions.length;
+                                  } else if (typeof user.permissions === 'string') {
+                                    try {
+                                      const parsed = JSON.parse(user.permissions);
+                                      return Array.isArray(parsed) ? parsed.length : 0;
+                                    } catch {
+                                      return user.permissions ? user.permissions.split(',').filter(p => p.trim()).length : 0;
+                                    }
+                                  }
+                                  return 0;
+                                })()}
+                                <Eye className="w-3 h-3 inline ml-1" />
+                              </button>
+                            )}
                           </div>
 
                           {user.lastLoginAt && (
@@ -314,6 +410,38 @@ export default function Users() {
                             <span className="text-sm text-slate-600">Created</span>
                             <span className="text-sm">{new Date(user.createdAt).toLocaleDateString()}</span>
                           </div>
+
+                          {showPermissions === user.id && user.role !== 'tenant_admin' && (
+                            <div className="mt-3 p-3 bg-gray-50 border rounded-lg">
+                              <h5 className="font-medium mb-2 text-sm">User Permissions</h5>
+                              {(() => {
+                                let permissions = [];
+                                if (Array.isArray(user.permissions)) {
+                                  permissions = user.permissions;
+                                } else if (typeof user.permissions === 'string') {
+                                  try {
+                                    permissions = JSON.parse(user.permissions);
+                                  } catch {
+                                    permissions = user.permissions.split(',').map(p => p.trim()).filter(p => p);
+                                  }
+                                }
+                                
+                                return permissions && permissions.length > 0 ? (
+                                  <div className="grid grid-cols-1 gap-1">
+                                    {permissions.map((permission, index) => (
+                                      <Badge key={index} variant="outline" className="justify-start text-xs">
+                                        {permission.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-slate-500">
+                                    No specific permissions assigned. User has {user.role === 'tenant_admin' ? 'full admin permissions' : 'role-based permissions'}.
+                                  </p>
+                                );
+                              })()}
+                            </div>
+                          )}
 
                           <div className="flex items-center gap-2 pt-2 border-t">
                             <Button 
@@ -423,25 +551,37 @@ export default function Users() {
 
             <div>
               <Label>Permissions</Label>
-              <div className="grid md:grid-cols-2 gap-3 mt-2 max-h-60 overflow-y-auto border rounded-lg p-4">
-                {AVAILABLE_PERMISSIONS.map((permission) => (
-                  <div key={permission.id} className="flex items-start space-x-2">
-                    <input
-                      type="checkbox"
-                      id={permission.id}
-                      checked={createForm.permissions.includes(permission.id)}
-                      onChange={() => handlePermissionToggle(permission.id)}
-                      className="mt-1"
-                    />
-                    <div className="flex-1">
-                      <label htmlFor={permission.id} className="text-sm font-medium cursor-pointer">
-                        {permission.name}
-                      </label>
-                      <p className="text-xs text-slate-500">{permission.description}</p>
-                    </div>
+              {createForm.role === 'tenant_admin' ? (
+                <div className="mt-2 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-blue-800">
+                    <Shield className="w-4 h-4" />
+                    <span className="font-medium">Administrator Access</span>
                   </div>
-                ))}
-              </div>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Tenant administrators automatically have access to all system features and permissions.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-2 gap-3 mt-2 max-h-60 overflow-y-auto border rounded-lg p-4">
+                  {AVAILABLE_PERMISSIONS.map((permission) => (
+                    <div key={permission.id} className="flex items-start space-x-2">
+                      <input
+                        type="checkbox"
+                        id={permission.id}
+                        checked={createForm.permissions.includes(permission.id)}
+                        onChange={() => handlePermissionToggle(permission.id)}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <label htmlFor={permission.id} className="text-sm font-medium cursor-pointer">
+                          {permission.name}
+                        </label>
+                        <p className="text-xs text-slate-500">{permission.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="flex gap-2 pt-4">
@@ -459,6 +599,125 @@ export default function Users() {
                 className="flex-1"
               >
                 {createUserMutation.isPending ? "Creating..." : "Create User"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User Modal */}
+      <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit User: {selectedUser?.name}</DialogTitle>
+          </DialogHeader>
+          
+          <form onSubmit={handleEditSubmit} className="space-y-6">
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-name">Full Name *</Label>
+                <Input
+                  id="edit-name"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="John Smith"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-email">Email Address *</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="john@example.com"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="edit-role">Role</Label>
+              <Select value={editForm.role} onValueChange={handleEditRoleChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tenant_admin">Tenant Admin</SelectItem>
+                  <SelectItem value="tenant_user">Tenant User</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={editForm.isActive}
+                onCheckedChange={(checked) => setEditForm(prev => ({ ...prev, isActive: checked }))}
+              />
+              <Label>User is active</Label>
+            </div>
+
+            <div>
+              <Label>Permissions</Label>
+              {editForm.role === 'tenant_admin' ? (
+                <div className="mt-2 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-blue-800">
+                    <Shield className="w-4 h-4" />
+                    <span className="font-medium">Administrator Access</span>
+                  </div>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Tenant administrators automatically have access to all system features and permissions.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-2 gap-3 mt-2 max-h-60 overflow-y-auto border rounded-lg p-4">
+                  {AVAILABLE_PERMISSIONS.map((permission) => {
+                    const isChecked = (() => {
+                      const permissions = editForm.permissions || [];
+                      if (Array.isArray(permissions)) {
+                        return permissions.includes(permission.id);
+                      }
+                      return false;
+                    })();
+                    
+                    return (
+                      <div key={permission.id} className="flex items-start space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`edit-${permission.id}`}
+                          checked={isChecked}
+                          onChange={() => handleEditPermissionToggle(permission.id)}
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <label htmlFor={`edit-${permission.id}`} className="text-sm font-medium cursor-pointer">
+                            {permission.name}
+                          </label>
+                          <p className="text-xs text-slate-500">{permission.description}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowEditModal(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={updateUserMutation.isPending}
+                className="flex-1"
+              >
+                {updateUserMutation.isPending ? "Updating..." : "Update User"}
               </Button>
             </div>
           </form>

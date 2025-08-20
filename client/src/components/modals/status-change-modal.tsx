@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { CancellationModal } from "./cancellation-modal";
@@ -29,6 +29,7 @@ export function StatusChangeModal({ open, onOpenChange, booking, onStatusChanged
   const [notes, setNotes] = useState("");
   const [showCancellationModal, setShowCancellationModal] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const updateStatusMutation = useMutation({
     mutationFn: async () => {
@@ -54,21 +55,75 @@ export function StatusChangeModal({ open, onOpenChange, booking, onStatusChanged
 
       return response.json();
     },
-    onSuccess: () => {
-      toast({
-        title: "Status Updated",
-        description: `Booking status changed to ${STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}`
+    onMutate: async () => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ['/api/calendar/events'], type: 'all' });
+      await queryClient.cancelQueries({ queryKey: ['/api/bookings'] });
+
+      // Snapshot the previous values for all calendar variants
+      const previousEventsData = queryClient.getQueryData(['/api/calendar/events?mode=events']);
+      const previousVenuesData = queryClient.getQueryData(['/api/calendar/events?mode=venues']);
+      const previousBookingsData = queryClient.getQueryData(['/api/bookings']);
+
+      // Optimistically update calendar events mode
+      queryClient.setQueryData(['/api/calendar/events?mode=events'], (old: any) => {
+        if (!old?.data) return old;
+        return {
+          ...old,
+          data: old.data.map((event: any) => 
+            event.id === booking.id 
+              ? { ...event, status: selectedStatus }
+              : event
+          )
+        };
       });
-      onStatusChanged();
-      onOpenChange(false);
-      setNotes("");
+
+      // Optimistically update bookings list
+      queryClient.setQueryData(['/api/bookings'], (old: any) => {
+        if (!old) return old;
+        return old.map((b: any) => 
+          b.id === booking.id 
+            ? { ...b, status: selectedStatus }
+            : b
+        );
+      });
+
+      // Return a context object with the snapshotted values
+      return { previousEventsData, previousVenuesData, previousBookingsData };
     },
-    onError: (error: any) => {
+    onError: (error: any, newStatus, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousEventsData) {
+        queryClient.setQueryData(['/api/calendar/events?mode=events'], context.previousEventsData);
+      }
+      if (context?.previousVenuesData) {
+        queryClient.setQueryData(['/api/calendar/events?mode=venues'], context.previousVenuesData);
+      }
+      if (context?.previousBookingsData) {
+        queryClient.setQueryData(['/api/bookings'], context.previousBookingsData);
+      }
+      
       toast({
         title: "Update Failed",
         description: error.message || "Failed to update booking status. Please try again.",
         variant: "destructive"
       });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Status Updated",
+        description: `Booking status changed to ${STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}`
+      });
+      
+      // Delay cache invalidation slightly to let optimistic update render
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['/api/calendar/events'], type: 'all' });
+        queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
+      }, 100);
+      
+      onStatusChanged();
+      onOpenChange(false);
+      setNotes("");
     }
   });
 

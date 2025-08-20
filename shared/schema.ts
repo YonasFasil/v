@@ -1,10 +1,10 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
+import { mysqlTable, text, varchar, int, decimal, timestamp, boolean, json } from "drizzle-orm/mysql-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+export const users = mysqlTable("users", {
+  id: varchar("id", { length: 36 }).primaryKey().default(sql`(UUID())`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   name: text("name").notNull(),
@@ -38,6 +38,7 @@ export const venues = pgTable("venues", {
 
 export const setupStyles = pgTable("setup_styles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   description: text("description"),
   iconName: text("icon_name"), // Lucide icon name for UI display
@@ -154,6 +155,7 @@ export const bookings = pgTable("bookings", {
 
 export const proposals = pgTable("proposals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   bookingId: varchar("booking_id").references(() => bookings.id),
   customerId: varchar("customer_id").references(() => customers.id),
   title: text("title").notNull(),
@@ -191,7 +193,8 @@ export const proposals = pgTable("proposals", {
 // Settings table for deposit configuration
 export const settings = pgTable("settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  key: text("key").notNull().unique(),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  key: text("key").notNull(),
   value: jsonb("value").notNull(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -199,6 +202,7 @@ export const settings = pgTable("settings", {
 // Communication tracking
 export const communications = pgTable("communications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   bookingId: varchar("booking_id").references(() => bookings.id),
   proposalId: varchar("proposal_id").references(() => proposals.id),
   customerId: varchar("customer_id").references(() => customers.id),
@@ -216,6 +220,7 @@ export const communications = pgTable("communications", {
 
 export const payments = pgTable("payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   bookingId: varchar("booking_id").references(() => bookings.id),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   paymentType: text("payment_type").notNull(), // deposit, final, refund
@@ -228,6 +233,7 @@ export const payments = pgTable("payments", {
 
 export const tasks = pgTable("tasks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   title: text("title").notNull(),
   description: text("description"),
   assignedTo: varchar("assigned_to").references(() => users.id),
@@ -240,6 +246,7 @@ export const tasks = pgTable("tasks", {
 
 export const aiInsights = pgTable("ai_insights", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   type: text("type").notNull(), // recommendation, prediction, analysis
   title: text("title").notNull(),
   description: text("description").notNull(),
@@ -251,6 +258,7 @@ export const aiInsights = pgTable("ai_insights", {
 
 export const packages = pgTable("packages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   description: text("description"),
   category: text("category").notNull(), // wedding, corporate, social, etc.
@@ -266,6 +274,7 @@ export const packages = pgTable("packages", {
 
 export const services = pgTable("services", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   description: text("description"),
   category: text("category").notNull(), // catering, entertainment, decor, etc.
@@ -280,6 +289,7 @@ export const services = pgTable("services", {
 // Tax and fees configuration
 export const taxSettings = pgTable("tax_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   type: text("type").notNull(), // 'tax', 'fee', 'service_charge'
   calculation: text("calculation").notNull(), // 'percentage', 'fixed'
@@ -295,6 +305,7 @@ export const taxSettings = pgTable("tax_settings", {
 // Lead management system
 export const campaignSources = pgTable("campaign_sources", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   isActive: boolean("is_active").default(true),
@@ -303,13 +314,15 @@ export const campaignSources = pgTable("campaign_sources", {
 
 export const tags = pgTable("tags", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull().unique(),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  name: text("name").notNull(),
   color: text("color").notNull().default("#3b82f6"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const leads = pgTable("leads", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   venueId: varchar("venue_id").references(() => venues.id),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
@@ -338,6 +351,7 @@ export const leads = pgTable("leads", {
 
 export const leadActivities = pgTable("lead_activities", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   leadId: varchar("lead_id").references(() => leads.id).notNull(),
   type: text("type").notNull(), // NOTE, EMAIL, SMS, CALL, STATUS_CHANGE, TOUR_SCHEDULED
   body: text("body").notNull(),
@@ -347,12 +361,15 @@ export const leadActivities = pgTable("lead_activities", {
 });
 
 export const leadTags = pgTable("lead_tags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   leadId: varchar("lead_id").references(() => leads.id).notNull(),
   tagId: varchar("tag_id").references(() => tags.id).notNull(),
 });
 
 export const leadTasks = pgTable("lead_tasks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   leadId: varchar("lead_id").references(() => leads.id).notNull(),
   title: text("title").notNull(),
   description: text("description"),
@@ -364,6 +381,7 @@ export const leadTasks = pgTable("lead_tasks", {
 
 export const tours = pgTable("tours", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   leadId: varchar("lead_id").references(() => leads.id).notNull(),
   venueId: varchar("venue_id").references(() => venues.id).notNull(),
   scheduledAt: timestamp("scheduled_at").notNull(),

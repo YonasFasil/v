@@ -19,7 +19,6 @@ export function TenantManagementModal({ open, onOpenChange }: Props) {
   
   const [formData, setFormData] = useState({
     name: "",
-    subdomain: "",
     adminEmail: "",
     adminName: "",
     password: "",
@@ -50,7 +49,6 @@ export function TenantManagementModal({ open, onOpenChange }: Props) {
       onOpenChange(false);
       setFormData({
         name: "",
-        subdomain: "",
         adminEmail: "",
         adminName: "",
         password: "",
@@ -68,7 +66,7 @@ export function TenantManagementModal({ open, onOpenChange }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.subdomain || !formData.adminEmail || !formData.adminName || !formData.password) {
+    if (!formData.name || !formData.adminEmail || !formData.adminName || !formData.password) {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
       return;
     }
@@ -94,19 +92,6 @@ export function TenantManagementModal({ open, onOpenChange }: Props) {
             />
           </div>
 
-          <div>
-            <Label htmlFor="subdomain">Tenant Slug *</Label>
-            <Input
-              id="subdomain"
-              value={formData.subdomain}
-              onChange={(e) => setFormData(prev => ({ ...prev, subdomain: e.target.value }))}
-              placeholder="acme"
-              required
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Will create path: /api/tenant/{formData.subdomain || "slug"}/dashboard
-            </p>
-          </div>
 
           <div>
             <Label htmlFor="adminName">Admin Full Name *</Label>

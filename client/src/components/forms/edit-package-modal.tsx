@@ -131,7 +131,7 @@ export function EditPackageModal({ open, onOpenChange, package: pkg }: Props) {
     );
   };
 
-  const selectedServicesData = services.filter((s: any) => selectedServices.includes(s.id));
+  const selectedServicesData = (services as any[])?.filter((s: any) => selectedServices.includes(s.id)) || [];
   const totalServicePrice = selectedServicesData.reduce((sum: number, service: any) => sum + parseFloat(service.price || 0), 0);
 
   return (
@@ -183,7 +183,7 @@ export function EditPackageModal({ open, onOpenChange, package: pkg }: Props) {
             <p className="text-sm text-slate-600 mb-3">Select services that are bundled in this package</p>
             
             <div className="space-y-2 max-h-60 overflow-y-auto">
-              {services.map((service: any) => (
+              {(services as any[])?.map((service: any) => (
                 <Card 
                   key={service.id} 
                   className={`p-3 cursor-pointer transition-colors ${
