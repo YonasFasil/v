@@ -9,7 +9,13 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
-// Simple health check
+// Debug middleware to log all requests
+app.use((req: Request, res: Response, next) => {
+  console.log(`${req.method} ${req.path} - Full URL: ${req.url}`);
+  next();
+});
+
+// Simple health check - Vercel routes /api/health -> /health in our function  
 app.get('/health', (req: Request, res: Response) => {
   res.json({ 
     status: 'healthy', 
@@ -19,7 +25,7 @@ app.get('/health', (req: Request, res: Response) => {
   });
 });
 
-// Simple super admin login endpoint for testing
+// Simple super admin login endpoint - /api/super-admin/login -> /super-admin/login
 app.post('/super-admin/login', async (req: Request, res: Response) => {
   try {
     console.log('Super admin login attempt');
