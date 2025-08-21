@@ -3,6 +3,10 @@
   "outputDirectory": "dist/public",
   "routes": [
     {
+      "src": "/api/customers/analytics(.*)",
+      "dest": "/api/customers"
+    },
+    {
       "src": "/api/companies(.*)",
       "dest": "/api/bookings"
     },
