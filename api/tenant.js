@@ -404,6 +404,49 @@ module.exports = async function handler(req, res) {
       }
     }
     
+    // COMPANIES
+    if (resource === 'companies') {
+      if (req.method === 'GET') {
+        const companies = await sql`
+          SELECT * FROM companies 
+          WHERE tenant_id = ${tenantId}
+          ORDER BY created_at DESC
+        `;
+        return res.json(companies);
+      }
+    }
+    
+    // CUSTOMER ANALYTICS
+    if (resource === 'customers' && req.query.action === 'analytics') {
+      const analytics = {
+        totalCustomers: 0,
+        newThisMonth: 0,
+        conversionRate: 0,
+        avgLeadScore: 0
+      };
+      
+      try {
+        const customerStats = await sql`
+          SELECT 
+            COUNT(*) as total,
+            COUNT(*) FILTER (WHERE created_at >= DATE_TRUNC('month', NOW())) as new_this_month,
+            AVG(lead_score) as avg_lead_score
+          FROM customers 
+          WHERE tenant_id = ${tenantId}
+        `;
+        
+        if (customerStats.length > 0) {
+          analytics.totalCustomers = parseInt(customerStats[0].total) || 0;
+          analytics.newThisMonth = parseInt(customerStats[0].new_this_month) || 0;
+          analytics.avgLeadScore = parseFloat(customerStats[0].avg_lead_score) || 0;
+        }
+      } catch (error) {
+        console.log('Analytics query failed, returning defaults');
+      }
+      
+      return res.json(analytics);
+    }
+    
     return res.status(404).json({ message: 'Resource not found' });
     
   } catch (error) {
