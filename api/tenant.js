@@ -361,43 +361,41 @@ module.exports = async function handler(req, res) {
         const bookings = await sql`
           SELECT b.*, 
                  c.name as customer_name,
-                 e.title as event_title,
                  v.name as venue_name,
                  s.name as space_name
           FROM bookings b
           LEFT JOIN customers c ON b.customer_id = c.id
-          LEFT JOIN events e ON b.event_id = e.id
           LEFT JOIN venues v ON b.venue_id = v.id
           LEFT JOIN spaces s ON b.space_id = s.id
           WHERE b.tenant_id = ${tenantId}
-          ORDER BY b.booking_date DESC
+          ORDER BY b.event_date DESC
         `;
         
         return res.json(bookings);
         
       } else if (req.method === 'POST') {
         const { 
-          customer_id, event_id, venue_id, space_id, booking_date,
-          start_time, end_time, status, total_amount, deposit_amount,
-          payment_status, notes, cancellation_policy
+          customer_id, venue_id, space_id, event_name, event_type,
+          event_date, end_date, start_time, end_time, guest_count,
+          setup_style, status, total_amount, deposit_amount,
+          deposit_paid, notes
         } = req.body;
         
-        if (!customer_id || !booking_date) {
-          return res.status(400).json({ message: 'Customer and booking date are required' });
+        if (!customer_id || !event_date || !event_name || !event_type || !start_time || !end_time || !guest_count) {
+          return res.status(400).json({ message: 'Customer, event details, date, times and guest count are required' });
         }
         
         const newBooking = await sql`
           INSERT INTO bookings (
-            tenant_id, customer_id, event_id, venue_id, space_id,
-            booking_date, start_time, end_time, status, total_amount,
-            deposit_amount, payment_status, notes, cancellation_policy,
-            created_at
+            tenant_id, customer_id, venue_id, space_id, event_name, event_type,
+            event_date, end_date, start_time, end_time, guest_count,
+            setup_style, status, total_amount, deposit_amount, deposit_paid, notes
           ) VALUES (
-            ${tenantId}, ${customer_id}, ${event_id || null}, ${venue_id || null},
-            ${space_id || null}, ${booking_date}, ${start_time || null},
-            ${end_time || null}, ${status || 'pending'}, ${total_amount || 0},
-            ${deposit_amount || 0}, ${payment_status || 'unpaid'}, 
-            ${notes || null}, ${cancellation_policy || null}, NOW()
+            ${tenantId}, ${customer_id}, ${venue_id || null}, ${space_id || null},
+            ${event_name}, ${event_type}, ${event_date}, ${end_date || null},
+            ${start_time}, ${end_time}, ${guest_count}, ${setup_style || null},
+            ${status || 'inquiry'}, ${total_amount || null}, ${deposit_amount || null},
+            ${deposit_paid || false}, ${notes || null}
           )
           RETURNING *
         `;
