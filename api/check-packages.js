@@ -10,11 +10,12 @@ module.exports = async function handler(req, res) {
     
     const sql = neon(process.env.DATABASE_URL);
     
-    // Check existing packages
+    // Check existing subscription packages
     const packages = await sql`
-      SELECT id, name, description, category, price, pricing_model, 
-             tenant_id, is_active, created_at
-      FROM packages 
+      SELECT id, name, description, price, billing_interval, 
+             trial_days, max_venues, max_users, max_bookings_per_month,
+             features, is_active, sort_order, created_at
+      FROM subscription_packages 
       ORDER BY created_at DESC
     `;
     
@@ -22,7 +23,7 @@ module.exports = async function handler(req, res) {
     const tableInfo = await sql`
       SELECT column_name, data_type, is_nullable, column_default
       FROM information_schema.columns
-      WHERE table_name = 'packages'
+      WHERE table_name = 'subscription_packages'
       ORDER BY ordinal_position
     `;
     

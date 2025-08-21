@@ -18,44 +18,45 @@ module.exports = async function handler(req, res) {
     const sql = neon(process.env.DATABASE_URL);
     
     if (req.method === 'GET') {
-      // Get all packages
+      // Get all subscription packages
       const packages = await sql`
-        SELECT * FROM packages 
+        SELECT * FROM subscription_packages 
         ORDER BY created_at DESC
       `;
       
       res.json(packages);
       
     } else if (req.method === 'POST') {
-      // Create new package
+      // Create new subscription package
       const { 
         name, 
         description, 
-        category, 
         price, 
-        pricingModel = 'fixed',
-        applicableSpaceIds = [],
-        includedServiceIds = [],
-        enabledTaxIds = [],
+        billingInterval = 'monthly',
+        trialDays = 14,
+        maxVenues = 1,
+        maxUsers = 3,
+        maxBookingsPerMonth = 100,
+        features = [],
         isActive = true,
-        tenantId 
+        sortOrder = 0
       } = req.body;
       
-      if (!name || !category || !price) {
+      if (!name || !price) {
         return res.status(400).json({ 
-          message: 'Name, category, and price are required' 
+          message: 'Name and price are required' 
         });
       }
       
       const newPackage = await sql`
-        INSERT INTO packages (
-          name, description, category, price, pricing_model,
-          applicable_space_ids, included_service_ids, enabled_tax_ids,
-          is_active, tenant_id, created_at, updated_at
+        INSERT INTO subscription_packages (
+          name, description, price, billing_interval, trial_days,
+          max_venues, max_users, max_bookings_per_month,
+          features, is_active, sort_order, created_at
         ) VALUES (
-          ${name}, ${description}, ${category}, ${price}, ${pricingModel},
-          ${applicableSpaceIds}, ${includedServiceIds}, ${enabledTaxIds},
-          ${isActive}, ${tenantId}, NOW(), NOW()
+          ${name}, ${description}, ${price}, ${billingInterval}, ${trialDays},
+          ${maxVenues}, ${maxUsers}, ${maxBookingsPerMonth},
+          ${JSON.stringify(features)}, ${isActive}, ${sortOrder}, NOW()
         )
         RETURNING *
       `;
@@ -93,7 +94,7 @@ module.exports = async function handler(req, res) {
       values.push(id);
       
       const query = `
-        UPDATE packages 
+        UPDATE subscription_packages 
         SET ${updateFields.join(', ')}
         WHERE id = $${paramIndex}
         RETURNING *
@@ -116,7 +117,7 @@ module.exports = async function handler(req, res) {
       }
       
       const deletedPackage = await sql`
-        DELETE FROM packages 
+        DELETE FROM subscription_packages 
         WHERE id = ${id}
         RETURNING *
       `;
