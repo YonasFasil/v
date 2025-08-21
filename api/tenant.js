@@ -40,6 +40,51 @@ module.exports = async function handler(req, res) {
     
     const { resource, action, id } = req.query;
     
+    // INIT MODE - Create missing tables
+    if (resource === 'init') {
+      const results = [];
+      
+      try {
+        // Create events table if it doesn't exist
+        await sql`
+          CREATE TABLE IF NOT EXISTS events (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            tenant_id UUID NOT NULL,
+            customer_id UUID REFERENCES customers(id),
+            venue_id UUID REFERENCES venues(id),
+            space_id UUID REFERENCES spaces(id),
+            title TEXT NOT NULL,
+            description TEXT,
+            start_date DATE NOT NULL,
+            end_date DATE,
+            start_time TIME,
+            end_time TIME,
+            event_type TEXT DEFAULT 'event',
+            status TEXT DEFAULT 'inquiry',
+            estimated_guests INTEGER,
+            actual_guests INTEGER,
+            setup_style TEXT,
+            special_requirements TEXT,
+            catering_notes TEXT,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW(),
+            is_active BOOLEAN DEFAULT true
+          )
+        `;
+        results.push({ table: 'events', status: 'created/verified' });
+      } catch (error) {
+        results.push({ table: 'events', error: error.message });
+      }
+      
+      // Add any other missing tables here if needed
+      
+      return res.json({
+        status: 'success',
+        message: 'Database initialization completed',
+        results
+      });
+    }
+
     // DEBUG MODE
     if (resource === 'debug') {
       const debug = {
