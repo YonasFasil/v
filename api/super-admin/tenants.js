@@ -26,7 +26,7 @@ module.exports = async function handler(req, res) {
         SELECT 
           t.id, t.name, t.slug, t.subscription_package_id,
           t.status, t.trial_ends_at, t.stripe_customer_id,
-          t.is_active, t.created_at, sp.name as package_name,
+          t.created_at, sp.name as package_name,
           sp.price as package_price, COUNT(u.id) as user_count
         FROM tenants t
         LEFT JOIN subscription_packages sp ON t.subscription_package_id = sp.id
@@ -85,11 +85,11 @@ module.exports = async function handler(req, res) {
       const newTenant = await sql`
         INSERT INTO tenants (
           name, slug, subscription_package_id, status, 
-          trial_ends_at, is_active, created_at
+          trial_ends_at, created_at
         ) VALUES (
           ${name}, ${slug}, ${subscriptionPackageId}, ${subscriptionStatus}, 
           ${subscriptionStatus === 'trial' ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() : null},
-          true, NOW()
+          NOW()
         ) RETURNING *
       `;
       
@@ -142,14 +142,13 @@ module.exports = async function handler(req, res) {
       
     } else if (req.method === 'PUT' && action === 'tenant' && tenantId) {
       // Update tenant
-      const { name, slug, subscriptionPackageId, subscriptionStatus, isActive } = req.body;
+      const { name, slug, subscriptionPackageId, subscriptionStatus } = req.body;
       
       const updatedTenant = await sql`
         UPDATE tenants 
         SET name = COALESCE(${name}, name), slug = COALESCE(${slug}, slug),
             subscription_package_id = COALESCE(${subscriptionPackageId}, subscription_package_id),
-            status = COALESCE(${subscriptionStatus}, status),
-            is_active = COALESCE(${isActive}, is_active), updated_at = NOW()
+            status = COALESCE(${subscriptionStatus}, status), updated_at = NOW()
         WHERE id = ${tenantId} RETURNING *
       `;
       
@@ -198,16 +197,16 @@ module.exports = async function handler(req, res) {
       return res.json(updatedUser[0]);
       
     } else if (req.method === 'DELETE' && action === 'tenant' && tenantId) {
-      // Deactivate tenant
+      // Change tenant status to suspended
       const deactivatedTenant = await sql`
-        UPDATE tenants SET is_active = false, updated_at = NOW()
+        UPDATE tenants SET status = 'suspended', updated_at = NOW()
         WHERE id = ${tenantId} RETURNING *
       `;
       
       if (deactivatedTenant.length === 0) {
         return res.status(404).json({ message: 'Tenant not found' });
       }
-      return res.json({ message: 'Tenant deactivated successfully' });
+      return res.json({ message: 'Tenant suspended successfully' });
       
     } else if (req.method === 'DELETE' && action === 'user' && tenantId && userId) {
       // Deactivate user
