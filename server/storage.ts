@@ -455,7 +455,7 @@ export class MemStorage implements IStorage {
       const demoTenant: Tenant = {
         id: randomUUID(),
         name: "Demo Venue",
-        subdomain: "demo",
+        slug: "demo",
         customDomain: null,
         subscriptionPackageId: null,
         subscriptionStatus: "trial",
@@ -2011,8 +2011,8 @@ export class MemStorage implements IStorage {
     return this.tenants.get(id);
   }
 
-  async getTenantBySubdomain(subdomain: string): Promise<Tenant | undefined> {
-    return Array.from(this.tenants.values()).find(t => t.subdomain === subdomain);
+  async getTenantBySlug(slug: string): Promise<Tenant | undefined> {
+    return Array.from(this.tenants.values()).find(t => t.slug === slug);
   }
 
   async createTenant(tenantData: InsertTenant): Promise<Tenant> {
@@ -2020,7 +2020,7 @@ export class MemStorage implements IStorage {
     const tenant: Tenant = {
       id,
       ...tenantData,
-      subdomain: tenantData.subdomain || null,
+      slug: tenantData.slug || '',
       customDomain: tenantData.customDomain || null,
       trialEndsAt: tenantData.trialEndsAt || null,
       subscriptionStartedAt: tenantData.subscriptionStartedAt || null,

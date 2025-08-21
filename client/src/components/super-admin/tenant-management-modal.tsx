@@ -35,12 +35,10 @@ export function TenantManagementModal({ open, onOpenChange }: Props) {
     mutationFn: (data: typeof formData) => {
       // Transform frontend data to API format
       const slug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-      const subdomain = slug;
       
       const payload = {
         name: data.name,
         slug: slug,
-        subdomain: subdomain,
         subscriptionPackageId: data.packageId === "none" || data.packageId === "" ? null : data.packageId,
         subscriptionStatus: 'trial',
         adminUser: {

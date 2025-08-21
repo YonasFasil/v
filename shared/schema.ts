@@ -413,8 +413,7 @@ export const subscriptionPackages = pgTable("subscription_packages", {
 export const tenants = pgTable("tenants", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
-  slug: text("slug").notNull().unique(), // URL-friendly name for subdomains
-  subdomain: text("subdomain").unique(), // e.g., "marriott"  
+  slug: text("slug").notNull().unique(), // URL-friendly name for routing
   customDomain: text("custom_domain"), // e.g., "bookings.marriott.com"
   subscriptionPackageId: uuid("subscription_package_id").references(() => subscriptionPackages.id).notNull(),
   status: text("status").notNull().default("trial"), // trial, active, suspended, cancelled

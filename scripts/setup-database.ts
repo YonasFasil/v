@@ -28,8 +28,8 @@ async function setupDatabase() {
     console.log('🏢 Creating default tenant...');
     const tenantId = crypto.randomUUID();
     await sql`
-      INSERT INTO tenants (id, name, slug, subdomain, subscription_package_id, status, primary_color, current_users, current_venues, monthly_bookings, created_at)
-      VALUES (${tenantId}, 'System Administration', 'system-admin', 'admin', ${packageId}, 'active', '#3b82f6', 1, 0, 0, NOW())
+      INSERT INTO tenants (id, name, slug, subscription_package_id, status, primary_color, current_users, current_venues, monthly_bookings, created_at)
+      VALUES (${tenantId}, 'System Administration', 'system-admin', ${packageId}, 'active', '#3b82f6', 1, 0, 0, NOW())
       ON CONFLICT (slug) DO NOTHING
     `;
 

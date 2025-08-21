@@ -5,7 +5,7 @@ export interface TenantRequest extends Request {
   tenant?: {
     id: string;
     name: string;
-    subdomain: string;
+    slug: string;
     status: string;
     subscriptionPackageId: string;
   };
@@ -28,13 +28,13 @@ export async function resolveTenant(req: TenantRequest, res: Response, next: Nex
     if (tenantSlug) {
       // Find tenant by slug
       const tenants = Array.from(storage.tenants.values());
-      const tenant = tenants.find(t => t.subdomain === tenantSlug); // Keep using subdomain field as tenant slug
+      const tenant = tenants.find(t => t.slug === tenantSlug);
       
       if (tenant) {
         req.tenant = {
           id: tenant.id,
           name: tenant.name,
-          subdomain: tenant.subdomain || '',
+          slug: tenant.slug || '',
           status: tenant.status,
           subscriptionPackageId: tenant.subscriptionPackageId
         };

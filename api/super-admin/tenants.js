@@ -24,7 +24,7 @@ module.exports = async function handler(req, res) {
       // Get all tenants
       const tenants = await sql`
         SELECT 
-          t.id, t.name, t.slug, t.subdomain, t.subscription_package_id,
+          t.id, t.name, t.slug, t.subscription_package_id,
           t.subscription_status, t.trial_ends_at, t.stripe_customer_id,
           t.is_active, t.created_at, sp.name as package_name,
           sp.price as package_price, COUNT(u.id) as user_count
@@ -66,28 +66,28 @@ module.exports = async function handler(req, res) {
       
     } else if (req.method === 'POST' && action === 'create') {
       // Create tenant
-      const { name, slug, subdomain, subscriptionPackageId, subscriptionStatus = 'trial', adminUser } = req.body;
+      const { name, slug, subscriptionPackageId, subscriptionStatus = 'trial', adminUser } = req.body;
       
       if (!name || !slug || !adminUser?.email || !adminUser?.password) {
         return res.status(400).json({ message: 'Name, slug, and admin user details are required' });
       }
       
-      // Check if slug or subdomain already exists
+      // Check if slug already exists
       const existingTenant = await sql`
-        SELECT id FROM tenants WHERE slug = ${slug} OR subdomain = ${subdomain}
+        SELECT id FROM tenants WHERE slug = ${slug}
       `;
       
       if (existingTenant.length > 0) {
-        return res.status(400).json({ message: 'Slug or subdomain already exists' });
+        return res.status(400).json({ message: 'Slug already exists' });
       }
       
       // Create tenant
       const newTenant = await sql`
         INSERT INTO tenants (
-          name, slug, subdomain, subscription_package_id, subscription_status, 
+          name, slug, subscription_package_id, subscription_status, 
           trial_ends_at, is_active, created_at
         ) VALUES (
-          ${name}, ${slug}, ${subdomain}, ${subscriptionPackageId}, ${subscriptionStatus}, 
+          ${name}, ${slug}, ${subscriptionPackageId}, ${subscriptionStatus}, 
           ${subscriptionStatus === 'trial' ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() : null},
           true, NOW()
         ) RETURNING *
@@ -142,12 +142,11 @@ module.exports = async function handler(req, res) {
       
     } else if (req.method === 'PUT' && action === 'tenant' && tenantId) {
       // Update tenant
-      const { name, slug, subdomain, subscriptionPackageId, subscriptionStatus, isActive } = req.body;
+      const { name, slug, subscriptionPackageId, subscriptionStatus, isActive } = req.body;
       
       const updatedTenant = await sql`
         UPDATE tenants 
         SET name = COALESCE(${name}, name), slug = COALESCE(${slug}, slug),
-            subdomain = COALESCE(${subdomain}, subdomain),
             subscription_package_id = COALESCE(${subscriptionPackageId}, subscription_package_id),
             subscription_status = COALESCE(${subscriptionStatus}, subscription_status),
             is_active = COALESCE(${isActive}, is_active), updated_at = NOW()
