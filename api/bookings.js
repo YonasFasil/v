@@ -1,6 +1,13 @@
 module.exports = async function handler(req, res) {
-  // Redirect to consolidated tenant API
+  // Handle bookings and companies through same endpoint
   const tenantHandler = require('./tenant.js');
-  req.query = { ...req.query, resource: 'bookings' };
+  
+  // Check URL to determine resource type
+  if (req.url === '/api/companies' || req.url.startsWith('/api/companies?')) {
+    req.query = { ...req.query, resource: 'companies' };
+  } else {
+    req.query = { ...req.query, resource: 'bookings' };
+  }
+  
   return tenantHandler(req, res);
 };

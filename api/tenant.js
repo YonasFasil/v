@@ -416,8 +416,8 @@ module.exports = async function handler(req, res) {
       }
     }
     
-    // CUSTOMER ANALYTICS
-    if (resource === 'customers' && req.query.action === 'analytics') {
+    // CUSTOMER ANALYTICS  
+    if (resource === 'customer-analytics') {
       const analytics = {
         totalCustomers: 0,
         newThisMonth: 0,

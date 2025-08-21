@@ -3,6 +3,10 @@
   "outputDirectory": "dist/public",
   "routes": [
     {
+      "src": "/api/companies(.*)",
+      "dest": "/api/bookings"
+    },
+    {
       "handle": "filesystem"
     },
     {
