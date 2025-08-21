@@ -25,7 +25,8 @@
       "Bash(git add:*)",
       "Bash(git rm:*)",
       "Bash(mkdir:*)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "WebFetch(domain:venuinenew-dl0m701av-yonasfasils-projects.vercel.app)"
     ],
     "deny": [],
     "ask": [],

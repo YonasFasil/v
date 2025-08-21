@@ -7,6 +7,10 @@
       "dest": "/api/bookings"
     },
     {
+      "src": "/api/venues-with-spaces(.*)",
+      "dest": "/api/venues"
+    },
+    {
       "handle": "filesystem"
     },
     {

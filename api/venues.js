@@ -1,6 +1,13 @@
 module.exports = async function handler(req, res) {
-  // Redirect to consolidated tenant API
+  // Handle venues and venues-with-spaces
   const tenantHandler = require('./tenant.js');
-  req.query = { ...req.query, resource: 'venues' };
+  
+  // Check URL to determine resource type
+  if (req.url === '/api/venues-with-spaces' || req.url.startsWith('/api/venues-with-spaces?')) {
+    req.query = { ...req.query, resource: 'venues-with-spaces' };
+  } else {
+    req.query = { ...req.query, resource: 'venues' };
+  }
+  
   return tenantHandler(req, res);
 };
