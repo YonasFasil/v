@@ -176,11 +176,10 @@ module.exports = async function handler(req, res) {
         
         const newCustomer = await sql`
           INSERT INTO customers (
-            tenant_id, name, email, phone, notes, 
-            is_active, created_at
+            tenant_id, name, email, phone, notes, created_at
           ) VALUES (
             ${tenantId}, ${name}, ${email}, ${phone || null}, 
-            ${notes || null}, true, NOW()
+            ${notes || null}, NOW()
           )
           RETURNING *
         `;
@@ -209,11 +208,11 @@ module.exports = async function handler(req, res) {
         const newVenue = await sql`
           INSERT INTO venues (
             tenant_id, name, description, capacity, price_per_hour, 
-            amenities, image_url, is_active, created_at
+            amenities, image_url, created_at
           ) VALUES (
             ${tenantId}, ${name}, ${description || null}, ${capacity}, 
             ${price_per_hour || null}, ${amenities || null}, ${image_url || null}, 
-            true, NOW()
+            NOW()
           )
           RETURNING *
         `;
