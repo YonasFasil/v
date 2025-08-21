@@ -33,10 +33,22 @@ export function TenantManagementModal({ open, onOpenChange }: Props) {
 
   const createTenantMutation = useMutation({
     mutationFn: (data: typeof formData) => {
-      // Convert "none" to null for the server
+      // Transform frontend data to API format
+      const slug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      const subdomain = slug;
+      
       const payload = {
-        ...data,
-        packageId: data.packageId === "none" || data.packageId === "" ? null : data.packageId
+        name: data.name,
+        slug: slug,
+        subdomain: subdomain,
+        subscriptionPackageId: data.packageId === "none" || data.packageId === "" ? null : data.packageId,
+        subscriptionStatus: 'trial',
+        adminUser: {
+          email: data.adminEmail,
+          password: data.password,
+          name: data.adminName,
+          username: data.adminEmail.split('@')[0]
+        }
       };
       return apiRequest("/api/super-admin/tenants?action=create", {
         method: "POST",
