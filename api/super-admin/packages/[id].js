@@ -1,0 +1,103 @@
+const { neon } = require('@neondatabase/serverless');
+
+module.exports = async function handler(req, res) {
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  try {
+    if (!process.env.DATABASE_URL) {
+      return res.status(500).json({ message: 'Database not configured' });
+    }
+    
+    const sql = neon(process.env.DATABASE_URL);
+    const { id } = req.query;
+    
+    if (!id) {
+      return res.status(400).json({ message: 'Package ID is required' });
+    }
+    
+    if (req.method === 'GET') {
+      // Get single package
+      const packages = await sql`
+        SELECT * FROM subscription_packages 
+        WHERE id = ${id}
+      `;
+      
+      if (packages.length === 0) {
+        return res.status(404).json({ message: 'Package not found' });
+      }
+      
+      res.json(packages[0]);
+      
+    } else if (req.method === 'PUT') {
+      // Update package
+      const {
+        name,
+        description,
+        price,
+        billingInterval,
+        trialDays,
+        maxVenues,
+        maxUsers,
+        maxBookingsPerMonth,
+        features,
+        isActive,
+        sortOrder
+      } = req.body;
+      
+      const updatedPackage = await sql`
+        UPDATE subscription_packages 
+        SET 
+          name = ${name},
+          description = ${description},
+          price = ${price},
+          billing_interval = ${billingInterval},
+          trial_days = ${trialDays},
+          max_venues = ${maxVenues},
+          max_users = ${maxUsers},
+          max_bookings_per_month = ${maxBookingsPerMonth},
+          features = ${JSON.stringify(features || [])},
+          is_active = ${isActive},
+          sort_order = ${sortOrder}
+        WHERE id = ${id}
+        RETURNING *
+      `;
+      
+      if (updatedPackage.length === 0) {
+        return res.status(404).json({ message: 'Package not found' });
+      }
+      
+      res.json(updatedPackage[0]);
+      
+    } else if (req.method === 'DELETE') {
+      // Delete package
+      const deletedPackage = await sql`
+        DELETE FROM subscription_packages 
+        WHERE id = ${id}
+        RETURNING *
+      `;
+      
+      if (deletedPackage.length === 0) {
+        return res.status(404).json({ message: 'Package not found' });
+      }
+      
+      res.json({ message: 'Package deleted successfully' });
+      
+    } else {
+      res.status(405).json({ message: 'Method not allowed' });
+    }
+    
+  } catch (error) {
+    console.error('Package operation error:', error);
+    res.status(500).json({ 
+      message: 'Internal server error', 
+      error: error.message 
+    });
+  }
+};
