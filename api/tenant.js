@@ -40,6 +40,78 @@ module.exports = async function handler(req, res) {
     
     const { resource, action, id } = req.query;
     
+    // DEBUG MODE
+    if (resource === 'debug') {
+      const debug = {
+        tenantId,
+        userInfo: {
+          id: decoded.id,
+          email: decoded.email,
+          role: decoded.role
+        },
+        tables: {}
+      };
+      
+      try {
+        // Test customers table
+        const customers = await sql`SELECT COUNT(*) as count FROM customers WHERE tenant_id = ${tenantId}`;
+        debug.tables.customers = { count: customers[0].count, status: 'success' };
+      } catch (error) {
+        debug.tables.customers = { error: error.message, status: 'failed' };
+      }
+      
+      try {
+        // Test venues table
+        const venues = await sql`SELECT COUNT(*) as count FROM venues WHERE tenant_id = ${tenantId}`;
+        debug.tables.venues = { count: venues[0].count, status: 'success' };
+      } catch (error) {
+        debug.tables.venues = { error: error.message, status: 'failed' };
+      }
+      
+      try {
+        // Test events table
+        const events = await sql`SELECT COUNT(*) as count FROM events WHERE tenant_id = ${tenantId}`;
+        debug.tables.events = { count: events[0].count, status: 'success' };
+      } catch (error) {
+        debug.tables.events = { error: error.message, status: 'failed' };
+      }
+      
+      try {
+        // Test proposals table
+        const proposals = await sql`SELECT COUNT(*) as count FROM proposals WHERE tenant_id = ${tenantId}`;
+        debug.tables.proposals = { count: proposals[0].count, status: 'success' };
+      } catch (error) {
+        debug.tables.proposals = { error: error.message, status: 'failed' };
+      }
+      
+      try {
+        // Test bookings table
+        const bookings = await sql`SELECT COUNT(*) as count FROM bookings WHERE tenant_id = ${tenantId}`;
+        debug.tables.bookings = { count: bookings[0].count, status: 'success' };
+      } catch (error) {
+        debug.tables.bookings = { error: error.message, status: 'failed' };
+      }
+      
+      try {
+        // Test table structure
+        const tableInfo = await sql`
+          SELECT table_name 
+          FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          ORDER BY table_name
+        `;
+        debug.availableTables = tableInfo.map(t => t.table_name);
+      } catch (error) {
+        debug.availableTables = { error: error.message };
+      }
+      
+      return res.json({
+        status: 'success',
+        timestamp: new Date().toISOString(),
+        debug
+      });
+    }
+    
     // CUSTOMERS
     if (resource === 'customers') {
       if (req.method === 'GET') {
