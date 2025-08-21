@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,18 +50,52 @@ export function PackageManagementModal({ open, onOpenChange, package: editPackag
   const queryClient = useQueryClient();
   
   const [formData, setFormData] = useState<Partial<InsertSubscriptionPackage>>({
-    name: editPackage?.name || "",
-    description: editPackage?.description || "",
-    price: editPackage?.price || "0",
-    billingInterval: editPackage?.billingInterval || "monthly",
-    trialDays: editPackage?.trialDays || 14,
-    maxVenues: editPackage?.maxVenues || 1,
-    maxUsers: editPackage?.maxUsers || 3,
-    maxBookingsPerMonth: editPackage?.maxBookingsPerMonth || 100,
-    features: editPackage?.features || [],
-    isActive: editPackage?.isActive ?? true,
-    sortOrder: editPackage?.sortOrder || 0,
+    name: "",
+    description: "",
+    price: "0",
+    billingInterval: "monthly",
+    trialDays: 14,
+    maxVenues: 1,
+    maxUsers: 3,
+    maxBookingsPerMonth: 100,
+    features: [],
+    isActive: true,
+    sortOrder: 0,
   });
+
+  // Update form data when editPackage changes
+  useEffect(() => {
+    if (editPackage) {
+      setFormData({
+        name: editPackage.name || "",
+        description: editPackage.description || "",
+        price: editPackage.price || "0",
+        billingInterval: editPackage.billingInterval || "monthly",
+        trialDays: editPackage.trialDays || 14,
+        maxVenues: editPackage.maxVenues || 1,
+        maxUsers: editPackage.maxUsers || 3,
+        maxBookingsPerMonth: editPackage.maxBookingsPerMonth || 100,
+        features: editPackage.features || [],
+        isActive: editPackage.isActive ?? true,
+        sortOrder: editPackage.sortOrder || 0,
+      });
+    } else {
+      // Reset form for new package
+      setFormData({
+        name: "",
+        description: "",
+        price: "0",
+        billingInterval: "monthly",
+        trialDays: 14,
+        maxVenues: 1,
+        maxUsers: 3,
+        maxBookingsPerMonth: 100,
+        features: [],
+        isActive: true,
+        sortOrder: 0,
+      });
+    }
+  }, [editPackage, open]);
 
   const createPackageMutation = useMutation({
     mutationFn: (data: InsertSubscriptionPackage) =>

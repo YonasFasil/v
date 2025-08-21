@@ -38,7 +38,7 @@ export function TenantManagementModal({ open, onOpenChange }: Props) {
         ...data,
         packageId: data.packageId === "none" || data.packageId === "" ? null : data.packageId
       };
-      return apiRequest("/api/super-admin/create-tenant", {
+      return apiRequest("/api/super-admin/tenants?action=create", {
         method: "POST",
         body: JSON.stringify(payload),
       });
