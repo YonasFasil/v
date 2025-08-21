@@ -168,7 +168,7 @@ module.exports = async function handler(req, res) {
         return res.json(customers);
         
       } else if (req.method === 'POST') {
-        const { name, email, phone, company, notes } = req.body;
+        const { name, email, phone, notes } = req.body;
         
         if (!name || !email) {
           return res.status(400).json({ message: 'Name and email are required' });
@@ -176,11 +176,11 @@ module.exports = async function handler(req, res) {
         
         const newCustomer = await sql`
           INSERT INTO customers (
-            tenant_id, name, email, phone, company, notes, 
+            tenant_id, name, email, phone, notes, 
             is_active, created_at
           ) VALUES (
             ${tenantId}, ${name}, ${email}, ${phone || null}, 
-            ${company || null}, ${notes || null}, true, NOW()
+            ${notes || null}, true, NOW()
           )
           RETURNING *
         `;
@@ -200,19 +200,19 @@ module.exports = async function handler(req, res) {
         return res.json(venues);
         
       } else if (req.method === 'POST') {
-        const { name, description, location, contact_info, amenities, policies } = req.body;
+        const { name, description, capacity, price_per_hour, amenities, image_url } = req.body;
         
-        if (!name) {
-          return res.status(400).json({ message: 'Venue name is required' });
+        if (!name || !capacity) {
+          return res.status(400).json({ message: 'Venue name and capacity are required' });
         }
         
         const newVenue = await sql`
           INSERT INTO venues (
-            tenant_id, name, description, location, contact_info, 
-            amenities, policies, is_active, created_at
+            tenant_id, name, description, capacity, price_per_hour, 
+            amenities, image_url, is_active, created_at
           ) VALUES (
-            ${tenantId}, ${name}, ${description || null}, ${location || null}, 
-            ${contact_info || null}, ${amenities || null}, ${policies || null}, 
+            ${tenantId}, ${name}, ${description || null}, ${capacity}, 
+            ${price_per_hour || null}, ${amenities || null}, ${image_url || null}, 
             true, NOW()
           )
           RETURNING *
