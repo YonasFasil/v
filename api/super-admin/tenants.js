@@ -25,7 +25,7 @@ module.exports = async function handler(req, res) {
       const tenants = await sql`
         SELECT 
           t.id, t.name, t.slug, t.subscription_package_id,
-          t.subscription_status, t.trial_ends_at, t.stripe_customer_id,
+          t.status, t.trial_ends_at, t.stripe_customer_id,
           t.is_active, t.created_at, sp.name as package_name,
           sp.price as package_price, COUNT(u.id) as user_count
         FROM tenants t
@@ -84,7 +84,7 @@ module.exports = async function handler(req, res) {
       // Create tenant
       const newTenant = await sql`
         INSERT INTO tenants (
-          name, slug, subscription_package_id, subscription_status, 
+          name, slug, subscription_package_id, status, 
           trial_ends_at, is_active, created_at
         ) VALUES (
           ${name}, ${slug}, ${subscriptionPackageId}, ${subscriptionStatus}, 
@@ -148,7 +148,7 @@ module.exports = async function handler(req, res) {
         UPDATE tenants 
         SET name = COALESCE(${name}, name), slug = COALESCE(${slug}, slug),
             subscription_package_id = COALESCE(${subscriptionPackageId}, subscription_package_id),
-            subscription_status = COALESCE(${subscriptionStatus}, subscription_status),
+            status = COALESCE(${subscriptionStatus}, status),
             is_active = COALESCE(${isActive}, is_active), updated_at = NOW()
         WHERE id = ${tenantId} RETURNING *
       `;
