@@ -25,7 +25,11 @@ export default function Events() {
   const { data: bookings, isLoading } = useBookings();
   
   // Fetch proposals to check which events have proposals
-  const { data: proposals = [] } = useQuery({ queryKey: ["/api/proposals"] }) as { data: any[] };
+  const { data: proposals = [] } = useQuery({
+    queryKey: ["/api/proposals"],
+    staleTime: 30000, // 30 seconds
+    gcTime: 300000, // 5 minutes
+  });
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [showEditModal, setShowEditModal] = useState(false);
