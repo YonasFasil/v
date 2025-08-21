@@ -22,7 +22,10 @@
       "Bash(npx drizzle-kit:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git rm:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)"
     ],
     "deny": [],
     "ask": [],
