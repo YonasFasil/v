@@ -418,33 +418,54 @@ module.exports = async function handler(req, res) {
     
     // CUSTOMER ANALYTICS  
     if (resource === 'customer-analytics') {
-      const analytics = {
-        totalCustomers: 0,
-        newThisMonth: 0,
-        conversionRate: 0,
-        avgLeadScore: 0
-      };
-      
       try {
-        const customerStats = await sql`
+        // Get customers with analytics data
+        const customers = await sql`
           SELECT 
-            COUNT(*) as total,
-            COUNT(*) FILTER (WHERE created_at >= DATE_TRUNC('month', NOW())) as new_this_month,
-            AVG(lead_score) as avg_lead_score
-          FROM customers 
-          WHERE tenant_id = ${tenantId}
+            c.id,
+            c.name,
+            c.email,
+            c.phone,
+            c.company_id,
+            c.status,
+            c.notes,
+            COALESCE(SUM(b.total_amount), 0) as total_revenue,
+            COUNT(b.id) as bookings_count,
+            COUNT(CASE WHEN b.status = 'confirmed' THEN 1 END) as confirmed_bookings,
+            COUNT(CASE WHEN b.status = 'inquiry' THEN 1 END) as pending_bookings,
+            COUNT(CASE WHEN b.status = 'cancelled' THEN 1 END) as cancelled_bookings
+          FROM customers c
+          LEFT JOIN bookings b ON c.id = b.customer_id
+          WHERE c.tenant_id = ${tenantId}
+          GROUP BY c.id, c.name, c.email, c.phone, c.company_id, c.status, c.notes
+          ORDER BY c.created_at DESC
         `;
         
-        if (customerStats.length > 0) {
-          analytics.totalCustomers = parseInt(customerStats[0].total) || 0;
-          analytics.newThisMonth = parseInt(customerStats[0].new_this_month) || 0;
-          analytics.avgLeadScore = parseFloat(customerStats[0].avg_lead_score) || 0;
-        }
+        // Format data for frontend
+        const customersWithAnalytics = customers.map(customer => ({
+          id: customer.id,
+          name: customer.name,
+          email: customer.email,
+          phone: customer.phone,
+          companyId: customer.company_id,
+          status: customer.status,
+          notes: customer.notes,
+          analytics: {
+            totalRevenue: parseFloat(customer.total_revenue) || 0,
+            lifetimeValue: parseFloat(customer.total_revenue) || 0,
+            lifetimeValueCategory: parseFloat(customer.total_revenue) > 10000 ? 'High' : parseFloat(customer.total_revenue) > 5000 ? 'Medium' : 'Low',
+            bookingsCount: parseInt(customer.bookings_count) || 0,
+            confirmedBookings: parseInt(customer.confirmed_bookings) || 0,
+            pendingBookings: parseInt(customer.pending_bookings) || 0,
+            cancelledBookings: parseInt(customer.cancelled_bookings) || 0
+          }
+        }));
+        
+        return res.json(customersWithAnalytics);
       } catch (error) {
-        console.log('Analytics query failed, returning defaults');
+        console.log('Customer analytics query failed:', error);
+        return res.json([]);
       }
-      
-      return res.json(analytics);
     }
     
     return res.status(404).json({ message: 'Resource not found' });
