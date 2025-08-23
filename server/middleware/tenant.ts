@@ -27,7 +27,7 @@ export async function resolveTenant(req: TenantRequest, res: Response, next: Nex
     
     if (tenantSlug) {
       // Find tenant by slug
-      const tenants = Array.from(storage.tenants.values());
+      const tenants = await storage.getTenants();
       const tenant = tenants.find(t => t.slug === tenantSlug);
       
       if (tenant) {

@@ -53,56 +53,9 @@ export function StatusChangeModal({ open, onOpenChange, booking, onStatusChanged
         headers: { "Content-Type": "application/json" }
       });
 
-      return response.json();
+      return response;
     },
-    onMutate: async () => {
-      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
-      await queryClient.cancelQueries({ queryKey: ['/api/calendar/events'], type: 'all' });
-      await queryClient.cancelQueries({ queryKey: ['/api/bookings'] });
-
-      // Snapshot the previous values for all calendar variants
-      const previousEventsData = queryClient.getQueryData(['/api/calendar/events?mode=events']);
-      const previousVenuesData = queryClient.getQueryData(['/api/calendar/events?mode=venues']);
-      const previousBookingsData = queryClient.getQueryData(['/api/bookings']);
-
-      // Optimistically update calendar events mode
-      queryClient.setQueryData(['/api/calendar/events?mode=events'], (old: any) => {
-        if (!old?.data) return old;
-        return {
-          ...old,
-          data: old.data.map((event: any) => 
-            event.id === booking.id 
-              ? { ...event, status: selectedStatus }
-              : event
-          )
-        };
-      });
-
-      // Optimistically update bookings list
-      queryClient.setQueryData(['/api/bookings'], (old: any) => {
-        if (!old) return old;
-        return old.map((b: any) => 
-          b.id === booking.id 
-            ? { ...b, status: selectedStatus }
-            : b
-        );
-      });
-
-      // Return a context object with the snapshotted values
-      return { previousEventsData, previousVenuesData, previousBookingsData };
-    },
-    onError: (error: any, newStatus, context) => {
-      // If the mutation fails, use the context returned from onMutate to roll back
-      if (context?.previousEventsData) {
-        queryClient.setQueryData(['/api/calendar/events?mode=events'], context.previousEventsData);
-      }
-      if (context?.previousVenuesData) {
-        queryClient.setQueryData(['/api/calendar/events?mode=venues'], context.previousVenuesData);
-      }
-      if (context?.previousBookingsData) {
-        queryClient.setQueryData(['/api/bookings'], context.previousBookingsData);
-      }
-      
+    onError: (error: any) => {
       toast({
         title: "Update Failed",
         description: error.message || "Failed to update booking status. Please try again.",
@@ -115,11 +68,9 @@ export function StatusChangeModal({ open, onOpenChange, booking, onStatusChanged
         description: `Booking status changed to ${STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}`
       });
       
-      // Delay cache invalidation slightly to let optimistic update render
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['/api/calendar/events'], type: 'all' });
-        queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
-      }, 100);
+      // Immediately invalidate cache to get fresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/calendar/events'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
       
       onStatusChanged();
       onOpenChange(false);

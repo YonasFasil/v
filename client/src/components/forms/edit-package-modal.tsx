@@ -50,8 +50,12 @@ export function EditPackageModal({ open, onOpenChange, package: pkg }: Props) {
 
   const updatePackage = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("PATCH", `/api/packages/${pkg.id}`, data);
-      return response.json();
+      const response = await apiRequest(`/api/packages/${pkg.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+        headers: { "Content-Type": "application/json" }
+      });
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/packages"] });

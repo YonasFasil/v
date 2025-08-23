@@ -68,6 +68,9 @@ export function setupSecurity(app: Express) {
       ? (req) => 'dev-key' // Single key for all requests in dev
       : undefined, // Use default IP-based key in production
     skip: (req) => {
+      // In development, skip rate limiting for all requests to avoid 429 errors
+      if (process.env.NODE_ENV === 'development') return true;
+      
       // Skip rate limiting for static assets and vite HMR
       return req.path.includes('.') || req.path.startsWith('/src/') || req.path.startsWith('/@vite') || req.path.startsWith('/node_modules');
     }
@@ -87,18 +90,20 @@ export function setupSecurity(app: Express) {
     keyGenerator: process.env.NODE_ENV === 'development' 
       ? (req) => 'dev-auth-key' // Single key for all requests in dev
       : undefined, // Use default IP-based key in production
+    skip: (req) => process.env.NODE_ENV === 'development' // Skip auth rate limiting in dev
   });
 
   // API rate limit for high-frequency endpoints
   const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: process.env.NODE_ENV === 'development' ? 10000 : 1000, // Higher limit for API endpoints in dev
+    max: process.env.NODE_ENV === 'development' ? 50000 : 1000, // Very high limit for API endpoints in dev
     message: {
       error: 'API rate limit exceeded, please try again later.',
       retryAfter: 900,
     },
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => process.env.NODE_ENV === 'development' // Skip API rate limiting in dev
   });
 
   // Apply rate limiting

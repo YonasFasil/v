@@ -917,6 +917,7 @@ export class MemStorage implements IStorage {
   }
 
   async createVenue(insertVenue: InsertVenue): Promise<Venue> {
+    console.log('🚨 WARNING: MemStorage.createVenue called instead of DbStorage!', { name: insertVenue.name });
     const id = randomUUID();
     const venue: Venue = { 
       ...insertVenue, 
@@ -928,6 +929,7 @@ export class MemStorage implements IStorage {
       isActive: insertVenue.isActive ?? true
     };
     this.venues.set(id, venue);
+    console.log('🚨 Venue stored in MEMORY (not database):', { id, name: venue.name });
     return venue;
   }
 
@@ -2191,8 +2193,9 @@ export class DbStorage implements IStorage {
     } else if (context.tenantId) {
       return await this.db.select().from(venues).where(eq(venues.tenantId, context.tenantId));
     } else {
-      console.warn('WARNING: getVenues() called without proper tenant context');
-      return [];
+      console.warn('WARNING: getVenues() called without proper tenant context, returning all venues for manual filtering');
+      // Return all venues so routes can manually filter by tenant - this maintains compatibility
+      return await this.db.select().from(venues);
     }
   }
 
@@ -2202,8 +2205,40 @@ export class DbStorage implements IStorage {
   }
 
   async createVenue(venue: InsertVenue): Promise<Venue> {
-    const result = await this.db.insert(venues).values(venue).returning();
-    return result[0];
+    try {
+      console.log('🏗️ DbStorage.createVenue called:', { name: venue.name, tenantId: venue.tenantId });
+      
+      // Simple direct insert without complex transactions - they were causing issues
+      const insertResult = await this.db.insert(venues).values(venue).returning();
+      console.log('💾 Insert result:', { resultLength: insertResult?.length, result: insertResult?.[0] });
+      
+      if (!insertResult || insertResult.length === 0) {
+        throw new Error('Failed to insert venue - no result returned');
+      }
+      
+      const result = insertResult[0];
+      console.log('✅ Venue created in DB:', { id: result?.id, name: result?.name });
+      
+      // Immediate verification with debug
+      console.log('🔍 Starting immediate verification for venue ID:', result.id);
+      const verifyResult = await this.db.select().from(venues).where(eq(venues.id, result.id));
+      console.log('🔍 Immediate verification result:', { 
+        found: verifyResult.length > 0, 
+        id: verifyResult[0]?.id,
+        name: verifyResult[0]?.name,
+        queryResult: verifyResult 
+      });
+      
+      // Also count all venues to see total
+      const totalCount = await this.db.select().from(venues);
+      console.log('📊 Total venues in database after insert:', totalCount.length);
+      
+      return result;
+    } catch (error) {
+      console.error('❌ DbStorage.createVenue failed:', error);
+      console.error('❌ Venue data that failed:', venue);
+      throw error;
+    }
   }
 
   async updateVenue(id: string, venue: Partial<InsertVenue>): Promise<Venue | undefined> {
@@ -2446,6 +2481,10 @@ export class DbStorage implements IStorage {
   async createMultipleBookings(bookings: InsertBooking[], contractId: string): Promise<Booking[]> { 
     const result = await this.db.insert(bookings).values(bookings).returning();
     return result;
+  }
+  async deleteBooking(id: string): Promise<boolean> {
+    const result = await this.db.delete(bookings).where(eq(bookings.id, id)).returning();
+    return result.length > 0;
   }
 
   // Continue with other methods following same pattern...

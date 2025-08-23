@@ -117,7 +117,7 @@ export async function clearDatabaseTenantContext(req: Request, res: Response, ne
  * Combined middleware that sets context before and clears after
  */
 export function tenantContextMiddleware(req: Request, res: Response, next: NextFunction) {
-  setDatabaseTenantContext(req, res, async (err) => {
+  setDatabaseTenantContext(req, res, (err) => {
     if (err) return next(err);
     
     // Set up cleanup

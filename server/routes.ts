@@ -98,6 +98,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/leads', tenantContextMiddleware);
   app.use('/api/tours', tenantContextMiddleware);
   app.use('/api/calendar', tenantContextMiddleware);
+  app.use('/api/dashboard', tenantContextMiddleware);
+  app.use('/api/companies', tenantContextMiddleware);
+  app.use('/api/contracts', tenantContextMiddleware);
 
   // Helper function to get tenant ID from authenticated user
   const getTenantIdFromAuth = async (req: any): Promise<string | null> => {
@@ -381,14 +384,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================================================
   
   // Venues - with tenant filtering
-  app.get("/api/venues", 
-    requireAuth('venues'),
-    async (req: AuthenticatedRequest, res) => {
+  app.get("/api/venues", async (req, res) => {
+    // Disable caching
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.set('ETag', ''); // Clear ETag to prevent 304 responses
+    
     try {
-      // RLS automatically filters by tenant - no manual filtering needed!
-      const venues = await storage.getVenues();
+      const tenantId = await getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const token = authHeader.substring(7);
+      const decoded = verifyToken(token);
+      if (!decoded) {
+        return res.status(401).json({ message: "Invalid token" });
+      }
+      
+      const user = await storage.getUser(decoded.id);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      
+      // Get all venues and filter by tenant
+      const allVenues = await storage.getVenues();
+      console.log(`🏢 VENUES API: Total venues in DB: ${allVenues.length}`);
+      console.log(`🏢 VENUES API: User tenant: ${user.tenantId}`);
+      const venues = allVenues.filter(v => v.tenantId === user.tenantId);
+      console.log(`🎯 VENUES API: Returning ${venues.length} venues for tenant`);
+      
       res.json(venues);
     } catch (error) {
+      console.error('Venues API error:', error);
       res.status(500).json({ message: "Failed to fetch venues" });
     }
   });
@@ -406,11 +440,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/test-venue", async (req, res) => {
+    try {
+      console.log('🧪 TEST: Creating venue without auth for debugging');
+      // Create test venue data
+      const venueData = {
+        name: "Test Venue Debug",
+        description: "Debug test venue",
+        capacity: null,
+        pricePerHour: null,
+        amenities: [],
+        isActive: true,
+        tenantId: "d8057223-0b2d-4ba1-a15f-90e4a7aad21f"
+      };
+      
+      console.log('🏗️ Creating test venue:', venueData);
+      const venue = await storage.createVenue(venueData);
+      console.log('✅ Test venue created successfully');
+      res.status(201).json(venue);
+    } catch (error) {
+      console.error('❌ Test venue creation failed:', error);
+      res.status(500).json({ message: "Failed to create test venue", error: error.message });
+    }
+  });
+
   app.post("/api/venues", async (req, res) => {
     try {
-      const tenantId = await getTenantIdFromAuth(req);
-      if (!tenantId) {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const token = authHeader.substring(7);
+      const decoded = verifyToken(token);
+      if (!decoded) {
+        return res.status(401).json({ message: "Invalid token" });
+      }
+      
+      const user = await storage.getUser(decoded.id);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
       }
       
       // Validate required fields and provide defaults
@@ -429,10 +498,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pricePerHour: pricePerHour ? parseFloat(pricePerHour) : null,
         amenities: Array.isArray(amenities) ? amenities : [],
         isActive: isActive !== false, // Default to true
-        tenantId
+        tenantId: user.tenantId
       };
       
+      console.log('🏗️ Attempting to create venue via API:', { name: venueData.name, tenantId: venueData.tenantId });
       const venue = await storage.createVenue(venueData);
+      console.log('✅ Venue created successfully via API');
       res.status(201).json(venue);
     } catch (error) {
       console.error('[VENUE] Failed to create venue:', error);
@@ -599,13 +670,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Enhanced venues API that includes spaces - with tenant filtering
   app.get("/api/venues-with-spaces", async (req, res) => {
+    // Disable caching to ensure fresh data
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.set('ETag', ''); // Clear ETag to prevent 304 responses
     try {
       const tenantId = await getTenantIdFromAuth(req);
       if (!tenantId) {
         return res.status(401).json({ message: "Authentication required" });
       }
       
-      // Set tenant context before making database calls
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ message: "Authentication required" });
@@ -622,19 +697,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not found" });
       }
       
-      await setTenantContext({
-        tenantId: user.tenantId,
-        userId: user.id,
-        role: user.role
-      });
+      // Get venues directly with tenant filtering
+      const allVenues = await storage.getVenues();
+      console.log(`🗄️ Total venues in DB: ${allVenues.length}`);
+      console.log(`👤 User tenant ID: ${user.tenantId}`);
+      console.log(`🏢 All venue tenant IDs:`, allVenues.map(v => ({ name: v.name, tenantId: v.tenantId })));
+      const venues = allVenues.filter(v => v.tenantId === user.tenantId);
+      console.log(`🎯 Found ${venues.length} venues for tenant ${user.tenantId}`);
       
-      const venues = await storage.getVenues();
       const venuesWithSpaces = await Promise.all(
         venues.map(async (venue) => {
-          const spaces = await storage.getSpacesByVenue(venue.id);
+          const allSpaces = await storage.getSpaces();
+          const spaces = allSpaces.filter(s => s.venueId === venue.id && s.tenantId === user.tenantId);
+          console.log(`🔍 Venue ${venue.name}: ${spaces.length} spaces`);
           return { ...venue, spaces };
         })
       );
+      console.log(`📊 Returning ${venuesWithSpaces.length} venues with spaces`);
       res.json(venuesWithSpaces);
     } catch (error) {
       console.error('Error in /api/venues-with-spaces:', error);

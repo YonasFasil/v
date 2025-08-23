@@ -16,9 +16,28 @@ const databaseUrl = process.env.DATABASE_URL;
 let db;
 
 if (databaseUrl.includes('localhost') || databaseUrl.includes('127.0.0.1')) {
-  // Local PostgreSQL using node-postgres
+  // Local PostgreSQL using node-postgres with stable pool configuration
   const pool = new Pool({
     connectionString: databaseUrl,
+    max: 10, // Reduced for stability
+    min: 2, // Minimum pool size
+    idleTimeoutMillis: 60000, // Keep connections longer
+    connectionTimeoutMillis: 5000, // More time for connections
+    // Removed maxUses - was causing connection cycling issues
+  });
+  
+  // Handle pool errors with better logging
+  pool.on('error', (err, client) => {
+    console.error('🚨 Database pool error:', err);
+    console.error('🔍 Client info:', client ? 'Client exists' : 'No client');
+  });
+  
+  pool.on('connect', (client) => {
+    console.log('📡 New database connection established');
+  });
+  
+  pool.on('remove', (client) => {
+    console.log('📡 Database connection removed from pool');
   });
   
   db = drizzleNode(pool, { 

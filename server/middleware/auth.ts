@@ -39,8 +39,11 @@ export function generateToken(payload: { id: string; email: string; name?: strin
 // Verify JWT token
 export function verifyToken(token: string): { id: string; email: string; role: string; permissions?: string[]; tenantId?: string } | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as { id: string; email: string; role: string; permissions?: string[]; tenantId?: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: string; email: string; role: string; permissions?: string[]; tenantId?: string };
+    console.log('✅ Token verified successfully:', { id: decoded.id, email: decoded.email, role: decoded.role });
+    return decoded;
   } catch (error) {
+    console.error('❌ Token verification failed:', error.message);
     return null;
   }
 }

@@ -35,10 +35,14 @@ export function CancellationModal({ isOpen, onClose, eventId, eventTitle }: Canc
 
   const cancelEventMutation = useMutation({
     mutationFn: async ({ reason }: { reason: string }) => {
-      return await apiRequest("PATCH", `/api/bookings/${eventId}`, {
-        status: "cancelled",
-        cancellationReason: reason,
-        cancelledAt: new Date().toISOString()
+      return await apiRequest(`/api/bookings/${eventId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status: "cancelled",
+          cancellationReason: reason,
+          cancelledAt: new Date().toISOString()
+        }),
+        headers: { "Content-Type": "application/json" }
       });
     },
     onSuccess: () => {

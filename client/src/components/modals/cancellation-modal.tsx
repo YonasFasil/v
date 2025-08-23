@@ -48,7 +48,7 @@ export function CancellationModal({ open, onOpenChange, booking, onCancelled }: 
         headers: { "Content-Type": "application/json" }
       });
 
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       toast({

@@ -148,7 +148,11 @@ export function EditEventModal({ open, onOpenChange, booking }: Props) {
   // Update booking mutation
   const updateBooking = useMutation({
     mutationFn: async (bookingData: any) => {
-      const response = await apiRequest("PATCH", `/api/bookings/${booking.id}`, bookingData);
+      const response = await apiRequest(`/api/bookings/${booking.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(bookingData),
+        headers: { "Content-Type": "application/json" }
+      });
       return response;
     },
     onSuccess: () => {
@@ -170,7 +174,9 @@ export function EditEventModal({ open, onOpenChange, booking }: Props) {
   // Delete booking mutation
   const deleteBooking = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("DELETE", `/api/bookings/${booking.id}`, {});
+      const response = await apiRequest(`/api/bookings/${booking.id}`, {
+        method: "DELETE"
+      });
       return response;
     },
     onSuccess: () => {

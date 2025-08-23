@@ -26,7 +26,16 @@
       "Bash(git rm:*)",
       "Bash(mkdir:*)",
       "Bash(cp:*)",
-      "WebFetch(domain:venuinenew-dl0m701av-yonasfasils-projects.vercel.app)"
+      "WebFetch(domain:venuinenew-dl0m701av-yonasfasils-projects.vercel.app)",
+      "Bash(taskkill:*)",
+      "Bash(PORT=5007 npm run dev:win)",
+      "Bash(\"C:\\Program Files\\PostgreSQL\\16\\bin\\psql.exe\" -U postgres -d venuedb -c \"SELECT id, email, role, tenant_id FROM users WHERE role = ''tenant_admin'' OR email LIKE ''%tenant%'' LIMIT 10;\")",
+      "Bash(set PGPASSWORD=ZxOp1029!!%%)",
+      "Bash(\"C:\\Program Files\\PostgreSQL\\16\\bin\\psql.exe\" -U postgres -d venuedb -c \"SELECT COUNT(*) as total_venues FROM venues;\")",
+      "Bash(\"C:\\Program Files\\PostgreSQL\\16\\bin\\psql.exe\" -U postgres -d venuedb -c \"SELECT column_name FROM information_schema.columns WHERE table_name = ''venues'' AND column_name LIKE ''%tenant%'';\")",
+      "Bash(\"C:\\Program Files\\PostgreSQL\\16\\bin\\psql.exe\" -U postgres -d venuedb -c \"SELECT * FROM venues LIMIT 5;\" -A)",
+      "Bash(set)",
+      "Bash(cmd /c:*)"
     ],
     "deny": [],
     "ask": [],

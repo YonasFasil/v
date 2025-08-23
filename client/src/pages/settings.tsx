@@ -139,7 +139,11 @@ export default function Settings() {
   const saveSettingsMutation = useMutation({
     mutationFn: async (data: any) => {
       // Use the batch update endpoint
-      const response = await apiRequest("PUT", "/api/settings", data);
+      const response = await apiRequest("/api/settings", {
+        method: "PUT",
+        body: JSON.stringify(data),
+        headers: { "Content-Type": "application/json" }
+      });
       return response;
     },
     onSuccess: () => {

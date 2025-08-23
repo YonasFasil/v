@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { Pool } = require('pg');
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -14,7 +15,31 @@ module.exports = async function handler(req, res) {
       return res.status(500).json({ message: 'Database not configured' });
     }
     
-    const sql = neon(process.env.DATABASE_URL);
+    const databaseUrl = process.env.DATABASE_URL;
+    
+    // Use appropriate database client based on URL
+    let sql;
+    if (databaseUrl.includes('localhost') || databaseUrl.includes('127.0.0.1')) {
+      // Local PostgreSQL - use node-postgres
+      const pool = new Pool({ connectionString: databaseUrl });
+      sql = async function(strings, ...values) {
+        const client = await pool.connect();
+        try {
+          // Convert tagged template literal to parameterized query
+          let query = strings[0];
+          for (let i = 0; i < values.length; i++) {
+            query += '$' + (i + 1) + strings[i + 1];
+          }
+          const result = await client.query(query, values);
+          return result.rows;
+        } finally {
+          client.release();
+        }
+      };
+    } else {
+      // Remote Neon database
+      sql = neon(databaseUrl);
+    }
     
     // Extract tenant ID from auth token
     const authHeader = req.headers.authorization;

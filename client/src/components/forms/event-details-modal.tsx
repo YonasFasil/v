@@ -114,7 +114,11 @@ export function EventDetailsModal({ open, onOpenChange, booking }: Props) {
 
   const updateBooking = useMutation({
     mutationFn: async (updates: any) => {
-      const response = await apiRequest("PATCH", `/api/bookings/${booking?.id}`, updates);
+      const response = await apiRequest(`/api/bookings/${booking?.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(updates),
+        headers: { "Content-Type": "application/json" }
+      });
       return response;
     },
     onSuccess: () => {

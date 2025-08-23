@@ -51,8 +51,12 @@ export function EditServiceModal({ open, onOpenChange, service }: Props) {
 
   const updateService = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("PATCH", `/api/services/${service.id}`, data);
-      return response.json();
+      const response = await apiRequest(`/api/services/${service.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+        headers: { "Content-Type": "application/json" }
+      });
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });

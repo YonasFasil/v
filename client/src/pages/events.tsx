@@ -3,7 +3,6 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,7 +16,7 @@ import { ProposalTrackingModal } from "@/components/proposals/proposal-tracking-
 import { AdvancedCalendar } from "@/components/dashboard/advanced-calendar";
 import { useBookings } from "@/hooks/use-bookings";
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, Clock, MapPin, Users, Table as TableIcon, Grid3X3, DollarSign, FileText, Plus, Search, Filter, MoreHorizontal, Eye } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, Table as TableIcon, DollarSign, FileText, Plus, Search, Filter, MoreHorizontal, Eye, Menu } from "lucide-react";
 import { format } from "date-fns";
 import { useEventTime } from "@/hooks/use-timezone";
 import { getStatusConfig } from "@shared/status-utils";
@@ -29,14 +28,15 @@ export default function Events() {
   // Fetch proposals to check which events have proposals
   const { data: proposals = [] } = useQuery({
     queryKey: ["/api/proposals"],
-    staleTime: 30000, // 30 seconds
+    staleTime: 5000, // 5 seconds - shorter for more responsive updates
     gcTime: 300000, // 5 minutes
+    refetchOnWindowFocus: true, // Refetch when user comes back to tab
   });
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const [viewMode, setViewMode] = useState<"calendar" | "cards" | "table">("cards");
+  const [viewMode, setViewMode] = useState<"calendar" | "table">("table");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showProposalModal, setShowProposalModal] = useState(false);
@@ -112,7 +112,7 @@ export default function Events() {
               onClick={() => setMobileNavOpen(true)}
               className="md:hidden"
             >
-              <Grid3X3 className="w-4 h-4" />
+              <Menu className="w-4 h-4" />
             </Button>
             <div>
               <h1 className="text-xl md:text-2xl font-bold text-slate-900">Events & Bookings</h1>
@@ -151,19 +151,15 @@ export default function Events() {
           ) : (
             <div className="space-y-6">
               {/* View Mode Tabs */}
-              <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as "calendar" | "cards" | "table")}>
-                <TabsList className="grid w-72 grid-cols-3">
-                  <TabsTrigger value="calendar" className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Calendar
-                  </TabsTrigger>
-                  <TabsTrigger value="cards" className="flex items-center gap-2">
-                    <Grid3X3 className="h-4 w-4" />
-                    Cards
-                  </TabsTrigger>
+              <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as "calendar" | "table")}>
+                <TabsList className="grid w-64 grid-cols-2">
                   <TabsTrigger value="table" className="flex items-center gap-2">
                     <TableIcon className="h-4 w-4" />
                     Table
+                  </TabsTrigger>
+                  <TabsTrigger value="calendar" className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Calendar
                   </TabsTrigger>
                 </TabsList>
 
@@ -173,183 +169,6 @@ export default function Events() {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="cards" className="space-y-0">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {bookings.map((booking) => (
-                      <Card 
-                        key={booking.id} 
-                        className={`hover:shadow-lg transition-shadow cursor-pointer ${
-                          (booking as any).isContract ? 'border-purple-200 bg-purple-50/30' : ''
-                        }`}
-                        onClick={() => setSelectedBooking(booking)}
-                      >
-                        <CardHeader className="pb-2">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1 min-w-0">
-                              {(booking as any).isContract && (
-                                <Badge variant="secondary" className="mb-2 bg-purple-100 text-purple-800">
-                                  Contract • {(booking as any).eventCount} Events
-                                </Badge>
-                              )}
-                              <CardTitle className="text-lg font-semibold line-clamp-2">
-                                {(booking as any).isContract 
-                                  ? (booking as any).contractInfo?.contractName || "Multi-Date Contract"
-                                  : booking.eventName
-                                }
-                              </CardTitle>
-                            </div>
-                            <div className="flex items-start gap-2 flex-shrink-0">
-                              <div className="flex flex-col items-end gap-2">
-                                <Badge 
-                                  className={`${getStatusConfig(booking.status).bgColor} ${getStatusConfig(booking.status).textColor} ${getStatusConfig(booking.status).borderColor} border text-xs px-2 py-1 whitespace-nowrap max-w-[120px] text-center`}
-                                  title={getStatusConfig(booking.status).description}
-                                >
-                                  {getStatusConfig(booking.status).label}
-                                </Badge>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedBooking(booking);
-                                    setShowStatusModal(true);
-                                  }}
-                                  className="h-6 w-6 p-0 hover:bg-gray-100 flex-shrink-0"
-                                >
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2 text-sm text-gray-600">
-                            {(booking as any).isContract ? (
-                              <>
-                                <div className="flex items-center">
-                                  <Calendar className="w-4 h-4 mr-2" />
-                                  {(booking as any).contractEvents?.length || 0} dates selected
-                                </div>
-                                <div className="flex items-center">
-                                  <Users className="w-4 h-4 mr-2" />
-                                  Total {(booking as any).contractEvents?.reduce((sum: number, event: any) => sum + (event.guestCount || 0), 0) || 0} guests
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  Events: {(booking as any).contractEvents?.map((event: any) => 
-                                    formatEventDate(event.eventDate).split(",")[0]
-                                  ).join(", ") || 'None'}
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <div className="flex items-center">
-                                  <Calendar className="w-4 h-4 mr-2" />
-                                  {booking.eventDate ? formatEventDate(booking.eventDate) : "Date TBD"}
-                                </div>
-                                <div className="flex items-center">
-                                  <Clock className="w-4 h-4 mr-2" />
-                                  {booking.startTime} - {booking.endTime}
-                                </div>
-                                <div className="flex items-center">
-                                  <Users className="w-4 h-4 mr-2" />
-                                  {booking.guestCount} guests
-                                </div>
-                              </>
-                            )}
-                            <div className="flex items-center">
-                              <MapPin className="w-4 h-4 mr-2" />
-                              Venue Location
-                            </div>
-                            {booking.totalAmount && (
-                              <div className="flex items-center font-medium text-green-600">
-                                <DollarSign className="w-4 h-4 mr-2" />
-                                ${parseFloat(booking.totalAmount).toLocaleString()}
-                              </div>
-                            )}
-                            {/* Show proposal button if proposal exists */}
-                            {(() => {
-                              // Check multiple criteria to find a matching proposal
-                              let hasProposal = false;
-                              let proposal = null;
-
-                              // For contract events, check if any of the contract events have a proposal
-                              if ((booking as any).isContract) {
-                                // Look for proposal linked to the contract via contractInfo.proposalId
-                                if ((booking as any).contractInfo?.proposalId) {
-                                  proposal = proposals.find((p: any) => p.id === (booking as any).contractInfo.proposalId);
-                                  hasProposal = !!proposal;
-                                }
-                                
-                                // If not found, check contract events for proposal links
-                                if (!proposal && (booking as any).contractEvents) {
-                                  for (const event of (booking as any).contractEvents) {
-                                    if (event.proposalId) {
-                                      proposal = proposals.find((p: any) => p.id === event.proposalId);
-                                      if (proposal) {
-                                        hasProposal = true;
-                                        break;
-                                      }
-                                    }
-                                  }
-                                }
-                              } else {
-                                // For regular bookings, check proposalId first
-                                if (booking.proposalId) {
-                                  proposal = proposals.find((p: any) => p.id === booking.proposalId);
-                                  hasProposal = !!proposal;
-                                }
-                                
-                                // If not found by proposalId, use existing logic
-                                if (!hasProposal) {
-                                  hasProposal = booking.proposalStatus === 'sent' || 
-                                              proposals.some((p: any) => 
-                                                p.customerId === booking.customerId && 
-                                                (p.eventName === booking.eventName || 
-                                                 p.eventDate === booking.eventDate ||
-                                                 (p.guestCount === booking.guestCount && p.venueId === booking.venueId))
-                                              );
-                                  
-                                  if (hasProposal && !proposal) {
-                                    proposal = proposals.find((p: any) => 
-                                      p.customerId === booking.customerId && 
-                                      (p.eventName === booking.eventName || 
-                                       p.eventDate === booking.eventDate ||
-                                       (p.guestCount === booking.guestCount && p.venueId === booking.venueId))
-                                    );
-                                  }
-                                }
-                              }
-                              
-                              if (hasProposal && proposal) {
-                                return (
-                                  <div className="mt-3 pt-2 border-t border-gray-100">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="w-full h-8 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors duration-200 border border-blue-200 hover:border-blue-300 rounded-md"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (proposal) {
-                                          setSelectedProposalId(proposal.id);
-                                          setShowProposalModal(true);
-                                        }
-                                      }}
-                                    >
-                                      <Eye className="h-3 w-3 mr-1.5" />
-                                      View Proposal Status
-                                    </Button>
-                                  </div>
-                                );
-                              }
-                              return null;
-                            })()}
-
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </TabsContent>
 
                 <TabsContent value="table" className="space-y-0">
                   <div className="border rounded-lg bg-white">
@@ -480,8 +299,9 @@ export default function Events() {
           }}
           booking={selectedBooking}
           onStatusChanged={() => {
-            // Refetch bookings to get updated data
-            window.location.reload(); // Simple refresh for now
+            // Close the modal and clear selection - React Query will handle cache updates
+            setShowStatusModal(false);
+            setSelectedBooking(null);
           }}
         />
 

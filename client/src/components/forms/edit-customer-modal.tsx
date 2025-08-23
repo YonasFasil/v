@@ -51,7 +51,11 @@ export function EditCustomerModal({ open, onOpenChange, customer }: Props) {
         ...data,
         companyId: data.companyId === "none" ? null : data.companyId
       };
-      return await apiRequest("PATCH", `/api/customers/${customer.id}`, submitData);
+      return await apiRequest(`/api/customers/${customer.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(submitData),
+        headers: { "Content-Type": "application/json" }
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
