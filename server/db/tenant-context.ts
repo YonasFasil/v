@@ -25,10 +25,10 @@ export async function setTenantContext(context: TenantContext): Promise<void> {
       return;
     }
     
-    // Set tenant context in database session using Drizzle
-    await db.execute(sql`SET app.current_tenant = ${context.tenantId}`);
-    await db.execute(sql`SET app.current_user = ${context.userId}`);
-    await db.execute(sql`SET app.user_role = ${context.role}`);
+    // Set tenant context in database session using postgres-js compatible syntax
+    await db.execute(sql.raw(`SET app.current_tenant_id = '${context.tenantId}'`));
+    await db.execute(sql.raw(`SET app.current_user_id = '${context.userId}'`));
+    await db.execute(sql.raw(`SET app.current_user_role = '${context.role}'`));
     
     console.log(`🔒 Tenant context set: ${context.role}@${context.tenantId}`);
   } catch (error) {
@@ -52,9 +52,9 @@ export async function clearTenantContext(): Promise<void> {
       return;
     }
     
-    await db.execute(sql`SET app.current_tenant = ''`);
-    await db.execute(sql`SET app.current_user = ''`);
-    await db.execute(sql`SET app.user_role = ''`);
+    await db.execute(sql.raw(`SET app.current_tenant_id = ''`));
+    await db.execute(sql.raw(`SET app.current_user_id = ''`));
+    await db.execute(sql.raw(`SET app.current_user_role = ''`));
   } catch (error) {
     console.error('Failed to clear tenant context:', error);
   }
@@ -85,9 +85,9 @@ export async function getCurrentTenantContext(): Promise<{
   role: string | null;
 }> {
   try {
-    const tenantIdResult = await db.execute(sql`SELECT current_setting('app.current_tenant', true) as tenant_id`);
-    const userIdResult = await db.execute(sql`SELECT current_setting('app.current_user', true) as user_id`);
-    const roleResult = await db.execute(sql`SELECT current_setting('app.user_role', true) as role`);
+    const tenantIdResult = await db.execute(sql.raw(`SELECT current_setting('app.current_tenant_id', true) as tenant_id`));
+    const userIdResult = await db.execute(sql.raw(`SELECT current_setting('app.current_user_id', true) as user_id`));
+    const roleResult = await db.execute(sql.raw(`SELECT current_setting('app.current_user_role', true) as role`));
     
     return {
       tenantId: (tenantIdResult.rows[0] as any)?.tenant_id as string || null,
