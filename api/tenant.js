@@ -191,33 +191,89 @@ module.exports = async function handler(req, res) {
     // VENUES
     if (resource === 'venues') {
       if (req.method === 'GET') {
-        const venues = await sql`
-          SELECT * FROM venues 
-          WHERE tenant_id = ${tenantId}
-          ORDER BY created_at DESC
-        `;
-        return res.json(venues);
+        if (id) {
+          // Get specific venue
+          const venue = await sql`
+            SELECT * FROM venues 
+            WHERE tenant_id = ${tenantId} AND id = ${id}
+          `;
+          return res.json(venue[0] || null);
+        } else {
+          // Get all venues
+          const venues = await sql`
+            SELECT * FROM venues 
+            WHERE tenant_id = ${tenantId}
+            ORDER BY created_at DESC
+          `;
+          return res.json(venues);
+        }
         
       } else if (req.method === 'POST') {
-        const { name, description, capacity, price_per_hour, amenities, image_url } = req.body;
+        const { name, description, address } = req.body;
         
-        if (!name || !capacity) {
-          return res.status(400).json({ message: 'Venue name and capacity are required' });
+        if (!name) {
+          return res.status(400).json({ message: 'Venue name is required' });
         }
         
         const newVenue = await sql`
           INSERT INTO venues (
-            tenant_id, name, description, capacity, price_per_hour, 
-            amenities, image_url, created_at
+            tenant_id, name, description, address, created_at
           ) VALUES (
-            ${tenantId}, ${name}, ${description || null}, ${capacity}, 
-            ${price_per_hour || null}, ${amenities || null}, ${image_url || null}, 
-            NOW()
+            ${tenantId}, ${name}, ${description || null}, ${address || null}, NOW()
           )
           RETURNING *
         `;
         
         return res.status(201).json(newVenue[0]);
+        
+      } else if (req.method === 'PATCH' && id) {
+        const { name, description, address } = req.body;
+        
+        if (!name) {
+          return res.status(400).json({ message: 'Venue name is required' });
+        }
+        
+        const updatedVenue = await sql`
+          UPDATE venues 
+          SET name = ${name}, description = ${description || null}, address = ${address || null}, updated_at = NOW()
+          WHERE tenant_id = ${tenantId} AND id = ${id}
+          RETURNING *
+        `;
+        
+        return res.json(updatedVenue[0] || null);
+        
+      } else if (req.method === 'DELETE' && id) {
+        // Check if venue has any spaces
+        const spaces = await sql`
+          SELECT COUNT(*) as count FROM spaces 
+          WHERE venue_id = ${id} AND tenant_id = ${tenantId}
+        `;
+        
+        if (spaces[0].count > 0) {
+          return res.status(400).json({ 
+            message: 'Cannot delete venue with existing spaces. Please delete all spaces first.' 
+          });
+        }
+        
+        // Check if venue has any bookings
+        const bookings = await sql`
+          SELECT COUNT(*) as count FROM bookings 
+          WHERE venue_id = ${id} AND tenant_id = ${tenantId}
+        `;
+        
+        if (bookings[0].count > 0) {
+          return res.status(400).json({ 
+            message: 'Cannot delete venue with existing bookings.' 
+          });
+        }
+        
+        const deletedVenue = await sql`
+          DELETE FROM venues 
+          WHERE tenant_id = ${tenantId} AND id = ${id}
+          RETURNING *
+        `;
+        
+        return res.json(deletedVenue[0] || null);
       }
     }
     

@@ -19,10 +19,12 @@ import { useBookings } from "@/hooks/use-bookings";
 import { useQuery } from "@tanstack/react-query";
 import { Calendar, Clock, MapPin, Users, Table as TableIcon, Grid3X3, DollarSign, FileText, Plus, Search, Filter, MoreHorizontal, Eye } from "lucide-react";
 import { format } from "date-fns";
+import { useEventTime } from "@/hooks/use-timezone";
 import { getStatusConfig } from "@shared/status-utils";
 
 export default function Events() {
   const { data: bookings, isLoading } = useBookings();
+  const { formatEventDate, formatEventTime, formatEventTimeRange } = useEventTime();
   
   // Fetch proposals to check which events have proposals
   const { data: proposals = [] } = useQuery({
@@ -234,7 +236,7 @@ export default function Events() {
                                 </div>
                                 <div className="text-xs text-gray-500">
                                   Events: {(booking as any).contractEvents?.map((event: any) => 
-                                    format(new Date(event.eventDate), "MMM d")
+                                    formatEventDate(event.eventDate).split(",")[0]
                                   ).join(", ") || 'None'}
                                 </div>
                               </>
@@ -242,7 +244,7 @@ export default function Events() {
                               <>
                                 <div className="flex items-center">
                                   <Calendar className="w-4 h-4 mr-2" />
-                                  {booking.eventDate ? format(new Date(booking.eventDate), "PPP") : "Date TBD"}
+                                  {booking.eventDate ? formatEventDate(booking.eventDate) : "Date TBD"}
                                 </div>
                                 <div className="flex items-center">
                                   <Clock className="w-4 h-4 mr-2" />
@@ -400,14 +402,14 @@ export default function Events() {
                                   <div>{(booking as any).eventCount || 0} dates</div>
                                   <div className="text-slate-500">
                                     {(booking as any).contractEvents?.slice(0, 3).map((event: any) => 
-                                      format(new Date(event.eventDate), "MMM d")
+                                      formatEventDate(event.eventDate).split(",")[0]
                                     ).join(", ") || 'None'}
                                     {((booking as any).contractEvents?.length || 0) > 3 && "..."}
                                   </div>
                                 </div>
                               ) : (
                                 <div className="text-sm">
-                                  <div>{booking.eventDate ? format(new Date(booking.eventDate), "MMM d, yyyy") : "TBD"}</div>
+                                  <div>{booking.eventDate ? formatEventDate(booking.eventDate) : "TBD"}</div>
                                   <div className="text-slate-500">{booking.startTime} - {booking.endTime}</div>
                                 </div>
                               )}

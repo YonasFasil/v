@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { FileText, Save, Send, Calendar, Users, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useFormattedCurrency } from "@/lib/currency";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { EmailPreviewModal } from "./email-preview-modal";
@@ -30,6 +31,7 @@ export function ProposalCreationModal({
 }: ProposalCreationModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { formatAmount } = useFormattedCurrency();
 
   // Basic proposal info
   const [proposalTitle, setProposalTitle] = useState("");
@@ -655,7 +657,7 @@ export function ProposalCreationModal({
                           <SelectItem value="none">No Package</SelectItem>
                           {packages.map((pkg: any) => (
                             <SelectItem key={pkg.id} value={pkg.id}>
-                              {pkg.name} - ${pkg.price}{pkg.pricingModel === "per_person" ? "/person" : ""}
+                              {pkg.name} - {formatAmount(parseFloat(pkg.price))}{pkg.pricingModel === "per_person" ? "/person" : ""}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -672,7 +674,7 @@ export function ProposalCreationModal({
                                 step="0.01"
                                 placeholder={(() => {
                                   const pkg = packages.find((p: any) => p.id === event.selectedPackage);
-                                  return pkg ? `Default: $${pkg.price}` : "Enter custom price";
+                                  return pkg ? `Default: ${formatAmount(parseFloat(pkg.price))}` : "Enter custom price";
                                 })()}
                                 value={event.customPackagePrice || ""}
                                 onChange={(e) => updateEvent(event.id, 'customPackagePrice', e.target.value ? parseFloat(e.target.value) : undefined)}
@@ -733,7 +735,7 @@ export function ProposalCreationModal({
                                 className="mt-1"
                               />
                               <Label htmlFor={`${event.id}-service-${service.id}`} className="text-xs sm:text-sm flex-1 leading-tight">
-                                {service.name} - ${service.price}{service.pricingModel === "per_person" ? "/person" : ""}
+                                {service.name} - {formatAmount(parseFloat(service.price))}{service.pricingModel === "per_person" ? "/person" : ""}
                               </Label>
                             </div>
                             
@@ -746,7 +748,7 @@ export function ProposalCreationModal({
                                       type="number"
                                       min="0"
                                       step="0.01"
-                                      placeholder={`Default: $${service.price}`}
+                                      placeholder={`Default: ${formatAmount(parseFloat(service.price))}`}
                                       value={event.customServicePrices?.[service.id] || ""}
                                       onChange={(e) => {
                                         const customPrices = { ...event.customServicePrices };
@@ -936,7 +938,7 @@ export function ProposalCreationModal({
                             return (
                               <div key={serviceId} className="flex justify-between text-green-600">
                                 <span>• {service.name} (custom):</span>
-                                <span>${price.toFixed(2)}</span>
+                                <span>{formatAmount(price)}</span>
                               </div>
                             );
                           })}
@@ -950,7 +952,7 @@ export function ProposalCreationModal({
                 
                 <div className="flex justify-between font-semibold">
                   <span>Total Amount</span>
-                  <span>${totalAmount.toFixed(2)}</span>
+                  <span>{formatAmount(totalAmount)}</span>
                 </div>
 
                 <div className="space-y-3 pt-3 sm:pt-4 border-t">
@@ -981,7 +983,7 @@ export function ProposalCreationModal({
                   
                   <div className="flex justify-between font-medium">
                     <span>Deposit Amount</span>
-                    <span>${depositAmount.toFixed(2)}</span>
+                    <span>{formatAmount(depositAmount)}</span>
                   </div>
                 </div>
               </CardContent>
@@ -1019,11 +1021,11 @@ export function ProposalCreationModal({
                   <div className="mt-3 pt-3 border-t text-xs sm:text-sm">
                     <div className="flex justify-between">
                       <span>Total:</span>
-                      <span className="font-medium">${totalAmount.toFixed(2)}</span>
+                      <span className="font-medium">{formatAmount(totalAmount)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Deposit:</span>
-                      <span className="font-medium">${depositAmount.toFixed(2)}</span>
+                      <span className="font-medium">{formatAmount(depositAmount)}</span>
                     </div>
                   </div>
                 </div>

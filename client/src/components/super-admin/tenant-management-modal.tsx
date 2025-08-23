@@ -48,7 +48,7 @@ export function TenantManagementModal({ open, onOpenChange }: Props) {
           username: data.adminEmail.split('@')[0]
         }
       };
-      return apiRequest("/api/super-admin/tenants?action=create", {
+      return apiRequest("/api/super-admin/tenants", {
         method: "POST",
         body: JSON.stringify(payload),
       });

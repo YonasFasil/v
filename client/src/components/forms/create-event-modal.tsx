@@ -10,9 +10,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, getDay } from "date-fns";
 import { ChevronLeft, ChevronRight, X, Plus, Minus, RotateCcw, Calendar as CalendarIcon, Mic, FileText, Save, Users, Grid3X3, MapPin } from "lucide-react";
+import { useEventTime } from "@/hooks/use-timezone";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useFormattedCurrency } from "@/lib/currency";
 import { VoiceBookingPanel } from "../voice/voice-booking-panel";
 import { ProposalCreationModal } from "../proposals/proposal-creation-modal";
 import { ProposalEmailModal } from "../proposals/proposal-email-modal";
@@ -51,6 +53,8 @@ interface SelectedDate {
 export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { formatAmount } = useFormattedCurrency();
+  const { formatEventDate, formatEventTime, createEventDateTime, timezoneId } = useEventTime();
   
   // Step management
   const [currentStep, setCurrentStep] = useState(1);
@@ -1848,7 +1852,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                       )}
                                       <div className="font-medium text-sm">No Package</div>
                                       <div className="text-xs text-slate-600 mt-1">Build custom event with individual services</div>
-                                      <div className="text-sm font-semibold text-green-600 mt-2">$0.00</div>
+                                      <div className="text-sm font-semibold text-green-600 mt-2">{formatAmount(0)}</div>
                                     </div>
                                     
                                     {(packages as any[]).map((pkg: any) => {
@@ -2991,7 +2995,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                   {appliedFees.map((fee, index) => (
                                     <div key={`fee-${index}`} className="flex justify-between text-sm text-blue-600">
                                       <span className="pl-2">+ {fee.name}:</span>
-                                      <span>+${fee.amount.toFixed(2)}</span>
+                                      <span>+{formatAmount(fee.amount)}</span>
                                     </div>
                                   ))}
                                   
@@ -2999,7 +3003,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                   {appliedTaxes.map((tax, index) => (
                                     <div key={`tax-${index}`} className="flex justify-between text-sm text-purple-600">
                                       <span className="pl-2">+ {tax.name}:</span>
-                                      <span>+${tax.amount.toFixed(2)}</span>
+                                      <span>+{formatAmount(tax.amount)}</span>
                                     </div>
                                   ))}
                                   
@@ -3376,7 +3380,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                             <div className="flex justify-between items-center mt-2">
                               <span className="text-xs text-slate-600">Package Price:</span>
                               <span className="text-sm font-medium">
-                                ${(date.pricingOverrides?.packagePrice ?? parseFloat(selectedPackage.price)).toFixed(2)}
+                                {formatAmount(date.pricingOverrides?.packagePrice ?? parseFloat(selectedPackage.price))}
                                 {selectedPackage.pricingModel === 'per_person' && ` x ${date.guestCount || 1}`}
                               </span>
                             </div>
@@ -3432,15 +3436,15 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                               <div className="flex justify-between items-center mt-2">
                                 <span className="text-xs text-slate-600">
                                   {service.pricingModel === 'per_person' 
-                                    ? `$${price.toFixed(2)} x ${date.guestCount || 1} guests`
+                                    ? `${formatAmount(price)} x ${date.guestCount || 1} guests`
                                     : service.pricingModel === 'per_hour'
-                                    ? `$${price.toFixed(2)} x ${eventDuration.toFixed(1)} hours`
+                                    ? `${formatAmount(price)} x ${eventDuration.toFixed(1)} hours`
                                     : quantity > 1 
-                                      ? `$${price.toFixed(2)} x ${quantity}`
-                                      : `$${price.toFixed(2)}`
+                                      ? `${formatAmount(price)} x ${quantity}`
+                                      : formatAmount(price)
                                   }
                                 </span>
-                                <span className="text-sm font-medium">${totalPrice.toFixed(2)}</span>
+                                <span className="text-sm font-medium">{formatAmount(totalPrice)}</span>
                               </div>
                             </div>
                           );
@@ -3590,7 +3594,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                               <div key={`fee-${idx}`} className="space-y-1">
                                 <div className="flex justify-between text-sm">
                                   <span className="text-slate-600">{fee.name}:</span>
-                                  <span>${fee.amount.toFixed(2)}</span>
+                                  <span>{formatAmount(fee.amount)}</span>
                                 </div>
                                 <div className="text-xs text-slate-500 ml-2">{fee.description}</div>
                               </div>
@@ -3600,7 +3604,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                               <div key={`tax-${idx}`} className="space-y-1">
                                 <div className="flex justify-between text-sm">
                                   <span className="text-slate-600">{tax.name}:</span>
-                                  <span>${tax.amount.toFixed(2)}</span>
+                                  <span>{formatAmount(tax.amount)}</span>
                                 </div>
                                 <div className="text-xs text-slate-500 ml-2">{tax.description}</div>
                               </div>

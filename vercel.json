@@ -7,11 +7,11 @@
       "dest": "/api/customers"
     },
     {
-      "src": "/api/companies(.*)",
-      "dest": "/api/bookings"
+      "src": "/api/venues-with-spaces(.*)",
+      "dest": "/api/venues"
     },
     {
-      "src": "/api/venues-with-spaces(.*)",
+      "src": "/api/venues/([^/]+)(.*)",
       "dest": "/api/venues"
     },
     {

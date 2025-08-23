@@ -505,7 +505,7 @@ export default function Packages() {
                         <div className="space-y-1 text-sm">
                           <div className="flex justify-between">
                             <span className="text-green-700">Base Price:</span>
-                            <span className="font-medium">${parseFloat(newService.price).toFixed(2)}</span>
+                            <span className="font-medium">{formatAmount(parseFloat(newService.price))}</span>
                           </div>
                           
                           {/* Show applied fees */}
@@ -521,7 +521,7 @@ export default function Packages() {
                                 return (
                                   <div key={feeId} className="flex justify-between text-blue-600">
                                     <span>{fee.name}:</span>
-                                    <span>+${feeAmount.toFixed(2)}</span>
+                                    <span>+{formatAmount(feeAmount)}</span>
                                   </div>
                                 );
                               })}
@@ -678,7 +678,7 @@ export default function Packages() {
                                       {service.description}
                                     </div>
                                     <div className="text-sm font-semibold text-green-600 mt-2">
-                                      ${parseFloat(service.price).toFixed(2)}
+                                      {formatAmount(parseFloat(service.price))}
                                       <span className="text-xs text-slate-500">
                                         {service.pricingModel === 'per_person' && ' per person'}
                                         {service.pricingModel === 'per_hour' && ' per hour'}
@@ -827,7 +827,7 @@ export default function Packages() {
                                 return (
                                   <div key={feeId} className="flex justify-between text-blue-600">
                                     <span>{fee.name}:</span>
-                                    <span>+${feeAmount.toFixed(2)}</span>
+                                    <span>+{formatAmount(feeAmount)}</span>
                                   </div>
                                 );
                               })}
@@ -950,7 +950,7 @@ export default function Packages() {
                           </td>
                           <td className="p-4">
                             <div className="font-semibold text-green-600">
-                              ${pkg.price?.toLocaleString() || 0}
+                              {formatAmount(pkg.price || 0)}
                             </div>
                           </td>
                           <td className="p-4">
@@ -1028,7 +1028,7 @@ export default function Packages() {
                     </p>
                     
                     <div className="text-2xl font-bold text-blue-600">
-                      ${pkg.price?.toLocaleString() || 0}
+                      {formatAmount(pkg.price || 0)}
                     </div>
                     
                     {pkg.includedServiceIds && pkg.includedServiceIds.length > 0 && (

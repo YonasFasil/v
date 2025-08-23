@@ -1,5 +1,7 @@
 import React from 'react';
 import { format } from 'date-fns';
+import { formatCurrency } from '@shared/currency';
+import { formatInTimezone, formatTimeInTimezone } from '@shared/timezone';
 
 interface BEOData {
   eventName: string;
@@ -33,9 +35,10 @@ interface BEOData {
 interface ExecutiveBEOTemplateProps {
   data: BEOData;
   showPricing?: boolean;
+  timezone?: string;
 }
 
-export function ExecutiveBEOTemplate({ data, showPricing = false }: ExecutiveBEOTemplateProps) {
+export function ExecutiveBEOTemplate({ data, showPricing = false, timezone = 'America/New_York' }: ExecutiveBEOTemplateProps) {
   return (
     <div className="bg-white p-8 max-w-4xl mx-auto font-serif text-slate-800">
       {/* Header Section */}
@@ -48,7 +51,7 @@ export function ExecutiveBEOTemplate({ data, showPricing = false }: ExecutiveBEO
           <div className="text-right">
             <p className="text-sm text-slate-200">BEO No.</p>
             <p className="text-lg font-semibold">#{Math.random().toString().substr(2, 6)}</p>
-            <p className="text-sm text-slate-200 mt-2">{format(new Date(), 'MMM dd, yyyy')}</p>
+            <p className="text-sm text-slate-200 mt-2">{formatInTimezone(new Date(), timezone, 'MMM dd, yyyy')}</p>
           </div>
         </div>
       </div>
@@ -67,7 +70,7 @@ export function ExecutiveBEOTemplate({ data, showPricing = false }: ExecutiveBEO
               </div>
               <div className="flex justify-between">
                 <span className="font-medium">Date:</span>
-                <span>{format(new Date(data.eventDate), 'EEEE, MMMM dd, yyyy')}</span>
+                <span>{formatInTimezone(data.eventDate, timezone, 'EEEE, MMMM dd, yyyy')}</span>
               </div>
               <div className="flex justify-between">
                 <span className="font-medium">Time:</span>
@@ -147,7 +150,7 @@ export function ExecutiveBEOTemplate({ data, showPricing = false }: ExecutiveBEO
                 </div>
                 {showPricing && service.price && (
                   <div className="text-right">
-                    <span className="font-semibold text-sm">${service.price.toFixed(2)}</span>
+                    <span className="font-semibold text-sm">{formatCurrency(service.price)}</span>
                   </div>
                 )}
               </div>

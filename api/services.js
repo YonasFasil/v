@@ -1,8 +1,8 @@
 module.exports = async function handler(req, res) {
-  // Dedicated bookings endpoint
+  // Dedicated services endpoint
   const tenantHandler = require('./tenant.js');
   
-  req.query = { ...req.query, resource: 'bookings' };
+  req.query = { ...req.query, resource: 'services' };
   
   return tenantHandler(req, res);
 };

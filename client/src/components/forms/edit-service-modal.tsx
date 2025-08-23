@@ -9,6 +9,7 @@ import { X, Edit, Save, Trash2 } from "lucide-react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useFormattedCurrency } from "@/lib/currency";
 
 interface Props {
   open: boolean;
@@ -18,6 +19,7 @@ interface Props {
 
 export function EditServiceModal({ open, onOpenChange, service }: Props) {
   const { toast } = useToast();
+  const { formatAmount } = useFormattedCurrency();
   const queryClient = useQueryClient();
   
   const [name, setName] = useState("");
@@ -255,7 +257,7 @@ export function EditServiceModal({ open, onOpenChange, service }: Props) {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-slate-600">Base Price:</span>
-                  <span className="text-green-600 font-medium">${parseFloat(price).toFixed(2)}</span>
+                  <span className="text-green-600 font-medium">{formatAmount(parseFloat(price))}</span>
                 </div>
                 
                 {/* Show individual fees */}
@@ -269,7 +271,7 @@ export function EditServiceModal({ open, onOpenChange, service }: Props) {
                   return (
                     <div key={feeId} className="flex justify-between text-blue-600">
                       <span className="pl-2">+ {fee.name}:</span>
-                      <span>+${feeAmount.toFixed(2)}</span>
+                      <span>+{formatAmount(feeAmount)}</span>
                     </div>
                   );
                 })}
@@ -297,7 +299,7 @@ export function EditServiceModal({ open, onOpenChange, service }: Props) {
                   return (
                     <div key={taxId} className="flex justify-between text-purple-600">
                       <span className="pl-2">+ {tax.name}:</span>
-                      <span>+${taxAmount.toFixed(2)}</span>
+                      <span>+{formatAmount(taxAmount)}</span>
                     </div>
                   );
                 })}
@@ -305,7 +307,7 @@ export function EditServiceModal({ open, onOpenChange, service }: Props) {
                 <div className="border-t pt-2 mt-2">
                   <div className="flex justify-between font-semibold">
                     <span>Total with Taxes & Fees:</span>
-                    <span className="text-blue-700">${calculateServiceTotal().toFixed(2)}</span>
+                    <span className="text-blue-700">{formatAmount(calculateServiceTotal())}</span>
                   </div>
                 </div>
               </div>

@@ -11,6 +11,7 @@ import { Phone, Mail, Calendar, User, Building, Clock, Tag, Plus, Search, Filter
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useFormattedCurrency } from "@/lib/currency";
+import { useTimezone } from "@/hooks/use-timezone";
 import type { Lead, CampaignSource, Tag as TagType } from "@shared/schema";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
@@ -27,6 +28,7 @@ export default function Leads() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { formatAmount } = useFormattedCurrency();
+  const { formatDate } = useTimezone();
 
   // Fetch leads with filters
   const { data: leads = [], isLoading: leadsLoading } = useQuery({
@@ -406,7 +408,7 @@ export default function Leads() {
                   
                   <div className="flex items-center space-x-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span>{lead.dateStart ? new Date(lead.dateStart).toLocaleDateString() : 'No date set'}</span>
+                    <span>{lead.dateStart ? formatDate(lead.dateStart, 'MMM d, yyyy') : 'No date set'}</span>
                   </div>
                   
                   <div className="flex items-center space-x-2">
@@ -430,7 +432,7 @@ export default function Leads() {
                     <div className="mt-2 text-sm text-blue-700">
                       <div><strong>Title:</strong> {getProposalForLead(lead.id)?.title}</div>
                       <div><strong>Amount:</strong> {formatAmount(parseFloat(getProposalForLead(lead.id)?.totalAmount || "0"))}</div>
-                      <div><strong>Valid Until:</strong> {new Date(getProposalForLead(lead.id)?.validUntil || "").toLocaleDateString()}</div>
+                      <div><strong>Valid Until:</strong> {formatDate(getProposalForLead(lead.id)?.validUntil || "", 'MMM d, yyyy')}</div>
                     </div>
                     <div className="mt-2 flex space-x-2">
                       <Button 

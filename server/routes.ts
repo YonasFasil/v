@@ -13,6 +13,7 @@ import { notificationEmailService } from "./services/notification-email";
 import { sendCustomerCommunicationEmail, sendUserVerificationEmail } from "./services/super-admin-email";
 import { resolveTenant, requireTenant, checkTrialStatus, filterByTenant, type TenantRequest } from "./middleware/tenant";
 import { addFeatureAccess, requireFeature, getFeaturesForTenant, requireWithinLimits, type FeatureRequest } from "./middleware/feature-access";
+import { setTenantContext, getTenantIdFromAuth } from "./db/tenant-context";
 import { tenantContextMiddleware } from "./middleware/tenant-context";
 import { 
   insertBookingSchema, 
@@ -412,8 +413,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Authentication required" });
       }
       
-      // Add tenant ID to the venue data
-      const venueData = { ...req.body, tenantId };
+      // Validate required fields and provide defaults
+      const { name, description, capacity, pricePerHour, amenities, isActive } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ message: "Venue name is required" });
+      }
+      
+      // Create venue data with validated fields
+      // Note: Capacity is optional for venues (venue = hotel, spaces = halls with capacity)
+      const venueData = {
+        name: name.trim(),
+        description: description || '',
+        capacity: capacity && capacity > 0 ? parseInt(capacity) : null, // Optional field
+        pricePerHour: pricePerHour ? parseFloat(pricePerHour) : null,
+        amenities: Array.isArray(amenities) ? amenities : [],
+        isActive: isActive !== false, // Default to true
+        tenantId
+      };
+      
       const venue = await storage.createVenue(venueData);
       res.status(201).json(venue);
     } catch (error) {
@@ -587,6 +605,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Authentication required" });
       }
       
+      // Set tenant context before making database calls
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const token = authHeader.substring(7);
+      const decoded = verifyToken(token);
+      if (!decoded) {
+        return res.status(401).json({ message: "Invalid token" });
+      }
+      
+      const user = await storage.getUser(decoded.id);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      
+      await setTenantContext({
+        tenantId: user.tenantId,
+        userId: user.id,
+        role: user.role
+      });
+      
       const venues = await storage.getVenues();
       const venuesWithSpaces = await Promise.all(
         venues.map(async (venue) => {
@@ -596,6 +637,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       res.json(venuesWithSpaces);
     } catch (error) {
+      console.error('Error in /api/venues-with-spaces:', error);
       res.status(500).json({ message: "Failed to fetch venues with spaces" });
     }
   });
@@ -3554,7 +3596,7 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
             id: venue.id.toString(),
             type: 'venue' as const,
             title: venue.name || 'Unnamed Venue',
-            subtitle: `Capacity: ${venue.capacity}`,
+            subtitle: venue.capacity ? `Capacity: ${venue.capacity}` : 'Event Venue',
             description: venue.description,
             metadata: {
               price: venue.pricePerHour ? parseFloat(venue.pricePerHour) : undefined
@@ -4270,7 +4312,12 @@ This is a test email from your Venuine venue management system.
       const taxSetting = await storage.createTaxSetting({ ...validatedData, tenantId });
       res.json(taxSetting);
     } catch (error) {
-      res.status(400).json({ message: "Invalid tax setting data" });
+      console.error('Tax setting creation error:', error);
+      if (error instanceof Error) {
+        res.status(400).json({ message: "Invalid tax setting data", error: error.message });
+      } else {
+        res.status(400).json({ message: "Invalid tax setting data" });
+      }
     }
   });
 
@@ -7430,6 +7477,82 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     }
   });
 
+  // Super Admin - Create tenant
+  app.post("/api/super-admin/tenants", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    try {
+      // Handle both old and new payload formats
+      let name, adminEmail, adminName, password, packageId;
+      
+      if (req.body.adminUser) {
+        // New frontend format
+        name = req.body.name;
+        adminEmail = req.body.adminUser.email;
+        adminName = req.body.adminUser.name;
+        password = req.body.adminUser.password;
+        packageId = req.body.subscriptionPackageId;
+      } else {
+        // Legacy format
+        ({ name, adminEmail, adminName, password, packageId } = req.body);
+      }
+      
+      if (!name || !adminEmail || !adminName || !password) {
+        return res.status(400).json({ 
+          message: "All fields are required",
+          received: { name: !!name, adminEmail: !!adminEmail, adminName: !!adminName, password: !!password }
+        });
+      }
+      
+      // Check if email is already used
+      const existingUser = await storage.getUserByEmail(adminEmail);
+      if (existingUser) {
+        return res.status(400).json({ message: "Email already in use" });
+      }
+      
+      // Get a default package if none selected
+      let finalPackageId = packageId;
+      if (!finalPackageId || finalPackageId === "none") {
+        // Get any available package as default
+        const packages = await storage.getSubscriptionPackages();
+        finalPackageId = packages[0]?.id;
+      }
+      
+      // Create tenant
+      const tenant = await storage.createTenant({
+        name,
+        slug: req.body.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
+        subscriptionPackageId: finalPackageId,
+        status: 'trial',
+        trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days from now
+      });
+      
+      // Create admin user
+      const hashedPassword = await hashPassword(password);
+      const user = await storage.createUser({
+        username: req.body.adminUser?.username || adminEmail.split('@')[0],
+        password: hashedPassword,
+        name: adminName,
+        email: adminEmail,
+        tenantId: tenant.id,
+        role: 'tenant_admin',
+        isActive: true
+      });
+      
+      res.json({
+        message: "Tenant created successfully",
+        tenant,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role
+        }
+      });
+    } catch (error: any) {
+      console.error("Error creating tenant:", error);
+      res.status(500).json({ message: "Failed to create tenant", error: error.message });
+    }
+  });
+
   // Super Admin - Get all subscription packages
   app.get("/api/super-admin/packages", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
     try {
@@ -7694,9 +7817,8 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
   app.get("/api/super-admin/tenants/:id/users", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
     try {
       const tenantId = req.params.id;
-      const allUsers = await storage.getUsers();
-      // Filter users to only return those belonging to the specific tenant
-      const tenantUsers = allUsers.filter(user => user.tenantId === tenantId);
+      // Super admin explicitly queries for specific tenant users - bypass general getUsers()
+      const tenantUsers = await storage.getUsersByTenant(tenantId);
       res.json(tenantUsers);
     } catch (error: any) {
       console.error("Error fetching tenant users:", error);
@@ -7971,8 +8093,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
       }
       
       // Find user by email
-      const users = await storage.getUsers();
-      const user = users.find(u => u.email === email);
+      const user = await storage.getUserByEmail(email);
       
       if (!user) {
         return res.status(401).json({ message: "Invalid credentials" });

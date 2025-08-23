@@ -88,9 +88,10 @@ export function userHasPermission(userPermissions: string[], requiredPermission:
     'settings': ['manage_settings']
   };
   
-  // Check if user has any legacy permission that maps to the required permission
+  // Check if user has any permission that satisfies the required permission
+  const validPermissions = legacyMappings[requiredPermission] || [];
   for (const userPerm of userPermissions) {
-    if (legacyMappings[userPerm]?.includes(requiredPermission)) {
+    if (validPermissions.includes(userPerm)) {
       return true;
     }
   }

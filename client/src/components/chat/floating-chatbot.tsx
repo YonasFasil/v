@@ -24,6 +24,7 @@ import {
   Clock
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useFormattedCurrency } from "@/lib/currency";
 import { apiRequest } from "@/lib/queryClient";
 
 interface ChatMessage {
@@ -114,6 +115,7 @@ function useAuth() {
 
 export function FloatingChatbot() {
   const isAuthenticated = useAuth();
+  const { formatAmount } = useFormattedCurrency();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -379,7 +381,7 @@ export function FloatingChatbot() {
                     <div className="text-right ml-2">
                       <div className="flex items-center gap-1">
                         <DollarSign className="w-3 h-3 text-green-600" />
-                        <span className="font-semibold text-sm text-green-600">${venue.pricePerHour || 0}/hr</span>
+                        <span className="font-semibold text-sm text-green-600">{formatAmount(venue.pricePerHour || 0)}/hr</span>
                       </div>
                     </div>
                   </div>

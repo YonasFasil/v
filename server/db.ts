@@ -1,5 +1,7 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
+import { neon } from '@neondatabase/serverless';
+import { drizzle as drizzleNeon } from 'drizzle-orm/neon-http';
+import { drizzle as drizzleNode } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
 import * as schema from "@shared/schema";
 
 if (!process.env.DATABASE_URL) {
@@ -8,8 +10,28 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-const client = postgres(process.env.DATABASE_URL);
-export const db = drizzle(client, { 
-  schema,
-  logger: process.env.NODE_ENV === 'development' 
-});
+const databaseUrl = process.env.DATABASE_URL;
+
+// Check if using local PostgreSQL or Neon
+let db;
+
+if (databaseUrl.includes('localhost') || databaseUrl.includes('127.0.0.1')) {
+  // Local PostgreSQL using node-postgres
+  const pool = new Pool({
+    connectionString: databaseUrl,
+  });
+  
+  db = drizzleNode(pool, { 
+    schema,
+    logger: process.env.NODE_ENV === 'development' 
+  });
+} else {
+  // Remote Neon database using neon-http
+  const sql = neon(databaseUrl);
+  db = drizzleNeon(sql, { 
+    schema,
+    logger: process.env.NODE_ENV === 'development' 
+  });
+}
+
+export { db };

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useTimezone } from "@/hooks/use-timezone";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +57,7 @@ interface CustomerAnalytics {
 }
 
 export default function Customers() {
+  const { formatDate } = useTimezone();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [companySearchQuery, setCompanySearchQuery] = useState("");
@@ -683,9 +685,9 @@ export default function Customers() {
     }
   };
 
-  const formatDate = (dateString: string | null) => {
+  const formatDateLocal = (dateString: string | null) => {
     if (!dateString) return "Never";
-    return new Date(dateString).toLocaleDateString();
+    return formatDate(dateString, 'MMM d, yyyy');
   };
 
   // Calculate summary stats
@@ -1079,7 +1081,7 @@ export default function Customers() {
                                 {customer.analytics.lastEventDate ? (
                                   <>
                                     <div className="font-medium">{customer.analytics.lastEventName}</div>
-                                    <div className="text-gray-500">{formatDate(customer.analytics.lastEventDate)}</div>
+                                    <div className="text-gray-500">{formatDateLocal(customer.analytics.lastEventDate)}</div>
                                   </>
                                 ) : (
                                   <span className="text-gray-500">No events yet</span>
@@ -1463,7 +1465,7 @@ export default function Customers() {
                 {selectedCustomer.name}
               </DialogTitle>
               <DialogDescription>
-                Customer since {formatDate(selectedCustomer.analytics.customerSince)}
+                Customer since {formatDateLocal(selectedCustomer.analytics.customerSince)}
               </DialogDescription>
             </DialogHeader>
             
@@ -1563,7 +1565,7 @@ export default function Customers() {
                     <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                       <div className="font-medium">Last Event:</div>
                       <div className="text-sm text-gray-600">{selectedCustomer.analytics.lastEventName}</div>
-                      <div className="text-sm text-gray-500">{formatDate(selectedCustomer.analytics.lastEventDate)}</div>
+                      <div className="text-sm text-gray-500">{formatDateLocal(selectedCustomer.analytics.lastEventDate)}</div>
                     </div>
                   )}
                 </CardContent>

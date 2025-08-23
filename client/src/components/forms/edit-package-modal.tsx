@@ -8,6 +8,7 @@ import { X, Edit, Save, Trash2 } from "lucide-react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useFormattedCurrency } from "@/lib/currency";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -19,6 +20,7 @@ interface Props {
 
 export function EditPackageModal({ open, onOpenChange, package: pkg }: Props) {
   const { toast } = useToast();
+  const { formatAmount } = useFormattedCurrency();
   const queryClient = useQueryClient();
   
   const [name, setName] = useState("");
@@ -204,7 +206,7 @@ export function EditPackageModal({ open, onOpenChange, package: pkg }: Props) {
                         <div className="text-sm text-slate-600">{service.description}</div>
                       </div>
                     </div>
-                    <Badge variant="secondary">${service.price}</Badge>
+                    <Badge variant="secondary">{formatAmount(parseFloat(service.price))}</Badge>
                   </div>
                 </Card>
               ))}
@@ -214,13 +216,13 @@ export function EditPackageModal({ open, onOpenChange, package: pkg }: Props) {
               <div className="mt-4 p-4 bg-blue-50 rounded-lg">
                 <div className="flex justify-between items-center mb-2">
                   <span className="font-medium">Selected Services ({selectedServices.length})</span>
-                  <span className="font-medium">Individual Total: ${totalServicePrice.toFixed(2)}</span>
+                  <span className="font-medium">Individual Total: {formatAmount(totalServicePrice)}</span>
                 </div>
                 <div className="text-sm space-y-1">
                   {selectedServicesData.map((service: any) => (
                     <div key={service.id} className="flex justify-between">
                       <span>{service.name}</span>
-                      <span>${service.price}</span>
+                      <span>{formatAmount(parseFloat(service.price))}</span>
                     </div>
                   ))}
                 </div>
@@ -228,10 +230,10 @@ export function EditPackageModal({ open, onOpenChange, package: pkg }: Props) {
                   <div className="mt-2 pt-2 border-t border-blue-200">
                     <div className="flex justify-between font-medium">
                       <span>Package Price (Bundled)</span>
-                      <span>${parseFloat(price).toFixed(2)}</span>
+                      <span>{formatAmount(parseFloat(price))}</span>
                     </div>
                     <div className="text-xs text-blue-600">
-                      Savings: ${(totalServicePrice - parseFloat(price)).toFixed(2)}
+                      Savings: {formatAmount(totalServicePrice - parseFloat(price))}
                     </div>
                   </div>
                 )}
@@ -293,7 +295,7 @@ export function EditPackageModal({ open, onOpenChange, package: pkg }: Props) {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-slate-600">Base Price:</span>
-                  <span className="text-green-600 font-medium">${parseFloat(price).toFixed(2)}</span>
+                  <span className="text-green-600 font-medium">{formatAmount(parseFloat(price))}</span>
                 </div>
                 
                 {/* Show individual fees */}
@@ -307,7 +309,7 @@ export function EditPackageModal({ open, onOpenChange, package: pkg }: Props) {
                   return (
                     <div key={feeId} className="flex justify-between text-blue-600">
                       <span className="pl-2">+ {fee.name}:</span>
-                      <span>+${feeAmount.toFixed(2)}</span>
+                      <span>+{formatAmount(feeAmount)}</span>
                     </div>
                   );
                 })}
@@ -335,7 +337,7 @@ export function EditPackageModal({ open, onOpenChange, package: pkg }: Props) {
                   return (
                     <div key={taxId} className="flex justify-between text-purple-600">
                       <span className="pl-2">+ {tax.name}:</span>
-                      <span>+${taxAmount.toFixed(2)}</span>
+                      <span>+{formatAmount(taxAmount)}</span>
                     </div>
                   );
                 })}
@@ -343,7 +345,7 @@ export function EditPackageModal({ open, onOpenChange, package: pkg }: Props) {
                 <div className="border-t pt-2 mt-2">
                   <div className="flex justify-between font-semibold">
                     <span>Total with Taxes & Fees:</span>
-                    <span className="text-blue-700">${calculatePackageTotal().toFixed(2)}</span>
+                    <span className="text-blue-700">{formatAmount(calculatePackageTotal())}</span>
                   </div>
                 </div>
               </div>

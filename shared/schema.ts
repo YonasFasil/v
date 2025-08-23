@@ -28,7 +28,7 @@ export const venues = pgTable("venues", {
   tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   description: text("description"),
-  capacity: integer("capacity").notNull(),
+  capacity: integer("capacity"), // Optional - venue is like a hotel, capacity is for individual spaces
   pricePerHour: decimal("price_per_hour", { precision: 10, scale: 2 }),
   amenities: text("amenities").array(),
   imageUrl: text("image_url"),
@@ -475,7 +475,7 @@ export const insertPackageSchema = createInsertSchema(packages).omit({ id: true,
 export const insertServiceSchema = createInsertSchema(services).omit({ id: true, createdAt: true });
 export const insertSpaceSchema = createInsertSchema(spaces).omit({ id: true, createdAt: true });
 export const insertSetupStyleSchema = createInsertSchema(setupStyles).omit({ id: true, createdAt: true });
-export const insertTaxSettingSchema = createInsertSchema(taxSettings).omit({ id: true, createdAt: true });
+export const insertTaxSettingSchema = createInsertSchema(taxSettings).omit({ id: true, createdAt: true, tenantId: true });
 export const insertCampaignSourceSchema = createInsertSchema(campaignSources).omit({ id: true, createdAt: true });
 export const insertTagSchema = createInsertSchema(tags).omit({ id: true, createdAt: true });
 export const insertLeadSchema = createInsertSchema(leads, {

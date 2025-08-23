@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { useTimezone, getTimezoneOptions } from "@/hooks/use-timezone";
 import { apiRequest } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { TaxesAndFeesSettings } from "@/components/taxes-and-fees-settings";
@@ -48,6 +49,7 @@ import {
 export default function Settings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { now, display, timezoneId } = useTimezone();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("general");
   const [showApiKeys, setShowApiKeys] = useState(false);
@@ -394,6 +396,9 @@ export default function Settings() {
                             <SelectItem value="Africa/Lagos">🇳🇬 Lagos (WAT)</SelectItem>
                           </SelectContent>
                         </Select>
+                        <div className="text-sm text-gray-600">
+                          Current time: {now().toLocaleTimeString()} ({display})
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="currency">Currency</Label>

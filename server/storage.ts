@@ -30,7 +30,7 @@ import {
   leadActivities, leadTasks, tours, tenants, subscriptionPackages, aiInsights,
 
 } from "@shared/schema";
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { randomUUID } from "crypto";
 import { getPermissionsForRole } from './permissions';
 import { getCurrentTenantContext } from './db/tenant-context';
@@ -63,6 +63,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUsersByTenant(tenantId: string): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
 
@@ -847,6 +848,10 @@ export class MemStorage implements IStorage {
 
   async getUserByEmail(email: string): Promise<User | undefined> {
     return Array.from(this.users.values()).find(user => user.email === email);
+  }
+
+  async getUsersByTenant(tenantId: string): Promise<User[]> {
+    return Array.from(this.users.values()).filter(user => user.tenantId === tenantId);
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
@@ -2124,7 +2129,20 @@ export class DbStorage implements IStorage {
 
   // Users
   async getUsers(): Promise<User[]> {
-    return await this.db.select().from(users);
+    // Get current tenant context for filtering
+    const context = await getCurrentTenantContext();
+    
+    if (context.role === 'super_admin') {
+      // Super admin can see all users
+      return await this.db.select().from(users);
+    } else if (context.tenantId) {
+      // Tenant users can only see users from their tenant
+      return await this.db.select().from(users).where(eq(users.tenantId, context.tenantId));
+    } else {
+      // No tenant context - return empty array for security
+      console.warn('WARNING: getUsers() called without proper tenant context');
+      return [];
+    }
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -2142,8 +2160,20 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
+  async getUsersByTenant(tenantId: string): Promise<User[]> {
+    return await this.db.select().from(users).where(eq(users.tenantId, tenantId));
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
-    const result = await this.db.insert(users).values(insertUser).returning();
+    // Get default permissions for the role if not provided
+    const defaultPermissions = getPermissionsForRole(insertUser.role);
+    
+    const userToInsert = {
+      ...insertUser,
+      permissions: insertUser.permissions || defaultPermissions
+    };
+    
+    const result = await this.db.insert(users).values(userToInsert).returning();
     return result[0];
   }
 
@@ -2154,7 +2184,16 @@ export class DbStorage implements IStorage {
 
   // Venues
   async getVenues(): Promise<Venue[]> {
-    return await this.db.select().from(venues);
+    const context = await getCurrentTenantContext();
+    
+    if (context.role === 'super_admin') {
+      return await this.db.select().from(venues);
+    } else if (context.tenantId) {
+      return await this.db.select().from(venues).where(eq(venues.tenantId, context.tenantId));
+    } else {
+      console.warn('WARNING: getVenues() called without proper tenant context');
+      return [];
+    }
   }
 
   async getVenue(id: string): Promise<Venue | undefined> {
@@ -2174,12 +2213,67 @@ export class DbStorage implements IStorage {
 
   // Spaces
   async getSpaces(): Promise<Space[]> {
-    return await this.db.select().from(spaces);
+    const context = await getCurrentTenantContext();
+    
+    if (context.role === 'super_admin') {
+      return await this.db.select().from(spaces);
+    } else if (context.tenantId) {
+      // Join with venues to filter spaces by tenant
+      return await this.db
+        .select({
+          id: spaces.id,
+          venueId: spaces.venueId,
+          name: spaces.name,
+          description: spaces.description,
+          capacity: spaces.capacity,
+          pricePerHour: spaces.pricePerHour,
+          amenities: spaces.amenities,
+          imageUrl: spaces.imageUrl,
+          availableSetupStyles: spaces.availableSetupStyles,
+          floorPlan: spaces.floorPlan,
+          isActive: spaces.isActive,
+          createdAt: spaces.createdAt
+        })
+        .from(spaces)
+        .innerJoin(venues, eq(spaces.venueId, venues.id))
+        .where(eq(venues.tenantId, context.tenantId));
+    } else {
+      console.warn('WARNING: getSpaces() called without proper tenant context');
+      return [];
+    }
   }
 
   async getSpace(id: string): Promise<Space | undefined> {
-    const result = await this.db.select().from(spaces).where(eq(spaces.id, id));
-    return result[0];
+    const context = await getCurrentTenantContext();
+    
+    if (context.role === 'super_admin') {
+      const result = await this.db.select().from(spaces).where(eq(spaces.id, id));
+      return result[0];
+    } else if (context.tenantId) {
+      // Join with venues to filter space by tenant
+      const result = await this.db
+        .select({
+          id: spaces.id,
+          venueId: spaces.venueId,
+          name: spaces.name,
+          description: spaces.description,
+          capacity: spaces.capacity,
+          pricePerHour: spaces.pricePerHour,
+          amenities: spaces.amenities,
+          imageUrl: spaces.imageUrl,
+          availableSetupStyles: spaces.availableSetupStyles,
+          floorPlan: spaces.floorPlan,
+          isActive: spaces.isActive,
+          createdAt: spaces.createdAt
+        })
+        .from(spaces)
+        .innerJoin(venues, eq(spaces.venueId, venues.id))
+        .where(and(eq(spaces.id, id), eq(venues.tenantId, context.tenantId)));
+      return result[0];
+    } else {
+      console.warn('WARNING: getSpace() called without proper tenant context');
+      return undefined;
+    }
   }
 
   async getSpacesByVenue(venueId: string): Promise<Space[]> {
@@ -2248,7 +2342,16 @@ export class DbStorage implements IStorage {
 
   // Customers
   async getCustomers(): Promise<Customer[]> {
-    return await this.db.select().from(customers);
+    const context = await getCurrentTenantContext();
+    
+    if (context.role === 'super_admin') {
+      return await this.db.select().from(customers);
+    } else if (context.tenantId) {
+      return await this.db.select().from(customers).where(eq(customers.tenantId, context.tenantId));
+    } else {
+      console.warn('WARNING: getCustomers() called without proper tenant context');
+      return [];
+    }
   }
 
   async getCustomer(id: string): Promise<Customer | undefined> {
@@ -2278,7 +2381,18 @@ export class DbStorage implements IStorage {
   // For brevity, I'll add placeholder implementations for remaining methods
   // Each follows the same pattern: use db.select/insert/update/delete with RLS handling filtering
   
-  async getContracts(): Promise<Contract[]> { return await this.db.select().from(contracts); }
+  async getContracts(): Promise<Contract[]> {
+    const context = await getCurrentTenantContext();
+    
+    if (context.role === 'super_admin') {
+      return await this.db.select().from(contracts);
+    } else if (context.tenantId) {
+      return await this.db.select().from(contracts).where(eq(contracts.tenantId, context.tenantId));
+    } else {
+      console.warn('WARNING: getContracts() called without proper tenant context');
+      return [];
+    }
+  }
   async getContract(id: string): Promise<Contract | undefined> { 
     const result = await this.db.select().from(contracts).where(eq(contracts.id, id));
     return result[0];
@@ -2299,7 +2413,18 @@ export class DbStorage implements IStorage {
     return result.rowCount > 0;
   }
 
-  async getBookings(): Promise<Booking[]> { return await this.db.select().from(bookings); }
+  async getBookings(): Promise<Booking[]> {
+    const context = await getCurrentTenantContext();
+    
+    if (context.role === 'super_admin') {
+      return await this.db.select().from(bookings);
+    } else if (context.tenantId) {
+      return await this.db.select().from(bookings).where(eq(bookings.tenantId, context.tenantId));
+    } else {
+      console.warn('WARNING: getBookings() called without proper tenant context');
+      return [];
+    }
+  }
   async getBooking(id: string): Promise<Booking | undefined> { 
     const result = await this.db.select().from(bookings).where(eq(bookings.id, id));
     return result[0];
@@ -2324,7 +2449,18 @@ export class DbStorage implements IStorage {
   }
 
   // Continue with other methods following same pattern...
-  async getProposals(): Promise<Proposal[]> { return await this.db.select().from(proposals); }
+  async getProposals(): Promise<Proposal[]> {
+    const context = await getCurrentTenantContext();
+    
+    if (context.role === 'super_admin') {
+      return await this.db.select().from(proposals);
+    } else if (context.tenantId) {
+      return await this.db.select().from(proposals).where(eq(proposals.tenantId, context.tenantId));
+    } else {
+      console.warn('WARNING: getProposals() called without proper tenant context');
+      return [];
+    }
+  }
   async getProposal(id: string): Promise<Proposal | undefined> { 
     const result = await this.db.select().from(proposals).where(eq(proposals.id, id));
     return result[0];
@@ -2341,7 +2477,18 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
-  async getPayments(): Promise<Payment[]> { return await this.db.select().from(payments); }
+  async getPayments(): Promise<Payment[]> {
+    const context = await getCurrentTenantContext();
+    
+    if (context.role === 'super_admin') {
+      return await this.db.select().from(payments);
+    } else if (context.tenantId) {
+      return await this.db.select().from(payments).where(eq(payments.tenantId, context.tenantId));
+    } else {
+      console.warn('WARNING: getPayments() called without proper tenant context');
+      return [];
+    }
+  }
   async getPayment(id: string): Promise<Payment | undefined> { 
     const result = await this.db.select().from(payments).where(eq(payments.id, id));
     return result[0];
@@ -2358,7 +2505,18 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
-  async getTasks(): Promise<Task[]> { return await this.db.select().from(tasks); }
+  async getTasks(): Promise<Task[]> {
+    const context = await getCurrentTenantContext();
+    
+    if (context.role === 'super_admin') {
+      return await this.db.select().from(tasks);
+    } else if (context.tenantId) {
+      return await this.db.select().from(tasks).where(eq(tasks.tenantId, context.tenantId));
+    } else {
+      console.warn('WARNING: getTasks() called without proper tenant context');
+      return [];
+    }
+  }
   async getTask(id: string): Promise<Task | undefined> { 
     const result = await this.db.select().from(tasks).where(eq(tasks.id, id));
     return result[0];
@@ -2376,7 +2534,18 @@ export class DbStorage implements IStorage {
     return result.rowCount > 0;
   }
 
-  async getPackages(): Promise<Package[]> { return await this.db.select().from(packages); }
+  async getPackages(): Promise<Package[]> {
+    const context = await getCurrentTenantContext();
+    
+    if (context.role === 'super_admin') {
+      return await this.db.select().from(packages);
+    } else if (context.tenantId) {
+      return await this.db.select().from(packages).where(eq(packages.tenantId, context.tenantId));
+    } else {
+      console.warn('WARNING: getPackages() called without proper tenant context');
+      return [];
+    }
+  }
   async getPackage(id: string): Promise<Package | undefined> { 
     const result = await this.db.select().from(packages).where(eq(packages.id, id));
     return result[0];
@@ -2394,7 +2563,18 @@ export class DbStorage implements IStorage {
     return result.rowCount > 0;
   }
 
-  async getServices(): Promise<Service[]> { return await this.db.select().from(services); }
+  async getServices(): Promise<Service[]> {
+    const context = await getCurrentTenantContext();
+    
+    if (context.role === 'super_admin') {
+      return await this.db.select().from(services);
+    } else if (context.tenantId) {
+      return await this.db.select().from(services).where(eq(services.tenantId, context.tenantId));
+    } else {
+      console.warn('WARNING: getServices() called without proper tenant context');
+      return [];
+    }
+  }
   async getService(id: string): Promise<Service | undefined> { 
     const result = await this.db.select().from(services).where(eq(services.id, id));
     return result[0];
@@ -2426,9 +2606,38 @@ export class DbStorage implements IStorage {
     const result = await this.db.insert(settings).values(setting).returning();
     return result[0];
   }
-  async updateSetting(id: string, setting: any): Promise<any> { 
-    const result = await this.db.update(settings).set(setting).where(eq(settings.id, id)).returning();
-    return result[0];
+  async updateSetting(key: string, value: any): Promise<any> { 
+    // Get current tenant context to ensure tenant-specific settings
+    const context = await getCurrentTenantContext();
+    const tenantId = context.tenantId;
+    
+    if (!tenantId) {
+      throw new Error('Tenant context required for settings operations');
+    }
+    
+    // First, try to find existing setting by key and tenant
+    const existingResult = await this.db.select().from(settings)
+      .where(and(eq(settings.key, key), eq(settings.tenantId, tenantId)));
+    
+    if (existingResult.length > 0) {
+      // Update existing setting
+      const result = await this.db.update(settings)
+        .set({ value: JSON.stringify(value), updatedAt: new Date() })
+        .where(and(eq(settings.key, key), eq(settings.tenantId, tenantId)))
+        .returning();
+      return result[0];
+    } else {
+      // Create new setting if it doesn't exist
+      const result = await this.db.insert(settings)
+        .values({ 
+          key, 
+          value: JSON.stringify(value), 
+          tenantId: tenantId,
+          updatedAt: new Date() 
+        })
+        .returning();
+      return result[0];
+    }
   }
   async deleteSetting(id: string): Promise<boolean> { 
     const result = await this.db.delete(settings).where(eq(settings.id, id));
@@ -2454,11 +2663,31 @@ export class DbStorage implements IStorage {
 
   // Tax Settings
   async getTaxSettings(): Promise<any[]> { 
-    return await this.db.select().from(taxSettings); 
+    const context = await getCurrentTenantContext();
+    
+    if (context.role === 'super_admin') {
+      return await this.db.select().from(taxSettings);
+    } else if (context.tenantId) {
+      return await this.db.select().from(taxSettings).where(eq(taxSettings.tenantId, context.tenantId));
+    } else {
+      console.warn('WARNING: getTaxSettings() called without proper tenant context');
+      return [];
+    }
   }
   async getTaxSetting(id: string): Promise<any> { 
-    const result = await this.db.select().from(taxSettings).where(eq(taxSettings.id, id));
-    return result[0];
+    const context = await getCurrentTenantContext();
+    
+    if (context.role === 'super_admin') {
+      const result = await this.db.select().from(taxSettings).where(eq(taxSettings.id, id));
+      return result[0];
+    } else if (context.tenantId) {
+      const result = await this.db.select().from(taxSettings)
+        .where(and(eq(taxSettings.id, id), eq(taxSettings.tenantId, context.tenantId)));
+      return result[0];
+    } else {
+      console.warn('WARNING: getTaxSetting() called without proper tenant context');
+      return null;
+    }
   }
   async createTaxSetting(taxSetting: any): Promise<any> { 
     const result = await this.db.insert(taxSettings).values(taxSetting).returning();
