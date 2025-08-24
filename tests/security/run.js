@@ -22,6 +22,11 @@ async function runSecurityTests() {
       name: 'Database Role Lockdown',
       file: 'step2_roles.js',
       description: 'Ensures least-privilege database roles prevent RLS bypass'
+    },
+    {
+      name: 'Row-Level Security Enforcement',
+      file: 'step3_rls_flags.js',
+      description: 'Validates RLS enabled and FORCED on all tenant tables'
     }
   ];
 
