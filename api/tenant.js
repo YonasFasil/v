@@ -18,31 +18,7 @@ module.exports = async function handler(req, res) {
     
     const databaseUrl = process.env.DATABASE_URL;
     
-    // Use appropriate database client based on URL
-    let sql;
-    if (databaseUrl.includes('localhost') || databaseUrl.includes('127.0.0.1')) {
-      // Local PostgreSQL - use node-postgres
-      const pool = new Pool({ connectionString: databaseUrl });
-      sql = async function(strings, ...values) {
-        const client = await pool.connect();
-        try {
-          // Convert tagged template literal to parameterized query
-          let query = strings[0];
-          for (let i = 0; i < values.length; i++) {
-            query += '$' + (i + 1) + strings[i + 1];
-          }
-          const result = await client.query(query, values);
-          return result.rows;
-        } finally {
-          client.release();
-        }
-      };
-    } else {
-      // Remote Neon database
-      sql = neon(databaseUrl);
-    }
-    
-    // Extract tenant ID from auth token
+    // Extract tenant ID from auth token first
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ message: 'Authentication required' });
@@ -60,8 +36,108 @@ module.exports = async function handler(req, res) {
     }
     
     const tenantId = decoded.tenantId;
+    const userRole = decoded.role || 'tenant_user';
     if (!tenantId) {
       return res.status(401).json({ message: 'No tenant access' });
+    }
+    
+    // Setup database connection with per-request tenant context
+    let sql, contextClient;
+    if (databaseUrl.includes('localhost') || databaseUrl.includes('127.0.0.1')) {
+      // Local PostgreSQL - use node-postgres with per-request client and context
+      const pool = new Pool({ 
+        connectionString: databaseUrl,
+        max: 20, // Higher pool for per-request connections
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 5000
+      });
+      
+      // Acquire a dedicated client for this request
+      contextClient = await pool.connect();
+      
+      // Begin transaction and set tenant/role context
+      await contextClient.query('BEGIN');
+      await contextClient.query('SELECT set_config($1, $2, true)', ['app.current_tenant', tenantId]);
+      await contextClient.query('SELECT set_config($1, $2, true)', ['app.user_role', userRole]);
+      
+      console.log(`🔒 Set tenant context: ${tenantId}, role: ${userRole}`);
+      
+      // Create sql function that uses the context-aware client
+      sql = async function(strings, ...values) {
+        try {
+          // Convert tagged template literal to parameterized query
+          let query = strings[0];
+          for (let i = 0; i < values.length; i++) {
+            query += '$' + (i + 1) + strings[i + 1];
+          }
+          const result = await contextClient.query(query, values);
+          return result.rows;
+        } catch (error) {
+          console.error('Query error:', error.message);
+          throw error;
+        }
+      };
+      
+      // Setup cleanup on response end
+      res.on('finish', async () => {
+        try {
+          if (contextClient) {
+            await contextClient.query('COMMIT');
+            contextClient.release();
+            console.log('🔓 Released tenant context connection (commit)');
+          }
+        } catch (e) {
+          console.error('Commit error:', e.message);
+        }
+      });
+      
+      res.on('close', async () => {
+        try {
+          if (contextClient) {
+            await contextClient.query('ROLLBACK');
+            contextClient.release();
+            console.log('🔓 Released tenant context connection (rollback)');
+          }
+        } catch (e) {
+          console.error('Rollback error:', e.message);
+        }
+      });
+      
+    } else {
+      // Remote Neon database - use withTenant wrapper
+      const baseSql = neon(databaseUrl);
+      
+      // Wrapper function that sets tenant context before running statements
+      sql = async function(strings, ...values) {
+        try {
+          // Convert tagged template literal to query
+          let query = strings[0];
+          for (let i = 0; i < values.length; i++) {
+            query += `$${i + 1}${strings[i + 1]}`;
+          }
+          
+          // Execute with tenant context - Neon automatically handles transactions
+          const contextSetup = [
+            { query: 'SELECT set_config($1, $2, true)', params: ['app.current_tenant', tenantId] },
+            { query: 'SELECT set_config($1, $2, true)', params: ['app.user_role', userRole] },
+            { query, params: values }
+          ];
+          
+          // Execute all statements in a single Neon call (transaction)
+          const results = [];
+          for (const stmt of contextSetup) {
+            const result = await baseSql(stmt.query, stmt.params);
+            results.push(result);
+          }
+          
+          // Return the result of the actual query (last statement)
+          return results[results.length - 1];
+          
+        } catch (error) {
+          console.error('Neon query error:', error.message);
+          throw error;
+        }
+      };
     }
     
     const { resource, action, id } = req.query;

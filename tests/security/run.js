@@ -32,6 +32,11 @@ async function runSecurityTests() {
       name: 'RLS Session Variable Enforcement',
       file: 'test-rls-session-variables.js',
       description: 'Validates PostgreSQL session variables enforce tenant isolation'
+    },
+    {
+      name: 'RLS Context Enforcement',
+      file: 'step4_context_enforced.js',
+      description: 'Validates per-request set_config binds tenant context to RLS policies'
     }
   ];
 
