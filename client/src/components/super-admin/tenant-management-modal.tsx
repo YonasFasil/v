@@ -40,7 +40,7 @@ export function TenantManagementModal({ open, onOpenChange }: Props) {
         name: data.name,
         slug: slug,
         subscriptionPackageId: data.packageId === "none" || data.packageId === "" ? null : data.packageId,
-        subscriptionStatus: 'trial',
+        subscriptionStatus: 'active',
         adminUser: {
           email: data.adminEmail,
           password: data.password,
@@ -148,7 +148,7 @@ export function TenantManagementModal({ open, onOpenChange }: Props) {
                 <SelectValue placeholder="Select a subscription package (optional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">No Package (Trial)</SelectItem>
+                <SelectItem value="none">No Package</SelectItem>
                 {packages.map((pkg: any) => (
                   <SelectItem key={pkg.id} value={pkg.id}>
                     {pkg.name} - ${pkg.monthlyPrice}/month
@@ -162,7 +162,7 @@ export function TenantManagementModal({ open, onOpenChange }: Props) {
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground mt-1">
-              Leave empty for trial access. Package features will be activated upon assignment.
+              Leave empty for basic access. Package features will be activated upon assignment.
             </p>
           </div>
 
