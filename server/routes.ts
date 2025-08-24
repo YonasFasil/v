@@ -15,6 +15,7 @@ import { resolveTenant, requireTenant, filterByTenant, type TenantRequest } from
 import { addFeatureAccess, requireFeature, getFeaturesForTenant, requireWithinLimits, getTenantFeatures, AVAILABLE_FEATURES, type FeatureRequest } from "./middleware/feature-access";
 import { setTenantContext, getTenantIdFromAuth } from "./db/tenant-context";
 import { tenantContextMiddleware } from "./middleware/tenant-context";
+import { enforceRLSTenantIsolation, getRLSClient } from "./middleware/tenant-isolation";
 import { 
   insertBookingSchema, 
   insertCustomerSchema, 
@@ -77,30 +78,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Apply tenant resolution middleware to all routes
   app.use(resolveTenant);
   
-  // Apply tenant context middleware to set database-level isolation
-  // This must come after authentication but before any tenant-specific routes
-  app.use('/api/tenant', tenantContextMiddleware);
-  app.use('/api/bookings', tenantContextMiddleware); 
-  app.use('/api/customers', tenantContextMiddleware);
-  app.use('/api/venues', tenantContextMiddleware);
-  app.use('/api/spaces', tenantContextMiddleware);
-  app.use('/api/setup-styles', tenantContextMiddleware);
-  app.use('/api/packages', tenantContextMiddleware);
-  app.use('/api/services', tenantContextMiddleware);
-  app.use('/api/proposals', tenantContextMiddleware);
-  app.use('/api/payments', tenantContextMiddleware);
-  app.use('/api/tasks', tenantContextMiddleware);
-  app.use('/api/settings', tenantContextMiddleware);
-  app.use('/api/tax-settings', tenantContextMiddleware);
-  app.use('/api/communications', tenantContextMiddleware);
-  app.use('/api/search', tenantContextMiddleware);
-  app.use('/api/tags', tenantContextMiddleware);
-  app.use('/api/leads', tenantContextMiddleware);
-  app.use('/api/tours', tenantContextMiddleware);
-  app.use('/api/calendar', tenantContextMiddleware);
-  app.use('/api/dashboard', tenantContextMiddleware);
-  app.use('/api/companies', tenantContextMiddleware);
-  app.use('/api/contracts', tenantContextMiddleware);
+  // Apply Row-Level Security tenant isolation middleware
+  // This enforces database-level tenant isolation through PostgreSQL session variables
+  // CRITICAL: Must be applied after authentication to access req.user context
+  app.use('/api/tenant', enforceRLSTenantIsolation, tenantContextMiddleware);
+  app.use('/api/bookings', enforceRLSTenantIsolation, tenantContextMiddleware); 
+  app.use('/api/customers', enforceRLSTenantIsolation, tenantContextMiddleware);
+  app.use('/api/venues', enforceRLSTenantIsolation, tenantContextMiddleware);
+  app.use('/api/spaces', enforceRLSTenantIsolation, tenantContextMiddleware);
+  app.use('/api/setup-styles', enforceRLSTenantIsolation, tenantContextMiddleware);
+  app.use('/api/packages', enforceRLSTenantIsolation, tenantContextMiddleware);
+  app.use('/api/services', enforceRLSTenantIsolation, tenantContextMiddleware);
+  app.use('/api/proposals', enforceRLSTenantIsolation, tenantContextMiddleware);
+  app.use('/api/payments', enforceRLSTenantIsolation, tenantContextMiddleware);
+  app.use('/api/tasks', enforceRLSTenantIsolation, tenantContextMiddleware);
+  app.use('/api/settings', enforceRLSTenantIsolation, tenantContextMiddleware);
+  app.use('/api/tax-settings', enforceRLSTenantIsolation, tenantContextMiddleware);
+  app.use('/api/communications', enforceRLSTenantIsolation, tenantContextMiddleware);
+  app.use('/api/search', enforceRLSTenantIsolation, tenantContextMiddleware);
+  app.use('/api/tags', enforceRLSTenantIsolation, tenantContextMiddleware);
+  app.use('/api/leads', enforceRLSTenantIsolation, tenantContextMiddleware);
+  app.use('/api/tours', enforceRLSTenantIsolation, tenantContextMiddleware);
+  app.use('/api/calendar', enforceRLSTenantIsolation, tenantContextMiddleware);
+  app.use('/api/dashboard', enforceRLSTenantIsolation, tenantContextMiddleware);
+  app.use('/api/companies', enforceRLSTenantIsolation, tenantContextMiddleware);
+  app.use('/api/contracts', enforceRLSTenantIsolation, tenantContextMiddleware);
 
   // Helper function to get tenant ID from authenticated user
   const getTenantIdFromAuth = async (req: any): Promise<string | null> => {

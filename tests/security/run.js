@@ -27,6 +27,11 @@ async function runSecurityTests() {
       name: 'Row-Level Security Enforcement',
       file: 'step3_rls_flags.js',
       description: 'Validates RLS enabled and FORCED on all tenant tables'
+    },
+    {
+      name: 'RLS Session Variable Enforcement',
+      file: 'test-rls-session-variables.js',
+      description: 'Validates PostgreSQL session variables enforce tenant isolation'
     }
   ];
 

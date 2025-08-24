@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { db } from '../db';
 import { users, tenants } from '@shared/schema';
 import { eq } from 'drizzle-orm';
+import { Pool } from 'pg';
 
 // Extend Express Request to include tenant info
 declare global {
@@ -165,4 +166,189 @@ export function validateTenantAccess(userTenantId: string | null, requestTenantI
 
   // User can only access their own tenant's data
   return userTenantId === requestTenantId;
+}
+
+// ============================================================================
+// ROW-LEVEL SECURITY SESSION VARIABLE ENFORCEMENT
+// ============================================================================
+
+// Database pool for session variable setting
+let rlsPool: Pool | null = null;
+
+function getRLSPool(): Pool {
+  if (!rlsPool) {
+    const databaseUrl = process.env.DATABASE_URL;
+    if (!databaseUrl) {
+      throw new Error('DATABASE_URL must be set for RLS tenant isolation');
+    }
+    
+    // Only support local PostgreSQL for session variables
+    // Neon serverless doesn't support persistent session state
+    if (!databaseUrl.includes('localhost') && !databaseUrl.includes('127.0.0.1')) {
+      throw new Error('RLS tenant isolation requires local PostgreSQL connection');
+    }
+    
+    rlsPool = new Pool({
+      connectionString: databaseUrl,
+      max: 15, // Slightly higher for RLS connections
+      min: 3,
+      idleTimeoutMillis: 60000,
+      connectionTimeoutMillis: 5000,
+    });
+    
+    rlsPool.on('error', (err) => {
+      console.error('🚨 RLS Pool error:', err);
+    });
+  }
+  
+  return rlsPool;
+}
+
+/**
+ * Middleware to enforce Row-Level Security through PostgreSQL session variables
+ * 
+ * This sets the database session variables that RLS policies use:
+ * - app.current_tenant = tenant_uuid
+ * - app.user_role = user_role
+ * 
+ * MUST be applied after authentication middleware.
+ */
+export async function enforceRLSTenantIsolation(req: Request, res: Response, next: NextFunction) {
+  // Skip if no authenticated user
+  if (!req.user) {
+    return next();
+  }
+  
+  try {
+    const pool = getRLSPool();
+    const client = await pool.connect();
+    
+    try {
+      // Determine tenant context
+      const tenantId = req.user.tenantId || req.tenant?.id || null;
+      const userRole = req.user.role;
+      
+      console.log(`🔒 Setting RLS context: tenant=${tenantId || 'NULL'}, role=${userRole}`);
+      
+      // Begin transaction to make SET LOCAL work properly
+      await client.query('BEGIN');
+      
+      // Set app.current_tenant - used by RLS policies for tenant filtering
+      if (tenantId) {
+        await client.query(`SET LOCAL app.current_tenant = '${tenantId}'`);
+      } else {
+        // For super_admin or users without tenant context
+        await client.query('SET LOCAL app.current_tenant = \'\'');
+      }
+      
+      // Set app.user_role - used by RLS policies for role-based access
+      await client.query(`SET LOCAL app.user_role = '${userRole}'`);
+      
+      // Attach the RLS-aware client to the request
+      // This client has the session variables set and persists for the request
+      (req as any).rlsClient = client;
+      
+      // Cleanup when request ends
+      res.on('finish', async () => {
+        if ((req as any).rlsClient) {
+          try {
+            await (req as any).rlsClient.query('COMMIT');
+          } catch (e) {
+            console.log('⚠️ Transaction already ended');
+          }
+          (req as any).rlsClient.release();
+          console.log('🔓 Released RLS tenant context connection');
+        }
+      });
+      
+      res.on('close', async () => {
+        if ((req as any).rlsClient) {
+          try {
+            await (req as any).rlsClient.query('ROLLBACK');
+          } catch (e) {
+            console.log('⚠️ Transaction already ended');
+          }
+          (req as any).rlsClient.release();
+          console.log('🔓 Released RLS tenant context connection (close)');
+        }
+      });
+      
+      next();
+      
+    } catch (sessionError) {
+      client.release();
+      console.error('❌ Failed to set RLS session variables:', sessionError);
+      return res.status(500).json({ 
+        error: 'Database tenant isolation setup failed',
+        message: sessionError.message 
+      });
+    }
+    
+  } catch (connectionError) {
+    console.error('❌ Failed to connect for RLS tenant isolation:', connectionError);
+    return res.status(500).json({ 
+      error: 'Database connection failed for tenant isolation',
+      message: connectionError.message 
+    });
+  }
+}
+
+/**
+ * Get the RLS-aware database client from request
+ * Use this instead of the global `db` to ensure tenant isolation
+ */
+export function getRLSClient(req: Request) {
+  const client = (req as any).rlsClient;
+  if (!client) {
+    throw new Error('RLS client not available. Ensure enforceRLSTenantIsolation middleware is applied.');
+  }
+  return client;
+}
+
+/**
+ * Execute database operation with specific tenant context
+ * Useful for background jobs or operations outside request context
+ */
+export async function withTenantRLSContext<T>(
+  tenantId: string | null,
+  userRole: string,
+  operation: (client: any) => Promise<T>
+): Promise<T> {
+  const pool = getRLSPool();
+  const client = await pool.connect();
+  
+  try {
+    console.log(`🔒 Setting background RLS context: tenant=${tenantId || 'NULL'}, role=${userRole}`);
+    
+    // Begin transaction for SET LOCAL
+    await client.query('BEGIN');
+    
+    // Set session variables
+    if (tenantId) {
+      await client.query(`SET LOCAL app.current_tenant = '${tenantId}'`);
+    } else {
+      await client.query('SET LOCAL app.current_tenant = \'\'');
+    }
+    
+    await client.query(`SET LOCAL app.user_role = '${userRole}'`);
+    
+    // Execute operation with RLS context
+    const result = await operation(client);
+    
+    // Commit transaction
+    await client.query('COMMIT');
+    
+    return result;
+    
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      console.log('⚠️ Rollback error:', rollbackError.message);
+    }
+    throw error;
+  } finally {
+    client.release();
+    console.log('🔓 Released background RLS context');
+  }
 }
