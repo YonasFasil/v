@@ -1,6 +1,7 @@
 const { neon } = require('@neondatabase/serverless');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { requireEnv } = require('../../server/utils/requireEnv');
 
 module.exports = async function handler(req, res) {
   // Set CORS headers
@@ -68,7 +69,7 @@ module.exports = async function handler(req, res) {
     }
     
     // Generate JWT token
-    const jwtSecret = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+    const jwtSecret = requireEnv('JWT_SECRET');
     const token = jwt.sign(
       {
         id: user.id,

@@ -4,9 +4,10 @@ import type { Request, Response, NextFunction } from 'express';
 import { db } from '../db';
 import { users } from '../../shared/schema';
 import { eq, and } from 'drizzle-orm';
+import { requireEnv } from '../utils/requireEnv';
 
 // JWT secret from environment variable
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+const JWT_SECRET = requireEnv('JWT_SECRET');
 
 
 export interface AuthenticatedRequest extends Request {

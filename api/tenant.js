@@ -1,5 +1,6 @@
 const { neon } = require('@neondatabase/serverless');
 const { Pool } = require('pg');
+const { requireEnv } = require('../server/utils/requireEnv');
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -49,7 +50,7 @@ module.exports = async function handler(req, res) {
     
     const jwt = require('jsonwebtoken');
     const token = authHeader.substring(7);
-    const jwtSecret = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+    const jwtSecret = requireEnv('JWT_SECRET');
     
     let decoded;
     try {
