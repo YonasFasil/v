@@ -11,7 +11,7 @@ import { requireAuth, ALL_PERMISSIONS } from "./permissions";
 import { stripeService } from "./services/stripe";
 import { notificationEmailService } from "./services/notification-email";
 import { sendCustomerCommunicationEmail, sendUserVerificationEmail } from "./services/super-admin-email";
-import { resolveTenant, requireTenant, checkTrialStatus, filterByTenant, type TenantRequest } from "./middleware/tenant";
+import { resolveTenant, requireTenant, filterByTenant, type TenantRequest } from "./middleware/tenant";
 import { addFeatureAccess, requireFeature, getFeaturesForTenant, requireWithinLimits, type FeatureRequest } from "./middleware/feature-access";
 import { setTenantContext, getTenantIdFromAuth } from "./db/tenant-context";
 import { tenantContextMiddleware } from "./middleware/tenant-context";
@@ -7600,8 +7600,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
         name,
         slug: req.body.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
         subscriptionPackageId: finalPackageId,
-        status: 'trial',
-        trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days from now
+        status: 'active'
       });
       
       // Create admin user
@@ -7678,7 +7677,6 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
       const analytics = {
         totalTenants: tenants.length,
         activeTenants: tenants.filter(t => t.status === 'active').length,
-        trialTenants: tenants.filter(t => t.status === 'trial').length,
         suspendedTenants: tenants.filter(t => t.status === 'suspended').length,
         monthlyRevenue: 12450, // TODO: Calculate from actual subscription data
         growthRate: 15.2 // TODO: Calculate actual growth rate
@@ -7708,8 +7706,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
       // Create tenant
       const tenant = await storage.createTenant({
         name,
-        status: 'trial',
-        trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days from now
+        status: 'active'
       });
       
       // Create admin user
@@ -8045,7 +8042,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
   app.get("/api/tenant/:tenantSlug/features", requireTenant, addFeatureAccess, getFeaturesForTenant);
 
   // Tenant dashboard via path
-  app.get("/api/tenant/:tenantSlug/dashboard", requireTenant, checkTrialStatus, addFeatureAccess, requireFeature('dashboard_analytics'), async (req: TenantRequest, res) => {
+  app.get("/api/tenant/:tenantSlug/dashboard", requireTenant, addFeatureAccess, requireFeature('dashboard_analytics'), async (req: TenantRequest, res) => {
     try {
       const tenantId = req.tenant!.id;
       
@@ -8071,7 +8068,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
   });
 
   // Tenant bookings via path
-  app.get("/api/tenant/:tenantSlug/bookings", requireTenant, checkTrialStatus, async (req: TenantRequest, res) => {
+  app.get("/api/tenant/:tenantSlug/bookings", requireTenant, async (req: TenantRequest, res) => {
     try {
       const tenantId = req.tenant!.id;
       const bookings = await storage.getBookings();
@@ -8083,7 +8080,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
   });
 
   // Tenant customers via path  
-  app.get("/api/tenant/:tenantSlug/customers", requireTenant, checkTrialStatus, async (req: TenantRequest, res) => {
+  app.get("/api/tenant/:tenantSlug/customers", requireTenant, async (req: TenantRequest, res) => {
     try {
       const tenantId = req.tenant!.id;
       const customers = await storage.getCustomers();
@@ -8095,7 +8092,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
   });
 
   // Tenant venues via path
-  app.get("/api/tenant/:tenantSlug/venues", requireTenant, checkTrialStatus, async (req: TenantRequest, res) => {
+  app.get("/api/tenant/:tenantSlug/venues", requireTenant, async (req: TenantRequest, res) => {
     try {
       const tenantId = req.tenant!.id;
       const venues = await storage.getVenues();
@@ -8277,8 +8274,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
       const tenantData = {
         name: organizationName,
         subscriptionPackageId: packageId,
-        status: "trial" as const,
-        trialEndsAt: new Date(Date.now() + (selectedPackage.trialDays || 14) * 24 * 60 * 60 * 1000),
+        status: "active" as const,
         currentUsers: 1,
         currentVenues: 0,
         monthlyBookings: 0
@@ -8317,13 +8313,12 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
         });
         stripeCustomerId = stripeCustomer.id;
 
-        // Create checkout session for payment setup (after trial)
+        // Create checkout session for payment setup
         const checkoutSession = await stripeService.createCheckoutSession({
           customerId: stripeCustomer.id,
           priceId: `price_${packageId}`, // This should map to actual Stripe price IDs
           successUrl: `${process.env.FRONTEND_URL || 'http://localhost:5000'}/dashboard?setup=success`,
           cancelUrl: `${process.env.FRONTEND_URL || 'http://localhost:5000'}/dashboard?setup=cancelled`,
-          trialPeriodDays: selectedPackage.trialDays,
           metadata: {
             tenantId: newTenant.id,
             packageId: packageId
@@ -8342,7 +8337,6 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
           email: email,
           organizationName: organizationName,
           subdomain: "", // No longer using subdomains
-          trialDays: selectedPackage.trialDays || 14,
           loginUrl: `${process.env.FRONTEND_URL || 'http://localhost:5000'}/dashboard`,
           checkoutUrl: checkoutUrl || undefined
         });
@@ -8357,7 +8351,6 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
           id: newTenant.id,
           name: newTenant.name,
           status: newTenant.status,
-          trialEndsAt: newTenant.trialEndsAt
         },
         user: {
           id: newUser.id,
@@ -8407,7 +8400,6 @@ async function seedDefaultPackages() {
         description: "Perfect for small venues getting started with bookings",
         price: "29.00",
         billingInterval: "monthly" as const,
-        trialDays: 14,
         maxVenues: 1,
         maxUsers: 3,
         maxBookingsPerMonth: 50,
@@ -8420,7 +8412,6 @@ async function seedDefaultPackages() {
         description: "Great for growing venues with multiple spaces and events",
         price: "79.00",
         billingInterval: "monthly" as const,
-        trialDays: 14,
         maxVenues: 5,
         maxUsers: 10,
         maxBookingsPerMonth: 200,
@@ -8433,7 +8424,6 @@ async function seedDefaultPackages() {
         description: "For large venues and event management companies",
         price: "199.00",
         billingInterval: "monthly" as const,
-        trialDays: 14,
         maxVenues: -1, // Unlimited
         maxUsers: -1, // Unlimited
         maxBookingsPerMonth: -1, // Unlimited

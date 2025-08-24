@@ -105,8 +105,8 @@ export const AVAILABLE_FEATURES = {
   }
 };
 
-// Basic trial features that are always available
-const TRIAL_FEATURES = [
+// Basic features that are always available
+const BASIC_FEATURES = [
   'dashboard_analytics',
   'venue_management', 
   'event_booking',
@@ -119,23 +119,23 @@ const TRIAL_FEATURES = [
 export async function getTenantFeatures(tenantId: string): Promise<string[]> {
   const tenant = await storage.getTenant(tenantId);
   if (!tenant) {
-    return TRIAL_FEATURES;
+    return BASIC_FEATURES;
   }
 
-  // If no package assigned, return trial features
+  // If no package assigned, return basic features
   if (!tenant.subscriptionPackageId) {
-    return TRIAL_FEATURES;
+    return BASIC_FEATURES;
   }
 
   // Get the subscription package
   const subscriptionPackage = await storage.getSubscriptionPackage(tenant.subscriptionPackageId);
   if (!subscriptionPackage || !subscriptionPackage.isActive) {
-    return TRIAL_FEATURES;
+    return BASIC_FEATURES;
   }
 
-  // Return package features or trial features if package has no features defined
+  // Return package features or basic features if package has no features defined
   const packageFeatures = Array.isArray(subscriptionPackage.features) ? subscriptionPackage.features : [];
-  return packageFeatures.length > 0 ? packageFeatures : TRIAL_FEATURES;
+  return packageFeatures.length > 0 ? packageFeatures : BASIC_FEATURES;
 }
 
 /**
@@ -259,7 +259,7 @@ export async function checkPackageLimits(tenantId: string): Promise< {
     };
   }
 
-  // Get package limits or defaults for trial
+  // Get package limits or defaults
   let maxUsers = 3;
   let maxVenues = 1;
   let maxBookingsPerMonth = 50;

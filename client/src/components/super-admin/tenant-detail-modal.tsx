@@ -102,7 +102,7 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
   const [editData, setEditData] = useState({
     name: "",
     customDomain: "",
-    status: "trial",
+    status: "active",
     subscriptionPackageId: "",
     primaryColor: "#3b82f6",
     notes: ""
@@ -144,7 +144,7 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
       setEditData({
         name: tenant.name || "",
         customDomain: tenant.customDomain || "",
-        status: tenant.status || "trial",
+        status: tenant.status || "active",
         subscriptionPackageId: tenant.subscriptionPackageId || "none",
         primaryColor: tenant.primaryColor || "#3b82f6",
         notes: ""

@@ -400,7 +400,6 @@ export const subscriptionPackages = pgTable("subscription_packages", {
   description: text("description"),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   billingInterval: text("billing_interval").notNull().default("monthly"), // "monthly", "yearly"
-  trialDays: integer("trial_days").default(14),
   maxVenues: integer("max_venues").default(1),
   maxUsers: integer("max_users").default(3),
   maxBookingsPerMonth: integer("max_bookings_per_month").default(100),
@@ -416,8 +415,7 @@ export const tenants = pgTable("tenants", {
   slug: text("slug").notNull().unique(), // URL-friendly name for routing
   customDomain: text("custom_domain"), // e.g., "bookings.marriott.com"
   subscriptionPackageId: uuid("subscription_package_id").references(() => subscriptionPackages.id).notNull(),
-  status: text("status").notNull().default("trial"), // trial, active, suspended, cancelled
-  trialEndsAt: timestamp("trial_ends_at"),
+  status: text("status").notNull().default("active"), // active, suspended, cancelled
   subscriptionStartedAt: timestamp("subscription_started_at"),
   subscriptionEndsAt: timestamp("subscription_ends_at"),
   stripeCustomerId: text("stripe_customer_id"),

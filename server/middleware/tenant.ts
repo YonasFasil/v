@@ -75,28 +75,6 @@ export function requireTenant(req: TenantRequest, res: Response, next: NextFunct
   next();
 }
 
-// Middleware to check trial status
-export async function checkTrialStatus(req: TenantRequest, res: Response, next: NextFunction) {
-  if (!req.tenant) {
-    return next();
-  }
-  
-  const tenant = await storage.getTenant(req.tenant.id);
-  if (!tenant) {
-    return next();
-  }
-  
-  // Check if trial has expired
-  if (tenant.status === 'trial' && tenant.trialEndsAt && new Date() > tenant.trialEndsAt) {
-    return res.status(402).json({ 
-      message: 'Your trial has expired. Please set up billing to continue.',
-      code: 'TRIAL_EXPIRED',
-      trialEndsAt: tenant.trialEndsAt
-    });
-  }
-  
-  next();
-}
 
 // Middleware to filter data by tenant
 export function filterByTenant(req: TenantRequest, res: Response, next: NextFunction) {

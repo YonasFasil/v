@@ -57,7 +57,6 @@ export default function SuperAdminDashboard() {
     select: (data) => data || {
       totalTenants: tenants.length,
       activeTenants: tenants.filter(t => t.status === 'active').length,
-      trialTenants: tenants.filter(t => t.status === 'trial').length,
       monthlyRevenue: 12450,
       growthRate: 15.2
     }
@@ -66,7 +65,6 @@ export default function SuperAdminDashboard() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'bg-green-100 text-green-800';
-      case 'trial': return 'bg-blue-100 text-blue-800';
       case 'suspended': return 'bg-yellow-100 text-yellow-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -76,7 +74,6 @@ export default function SuperAdminDashboard() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'active': return <CheckCircle className="w-4 h-4" />;
-      case 'trial': return <AlertCircle className="w-4 h-4" />;
       case 'suspended': return <AlertCircle className="w-4 h-4" />;
       case 'cancelled': return <XCircle className="w-4 h-4" />;
       default: return <AlertCircle className="w-4 h-4" />;
@@ -257,7 +254,6 @@ export default function SuperAdminDashboard() {
                         <div>• {pkg.maxVenues} venues</div>
                         <div>• {pkg.maxUsers} users</div>
                         <div>• {pkg.maxBookingsPerMonth} bookings/month</div>
-                        <div>• {pkg.trialDays} day trial</div>
                       </div>
                       <div className="mt-4 flex justify-between items-center">
                         <Badge variant={pkg.isActive ? "default" : "secondary"}>

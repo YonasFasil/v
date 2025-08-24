@@ -20,7 +20,7 @@ interface Props {
 }
 
 const AVAILABLE_FEATURES = [
-  // Core Features (Trial + Starter+)
+  // Core Features
   { id: "dashboard_analytics", name: "Dashboard & Analytics", description: "Core dashboard with basic metrics and insights", category: "core" },
   { id: "venue_management", name: "Venue Management", description: "Create and manage venue spaces and amenities", category: "core" },
   { id: "event_booking", name: "Event Booking", description: "Calendar view and event booking system", category: "core" },
@@ -54,7 +54,6 @@ export function PackageManagementModal({ open, onOpenChange, package: editPackag
     description: "",
     price: "0",
     billingInterval: "monthly",
-    trialDays: 14,
     maxVenues: 1,
     maxUsers: 3,
     maxBookingsPerMonth: 100,
@@ -71,7 +70,6 @@ export function PackageManagementModal({ open, onOpenChange, package: editPackag
         description: editPackage.description || "",
         price: editPackage.price || "0",
         billingInterval: editPackage.billingInterval || "monthly",
-        trialDays: editPackage.trialDays || 14,
         maxVenues: editPackage.maxVenues || 1,
         maxUsers: editPackage.maxUsers || 3,
         maxBookingsPerMonth: editPackage.maxBookingsPerMonth || 100,
@@ -86,8 +84,7 @@ export function PackageManagementModal({ open, onOpenChange, package: editPackag
         description: "",
         price: "0",
         billingInterval: "monthly",
-        trialDays: 14,
-        maxVenues: 1,
+            maxVenues: 1,
         maxUsers: 3,
         maxBookingsPerMonth: 100,
         features: [],
@@ -238,16 +235,6 @@ export function PackageManagementModal({ open, onOpenChange, package: editPackag
                 </Select>
               </div>
 
-              <div>
-                <Label htmlFor="trialDays">Trial Days</Label>
-                <Input
-                  id="trialDays"
-                  type="number"
-                  value={formData.trialDays}
-                  onChange={(e) => setFormData(prev => ({ ...prev, trialDays: parseInt(e.target.value) }))}
-                  placeholder="14"
-                />
-              </div>
             </div>
           </div>
 
