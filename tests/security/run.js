@@ -17,6 +17,11 @@ async function runSecurityTests() {
       name: 'JWT Secret Enforcement',
       file: 'step1_jwt_secret.js',
       description: 'Prevents JWT token forging by enforcing secret configuration'
+    },
+    {
+      name: 'Database Role Lockdown',
+      file: 'step2_roles.js',
+      description: 'Ensures least-privilege database roles prevent RLS bypass'
     }
   ];
 

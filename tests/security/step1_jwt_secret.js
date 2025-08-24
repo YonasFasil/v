@@ -68,6 +68,10 @@ async function testJWTSecretEnforcement() {
   const successTest = new Promise((resolve) => {
     const childEnv = { ...process.env };
     childEnv.JWT_SECRET = 'test-secret-for-security-validation-12345';
+    // Ensure DATABASE_URL is set for test
+    if (!childEnv.DATABASE_URL) {
+      childEnv.DATABASE_URL = 'postgresql://postgres:test@localhost:5432/testdb';
+    }
     
     const child = spawn('node', ['-r', 'tsx/cjs', serverPath], {
       env: childEnv,
