@@ -27,24 +27,24 @@ import {
 
 const navigationItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, permission: "dashboard" },
-  { name: "Events & Bookings", href: "/events", icon: Calendar, permission: "bookings" },
+  { name: "Events & Bookings", href: "/events", icon: Calendar, permission: "bookings", feature: "event_booking" },
   { name: "Customers", href: "/customers", icon: Users, permission: "customers" },
-  { name: "Leads", href: "/leads", icon: UserPlus, permission: "customers" },
-  { name: "Proposals", href: "/proposals", icon: FileText, permission: "proposals" },
+  { name: "Leads", href: "/leads", icon: UserPlus, permission: "customers", feature: "leads_management" },
+  { name: "Proposals", href: "/proposals", icon: FileText, permission: "proposals", feature: "proposal_system" },
   { name: "Payments", href: "/payments", icon: CreditCard, permission: "payments" },
-  { name: "Tasks & Team", href: "/tasks", icon: CheckSquare, permission: "tasks" },
+  { name: "Tasks & Team", href: "/tasks", icon: CheckSquare, permission: "tasks", feature: "task_management" },
   { name: "Venues", href: "/venues", icon: MapPin, permission: "venues" },
-  { name: "Setup Styles", href: "/setup-styles", icon: Grid3X3, permission: "venues" },
+  { name: "Setup Styles", href: "/setup-styles", icon: Grid3X3, permission: "venues", feature: "floor_plans" },
   { name: "Packages & Services", href: "/packages", icon: Package, permission: "venues" },
 ];
 
 const aiFeatures = [
-  { name: "AI Analytics & Reports", href: "/ai-analytics", icon: BarChart3, permission: "settings" },
-  { name: "Voice Booking", href: "/voice-booking", icon: Mic, permission: "bookings" },
+  { name: "AI Analytics & Reports", href: "/ai-analytics", icon: BarChart3, permission: "settings", feature: "ai_analytics" },
+  { name: "Voice Booking", href: "/voice-booking", icon: Mic, permission: "bookings", feature: "voice_booking" },
 ];
 
 const analyticsItems = [
-  { name: "Reports & Analytics", href: "/reports", icon: BarChart3, permission: "settings" },
+  { name: "Reports & Analytics", href: "/reports", icon: BarChart3, permission: "settings", feature: "advanced_reports" },
   { name: "Settings", href: "/settings", icon: Settings, permission: "settings" },
 ];
 
@@ -58,7 +58,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed = false }: SidebarProps) {
   const [location, setLocation] = useLocation();
-  const { user, hasPermission, canView, isTenantAdmin } = usePermissions();
+  const { user, hasPermission, hasFeature, canView, isTenantAdmin } = usePermissions();
 
   const isActive = (href: string) => {
     if (href === "/") {
@@ -117,7 +117,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
       <nav className="flex-1 px-4 py-4 space-y-1 sidebar-scroll overflow-y-auto">
         {/* Main Navigation */}
         <div className="space-y-1">
-          {navigationItems.filter(item => hasPermission(item.permission)).map((item) => {
+          {navigationItems.filter(item => hasPermission(item.permission) && (!item.feature || hasFeature(item.feature))).map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
             
@@ -143,7 +143,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         </div>
 
         {/* AI Features Section */}
-        {!collapsed && aiFeatures.some(item => hasPermission(item.permission)) && (
+        {!collapsed && aiFeatures.some(item => hasPermission(item.permission) && hasFeature(item.feature)) && (
           <div className="pt-4">
             <div className="px-3 mb-2">
               <div className="flex items-center">
@@ -155,7 +155,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
                 </div>
               </div>
             </div>
-            {aiFeatures.filter(item => hasPermission(item.permission)).map((item) => {
+            {aiFeatures.filter(item => hasPermission(item.permission) && hasFeature(item.feature)).map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
               
@@ -181,7 +181,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         {/* AI Features - Collapsed Icons Only */}
         {collapsed && (
           <div className="pt-4 space-y-1">
-            {aiFeatures.filter(item => hasPermission(item.permission)).map((item) => {
+            {aiFeatures.filter(item => hasPermission(item.permission) && hasFeature(item.feature)).map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
               
@@ -204,14 +204,14 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         )}
 
         {/* Analytics Section - Expanded */}
-        {!collapsed && analyticsItems.some(item => hasPermission(item.permission)) && (
+        {!collapsed && analyticsItems.some(item => hasPermission(item.permission) && (!item.feature || hasFeature(item.feature))) && (
           <div className="pt-4">
             <div className="px-3 mb-2">
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Analytics
               </span>
             </div>
-            {analyticsItems.filter(item => hasPermission(item.permission)).map((item) => {
+            {analyticsItems.filter(item => hasPermission(item.permission) && (!item.feature || hasFeature(item.feature))).map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
               
@@ -271,7 +271,7 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
         {/* Analytics Section - Collapsed */}
         {collapsed && (
           <div className="pt-4 space-y-1">
-            {analyticsItems.filter(item => hasPermission(item.permission)).map((item) => {
+            {analyticsItems.filter(item => hasPermission(item.permission) && (!item.feature || hasFeature(item.feature))).map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
               

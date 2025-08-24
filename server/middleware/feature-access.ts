@@ -8,56 +8,34 @@ export interface FeatureRequest extends TenantRequest {
 
 // Mapping of feature IDs to their descriptions and categories
 export const AVAILABLE_FEATURES = {
-  // Core Features
-  dashboard_analytics: {
-    name: "Dashboard & Analytics",
-    description: "Core dashboard with basic metrics and insights",
-    category: "core"
-  },
-  venue_management: {
-    name: "Venue Management", 
-    description: "Create and manage venue spaces and amenities",
-    category: "core"
-  },
+  // Optional Features (can be included in packages)
   event_booking: {
     name: "Event Booking",
     description: "Calendar view and event booking system", 
-    category: "core"
-  },
-  customer_management: {
-    name: "Customer Management",
-    description: "Manage customer profiles and contact information",
-    category: "core"
+    category: "advanced"
   },
   proposal_system: {
     name: "Proposal System",
     description: "Generate and send event proposals to customers",
-    category: "core"
+    category: "advanced"
   },
-  payment_processing: {
-    name: "Payment Processing",
-    description: "Accept payments and manage transactions",
-    category: "core"
-  },
-  
-  // Advanced Features
   leads_management: {
-    name: "Leads Management",
+    name: "Lead Management",
     description: "Advanced lead tracking and conversion tools",
     category: "advanced"
   },
   ai_analytics: {
-    name: "AI-Powered Analytics", 
+    name: "AI Analytics", 
     description: "Smart insights and predictive analytics",
     category: "advanced"
   },
   voice_booking: {
-    name: "Voice-to-Text Booking",
+    name: "Voice Booking",
     description: "Create bookings using voice commands",
     category: "advanced"
   },
   floor_plans: {
-    name: "Floor Plans & Setup Styles",
+    name: "Floor Plans",
     description: "Interactive floor plan designer and setup templates", 
     category: "advanced"
   },
@@ -71,46 +49,19 @@ export const AVAILABLE_FEATURES = {
     description: "Team collaboration and task tracking",
     category: "advanced"
   },
-  
-  // Premium Features
-  custom_branding: {
-    name: "Custom Branding",
-    description: "White-label your venue platform",
-    category: "premium"
-  },
-  api_access: {
-    name: "API Access",
-    description: "Full REST API access for integrations",
-    category: "premium"
-  },
-  priority_support: {
-    name: "Priority Support", 
-    description: "24/7 premium customer support",
-    category: "premium"
-  },
-  advanced_integrations: {
-    name: "Advanced Integrations",
-    description: "Connect to external CRM and marketing tools",
-    category: "premium"
-  },
-  multi_location: {
-    name: "Multi-Location Support",
-    description: "Manage multiple venue locations",
-    category: "premium"
-  },
   custom_fields: {
     name: "Custom Fields",
     description: "Create custom booking and customer fields",
-    category: "premium"
+    category: "advanced"
   }
 };
 
-// Basic features that are always available
-const BASIC_FEATURES = [
+// Default features that are always available to all tenants
+const DEFAULT_FEATURES = [
   'dashboard_analytics',
   'venue_management', 
-  'event_booking',
-  'customer_management'
+  'customer_management',
+  'payment_processing'
 ];
 
 /**
@@ -119,23 +70,23 @@ const BASIC_FEATURES = [
 export async function getTenantFeatures(tenantId: string): Promise<string[]> {
   const tenant = await storage.getTenant(tenantId);
   if (!tenant) {
-    return BASIC_FEATURES;
+    return DEFAULT_FEATURES;
   }
 
-  // If no package assigned, return basic features
+  // If no package assigned, return default features only
   if (!tenant.subscriptionPackageId) {
-    return BASIC_FEATURES;
+    return DEFAULT_FEATURES;
   }
 
   // Get the subscription package
   const subscriptionPackage = await storage.getSubscriptionPackage(tenant.subscriptionPackageId);
   if (!subscriptionPackage || !subscriptionPackage.isActive) {
-    return BASIC_FEATURES;
+    return DEFAULT_FEATURES;
   }
 
-  // Return package features or basic features if package has no features defined
+  // Combine default features with package-specific features
   const packageFeatures = Array.isArray(subscriptionPackage.features) ? subscriptionPackage.features : [];
-  return packageFeatures.length > 0 ? packageFeatures : BASIC_FEATURES;
+  return [...DEFAULT_FEATURES, ...packageFeatures];
 }
 
 /**
@@ -227,19 +178,16 @@ export async function getFeaturesForTenant(req: FeatureRequest, res: Response) {
 }
 
 /**
- * Check package limits (users, venues, bookings)
+ * Check package limits (users, venues)
  */
 export async function checkPackageLimits(tenantId: string): Promise< {
   usersWithinLimit: boolean;
   venuesWithinLimit: boolean;
-  bookingsWithinLimit: boolean;
   limits: {
     maxUsers: number;
-    maxVenues: number; 
-    maxBookingsPerMonth: number;
+    maxVenues: number;
     currentUsers: number;
     currentVenues: number;
-    currentBookings: number;
   };
 }> {
   const tenant = await storage.getTenant(tenantId);
@@ -247,14 +195,11 @@ export async function checkPackageLimits(tenantId: string): Promise< {
     return {
       usersWithinLimit: false,
       venuesWithinLimit: false,
-      bookingsWithinLimit: false,
       limits: {
         maxUsers: 0,
         maxVenues: 0,
-        maxBookingsPerMonth: 0,
         currentUsers: 0,
-        currentVenues: 0,
-        currentBookings: 0
+        currentVenues: 0
       }
     };
   }
@@ -262,32 +207,26 @@ export async function checkPackageLimits(tenantId: string): Promise< {
   // Get package limits or defaults
   let maxUsers = 3;
   let maxVenues = 1;
-  let maxBookingsPerMonth = 50;
 
   if (tenant.subscriptionPackageId) {
     const subscriptionPackage = await storage.getSubscriptionPackage(tenant.subscriptionPackageId);
     if (subscriptionPackage && subscriptionPackage.isActive) {
       maxUsers = subscriptionPackage.maxUsers || 3;
       maxVenues = subscriptionPackage.maxVenues || 1;
-      maxBookingsPerMonth = subscriptionPackage.maxBookingsPerMonth || 50;
     }
   }
 
   const currentUsers = tenant.currentUsers || 0;
   const currentVenues = tenant.currentVenues || 0;
-  const currentBookings = tenant.monthlyBookings || 0;
 
   return {
     usersWithinLimit: currentUsers < maxUsers,
     venuesWithinLimit: currentVenues < maxVenues,
-    bookingsWithinLimit: currentBookings < maxBookingsPerMonth,
     limits: {
       maxUsers,
       maxVenues,
-      maxBookingsPerMonth,
       currentUsers,
-      currentVenues,
-      currentBookings
+      currentVenues
     }
   };
 }
@@ -295,7 +234,7 @@ export async function checkPackageLimits(tenantId: string): Promise< {
 /**
  * Middleware to check package limits before allowing actions
  */
-export function requireWithinLimits(limitType: 'users' | 'venues' | 'bookings') {
+export function requireWithinLimits(limitType: 'users' | 'venues') {
   return async (req: FeatureRequest, res: Response, next: NextFunction) => {
     if (!req.tenant) {
       return res.status(401).json({ message: "Authentication required" });
@@ -320,12 +259,6 @@ export function requireWithinLimits(limitType: 'users' | 'venues' | 'bookings') 
         limitName = 'venues';
         current = limits.limits.currentVenues;
         max = limits.limits.maxVenues;
-        break;
-      case 'bookings':
-        withinLimit = limits.bookingsWithinLimit;
-        limitName = 'bookings per month';
-        current = limits.limits.currentBookings;
-        max = limits.limits.maxBookingsPerMonth;
         break;
     }
 

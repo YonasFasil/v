@@ -20,29 +20,16 @@ interface Props {
 }
 
 const AVAILABLE_FEATURES = [
-  // Core Features
-  { id: "dashboard_analytics", name: "Dashboard & Analytics", description: "Core dashboard with basic metrics and insights", category: "core" },
-  { id: "venue_management", name: "Venue Management", description: "Create and manage venue spaces and amenities", category: "core" },
-  { id: "event_booking", name: "Event Booking", description: "Calendar view and event booking system", category: "core" },
-  { id: "customer_management", name: "Customer Management", description: "Manage customer profiles and contact information", category: "core" },
-  { id: "proposal_system", name: "Proposal System", description: "Generate and send event proposals to customers", category: "core" },
-  { id: "payment_processing", name: "Payment Processing", description: "Accept payments and manage transactions", category: "core" },
-  
   // Advanced Features (Professional+)
-  { id: "leads_management", name: "Leads Management", description: "Advanced lead tracking and conversion tools", category: "advanced" },
-  { id: "ai_analytics", name: "AI-Powered Analytics", description: "Smart insights and predictive analytics", category: "advanced" },
-  { id: "voice_booking", name: "Voice-to-Text Booking", description: "Create bookings using voice commands", category: "advanced" },
-  { id: "floor_plans", name: "Floor Plans & Setup Styles", description: "Interactive floor plan designer and setup templates", category: "advanced" },
+  { id: "event_booking", name: "Event Booking", description: "Calendar view and event booking system", category: "advanced" },
+  { id: "proposal_system", name: "Proposal System", description: "Generate and send event proposals to customers", category: "advanced" },
+  { id: "leads_management", name: "Lead Management", description: "Advanced lead tracking and conversion tools", category: "advanced" },
+  { id: "ai_analytics", name: "AI Analytics", description: "Smart insights and predictive analytics", category: "advanced" },
+  { id: "voice_booking", name: "Voice Booking", description: "Create bookings using voice commands", category: "advanced" },
+  { id: "floor_plans", name: "Floor Plans", description: "Interactive floor plan designer and setup templates", category: "advanced" },
   { id: "advanced_reports", name: "Advanced Reports", description: "Detailed revenue and performance reports", category: "advanced" },
   { id: "task_management", name: "Task Management", description: "Team collaboration and task tracking", category: "advanced" },
-  
-  // Premium Features (Enterprise)
-  { id: "custom_branding", name: "Custom Branding", description: "White-label your venue platform", category: "premium" },
-  { id: "api_access", name: "API Access", description: "Full REST API access for integrations", category: "premium" },
-  { id: "priority_support", name: "Priority Support", description: "24/7 premium customer support", category: "premium" },
-  { id: "advanced_integrations", name: "Advanced Integrations", description: "Connect to external CRM and marketing tools", category: "premium" },
-  { id: "multi_location", name: "Multi-Location Support", description: "Manage multiple venue locations", category: "premium" },
-  { id: "custom_fields", name: "Custom Fields", description: "Create custom booking and customer fields", category: "premium" },
+  { id: "custom_fields", name: "Custom Fields", description: "Create custom booking and customer fields", category: "advanced" },
 ];
 
 export function PackageManagementModal({ open, onOpenChange, package: editPackage }: Props) {
@@ -56,7 +43,6 @@ export function PackageManagementModal({ open, onOpenChange, package: editPackag
     billingInterval: "monthly",
     maxVenues: 1,
     maxUsers: 3,
-    maxBookingsPerMonth: 100,
     features: [],
     isActive: true,
     sortOrder: 0,
@@ -72,7 +58,6 @@ export function PackageManagementModal({ open, onOpenChange, package: editPackag
         billingInterval: editPackage.billingInterval || "monthly",
         maxVenues: editPackage.maxVenues || 1,
         maxUsers: editPackage.maxUsers || 3,
-        maxBookingsPerMonth: editPackage.maxBookingsPerMonth || 100,
         features: editPackage.features || [],
         isActive: editPackage.isActive ?? true,
         sortOrder: editPackage.sortOrder || 0,
@@ -86,8 +71,7 @@ export function PackageManagementModal({ open, onOpenChange, package: editPackag
         billingInterval: "monthly",
             maxVenues: 1,
         maxUsers: 3,
-        maxBookingsPerMonth: 100,
-        features: [],
+            features: [],
         isActive: true,
         sortOrder: 0,
       });
@@ -242,7 +226,7 @@ export function PackageManagementModal({ open, onOpenChange, package: editPackag
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Package Limits</h3>
             
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="maxVenues">Max Venues</Label>
                 <Input
@@ -264,17 +248,6 @@ export function PackageManagementModal({ open, onOpenChange, package: editPackag
                   placeholder="3"
                 />
               </div>
-
-              <div>
-                <Label htmlFor="maxBookingsPerMonth">Max Bookings/Month</Label>
-                <Input
-                  id="maxBookingsPerMonth"
-                  type="number"
-                  value={formData.maxBookingsPerMonth}
-                  onChange={(e) => setFormData(prev => ({ ...prev, maxBookingsPerMonth: parseInt(e.target.value) }))}
-                  placeholder="100"
-                />
-              </div>
             </div>
           </div>
 
@@ -282,37 +255,21 @@ export function PackageManagementModal({ open, onOpenChange, package: editPackag
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Features by Category</h3>
             
-            {/* Core Features */}
-            <div>
-              <h4 className="font-medium text-green-700 mb-2">Core Features (All Plans)</h4>
-              <div className="grid grid-cols-1 gap-2">
-                {AVAILABLE_FEATURES.filter(f => f.category === 'core').map((feature) => (
-                  <div
-                    key={feature.id}
-                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                      selectedFeatures.includes(feature.id)
-                        ? 'border-green-500 bg-green-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                    onClick={() => toggleFeature(feature.id)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">{feature.name}</div>
-                        <div className="text-sm text-muted-foreground">{feature.description}</div>
-                      </div>
-                      {selectedFeatures.includes(feature.id) && (
-                        <Badge className="bg-green-100 text-green-800">Included</Badge>
-                      )}
-                    </div>
-                  </div>
-                ))}
+            {/* Default Features Info */}
+            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+              <h4 className="font-medium text-green-700 mb-2">Default Features (Included in All Plans)</h4>
+              <div className="text-sm text-green-600 space-y-1">
+                <div>• Dashboard & Analytics - Core metrics and insights</div>
+                <div>• Venue Management - Create and manage venue spaces</div>
+                <div>• Customer Management - Manage customer profiles</div>
+                <div>• Payment Processing - Accept payments and transactions</div>
+                <div>• Unlimited Bookings - No limits on monthly bookings</div>
               </div>
             </div>
 
-            {/* Advanced Features */}
+            {/* Selectable Features */}
             <div>
-              <h4 className="font-medium text-blue-700 mb-2">Advanced Features (Professional+)</h4>
+              <h4 className="font-medium text-blue-700 mb-2">Optional Features</h4>
               <div className="grid grid-cols-1 gap-2">
                 {AVAILABLE_FEATURES.filter(f => f.category === 'advanced').map((feature) => (
                   <div
@@ -331,34 +288,6 @@ export function PackageManagementModal({ open, onOpenChange, package: editPackag
                       </div>
                       {selectedFeatures.includes(feature.id) && (
                         <Badge className="bg-blue-100 text-blue-800">Included</Badge>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Premium Features */}
-            <div>
-              <h4 className="font-medium text-purple-700 mb-2">Premium Features (Enterprise)</h4>
-              <div className="grid grid-cols-1 gap-2">
-                {AVAILABLE_FEATURES.filter(f => f.category === 'premium').map((feature) => (
-                  <div
-                    key={feature.id}
-                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                      selectedFeatures.includes(feature.id)
-                        ? 'border-purple-500 bg-purple-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                    onClick={() => toggleFeature(feature.id)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">{feature.name}</div>
-                        <div className="text-sm text-muted-foreground">{feature.description}</div>
-                      </div>
-                      {selectedFeatures.includes(feature.id) && (
-                        <Badge className="bg-purple-100 text-purple-800">Included</Badge>
                       )}
                     </div>
                   </div>

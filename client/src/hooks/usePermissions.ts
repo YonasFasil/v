@@ -8,9 +8,17 @@ interface User {
   permissions?: string[];
 }
 
+interface TenantFeatures {
+  enabled: Array<{id: string, name: string, enabled: boolean}>;
+  disabled: Array<{id: string, name: string, enabled: boolean}>;
+  total: number;
+  available: number;
+}
+
 export function usePermissions() {
   const [user, setUser] = useState<User | null>(null);
   const [permissions, setPermissions] = useState<string[]>([]);
+  const [tenantFeatures, setTenantFeatures] = useState<TenantFeatures | null>(null);
 
   useEffect(() => {
     console.log('[PERMISSIONS] usePermissions hook starting...');
@@ -71,8 +79,9 @@ export function usePermissions() {
           userPermissions = ['dashboard', 'users', 'venues', 'bookings', 'customers', 'proposals', 'tasks', 'payments', 'settings'];
         }
         else if (userData.role === 'tenant_admin') {
-          // For tenant_admin, always grant all permissions
-          userPermissions = ['dashboard', 'users', 'venues', 'bookings', 'customers', 'proposals', 'tasks', 'payments', 'settings'];
+          // For tenant_admin, grant permissions based on package features
+          // Start with base permissions that are always available
+          userPermissions = ['dashboard', 'venues', 'bookings', 'customers', 'payments', 'settings', 'users'];
         }
         else {
           // For regular users, map their detailed permissions to simple ones
@@ -99,8 +108,58 @@ export function usePermissions() {
     }
   }, []);
 
+  // Fetch tenant features and update permissions accordingly
+  useEffect(() => {
+    const fetchTenantFeatures = async () => {
+      if (!user || user.role === 'super_admin') return;
+
+      try {
+        const response = await fetch('/api/tenant-features', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setTenantFeatures(data.features);
+
+          // Update permissions based on available features (only for tenant_admin)
+          if (user.role === 'tenant_admin') {
+            const basePermissions = ['dashboard', 'venues', 'bookings', 'customers', 'payments', 'settings', 'users'];
+            let featureBasedPermissions = [...basePermissions];
+
+            // Map features to additional permissions
+            const enabledFeatureIds = data.features.enabled.map((f: any) => f.id);
+            
+            if (enabledFeatureIds.includes('proposal_system')) {
+              featureBasedPermissions.push('proposals');
+            }
+            if (enabledFeatureIds.includes('task_management')) {
+              featureBasedPermissions.push('tasks');
+            }
+            // voice_booking and ai_analytics don't need separate permissions
+            // they're handled by the existing 'settings' or 'bookings' permissions
+            
+            console.log('[PERMISSIONS] Feature-based permissions:', featureBasedPermissions);
+            setPermissions(featureBasedPermissions);
+          }
+        }
+      } catch (error) {
+        console.error('[PERMISSIONS] Error fetching tenant features:', error);
+      }
+    };
+
+    fetchTenantFeatures();
+  }, [user]);
+
   const hasPermission = (permission: string): boolean => {
     return permissions.includes(permission);
+  };
+
+  const hasFeature = (featureId: string): boolean => {
+    if (!tenantFeatures) return false;
+    return tenantFeatures.enabled.some(f => f.id === featureId);
   };
 
   const hasAnyPermission = (permissionList: string[]): boolean => {
@@ -122,7 +181,9 @@ export function usePermissions() {
   return {
     user,
     permissions,
+    tenantFeatures,
     hasPermission,
+    hasFeature,
     hasAnyPermission,
     hasAllPermissions,
     canManage,

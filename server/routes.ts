@@ -12,7 +12,7 @@ import { stripeService } from "./services/stripe";
 import { notificationEmailService } from "./services/notification-email";
 import { sendCustomerCommunicationEmail, sendUserVerificationEmail } from "./services/super-admin-email";
 import { resolveTenant, requireTenant, filterByTenant, type TenantRequest } from "./middleware/tenant";
-import { addFeatureAccess, requireFeature, getFeaturesForTenant, requireWithinLimits, type FeatureRequest } from "./middleware/feature-access";
+import { addFeatureAccess, requireFeature, getFeaturesForTenant, requireWithinLimits, getTenantFeatures, AVAILABLE_FEATURES, type FeatureRequest } from "./middleware/feature-access";
 import { setTenantContext, getTenantIdFromAuth } from "./db/tenant-context";
 import { tenantContextMiddleware } from "./middleware/tenant-context";
 import { 
@@ -213,6 +213,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error fetching tenant users:", error);
       res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  // Get tenant features - used by frontend to determine available features
+  app.get("/api/tenant-features", 
+    requireAuth(),
+    async (req: AuthenticatedRequest, res) => {
+    try {
+      const user = req.user;
+      if (!user?.tenantId) {
+        return res.status(400).json({ message: "No tenant associated with user" });
+      }
+
+      const availableFeatures = await getTenantFeatures(user.tenantId);
+      const featureDetails = availableFeatures.map(featureId => ({
+        id: featureId,
+        ...AVAILABLE_FEATURES[featureId as keyof typeof AVAILABLE_FEATURES] || { name: featureId, description: '', category: 'default' },
+        enabled: true
+      }));
+
+      // Add disabled features for reference
+      const allFeatureIds = Object.keys(AVAILABLE_FEATURES);
+      const disabledFeatures = allFeatureIds
+        .filter(featureId => !availableFeatures.includes(featureId))
+        .map(featureId => ({
+          id: featureId,
+          ...AVAILABLE_FEATURES[featureId as keyof typeof AVAILABLE_FEATURES],
+          enabled: false
+        }));
+
+      res.json({
+        features: {
+          enabled: featureDetails,
+          disabled: disabledFeatures,
+          total: allFeatureIds.length,
+          available: availableFeatures.length
+        }
+      });
+    } catch (error: any) {
+      console.error("Error fetching tenant features:", error);
+      res.status(500).json({ message: "Failed to fetch tenant features" });
     }
   });
 
@@ -7670,6 +7711,34 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     }
   });
 
+  // Super Admin - Delete subscription package
+  app.delete("/api/super-admin/packages/:id", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Check if any tenants are using this package
+      const tenants = await storage.getTenants();
+      const tenantsUsingPackage = tenants.filter(tenant => tenant.subscriptionPackageId === id);
+      
+      if (tenantsUsingPackage.length > 0) {
+        return res.status(400).json({ 
+          message: `Cannot delete package. ${tenantsUsingPackage.length} tenant(s) are currently using this package.`,
+          tenantsUsingPackage: tenantsUsingPackage.map(t => ({ id: t.id, name: t.name }))
+        });
+      }
+
+      const deleted = await storage.deleteSubscriptionPackage(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Package not found" });
+      }
+      
+      res.json({ success: true, message: "Package deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting package:", error);
+      res.status(500).json({ message: "Failed to delete package" });
+    }
+  });
+
   // Super Admin - Get analytics
   app.get("/api/super-admin/analytics", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
     try {
@@ -7886,6 +7955,36 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     } catch (error: any) {
       console.error("Error updating tenant:", error);
       res.status(500).json({ message: "Failed to update tenant" });
+    }
+  });
+
+  // Super Admin - Delete tenant
+  app.delete("/api/super-admin/tenants/:id", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    try {
+      const tenantId = req.params.id;
+      
+      const tenant = await storage.getTenant(tenantId);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+
+      // Note: This will cascade delete all related data (users, venues, bookings, etc.)
+      // The storage.deleteTenant method should handle all cascade deletions
+      const deleted = await storage.deleteTenant(tenantId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+      
+      res.json({ 
+        success: true, 
+        message: `Tenant "${tenant.name}" and all associated data deleted successfully` 
+      });
+    } catch (error: any) {
+      console.error("Error deleting tenant:", error);
+      res.status(500).json({ 
+        message: "Failed to delete tenant",
+        error: error.message 
+      });
     }
   });
 
@@ -8402,7 +8501,6 @@ async function seedDefaultPackages() {
         billingInterval: "monthly" as const,
         maxVenues: 1,
         maxUsers: 3,
-        maxBookingsPerMonth: 50,
         features: ["basic_analytics", "email_notifications", "customer_management"],
         isActive: true,
         sortOrder: 1
@@ -8414,7 +8512,6 @@ async function seedDefaultPackages() {
         billingInterval: "monthly" as const,
         maxVenues: 5,
         maxUsers: 10,
-        maxBookingsPerMonth: 200,
         features: ["advanced_analytics", "custom_branding", "api_access", "priority_support", "proposal_system"],
         isActive: true,
         sortOrder: 2
@@ -8426,7 +8523,6 @@ async function seedDefaultPackages() {
         billingInterval: "monthly" as const,
         maxVenues: -1, // Unlimited
         maxUsers: -1, // Unlimited
-        maxBookingsPerMonth: -1, // Unlimited
         features: ["everything", "white_label", "dedicated_support", "custom_integrations", "advanced_reporting", "multi_tenant"],
         isActive: true,
         sortOrder: 3

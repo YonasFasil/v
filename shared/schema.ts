@@ -402,7 +402,6 @@ export const subscriptionPackages = pgTable("subscription_packages", {
   billingInterval: text("billing_interval").notNull().default("monthly"), // "monthly", "yearly"
   maxVenues: integer("max_venues").default(1),
   maxUsers: integer("max_users").default(3),
-  maxBookingsPerMonth: integer("max_bookings_per_month").default(100),
   features: jsonb("features").default('[]'), // Array of feature flags like ["advanced_analytics", "custom_branding"]
   isActive: boolean("is_active").default(true),
   sortOrder: integer("sort_order").default(0),

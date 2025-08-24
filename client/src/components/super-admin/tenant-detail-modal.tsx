@@ -44,56 +44,68 @@ interface FeatureAccess {
 }
 
 const FEATURE_DESCRIPTIONS = {
+  // Default features (always available)
   dashboard_analytics: "Core dashboard with basic metrics and insights",
   venue_management: "Create and manage venue spaces and amenities", 
-  event_booking: "Calendar view and event booking system",
   customer_management: "Manage customer profiles and contact information",
-  proposal_system: "Generate and send event proposals to customers",
   payment_processing: "Accept payments and manage transactions",
+  
+  // Optional features (package-dependent)
+  event_booking: "Calendar view and event booking system",
+  proposal_system: "Generate and send event proposals to customers",
   leads_management: "Advanced lead tracking and conversion tools",
   ai_analytics: "Smart insights and predictive analytics",
   voice_booking: "Create bookings using voice commands",
   floor_plans: "Interactive floor plan designer and setup templates",
   advanced_reports: "Detailed revenue and performance reports",
   task_management: "Team collaboration and task tracking",
-  custom_branding: "White-label your venue platform",
-  api_access: "Full REST API access for integrations",
-  priority_support: "24/7 premium customer support",
-  advanced_integrations: "Connect to external CRM and marketing tools",
-  multi_location: "Manage multiple venue locations",
   custom_fields: "Create custom booking and customer fields"
 };
 
-const AVAILABLE_PERMISSIONS = [
-  "dashboard_view",
-  "dashboard_edit",
-  "venue_view",
-  "venue_create",
-  "venue_edit",
-  "venue_delete",
-  "event_view",
-  "event_create", 
-  "event_edit",
-  "event_delete",
-  "customer_view",
-  "customer_create",
-  "customer_edit",
-  "customer_delete",
-  "proposal_view",
-  "proposal_create",
-  "proposal_edit",
-  "proposal_delete",
-  "payment_view",
-  "payment_process",
-  "report_view",
-  "report_export",
-  "user_view",
-  "user_create",
-  "user_edit",
-  "user_delete",
-  "settings_view",
-  "settings_edit"
-];
+// Get permissions based on tenant's package features
+const getAvailablePermissions = (packageFeatures: string[]) => {
+  const basePermissions = [
+    "dashboard_view",
+    "dashboard_edit",
+    "venue_view", 
+    "venue_create",
+    "venue_edit",
+    "venue_delete",
+    "customer_view",
+    "customer_create", 
+    "customer_edit",
+    "customer_delete",
+    "payment_view",
+    "payment_process",
+    "user_view",
+    "user_create",
+    "user_edit", 
+    "user_delete",
+    "settings_view",
+    "settings_edit"
+  ];
+  
+  const featurePermissions: {[key: string]: string[]} = {
+    event_booking: ["event_view", "event_create", "event_edit", "event_delete"],
+    proposal_system: ["proposal_view", "proposal_create", "proposal_edit", "proposal_delete"],
+    leads_management: ["lead_view", "lead_create", "lead_edit", "lead_delete"],
+    ai_analytics: ["ai_analytics_view", "ai_insights_access"],
+    voice_booking: ["voice_booking_access"],
+    floor_plans: ["floor_plan_view", "floor_plan_edit"],
+    advanced_reports: ["report_view", "report_export", "advanced_report_access"],
+    task_management: ["task_view", "task_create", "task_edit", "task_delete"],
+    custom_fields: ["custom_field_create", "custom_field_edit"]
+  };
+  
+  let availablePermissions = [...basePermissions];
+  packageFeatures.forEach(feature => {
+    if (featurePermissions[feature]) {
+      availablePermissions.push(...featurePermissions[feature]);
+    }
+  });
+  
+  return availablePermissions;
+};
 
 export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
   const { toast } = useToast();
@@ -278,7 +290,17 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
   };
 
   const handleSavePermissions = (userId: string) => {
-    const permissions = userPermissions[userId] || [];
+    const user = tenantUsers.find(u => u.id === userId);
+    const isAdmin = user?.role === 'tenant_admin';
+    const availablePermissions = getAvailablePermissions(packageFeatures);
+    
+    let permissions = userPermissions[userId] || [];
+    
+    // For admin users, automatically grant all available permissions within their package scope
+    if (isAdmin) {
+      permissions = availablePermissions;
+    }
+    
     updatePermissionsMutation.mutate({ userId, permissions });
   };
 
@@ -303,7 +325,6 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'bg-green-100 text-green-800';
-      case 'trial': return 'bg-blue-100 text-blue-800';
       case 'suspended': return 'bg-yellow-100 text-yellow-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -372,7 +393,6 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="trial">Trial</SelectItem>
                         <SelectItem value="active">Active</SelectItem>
                         <SelectItem value="suspended">Suspended</SelectItem>
                         <SelectItem value="cancelled">Cancelled</SelectItem>
@@ -411,14 +431,6 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
                       {new Date(tenant.createdAt).toLocaleDateString()}
                     </span>
                   </div>
-                  {tenant.trialEndsAt && (
-                    <div className="flex justify-between">
-                      <span>Trial Ends:</span>
-                      <span className="text-sm text-muted-foreground">
-                        {new Date(tenant.trialEndsAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             </div>
@@ -452,7 +464,7 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
                       <SelectValue placeholder="Select a package" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">No Package (Trial)</SelectItem>
+                      <SelectItem value="none">No Package (Basic Access)</SelectItem>
                       {packages.map((pkg) => (
                         <SelectItem key={pkg.id} value={pkg.id}>
                           {pkg.name} - ${pkg.price}/{pkg.billingInterval}
@@ -470,65 +482,89 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
                         <span className="font-medium">Price:</span> ${currentPackage.price}/{currentPackage.billingInterval}
                       </div>
                       <div>
-                        <span className="font-medium">Trial Days:</span> {currentPackage.trialDays}
-                      </div>
-                      <div>
                         <span className="font-medium">Max Venues:</span> {currentPackage.maxVenues}
                       </div>
                       <div>
                         <span className="font-medium">Max Users:</span> {currentPackage.maxUsers}
                       </div>
+                      <div>
+                        <span className="font-medium">Max Bookings:</span> Unlimited
+                      </div>
                     </div>
 
                     <div>
-                      <h4 className="font-medium mb-2">Included Features:</h4>
-                      <div className="grid grid-cols-1 gap-2">
-                        {Object.keys(FEATURE_DESCRIPTIONS).map((featureId) => {
-                          const isIncluded = packageFeatures.includes(featureId);
-                          return (
-                            <div
-                              key={featureId}
-                              className={`p-3 border rounded-lg flex items-center justify-between ${
-                                isIncluded ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'
-                              }`}
-                            >
+                      <h4 className="font-medium mb-2">Feature Access:</h4>
+                      
+                      {/* Default Features */}
+                      <div className="mb-4">
+                        <h5 className="text-sm font-medium text-green-700 mb-2">Default Features (Always Available)</h5>
+                        <div className="grid grid-cols-1 gap-2">
+                          {['dashboard_analytics', 'venue_management', 'customer_management', 'payment_processing'].map((featureId) => (
+                            <div key={featureId} className="p-2 border border-green-200 bg-green-50 rounded flex items-center justify-between">
                               <div>
-                                <div className="font-medium">
-                                  {formatFeatureName(featureId)}
-                                </div>
-                                <div className="text-sm text-muted-foreground">
+                                <div className="font-medium text-sm">{formatFeatureName(featureId)}</div>
+                                <div className="text-xs text-muted-foreground">
                                   {FEATURE_DESCRIPTIONS[featureId as keyof typeof FEATURE_DESCRIPTIONS]}
                                 </div>
                               </div>
-                              <div className="flex items-center">
-                                {isIncluded ? (
-                                  <Badge className="bg-green-100 text-green-800">
-                                    <Check className="w-4 h-4 mr-1" />
-                                    Included
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="secondary">
-                                    <X className="w-4 h-4 mr-1" />
-                                    Blocked
-                                  </Badge>
-                                )}
-                              </div>
+                              <Badge className="bg-green-100 text-green-800 text-xs">
+                                <Check className="w-3 h-3 mr-1" />
+                                Always On
+                              </Badge>
                             </div>
-                          );
-                        })}
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Optional Features */}
+                      <div>
+                        <h5 className="text-sm font-medium text-blue-700 mb-2">Package Features</h5>
+                        <div className="grid grid-cols-1 gap-2">
+                          {['event_booking', 'proposal_system', 'leads_management', 'ai_analytics', 'voice_booking', 'floor_plans', 'advanced_reports', 'task_management', 'custom_fields'].map((featureId) => {
+                            const isIncluded = packageFeatures.includes(featureId);
+                            return (
+                              <div
+                                key={featureId}
+                                className={`p-2 border rounded flex items-center justify-between ${
+                                  isIncluded ? 'border-blue-200 bg-blue-50' : 'border-gray-200 bg-gray-50'
+                                }`}
+                              >
+                                <div>
+                                  <div className="font-medium text-sm">{formatFeatureName(featureId)}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {FEATURE_DESCRIPTIONS[featureId as keyof typeof FEATURE_DESCRIPTIONS]}
+                                  </div>
+                                </div>
+                                <div className="flex items-center">
+                                  {isIncluded ? (
+                                    <Badge className="bg-blue-100 text-blue-800 text-xs">
+                                      <Check className="w-3 h-3 mr-1" />
+                                      Enabled
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="secondary" className="text-xs">
+                                      <X className="w-3 h-3 mr-1" />
+                                      Blocked
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   </div>
                 )}
 
                 {!currentPackage && (editData.subscriptionPackageId === "" || editData.subscriptionPackageId === "none") && (
-                  <div className="p-4 border border-yellow-200 rounded-lg bg-yellow-50">
+                  <div className="p-4 border border-blue-200 rounded-lg bg-blue-50">
                     <div className="flex items-center gap-2">
-                      <AlertTriangle className="w-5 h-5 text-yellow-600" />
-                      <span className="font-medium text-yellow-800">Trial Mode</span>
+                      <AlertTriangle className="w-5 h-5 text-blue-600" />
+                      <span className="font-medium text-blue-800">Basic Access</span>
                     </div>
-                    <p className="text-sm text-yellow-700 mt-1">
-                      This tenant is in trial mode with basic features only.
+                    <p className="text-sm text-blue-700 mt-1">
+                      This tenant has basic access with default features only. Assign a package to enable additional features.
                     </p>
                   </div>
                 )}
@@ -591,10 +627,17 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
                               if (editingPermissions === user.id) {
                                 setEditingPermissions(null);
                               } else {
-                                // Initialize permissions with current user permissions
+                                const availablePermissions = getAvailablePermissions(packageFeatures);
+                                const isAdmin = user.role === 'tenant_admin';
+                                
+                                // Initialize permissions - for admins, start with all available permissions
+                                const initialPermissions = isAdmin 
+                                  ? availablePermissions 
+                                  : (user.permissions || []);
+                                  
                                 setUserPermissions(prev => ({
                                   ...prev,
-                                  [user.id]: user.permissions || []
+                                  [user.id]: initialPermissions
                                 }));
                                 setEditingPermissions(user.id);
                               }
@@ -617,19 +660,37 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
                       {showPermissions === user.id && (
                         <div className="ml-14 p-4 bg-gray-50 border rounded-lg">
                           <h5 className="font-medium mb-3">User Permissions</h5>
-                          {user.permissions && user.permissions.length > 0 ? (
-                            <div className="grid grid-cols-2 gap-2">
-                              {user.permissions.map((permission, index) => (
-                                <Badge key={index} variant="outline" className="justify-start">
-                                  {permission.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                </Badge>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-sm text-muted-foreground">
-                              This user has {user.role === 'tenant_admin' ? 'full admin permissions' : 'default user permissions based on their role'}.
-                            </p>
-                          )}
+                          {(() => {
+                            const availablePermissions = getAvailablePermissions(packageFeatures);
+                            const isAdmin = user.role === 'tenant_admin';
+                            const displayPermissions = isAdmin ? availablePermissions : (user.permissions || []);
+                            
+                            return displayPermissions.length > 0 ? (
+                              <div>
+                                {isAdmin && (
+                                  <div className="mb-2 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-700">
+                                    <strong>Admin User:</strong> Automatically has all permissions within package scope ({availablePermissions.length} permissions)
+                                  </div>
+                                )}
+                                <div className="grid grid-cols-2 gap-2">
+                                  {displayPermissions.map((permission, index) => (
+                                    <Badge 
+                                      key={index} 
+                                      variant={isAdmin ? "default" : "outline"} 
+                                      className={`justify-start ${isAdmin ? 'bg-green-100 text-green-800' : ''}`}
+                                    >
+                                      {permission.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                      {isAdmin && <span className="ml-1 text-xs">(Auto)</span>}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">
+                                This user has {user.role === 'tenant_admin' ? 'admin permissions within their package scope' : 'basic user permissions'}.
+                              </p>
+                            );
+                          })()}
                         </div>
                       )}
                       {editingPermissions === user.id && (
@@ -653,22 +714,68 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
                               </Button>
                             </div>
                           </div>
-                          <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto">
-                            {AVAILABLE_PERMISSIONS.map((permission) => {
-                              const hasPermission = (userPermissions[user.id] || []).includes(permission);
-                              return (
-                                <div key={permission} className="flex items-center space-x-2">
-                                  <Switch
-                                    checked={hasPermission}
-                                    onCheckedChange={() => handlePermissionToggle(user.id, permission)}
-                                  />
-                                  <label className="text-sm">
-                                    {permission.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                  </label>
+                          {(() => {
+                            const availablePermissions = getAvailablePermissions(packageFeatures);
+                            const isAdmin = user.role === 'tenant_admin';
+                            const userCurrentPermissions = userPermissions[user.id] || [];
+                            
+                            return (
+                              <div>
+                                <div className="mb-3 space-y-2">
+                                  <div className="p-2 bg-blue-50 border border-blue-200 rounded">
+                                    <p className="text-sm text-blue-700">
+                                      <strong>Package Features:</strong> Permissions are limited by the tenant's package features. 
+                                      Only permissions for enabled features can be granted.
+                                    </p>
+                                  </div>
+                                  {isAdmin && (
+                                    <div className="p-2 bg-green-50 border border-green-200 rounded">
+                                      <p className="text-sm text-green-700">
+                                        <strong>Admin User:</strong> This user automatically gets all permissions within their package scope. 
+                                        Individual permissions are pre-selected but can be customized if needed.
+                                      </p>
+                                    </div>
+                                  )}
                                 </div>
-                              );
-                            })}
-                          </div>
+                                <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto">
+                                  {availablePermissions.map((permission) => {
+                                    const hasPermission = userCurrentPermissions.includes(permission);
+                                    const shouldBeAutoGranted = isAdmin; // Admins get all available permissions by default
+                                    
+                                    return (
+                                      <div key={permission} className="flex items-center space-x-2">
+                                        <Switch
+                                          checked={hasPermission || shouldBeAutoGranted}
+                                          onCheckedChange={() => {
+                                            if (!shouldBeAutoGranted) {
+                                              handlePermissionToggle(user.id, permission);
+                                            }
+                                          }}
+                                          disabled={shouldBeAutoGranted}
+                                        />
+                                        <label className={`text-sm ${
+                                          shouldBeAutoGranted ? 'text-green-700 font-medium' : ''
+                                        }`}>
+                                          {permission.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                          {shouldBeAutoGranted && (
+                                            <span className="text-xs text-green-600 ml-1">(Auto)</span>
+                                          )}
+                                        </label>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                                {isAdmin && (
+                                  <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                                    <p className="text-xs text-yellow-700">
+                                      💡 <strong>Tip:</strong> Admin users automatically receive all permissions available within their package. 
+                                      The toggles above are disabled because admins have full access to all enabled features.
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>

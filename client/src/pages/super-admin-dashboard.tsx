@@ -18,6 +18,7 @@ import {
   MoreVertical,
   CheckCircle,
   AlertCircle,
+  Trash2,
   XCircle,
   LogOut
 } from "lucide-react";
@@ -61,6 +62,60 @@ export default function SuperAdminDashboard() {
       growthRate: 15.2
     }
   });
+
+  // Delete package mutation
+  const deletePackageMutation = useMutation({
+    mutationFn: (packageId: string) => 
+      apiRequest(`/api/super-admin/packages/${packageId}`, {
+        method: "DELETE"
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/super-admin/packages"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/super-admin/tenants"] });
+      toast({ title: "Package deleted successfully" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to delete package", 
+        description: error.message,
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const handleDeletePackage = (pkg: SubscriptionPackage) => {
+    if (window.confirm(`Are you sure you want to delete the "${pkg.name}" package? This action cannot be undone.`)) {
+      deletePackageMutation.mutate(pkg.id);
+    }
+  };
+
+  // Delete tenant mutation
+  const deleteTenantMutation = useMutation({
+    mutationFn: (tenantId: string) => 
+      apiRequest(`/api/super-admin/tenants/${tenantId}`, {
+        method: "DELETE"
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/super-admin/tenants"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/super-admin/analytics"] });
+      toast({ title: "Tenant deleted successfully" });
+      setShowTenantDetail(false);
+      setSelectedTenant(null);
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to delete tenant", 
+        description: error.message,
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const handleDeleteTenant = (tenant: Tenant) => {
+    if (window.confirm(`Are you sure you want to delete tenant "${tenant.name}"? This will permanently delete all their data including users, venues, bookings, and cannot be undone.`)) {
+      deleteTenantMutation.mutate(tenant.id);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -207,16 +262,26 @@ export default function SuperAdminDashboard() {
                       <div className="text-sm text-muted-foreground">
                         {tenant.currentUsers || 0} users
                       </div>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => {
-                          setSelectedTenant(tenant);
-                          setShowTenantDetail(true);
-                        }}
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => {
+                            setSelectedTenant(tenant);
+                            setShowTenantDetail(true);
+                          }}
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleDeleteTenant(tenant)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -253,22 +318,32 @@ export default function SuperAdminDashboard() {
                       <div className="space-y-2 text-sm">
                         <div>• {pkg.maxVenues} venues</div>
                         <div>• {pkg.maxUsers} users</div>
-                        <div>• {pkg.maxBookingsPerMonth} bookings/month</div>
+                        <div>• Unlimited bookings</div>
                       </div>
                       <div className="mt-4 flex justify-between items-center">
                         <Badge variant={pkg.isActive ? "default" : "secondary"}>
                           {pkg.isActive ? "Active" : "Inactive"}
                         </Badge>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => {
-                            setEditingPackage(pkg);
-                            setShowPackageModal(true);
-                          }}
-                        >
-                          <Settings className="w-4 h-4" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
+                              setEditingPackage(pkg);
+                              setShowPackageModal(true);
+                            }}
+                          >
+                            <Settings className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleDeletePackage(pkg)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
