@@ -257,7 +257,7 @@ export default function Landing() {
                 asChild
               >
                 <a href="/signup" className="flex items-center">
-                  Start free trial
+                  Get started
                   <ArrowRight className="ml-2 w-5 h-5" />
                 </a>
               </Button>
@@ -275,7 +275,7 @@ export default function Landing() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-8 text-sm text-gray-600">
               <div className="flex items-center">
                 <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
-                Free 14-day trial
+                No setup fees
               </div>
               <div className="flex items-center">
                 <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
@@ -461,7 +461,7 @@ export default function Landing() {
                     asChild
                   >
                     <a href="/signup">
-                      Start {pkg.trialDays}-day free trial
+                      Get started
                     </a>
                   </Button>
                 </CardContent>
@@ -544,12 +544,12 @@ export default function Landing() {
             asChild
           >
             <a href="/signup" className="flex items-center">
-              Start your free trial today
+              Start managing your venue today
               <ArrowRight className="ml-3 w-6 h-6" />
             </a>
           </Button>
           <p className="mt-8 text-blue-200 text-lg">
-            Free 14-day trial • No credit card required • Setup in minutes
+            No setup fees • No credit card required • Get started in minutes
           </p>
         </div>
       </section>

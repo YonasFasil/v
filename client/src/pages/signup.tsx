@@ -195,11 +195,6 @@ export default function Signup() {
                           /{pkg.billingInterval}
                         </span>
                       </div>
-                      {pkg.trialDays && (
-                        <Badge variant="secondary" className="mt-2">
-                          {pkg.trialDays} day free trial
-                        </Badge>
-                      )}
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
