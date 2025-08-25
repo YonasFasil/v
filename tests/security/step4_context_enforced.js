@@ -19,7 +19,7 @@ async function testContextEnforced() {
   
   // Use admin connection for all operations since venuine_app has schema permission issues
   // We'll simulate the RLS behavior by testing different session contexts
-  const databaseUrl = process.env.DATABASE_URL || "postgresql://postgres:ZxOp1029!!%%@localhost:5432/venuedb";
+  const databaseUrl = process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/venuedb";
   const adminPool = new Pool({ connectionString: databaseUrl });
 
   const testResults = [];

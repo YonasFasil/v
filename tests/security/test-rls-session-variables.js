@@ -4,7 +4,7 @@ require('dotenv').config({ path: '../../.env' });
 // Simple implementation of withTenantRLSContext for testing
 async function withTenantRLSContext(tenantId, userRole, operation) {
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || "postgresql://postgres:ZxOp1029!!%%@localhost:5432/venuedb"
+    connectionString: process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/venuedb"
   });
   
   const client = await pool.connect();
@@ -53,7 +53,7 @@ async function testRLSSessionVariables() {
   console.log('============================================\n');
   
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || "postgresql://postgres:ZxOp1029!!%%@localhost:5432/venuedb"
+    connectionString: process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/venuedb"
   });
 
   const testResults = [];

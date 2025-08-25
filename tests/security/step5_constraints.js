@@ -10,11 +10,7 @@ const { Pool } = require('pg');
  */
 
 const pool = new Pool({
-  user: 'postgres',
-  password: 'ZxOp1029!!%%',
-  host: 'localhost',
-  port: 5432,
-  database: 'venuedb'
+  connectionString: process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/venuedb"
 });
 
 // Generate UUIDs for test tenants

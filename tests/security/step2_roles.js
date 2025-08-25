@@ -15,7 +15,7 @@ async function testDatabaseRoles() {
   
   // Connect as postgres/owner to check role configuration
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || "postgresql://postgres:ZxOp1029!!%%@localhost:5432/venuedb"
+    connectionString: process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/venuedb"
   });
 
   const testResults = [];

@@ -11,11 +11,7 @@ const axios = require('axios');
  */
 
 const pool = new Pool({
-  user: 'postgres',
-  password: 'ZxOp1029!!%%',
-  host: 'localhost',
-  port: 5432,
-  database: 'venuedb'
+  connectionString: process.env.DATABASE_URL || "postgresql://postgres:password@localhost:5432/venuedb"
 });
 
 const BASE_URL = 'http://localhost:5173'; // Adjust if different

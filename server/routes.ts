@@ -16,6 +16,8 @@ import { addFeatureAccess, requireFeature, getFeaturesForTenant, requireWithinLi
 import { setTenantContext, getTenantIdFromAuth } from "./db/tenant-context";
 import { tenantContextMiddleware } from "./middleware/tenant-context";
 import { enforceRLSTenantIsolation, getRLSClient } from "./middleware/tenant-isolation";
+import { withTenantNeon } from "./db";
+import { createTenantAsSuperAdmin } from "./db/super-admin-helper";
 import { 
   insertBookingSchema, 
   insertCustomerSchema, 
@@ -834,9 +836,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Authentication required" });
       }
       
-      const customers = await storage.getCustomers();
+      // Get user role for proper context
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.substring(7);
+      const decoded = verifyToken(token!);
+      const user = await storage.getUser(decoded.id);
+      
+      // Use tenant-aware Neon wrapper
+      const customers = await withTenantNeon(tenantId, user?.role || 'user', async (tx) => {
+        return await storage.getCustomers();
+      });
+      
       res.json(customers);
     } catch (error) {
+      console.error('Customers API error:', error);
       res.status(500).json({ message: "Failed to fetch customers" });
     }
   });
@@ -7638,25 +7651,24 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
         finalPackageId = packages[0]?.id;
       }
       
-      // Create tenant
-      const tenant = await storage.createTenant({
-        name,
-        slug: req.body.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
-        subscriptionPackageId: finalPackageId,
-        status: 'active'
-      });
-      
-      // Create admin user
+      // Create tenant and user with super-admin privileges
       const hashedPassword = await hashPassword(password);
-      const user = await storage.createUser({
-        username: req.body.adminUser?.username || adminEmail.split('@')[0],
-        password: hashedPassword,
-        name: adminName,
-        email: adminEmail,
-        tenantId: tenant.id,
-        role: 'tenant_admin',
-        isActive: true
-      });
+      const { tenant, user } = await createTenantAsSuperAdmin(
+        {
+          name,
+          slug: req.body.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
+          subscriptionPackageId: finalPackageId,
+          status: 'active'
+        },
+        {
+          username: req.body.adminUser?.username || adminEmail.split('@')[0],
+          password: hashedPassword,
+          name: adminName,
+          email: adminEmail,
+          role: 'tenant_admin',
+          isActive: true
+        }
+      );
       
       res.json({
         message: "Tenant created successfully",
