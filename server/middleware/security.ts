@@ -23,22 +23,33 @@ export function setupSecurity(app: Express) {
     crossOriginEmbedderPolicy: false, // Disable for better compatibility
   }));
 
-  // CORS configuration
+  // CORS configuration - strict allowlist for production
   const corsOptions = {
     origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-      // In development, allow all origins for easier testing
-      if (process.env.NODE_ENV === 'development') {
+      // Production allowlist - only specific domains
+      const allowedOrigins = process.env.NODE_ENV === 'production' 
+        ? ['https://app.venuine.com', 'https://venuine.com']
+        : ['http://localhost:5173', 'http://localhost:5000', 'http://localhost:3000'];
+      
+      // Allow environment override for custom domains
+      if (process.env.CORS_ORIGINS) {
+        allowedOrigins.push(...process.env.CORS_ORIGINS.split(','));
+      }
+      
+      // In production, be strict about origins (don't allow requests with no origin)
+      if (process.env.NODE_ENV === 'production' && !origin) {
+        return callback(new Error('Not allowed by CORS - origin required'));
+      }
+      
+      // In development, allow requests with no origin (Postman, etc.)
+      if (process.env.NODE_ENV === 'development' && !origin) {
         return callback(null, true);
       }
       
-      const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5000').split(',');
-      
-      // Allow requests with no origin (mobile apps, Postman, etc.)
-      if (!origin) return callback(null, true);
-      
-      if (allowedOrigins.indexOf(origin) !== -1) {
+      if (allowedOrigins.includes(origin!)) {
         callback(null, true);
       } else {
+        console.log(`🚫 CORS blocked request from origin: ${origin}`);
         callback(new Error('Not allowed by CORS'));
       }
     },
@@ -48,6 +59,25 @@ export function setupSecurity(app: Express) {
   };
 
   app.use(cors(corsOptions));
+
+  // Block debug and init routes in production
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (process.env.NODE_ENV === 'production') {
+      // Block routes with debug or init resource parameters
+      if (req.query.resource === 'debug' || req.query.resource === 'init') {
+        console.log(`🚫 Blocked debug/init request in production: ${req.path}?${new URLSearchParams(req.query as any).toString()}`);
+        return res.status(404).json({ error: 'Not found' });
+      }
+      
+      // Block explicit debug/init paths
+      if (req.path.includes('/debug') || req.path.includes('/init') || 
+          req.path.includes('/_debug') || req.path.includes('/_init')) {
+        console.log(`🚫 Blocked debug/init path in production: ${req.path}`);
+        return res.status(404).json({ error: 'Not found' });
+      }
+    }
+    next();
+  });
 
   // Rate limiting
   const rateLimitWindowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'); // 15 minutes

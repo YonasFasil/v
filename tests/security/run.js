@@ -1,16 +1,20 @@
 const { spawn } = require('child_process');
 const path = require('path');
+const { setupTestEnvironment, teardownTestEnvironment } = require('./test-utils');
 
 /**
  * Security Test Runner
  * 
  * Runs all security tests in sequence to validate tenant isolation
- * and authentication security measures.
+ * and authentication security measures with proper test isolation.
  */
 
 async function runSecurityTests() {
   console.log('🛡️  VENUE PROJECT SECURITY TEST SUITE');
   console.log('=====================================\n');
+  
+  // Setup isolated test environment
+  await setupTestEnvironment();
   
   const tests = [
     {
@@ -29,14 +33,34 @@ async function runSecurityTests() {
       description: 'Validates RLS enabled and FORCED on all tenant tables'
     },
     {
+      name: 'RLS Context Enforcement',
+      file: 'step4_context_enforced.js',
+      description: 'Validates per-request set_config binds tenant context to RLS policies'
+    },
+    {
       name: 'RLS Session Variable Enforcement',
       file: 'test-rls-session-variables.js',
       description: 'Validates PostgreSQL session variables enforce tenant isolation'
     },
     {
-      name: 'RLS Context Enforcement',
-      file: 'step4_context_enforced.js',
-      description: 'Validates per-request set_config binds tenant context to RLS policies'
+      name: 'Tenant-Safe Uniqueness & FK Integrity',
+      file: 'step5_constraints.js',
+      description: 'Validates per-tenant unique indexes and cross-tenant FK protection'
+    },
+    {
+      name: 'Super-Admin Assume Tenant & Audit',
+      file: 'step6_superadmin.js',
+      description: 'Tests time-boxed super-admin tenant assumption with audit logging'
+    },
+    {
+      name: 'CORS Restrictions & Debug Blocking',
+      file: 'step7_cors_and_debug.js',
+      description: 'Validates production CORS allowlist and debug/init route blocking'
+    },
+    {
+      name: 'Environment Validation & Deployment Hygiene',
+      file: 'step10_envs.js',
+      description: 'Tests environment variable validation and deployment security'
     }
   ];
 
@@ -73,10 +97,14 @@ async function runSecurityTests() {
     }
   }
 
+  // Clean up test environment
+  await teardownTestEnvironment();
+
   console.log('=====================================');
   if (allTestsPassed) {
     console.log('🎉 ALL SECURITY TESTS PASSED!');
     console.log('   Your application meets the security requirements.');
+    console.log('   All tests passed without order dependency.');
     process.exit(0);
   } else {
     console.log('🚨 SECURITY TESTS FAILED!');

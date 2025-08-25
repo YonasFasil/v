@@ -19,7 +19,11 @@
     "db:setup": "tsx scripts/setup-database.ts",
     "db:reset": "tsx scripts/reset-neon-db.ts",
     "test:tenant-isolation": "NODE_ENV=test tsx tests/tenant-isolation.test.js",
-    "sec:test": "node tests/security/run.js"
+    "sec:test": "node tests/security/run.js",
+    "sec:check-migrations": "node scripts/check-migrations.mjs",
+    "sec:check-sql": "node scripts/check-sql-safety.mjs",
+    "sec:all": "npm run sec:check-migrations && npm run sec:check-sql && npm run sec:test",
+    "env:validate": "node scripts/validate-env.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
