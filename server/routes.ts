@@ -8135,6 +8135,69 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     }
   });
 
+  // Super Admin - Assume Tenant (with audit trail)
+  app.post("/api/super-admin/assume-tenant", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { tenantId, reason } = req.body;
+      const adminUserId = req.user!.id;
+      const userAgent = req.get('User-Agent') || '';
+      const ip = req.ip || req.connection.remoteAddress;
+
+      // Validate inputs
+      if (!tenantId || !reason) {
+        return res.status(400).json({ message: "tenantId and reason are required" });
+      }
+
+      if (reason.trim().length < 10) {
+        return res.status(400).json({ message: "Reason must be at least 10 characters" });
+      }
+
+      // Verify tenant exists
+      const tenant = await storage.db.selectFrom('tenants').where('id', '=', tenantId).selectAll().executeTakeFirst();
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+
+      // Create short-lived token (30 minutes)
+      const tokenExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
+      const assumeToken = generateToken({
+        userId: adminUserId,
+        role: 'super_admin',
+        assumedTenantId: tenantId,
+        exp: Math.floor(tokenExpiresAt.getTime() / 1000)
+      });
+
+      // Insert audit record
+      await storage.db.insertInto('admin_audit').values({
+        admin_user_id: adminUserId,
+        tenant_id: tenantId,
+        reason: reason.trim(),
+        ip: ip as any,
+        user_agent: userAgent,
+        token_expires_at: tokenExpiresAt
+      }).execute();
+
+      console.log(`🔐 Super admin ${req.user!.email} assumed tenant ${tenant.name} (${tenantId})`);
+      console.log(`   Reason: ${reason.trim()}`);
+      console.log(`   IP: ${ip}`);
+      console.log(`   Expires: ${tokenExpiresAt.toISOString()}`);
+
+      res.json({
+        message: "Tenant assumed successfully",
+        assumeToken,
+        tenant: {
+          id: tenant.id,
+          name: tenant.name
+        },
+        expiresAt: tokenExpiresAt.toISOString(),
+        expiresInMinutes: 30
+      });
+    } catch (error: any) {
+      console.error("Error assuming tenant:", error);
+      res.status(500).json({ message: "Failed to assume tenant" });
+    }
+  });
+
   // ============================================================================
   // PATH-BASED TENANT ROUTES (for development/replit)
   // ============================================================================

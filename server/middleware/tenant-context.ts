@@ -5,6 +5,7 @@ import { storage, setMemStorageTenantContext } from '../storage';
 
 /**
  * Helper to get tenant ID from auth token
+ * Supports super-admin assumed tenant context
  */
 async function getTenantIdFromAuth(req: Request): Promise<string | null> {
   const authHeader = req.headers.authorization;
@@ -16,6 +17,12 @@ async function getTenantIdFromAuth(req: Request): Promise<string | null> {
   const decoded = verifyToken(token);
   if (!decoded) {
     return null;
+  }
+  
+  // Check if super-admin has assumed a tenant
+  if (decoded.role === 'super_admin' && decoded.assumedTenantId) {
+    console.log(`🔐 Super-admin assuming tenant context: ${decoded.assumedTenantId}`);
+    return decoded.assumedTenantId;
   }
   
   // Get user to find their tenant ID
@@ -57,7 +64,7 @@ export async function setDatabaseTenantContext(req: Request, res: Response, next
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    // For super admin, don't set tenant context (they can access all tenants)
+    // For super admin, check if they've assumed a tenant
     if (user.role === 'super_admin') {
       const context: TenantContext = {
         tenantId: tenantId || 'super_admin',
@@ -65,8 +72,14 @@ export async function setDatabaseTenantContext(req: Request, res: Response, next
         role: 'super_admin'
       };
       await setTenantContext(context);
-      // Also set in-memory context for MemStorage
-      setMemStorageTenantContext(context.tenantId, context.role);
+      
+      // If assuming tenant, use the assumed tenant for data filtering
+      const effectiveTenantId = tenantId && tenantId !== 'super_admin' ? tenantId : 'super_admin';
+      setMemStorageTenantContext(effectiveTenantId, context.role);
+      
+      if (tenantId && tenantId !== 'super_admin') {
+        console.log(`🔐 Super-admin operating with tenant context: ${tenantId}`);
+      }
     } else {
       // For tenant users, require tenant context
       if (!tenantId) {
