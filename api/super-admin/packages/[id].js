@@ -1,4 +1,4 @@
-const { neon } = require('@neondatabase/serverless');
+const { Pool } = require('pg');
 
 module.exports = async function handler(req, res) {
   // Set CORS headers
@@ -15,7 +15,10 @@ module.exports = async function handler(req, res) {
       return res.status(500).json({ message: 'Database not configured' });
     }
     
-    const sql = neon(process.env.DATABASE_URL);
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    });
     const { id } = req.query;
     
     if (!id) {
@@ -24,16 +27,14 @@ module.exports = async function handler(req, res) {
     
     if (req.method === 'GET') {
       // Get single package
-      const packages = await sql`
-        SELECT * FROM subscription_packages 
-        WHERE id = ${id}
-      `;
+      const packages = await pool.query(`SELECT * FROM subscription_packages 
+        WHERE id = ${id}`);
       
-      if (packages.length === 0) {
+      if (packages.rows.length === 0) {
         return res.status(404).json({ message: 'Package not found' });
       }
       
-      res.json(packages[0]);
+      res.json(packages.rows[0]);
       
     } else if (req.method === 'PUT') {
       // Update package
@@ -51,8 +52,7 @@ module.exports = async function handler(req, res) {
         sortOrder
       } = req.body;
       
-      const updatedPackage = await sql`
-        UPDATE subscription_packages 
+      const updatedPackage = await pool.query(`UPDATE subscription_packages 
         SET 
           name = ${name},
           description = ${description},
@@ -66,28 +66,25 @@ module.exports = async function handler(req, res) {
           is_active = ${isActive},
           sort_order = ${sortOrder}
         WHERE id = ${id}
-        RETURNING *
-      `;
+        RETURNING *`);
       
-      if (updatedPackage.length === 0) {
+      if (updatedPackage.rows.length === 0) {
         return res.status(404).json({ message: 'Package not found' });
       }
       
-      res.json(updatedPackage[0]);
+      res.json(updatedPackage.rows[0]);
       
     } else if (req.method === 'DELETE') {
       // Delete package
-      const deletedPackage = await sql`
-        DELETE FROM subscription_packages 
+      const deletedPackage = await pool.query(`DELETE FROM subscription_packages 
         WHERE id = ${id}
-        RETURNING *
-      `;
+        RETURNING *`);
       
-      if (deletedPackage.length === 0) {
+      if (deletedPackage.rows.length === 0) {
         return res.status(404).json({ message: 'Package not found' });
       }
       
-      res.json({ message: 'Package deleted successfully' });
+      res.json({ message: 'Package deleted successfully' }.rows);
       
     } else {
       res.status(405).json({ message: 'Method not allowed' });
@@ -98,6 +95,18 @@ module.exports = async function handler(req, res) {
     res.status(500).json({ 
       message: 'Internal server error', 
       error: error.message 
-    });
+    } finally {
+
+    
+    if (pool) {
+
+    
+      await pool.end();
+
+    
+    }
+
+    
+  });
   }
 };

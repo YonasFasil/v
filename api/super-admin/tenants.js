@@ -1,4 +1,4 @@
-const { neon } = require('@neondatabase/serverless');
+const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 
 module.exports = async function handler(req, res) {
@@ -11,18 +11,24 @@ module.exports = async function handler(req, res) {
     return res.status(200).end();
   }
   
+  let pool;
+  
   try {
     if (!process.env.DATABASE_URL) {
       return res.status(500).json({ message: 'Database not configured' });
     }
     
-    const sql = neon(process.env.DATABASE_URL);
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    });
+    
     const { action, tenantId, userId } = req.query;
     
     // Route based on action parameter or path
     if (req.method === 'GET' && !action) {
       // Get all tenants
-      const tenants = await sql`
+      const result = await pool.query(`
         SELECT 
           t.id, t.name, t.slug, t.subscription_package_id,
           t.status, t.stripe_customer_id,
@@ -33,36 +39,36 @@ module.exports = async function handler(req, res) {
         LEFT JOIN users u ON t.id = u.tenant_id AND u.is_active = true
         GROUP BY t.id, sp.id, sp.name, sp.price
         ORDER BY t.created_at DESC
-      `;
-      return res.json(tenants);
+      `);
+      return res.json(result.rows);
       
     } else if (req.method === 'GET' && action === 'tenant' && tenantId) {
       // Get single tenant
-      const tenants = await sql`
+      const result = await pool.query(`
         SELECT t.*, sp.name as package_name, sp.price as package_price,
                COUNT(u.id) as user_count
         FROM tenants t
         LEFT JOIN subscription_packages sp ON t.subscription_package_id = sp.id
         LEFT JOIN users u ON t.id = u.tenant_id AND u.is_active = true
-        WHERE t.id = ${tenantId}
+        WHERE t.id = $1
         GROUP BY t.id, sp.id, sp.name, sp.price
-      `;
+      `, [tenantId]);
       
-      if (tenants.length === 0) {
+      if (result.rows.length === 0) {
         return res.status(404).json({ message: 'Tenant not found' });
       }
-      return res.json(tenants[0]);
+      return res.json(result.rows[0]);
       
     } else if (req.method === 'GET' && action === 'users' && tenantId) {
       // Get tenant users
-      const users = await sql`
+      const result = await pool.query(`
         SELECT id, username, name, email, role, permissions, 
-               is_active, last_login_at, created_at
+               is_active, last_login, created_at
         FROM users 
-        WHERE tenant_id = ${tenantId}
+        WHERE tenant_id = $1
         ORDER BY created_at DESC
-      `;
-      return res.json(users);
+      `, [tenantId]);
+      return res.json(result.rows);
       
     } else if (req.method === 'POST' && (action === 'create' || !action)) {
       // Create tenant
@@ -73,41 +79,47 @@ module.exports = async function handler(req, res) {
       }
       
       // Check if slug already exists
-      const existingTenant = await sql`
-        SELECT id FROM tenants WHERE slug = ${slug}
-      `;
+      const existingResult = await pool.query(`
+        SELECT id FROM tenants WHERE slug = $1
+      `, [slug]);
       
-      if (existingTenant.length > 0) {
+      if (existingResult.rows.length > 0) {
         return res.status(400).json({ message: 'Slug already exists' });
       }
       
       // Create tenant
-      const newTenant = await sql`
+      const tenantResult = await pool.query(`
         INSERT INTO tenants (
           name, slug, subscription_package_id, status, created_at
         ) VALUES (
-          ${name}, ${slug}, ${subscriptionPackageId}, ${subscriptionStatus}, NOW()
+          $1, $2, $3, $4, NOW()
         ) RETURNING *
-      `;
+      `, [name, slug, subscriptionPackageId, subscriptionStatus]);
       
-      const tenantId = newTenant[0].id;
+      const tenantId = tenantResult.rows[0].id;
       const hashedPassword = await bcrypt.hash(adminUser.password, 12);
       
       // Create admin user
-      const newAdminUser = await sql`
+      const userResult = await pool.query(`
         INSERT INTO users (
           username, password, name, email, tenant_id, role, 
           permissions, is_active, created_at
         ) VALUES (
-          ${adminUser.username || adminUser.email.split('@')[0]}, ${hashedPassword},
-          ${adminUser.name || 'Admin User'}, ${adminUser.email}, ${tenantId},
-          'tenant_admin', '["view_dashboard","manage_events","view_events","manage_customers","view_customers","manage_venues","view_venues","manage_payments","view_payments","manage_proposals","view_proposals","manage_settings","view_reports","manage_leads","use_ai_features","dashboard","users","venues","bookings","customers","proposals","tasks","payments","settings"]'::jsonb, true, NOW()
+          $1, $2, $3, $4, $5, $6, $7, true, NOW()
         ) RETURNING id, username, name, email, role
-      `;
+      `, [
+        adminUser.username || adminUser.email.split('@')[0], 
+        hashedPassword,
+        adminUser.name || 'Admin User', 
+        adminUser.email, 
+        tenantId,
+        'tenant_admin', 
+        JSON.stringify(["view_dashboard","manage_events","view_events","manage_customers","view_customers","manage_venues","view_venues","manage_payments","view_payments","manage_proposals","view_proposals","manage_settings","view_reports","manage_leads","use_ai_features","dashboard","users","venues","bookings","customers","proposals","tasks","payments","settings"])
+      ]);
       
       return res.status(201).json({
-        tenant: newTenant[0],
-        adminUser: newAdminUser[0],
+        tenant: tenantResult.rows[0],
+        adminUser: userResult.rows[0],
         message: 'Tenant and admin user created successfully'
       });
       
@@ -119,59 +131,58 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ message: 'Username, name, email, and password are required' });
       }
       
-      const existingUser = await sql`SELECT id FROM users WHERE email = ${email}`;
-      if (existingUser.length > 0) {
+      const existingResult = await pool.query(`SELECT id FROM users WHERE email = $1`, [email]);
+      if (existingResult.rows.length > 0) {
         return res.status(400).json({ message: 'User with this email already exists' });
       }
       
       const hashedPassword = await bcrypt.hash(password, 12);
-      const newUser = await sql`
+      const result = await pool.query(`
         INSERT INTO users (
           username, password, name, email, tenant_id, role,
           permissions, is_active, created_at
         ) VALUES (
-          ${username}, ${hashedPassword}, ${name}, ${email}, ${tenantId}, ${role},
-          '["basic_permissions"]', true, NOW()
+          $1, $2, $3, $4, $5, $6, $7, true, NOW()
         ) RETURNING id, username, name, email, role, permissions, is_active, created_at
-      `;
+      `, [username, hashedPassword, name, email, tenantId, role, JSON.stringify(["basic_permissions"])]);
       
-      return res.status(201).json(newUser[0]);
+      return res.status(201).json(result.rows[0]);
       
     } else if (req.method === 'PUT' && action === 'tenant' && tenantId) {
       // Update tenant
       const { name, slug, subscriptionPackageId, subscriptionStatus } = req.body;
       
-      const updatedTenant = await sql`
+      const result = await pool.query(`
         UPDATE tenants 
-        SET name = COALESCE(${name}, name), slug = COALESCE(${slug}, slug),
-            subscription_package_id = COALESCE(${subscriptionPackageId}, subscription_package_id),
-            status = COALESCE(${subscriptionStatus}, status), updated_at = NOW()
-        WHERE id = ${tenantId} RETURNING *
-      `;
+        SET name = COALESCE($1, name), slug = COALESCE($2, slug),
+            subscription_package_id = COALESCE($3, subscription_package_id),
+            status = COALESCE($4, status), created_at = NOW()
+        WHERE id = $5 RETURNING *
+      `, [name, slug, subscriptionPackageId, subscriptionStatus, tenantId]);
       
-      if (updatedTenant.length === 0) {
+      if (result.rows.length === 0) {
         return res.status(404).json({ message: 'Tenant not found' });
       }
-      return res.json(updatedTenant[0]);
+      return res.json(result.rows[0]);
       
     } else if (req.method === 'PUT' && action === 'user' && tenantId && userId) {
       // Update user
       const { name, email, role, permissions } = req.body;
       
-      const updatedUser = await sql`
+      const result = await pool.query(`
         UPDATE users 
-        SET name = COALESCE(${name}, name), email = COALESCE(${email}, email),
-            role = COALESCE(${role}, role), 
-            permissions = COALESCE(${JSON.stringify(permissions)}, permissions),
-            updated_at = NOW()
-        WHERE id = ${userId} AND tenant_id = ${tenantId}
+        SET name = COALESCE($1, name), email = COALESCE($2, email),
+            role = COALESCE($3, role), 
+            permissions = COALESCE($4, permissions),
+            created_at = NOW()
+        WHERE id = $5 AND tenant_id = $6
         RETURNING id, username, name, email, role, permissions, is_active, created_at
-      `;
+      `, [name, email, role, permissions ? JSON.stringify(permissions) : null, userId, tenantId]);
       
-      if (updatedUser.length === 0) {
+      if (result.rows.length === 0) {
         return res.status(404).json({ message: 'User not found' });
       }
-      return res.json(updatedUser[0]);
+      return res.json(result.rows[0]);
       
     } else if (req.method === 'PUT' && action === 'permissions' && tenantId && userId) {
       // Update user permissions
@@ -181,38 +192,38 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ message: 'Permissions must be an array' });
       }
       
-      const updatedUser = await sql`
+      const result = await pool.query(`
         UPDATE users 
-        SET permissions = ${JSON.stringify(permissions)}, updated_at = NOW()
-        WHERE id = ${userId} AND tenant_id = ${tenantId}
+        SET permissions = $1, created_at = NOW()
+        WHERE id = $2 AND tenant_id = $3
         RETURNING id, username, name, email, role, permissions, is_active, created_at
-      `;
+      `, [JSON.stringify(permissions), userId, tenantId]);
       
-      if (updatedUser.length === 0) {
+      if (result.rows.length === 0) {
         return res.status(404).json({ message: 'User not found' });
       }
-      return res.json(updatedUser[0]);
+      return res.json(result.rows[0]);
       
     } else if (req.method === 'DELETE' && action === 'tenant' && tenantId) {
       // Change tenant status to suspended
-      const deactivatedTenant = await sql`
-        UPDATE tenants SET status = 'suspended', updated_at = NOW()
-        WHERE id = ${tenantId} RETURNING *
-      `;
+      const result = await pool.query(`
+        UPDATE tenants SET status = 'suspended', created_at = NOW()
+        WHERE id = $1 RETURNING *
+      `, [tenantId]);
       
-      if (deactivatedTenant.length === 0) {
+      if (result.rows.length === 0) {
         return res.status(404).json({ message: 'Tenant not found' });
       }
       return res.json({ message: 'Tenant suspended successfully' });
       
     } else if (req.method === 'DELETE' && action === 'user' && tenantId && userId) {
       // Deactivate user
-      const deactivatedUser = await sql`
-        UPDATE users SET is_active = false, updated_at = NOW()
-        WHERE id = ${userId} AND tenant_id = ${tenantId} RETURNING *
-      `;
+      const result = await pool.query(`
+        UPDATE users SET is_active = false, created_at = NOW()
+        WHERE id = $1 AND tenant_id = $2 RETURNING *
+      `, [userId, tenantId]);
       
-      if (deactivatedUser.length === 0) {
+      if (result.rows.length === 0) {
         return res.status(404).json({ message: 'User not found' });
       }
       return res.json({ message: 'User deactivated successfully' });
@@ -227,5 +238,9 @@ module.exports = async function handler(req, res) {
       message: 'Internal server error', 
       error: error.message 
     });
+  } finally {
+    if (pool) {
+      await pool.end();
+    }
   }
 };
