@@ -247,8 +247,16 @@ export default function SuperAdminDashboard() {
                       </div>
                       <div>
                         <div className="font-medium">{tenant.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          ID: {tenant.id}
+                        <div className="text-sm text-muted-foreground space-y-1">
+                          <div>ID: {tenant.id}</div>
+                          <div>Slug: {tenant.slug || 'N/A'}</div>
+                          <div>Created: {tenant.createdAt || tenant.created_at ? new Date(tenant.createdAt || tenant.created_at).toLocaleDateString('en-US', { 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          }) : `N/A (Debug: ${JSON.stringify(Object.keys(tenant))})`}</div>
                         </div>
                       </div>
                     </div>

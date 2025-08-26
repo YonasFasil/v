@@ -52,7 +52,17 @@ export const ALL_PERMISSIONS = [
   'manage_settings',
   'view_reports',
   'manage_leads',
-  'use_ai_features'
+  'use_ai_features',
+  // Legacy permissions for backward compatibility
+  'dashboard',
+  'users', 
+  'venues',
+  'bookings',
+  'customers', 
+  'proposals',
+  'tasks',
+  'payments',
+  'settings'
 ];
 
 // Default permissions for roles

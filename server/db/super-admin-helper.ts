@@ -38,47 +38,79 @@ export async function withSuperAdminRole<T>(
 }
 
 /**
- * Create tenant with super-admin privileges
+ * Create tenant with super-admin privileges using proper session variables
+ * This follows the pattern you suggested with SET LOCAL for tenant context
  */
 export async function createTenantAsSuperAdmin(tenantData: any, userData: any): Promise<{ tenant: any, user: any }> {
-  return await withSuperAdminRole(async (client) => {
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL
+  });
+
+  const client = await pool.connect();
+  
+  try {
     // Begin transaction
     await client.query('BEGIN');
     
+    // Switch to the app role first (this is the key fix!)
+    await client.query('SET ROLE venuine_app');
+    
+    // Set session variables for super admin context
+    await client.query('SET LOCAL app.user_role = \'super_admin\'');
+    
+    // Create tenant
+    const tenantResult = await client.query(`
+      INSERT INTO tenants (name, slug, subscription_package_id, status, created_at)
+      VALUES ($1, $2, $3, $4, NOW())
+      RETURNING *
+    `, [tenantData.name, tenantData.slug, tenantData.subscriptionPackageId, tenantData.status]);
+    
+    const tenant = tenantResult.rows[0];
+    
+    // Set tenant context for user creation
+    await client.query(`SET LOCAL app.current_tenant = '${tenant.id}'`);
+    
+    // Prepare permissions for tenant admin
+    const permissions = userData.role === 'tenant_admin' ? [
+      'view_dashboard', 'manage_events', 'view_events', 'manage_customers', 'view_customers', 
+      'manage_venues', 'view_venues', 'manage_payments', 'view_payments', 'manage_proposals', 
+      'view_proposals', 'manage_settings', 'view_reports', 'manage_leads', 'use_ai_features',
+      'dashboard', 'users', 'venues', 'bookings', 'customers', 'proposals', 'tasks', 'payments', 'settings'
+    ] : [];
+    
+    // Create admin user for the tenant with proper permissions
+    const userResult = await client.query(`
+      INSERT INTO users (tenant_id, username, password, name, email, role, permissions, is_active, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      RETURNING *
+    `, [
+      tenant.id,
+      userData.username,
+      userData.password,
+      userData.name,
+      userData.email,
+      userData.role,
+      JSON.stringify(permissions),
+      userData.isActive || true
+    ]);
+    
+    const user = userResult.rows[0];
+    
+    // Commit transaction
+    await client.query('COMMIT');
+    
+    return { tenant, user };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    // Reset role and release connection
     try {
-      // Create tenant
-      const tenantResult = await client.query(`
-        INSERT INTO tenants (name, slug, subscription_package_id, status, created_at)
-        VALUES ($1, $2, $3, $4, NOW())
-        RETURNING *
-      `, [tenantData.name, tenantData.slug, tenantData.subscriptionPackageId, tenantData.status]);
-      
-      const tenant = tenantResult.rows[0];
-      
-      // Create admin user for the tenant
-      const userResult = await client.query(`
-        INSERT INTO users (tenant_id, username, password, name, email, role, is_active, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-        RETURNING *
-      `, [
-        tenant.id,
-        userData.username,
-        userData.password,
-        userData.name,
-        userData.email,
-        userData.role,
-        userData.isActive || true
-      ]);
-      
-      const user = userResult.rows[0];
-      
-      // Commit transaction
-      await client.query('COMMIT');
-      
-      return { tenant, user };
+      await client.query('RESET ROLE');
     } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
+      console.warn('Warning: Could not reset role:', error.message);
     }
-  });
+    client.release();
+    await pool.end();
+  }
 }

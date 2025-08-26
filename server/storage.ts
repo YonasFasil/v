@@ -457,7 +457,6 @@ export class MemStorage implements IStorage {
         id: randomUUID(),
         name: "Demo Venue",
         slug: "demo",
-        customDomain: null,
         subscriptionPackageId: null,
         subscriptionStatus: "trial",
         trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
@@ -1493,7 +1492,8 @@ export class MemStorage implements IStorage {
   }
 
   async deleteVenue(id: string): Promise<boolean> {
-    return this.venues.delete(id);
+    const result = await this.db.update(venues).set({ isActive: false }).where(eq(venues.id, id));
+    return result.rowCount > 0;
   }
 
   async deleteSpace(id: string): Promise<boolean> {
@@ -2027,7 +2027,6 @@ export class MemStorage implements IStorage {
       id,
       ...tenantData,
       slug: tenantData.slug || '',
-      customDomain: tenantData.customDomain || null,
       trialEndsAt: tenantData.trialEndsAt || null,
       subscriptionStartedAt: tenantData.subscriptionStartedAt || null,
       subscriptionEndsAt: tenantData.subscriptionEndsAt || null,
@@ -2471,7 +2470,23 @@ export class DbStorage implements IStorage {
     return result[0];
   }
   async updateBooking(id: string, booking: Partial<InsertBooking>): Promise<Booking | undefined> { 
-    const result = await this.db.update(bookings).set(booking).where(eq(bookings.id, id)).returning();
+    // Convert date strings to Date objects for timestamp fields
+    const processedBooking = { ...booking };
+    
+    // List of timestamp fields that need conversion
+    const timestampFields = ['eventDate', 'endDate', 'proposalSentAt', 'proposalViewedAt', 'proposalRespondedAt', 'cancelledAt', 'completedAt', 'createdAt'];
+    
+    for (const field of timestampFields) {
+      if (processedBooking[field] && typeof processedBooking[field] === 'string') {
+        try {
+          processedBooking[field] = new Date(processedBooking[field]);
+        } catch (error) {
+          console.warn(`Failed to convert ${field} to Date:`, processedBooking[field]);
+        }
+      }
+    }
+    
+    const result = await this.db.update(bookings).set(processedBooking).where(eq(bookings.id, id)).returning();
     return result[0];
   }
   async createMultipleBookings(bookings: InsertBooking[], contractId: string): Promise<Booking[]> { 
@@ -2842,6 +2857,10 @@ export class DbStorage implements IStorage {
   async createTenant(tenant: any): Promise<any> { 
     const result = await this.db.insert(tenants).values(tenant).returning();
     return result[0];
+  }
+  async deleteTenant(id: string): Promise<boolean> {
+    const result = await this.db.delete(tenants).where(eq(tenants.id, id));
+    return result.rowCount > 0;
   }
   async updateTenant(id: string, tenant: any): Promise<any> { 
     const result = await this.db.update(tenants).set(tenant).where(eq(tenants.id, id)).returning();
