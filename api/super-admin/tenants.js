@@ -25,7 +25,7 @@ module.exports = async function handler(req, res) {
       const tenants = await sql`
         SELECT 
           t.id, t.name, t.slug, t.subscription_package_id,
-          t.status, t.trial_ends_at, t.stripe_customer_id,
+          t.status, t.stripe_customer_id,
           t.created_at, sp.name as package_name,
           sp.price as package_price, COUNT(u.id) as user_count
         FROM tenants t
@@ -64,7 +64,7 @@ module.exports = async function handler(req, res) {
       `;
       return res.json(users);
       
-    } else if (req.method === 'POST' && action === 'create') {
+    } else if (req.method === 'POST' && (action === 'create' || !action)) {
       // Create tenant
       const { name, slug, subscriptionPackageId, subscriptionStatus = 'trial', adminUser } = req.body;
       
@@ -84,12 +84,9 @@ module.exports = async function handler(req, res) {
       // Create tenant
       const newTenant = await sql`
         INSERT INTO tenants (
-          name, slug, subscription_package_id, status, 
-          trial_ends_at, created_at
+          name, slug, subscription_package_id, status, created_at
         ) VALUES (
-          ${name}, ${slug}, ${subscriptionPackageId}, ${subscriptionStatus}, 
-          ${subscriptionStatus === 'trial' ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() : null},
-          NOW()
+          ${name}, ${slug}, ${subscriptionPackageId}, ${subscriptionStatus}, NOW()
         ) RETURNING *
       `;
       
@@ -104,7 +101,7 @@ module.exports = async function handler(req, res) {
         ) VALUES (
           ${adminUser.username || adminUser.email.split('@')[0]}, ${hashedPassword},
           ${adminUser.name || 'Admin User'}, ${adminUser.email}, ${tenantId},
-          'tenant_admin', '["all_tenant_permissions"]', true, NOW()
+          'tenant_admin', '["view_dashboard","manage_events","view_events","manage_customers","view_customers","manage_venues","view_venues","manage_payments","view_payments","manage_proposals","view_proposals","manage_settings","view_reports","manage_leads","use_ai_features","dashboard","users","venues","bookings","customers","proposals","tasks","payments","settings"]'::jsonb, true, NOW()
         ) RETURNING id, username, name, email, role
       `;
       
