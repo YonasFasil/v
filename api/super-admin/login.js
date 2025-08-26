@@ -1,4 +1,4 @@
-const { neon } = require('@neondatabase/serverless');
+const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { requireEnv } = require('../../server/utils/requireEnv');
@@ -18,35 +18,40 @@ module.exports = async function handler(req, res) {
   }
   
   try {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
     
-    if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
+    if (!username || !password) {
+      return res.status(400).json({ message: "Username and password are required" });
     }
     
-    console.log('Super admin login attempt for:', email);
+    console.log('Super admin login attempt for:', username);
     
     // Connect to database directly
     if (!process.env.DATABASE_URL) {
       return res.status(500).json({ message: "Database not configured" });
     }
     
-    const sql = neon(process.env.DATABASE_URL);
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    });
     
     // Query for super admin user
-    const users = await sql`
+    const result = await pool.query(`
       SELECT id, username, password, name, email, role, permissions 
       FROM users 
-      WHERE email = ${email} AND role = 'super_admin' AND is_active = true
+      WHERE username = $1 AND role = 'super_admin' AND is_active = true
       LIMIT 1
-    `;
+    `, [username]);
     
-    if (users.length === 0) {
-      console.log('Super admin user not found with email:', email);
+    await pool.end();
+    
+    if (result.rows.length === 0) {
+      console.log('Super admin user not found with username:', username);
       return res.status(401).json({ message: "Invalid credentials" });
     }
     
-    const user = users[0];
+    const user = result.rows[0];
     
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
@@ -69,7 +74,7 @@ module.exports = async function handler(req, res) {
       { expiresIn: '24h' }
     );
     
-    console.log('Authentication successful for:', email);
+    console.log('Authentication successful for:', username);
     
     res.json({
       token,
