@@ -1,7 +1,6 @@
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { requireEnv } = require('../../server/utils/requireEnv');
 
 module.exports = async function handler(req, res) {
   // Set CORS headers
@@ -74,7 +73,10 @@ module.exports = async function handler(req, res) {
     }
     
     // Generate JWT token
-    const jwtSecret = requireEnv('JWT_SECRET');
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      return res.status(500).json({ message: "JWT secret not configured" });
+    }
     const token = jwt.sign(
       {
         id: user.id,

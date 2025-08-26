@@ -40,7 +40,8 @@
       "WebFetch(domain:localhost)",
       "Bash(\"C:\\Program Files\\PostgreSQL\\16\\bin\\psql.exe\" -U postgres -d venuedb -c \"SELECT name, features FROM subscription_packages WHERE is_active = true ORDER BY name;\")",
       "Bash(git merge:*)",
-      "WebFetch(domain:venuinenew-9yickzxju-yonasfasils-projects.vercel.app)"
+      "WebFetch(domain:venuinenew-9yickzxju-yonasfasils-projects.vercel.app)",
+      "WebFetch(domain:venuinenew-g0bm3pypa-yonasfasils-projects.vercel.app)"
     ],
     "deny": [],
     "ask": [],
