@@ -1,6 +1,5 @@
 const { Pool } = require('pg');
-const { Pool } = require('pg');
-const { requireEnv } = require('../server/utils/requireEnv');
+const jwt = require('jsonwebtoken');
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -11,12 +10,12 @@ module.exports = async function handler(req, res) {
     return res.status(200).end();
   }
   
+  let pool;
+  
   try {
     if (!process.env.DATABASE_URL) {
       return res.status(500).json({ message: 'Database not configured' });
     }
-    
-    const databaseUrl = process.env.DATABASE_URL;
     
     // Extract tenant ID from auth token first
     const authHeader = req.headers.authorization;
@@ -24,23 +23,17 @@ module.exports = async function handler(req, res) {
       return res.status(401).json({ message: 'Authentication required' });
     }
     
-    const jwt = require('jsonwebtoken');
     const token = authHeader.substring(7);
-    const jwtSecret = requireEnv('JWT_SECRET');
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      return res.status(500).json({ message: 'JWT secret not configured' });
+    }
     
     let decoded;
     try {
       decoded = jwt.verify(token, jwtSecret);
     } catch (error) {
-      return res.status(401).json({ message: 'Invalid token' } finally {
-
-      if (pool) {
-
-        await pool.end();
-
-      }
-
-    });
+      return res.status(401).json({ message: 'Invalid token' });
     }
     
     const tenantId = decoded.tenantId;
@@ -49,124 +42,11 @@ module.exports = async function handler(req, res) {
       return res.status(401).json({ message: 'No tenant access' });
     }
     
-    // Setup database connection with per-request tenant context
-    let sql, contextClient;
-    if (databaseUrl.includes('localhost') || databaseUrl.includes('127.0.0.1')) {
-      // Local PostgreSQL - use node-postgres with per-request client and context
-      const pool = new Pool({ 
-        connectionString: databaseUrl,
-        max: 20, // Higher pool for per-request connections
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 5000
-      });
-      
-      // Acquire a dedicated client for this request
-      contextClient = await pool.connect();
-      
-      // Begin transaction and set tenant/role context
-      await contextClient.query('BEGIN');
-      await contextClient.query('SELECT set_config($1, $2, true)', ['app.current_tenant', tenantId]);
-      await contextClient.query('SELECT set_config($1, $2, true)', ['app.user_role', userRole]);
-      
-      console.log(`🔒 Set tenant context: ${tenantId}, role: ${userRole}`);
-      
-      // Create sql function that uses the context-aware client
-      sql = async function(strings, ...values) {
-        try {
-          // Convert tagged template literal to parameterized query
-          let query = strings.rows[0];
-          for (let i = 0; i < values.length; i++) {
-            query += '$' + (i + 1) + strings[i + 1];
-          }
-          const result = await contextClient.query(query, values);
-          return result.rows;
-        } catch (error) {
-          console.error('Query error:', error.message);
-          throw error;
-        } finally {
-
-          if (pool) {
-
-            await pool.end();
-
-          }
-
-        }
-      };
-      
-      // Setup cleanup on response end
-      res.on('finish', async () => {
-        try {
-          if (contextClient) {
-            await contextClient.query('COMMIT');
-            contextClient.release();
-            console.log('🔓 Released tenant context connection (commit)');
-          }
-        } catch (e) {
-          console.error('Commit error:', e.message);
-        }
-      });
-      
-      res.on('close', async () => {
-        try {
-          if (contextClient) {
-            await contextClient.query('ROLLBACK');
-            contextClient.release();
-            console.log('🔓 Released tenant context connection (rollback)');
-          }
-        } catch (e) {
-          console.error('Rollback error:', e.message);
-        }
-      });
-      
-    } else {
-      // Remote Neon database - use withTenant wrapper
-      const baseSql = neon(databaseUrl);
-      
-      // Wrapper function that sets tenant context before running statements
-      sql = async function(strings, ...values) {
-        try {
-          // Convert tagged template literal to query
-          let query = strings.rows[0];
-          for (let i = 0; i < values.length; i++) {
-            query += `$${i + 1}${strings[i + 1]}`;
-          }
-          
-          // Execute with tenant context - Neon automatically handles transactions
-          const contextSetup = [
-            { query: 'SELECT set_config($1, $2, true)', params: ['app.current_tenant', tenantId] },
-            { query: 'SELECT set_config($1, $2, true)', params: ['app.user_role', userRole] },
-            { query, params: values }
-          ];
-          
-          // Execute all statements in a single Neon call (transaction)
-          const results = [];
-          for (const stmt of contextSetup) {
-            const result = await baseSql(stmt.query, stmt.params);
-            results.push(result);
-          }
-          
-          // Return the result of the actual query (last statement)
-          return results[results.length - 1];
-          
-        } catch (error) {
-          console.error('Neon query error:', error.message);
-          throw error;
-        } finally {
-
-          
-          if (pool) {
-
-          
-            await pool.end();
-
-          
-          }
-
-          
-        }
-      };
-    }
+    // Setup database connection
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    });
     
     const { resource, action, id } = req.query;
     
@@ -201,24 +81,14 @@ module.exports = async function handler(req, res) {
           )`);
         results.push({ table: 'events', status: 'created/verified' });
       } catch (error) {
-        results.push({ table: 'events', error: error.message } finally {
-
-        if (pool) {
-
-          await pool.end();
-
-        }
-
-      });
+        results.push({ table: 'events', error: error.message });
       }
-      
-      // Add any other missing tables here if needed
       
       return res.json({
         status: 'success',
         message: 'Database initialization completed',
         results
-      }.rows);
+      });
     }
 
     // DEBUG MODE
@@ -235,82 +105,42 @@ module.exports = async function handler(req, res) {
       
       try {
         // Test customers table
-        const customers = await pool.query(`SELECT COUNT(*) as count FROM customers WHERE tenant_id = ${tenantId}`);
+        const customers = await pool.query(`SELECT COUNT(*) as count FROM customers WHERE tenant_id = $1`, [tenantId]);
         debug.tables.customers = { count: customers.rows[0].count, status: 'success' };
       } catch (error) {
-        debug.tables.customers = { error: error.message, status: 'failed' } finally {
-
-        if (pool) {
-
-          await pool.end();
-
-        }
-
-      };
+        debug.tables.customers = { error: error.message, status: 'failed' };
       }
       
       try {
         // Test venues table
-        const venues = await pool.query(`SELECT COUNT(*) as count FROM venues WHERE tenant_id = ${tenantId}`);
+        const venues = await pool.query(`SELECT COUNT(*) as count FROM venues WHERE tenant_id = $1`, [tenantId]);
         debug.tables.venues = { count: venues.rows[0].count, status: 'success' };
       } catch (error) {
-        debug.tables.venues = { error: error.message, status: 'failed' } finally {
-
-        if (pool) {
-
-          await pool.end();
-
-        }
-
-      };
+        debug.tables.venues = { error: error.message, status: 'failed' };
       }
       
       try {
         // Test events table
-        const events = await pool.query(`SELECT COUNT(*) as count FROM events WHERE tenant_id = ${tenantId}`);
+        const events = await pool.query(`SELECT COUNT(*) as count FROM events WHERE tenant_id = $1`, [tenantId]);
         debug.tables.events = { count: events.rows[0].count, status: 'success' };
       } catch (error) {
-        debug.tables.events = { error: error.message, status: 'failed' } finally {
-
-        if (pool) {
-
-          await pool.end();
-
-        }
-
-      };
+        debug.tables.events = { error: error.message, status: 'failed' };
       }
       
       try {
         // Test proposals table
-        const proposals = await pool.query(`SELECT COUNT(*) as count FROM proposals WHERE tenant_id = ${tenantId}`);
+        const proposals = await pool.query(`SELECT COUNT(*) as count FROM proposals WHERE tenant_id = $1`, [tenantId]);
         debug.tables.proposals = { count: proposals.rows[0].count, status: 'success' };
       } catch (error) {
-        debug.tables.proposals = { error: error.message, status: 'failed' } finally {
-
-        if (pool) {
-
-          await pool.end();
-
-        }
-
-      };
+        debug.tables.proposals = { error: error.message, status: 'failed' };
       }
       
       try {
         // Test bookings table
-        const bookings = await pool.query(`SELECT COUNT(*) as count FROM bookings WHERE tenant_id = ${tenantId}`);
+        const bookings = await pool.query(`SELECT COUNT(*) as count FROM bookings WHERE tenant_id = $1`, [tenantId]);
         debug.tables.bookings = { count: bookings.rows[0].count, status: 'success' };
       } catch (error) {
-        debug.tables.bookings = { error: error.message, status: 'failed' } finally {
-
-        if (pool) {
-
-          await pool.end();
-
-        }
-
-      };
+        debug.tables.bookings = { error: error.message, status: 'failed' };
       }
       
       try {
@@ -319,17 +149,9 @@ module.exports = async function handler(req, res) {
           FROM information_schema.tables 
           WHERE table_schema = 'public' 
           ORDER BY table_name`);
-        debug.availableTables = tableInfo.map(t => t.table_name);
+        debug.availableTables = tableInfo.rows.map(t => t.table_name);
       } catch (error) {
-        debug.availableTables = { error: error.message } finally {
-
-        if (pool) {
-
-          await pool.end();
-
-        }
-
-      };
+        debug.availableTables = { error: error.message };
       }
       
       return res.json({
@@ -343,8 +165,8 @@ module.exports = async function handler(req, res) {
     if (resource === 'customers') {
       if (req.method === 'GET') {
         const customers = await pool.query(`SELECT * FROM customers 
-          WHERE tenant_id = ${tenantId}
-          ORDER BY created_at DESC`);
+          WHERE tenant_id = $1
+          ORDER BY created_at DESC`, [tenantId]);
         return res.json(customers.rows);
         
       } else if (req.method === 'POST') {
@@ -356,11 +178,8 @@ module.exports = async function handler(req, res) {
         
         const newCustomer = await pool.query(`INSERT INTO customers (
             tenant_id, name, email, phone, notes, created_at
-          ) VALUES (
-            ${tenantId}, ${name}, ${email}, ${phone || null}, 
-            ${notes || null}, NOW()
-          )
-          RETURNING *`);
+          ) VALUES ($1, $2, $3, $4, $5, NOW())
+          RETURNING *`, [tenantId, name, email, phone || null, notes || null]);
         
         return res.status(201).json(newCustomer.rows[0]);
       }
@@ -372,196 +191,15 @@ module.exports = async function handler(req, res) {
         if (id) {
           // Get specific venue
           const venue = await pool.query(`SELECT * FROM venues 
-            WHERE tenant_id = ${tenantId} AND id = ${id}`);
+            WHERE tenant_id = $1 AND id = $2`, [tenantId, id]);
           return res.json(venue.rows[0] || null);
         } else {
           // Get all venues
           const venues = await pool.query(`SELECT * FROM venues 
-            WHERE tenant_id = ${tenantId}
-            ORDER BY created_at DESC`);
+            WHERE tenant_id = $1
+            ORDER BY created_at DESC`, [tenantId]);
           return res.json(venues.rows);
         }
-        
-      } else if (req.method === 'POST') {
-        const { name, description, address } = req.body;
-        
-        if (!name) {
-          return res.status(400).json({ message: 'Venue name is required' });
-        }
-        
-        const newVenue = await pool.query(`INSERT INTO venues (
-            tenant_id, name, description, address, created_at
-          ) VALUES (
-            ${tenantId}, ${name}, ${description || null}, ${address || null}, NOW()
-          )
-          RETURNING *`);
-        
-        return res.status(201).json(newVenue.rows[0]);
-        
-      } else if (req.method === 'PATCH' && id) {
-        const { name, description, address } = req.body;
-        
-        if (!name) {
-          return res.status(400).json({ message: 'Venue name is required' });
-        }
-        
-        const updatedVenue = await pool.query(`UPDATE venues 
-          SET name = ${name}, description = ${description || null}, address = ${address || null}, updated_at = NOW()
-          WHERE tenant_id = ${tenantId} AND id = ${id}
-          RETURNING *`);
-        
-        return res.json(updatedVenue.rows[0] || null);
-        
-      } else if (req.method === 'DELETE' && id) {
-        // Check if venue has any spaces
-        const spaces = await pool.query(`SELECT COUNT(*) as count FROM spaces 
-          WHERE venue_id = ${id} AND tenant_id = ${tenantId}`);
-        
-        if (spaces.rows[0].count > 0) {
-          return res.status(400).json({ 
-            message: 'Cannot delete venue with existing spaces. Please delete all spaces first.' 
-          });
-        }
-        
-        // Check if venue has any bookings
-        const bookings = await pool.query(`SELECT COUNT(*) as count FROM bookings 
-          WHERE venue_id = ${id} AND tenant_id = ${tenantId}`);
-        
-        if (bookings.rows[0].count > 0) {
-          return res.status(400).json({ 
-            message: 'Cannot delete venue with existing bookings.' 
-          });
-        }
-        
-        const deletedVenue = await pool.query(`DELETE FROM venues 
-          WHERE tenant_id = ${tenantId} AND id = ${id}
-          RETURNING *`);
-        
-        return res.json(deletedVenue.rows[0] || null);
-      }
-    }
-    
-    // VENUES WITH SPACES
-    if (resource === 'venues-with-spaces') {
-      if (req.method === 'GET') {
-        const venues = await pool.query(`SELECT 
-            v.*,
-            COALESCE(
-              JSON_AGG(
-                CASE 
-                  WHEN s.id IS NOT NULL THEN 
-                    JSON_BUILD_OBJECT(
-                      'id', s.id,
-                      'name', s.name,
-                      'description', s.description,
-                      'capacity', s.capacity,
-                      'spaceType', s.space_type,
-                      'amenities', s.amenities,
-                      'availableSetupStyles', s.available_setup_styles,
-                      'features', s.features,
-                      'isActive', s.is_active
-                    )
-                  ELSE NULL
-                END
-              ) FILTER (WHERE s.id IS NOT NULL),
-              '[]'
-            ) as spaces
-          FROM venues v
-          LEFT JOIN spaces s ON v.id = s.venue_id AND s.is_active = true
-          WHERE v.tenant_id = ${tenantId} AND v.is_active = true
-          GROUP BY v.id
-          ORDER BY v.created_at DESC`);
-        
-        return res.json(venues.rows);
-      }
-    }
-    
-    // EVENTS
-    if (resource === 'events') {
-      if (req.method === 'GET') {
-        const events = await pool.query(`SELECT e.*, 
-                 c.name as customer_name,
-                 v.name as venue_name,
-                 s.name as space_name
-          FROM events e
-          LEFT JOIN customers c ON e.customer_id = c.id
-          LEFT JOIN venues v ON e.venue_id = v.id
-          LEFT JOIN spaces s ON e.space_id = s.id
-          WHERE e.tenant_id = ${tenantId}
-          ORDER BY e.start_date DESC`);
-        
-        return res.json(events.rows);
-        
-      } else if (req.method === 'POST') {
-        const { 
-          customer_id, venue_id, space_id, title, description,
-          start_date, end_date, start_time, end_time, 
-          event_type, status, estimated_guests, actual_guests,
-          setup_style, special_requirements, catering_notes
-        } = req.body;
-        
-        if (!title || !start_date || !customer_id) {
-          return res.status(400).json({ message: 'Title, start date, and customer are required' });
-        }
-        
-        const newEvent = await pool.query(`INSERT INTO events (
-            tenant_id, customer_id, venue_id, space_id, title, description,
-            start_date, end_date, start_time, end_time, event_type, status,
-            estimated_guests, actual_guests, setup_style, special_requirements,
-            catering_notes, created_at
-          ) VALUES (
-            ${tenantId}, ${customer_id}, ${venue_id || null}, ${space_id || null},
-            ${title}, ${description || null}, ${start_date}, ${end_date || null},
-            ${start_time || null}, ${end_time || null}, ${event_type || 'event'},
-            ${status || 'inquiry'}, ${estimated_guests || null}, ${actual_guests || null},
-            ${setup_style || null}, ${special_requirements || null}, 
-            ${catering_notes || null}, NOW()
-          )
-          RETURNING *`);
-        
-        return res.status(201).json(newEvent.rows[0]);
-      }
-    }
-    
-    // PROPOSALS
-    if (resource === 'proposals') {
-      if (req.method === 'GET') {
-        const proposals = await pool.query(`SELECT p.*, 
-                 c.name as customer_name,
-                 e.title as event_title
-          FROM proposals p
-          LEFT JOIN customers c ON p.customer_id = c.id
-          LEFT JOIN events e ON p.event_id = e.id
-          WHERE p.tenant_id = ${tenantId}
-          ORDER BY p.created_at DESC`);
-        
-        return res.json(proposals.rows);
-        
-      } else if (req.method === 'POST') {
-        const { 
-          customer_id, event_id, title, description, items,
-          subtotal, tax_amount, total_amount, discount_amount,
-          notes, terms_conditions, status, valid_until
-        } = req.body;
-        
-        if (!customer_id || !title) {
-          return res.status(400).json({ message: 'Customer and title are required' });
-        }
-        
-        const newProposal = await pool.query(`INSERT INTO proposals (
-            tenant_id, customer_id, event_id, title, description, items,
-            subtotal, tax_amount, total_amount, discount_amount, notes,
-            terms_conditions, status, valid_until, created_at
-          ) VALUES (
-            ${tenantId}, ${customer_id}, ${event_id || null}, ${title},
-            ${description || null}, ${items || null}, ${subtotal || 0},
-            ${tax_amount || 0}, ${total_amount || 0}, ${discount_amount || 0},
-            ${notes || null}, ${terms_conditions || null}, ${status || 'draft'},
-            ${valid_until || null}, NOW()
-          )
-          RETURNING *`);
-        
-        return res.status(201).json(newProposal.rows[0]);
       }
     }
     
@@ -576,105 +214,10 @@ module.exports = async function handler(req, res) {
           LEFT JOIN customers c ON b.customer_id = c.id
           LEFT JOIN venues v ON b.venue_id = v.id
           LEFT JOIN spaces s ON b.space_id = s.id
-          WHERE b.tenant_id = ${tenantId}
-          ORDER BY b.event_date DESC`);
+          WHERE b.tenant_id = $1
+          ORDER BY b.event_date DESC`, [tenantId]);
         
         return res.json(bookings.rows);
-        
-      } else if (req.method === 'POST') {
-        const { 
-          customer_id, venue_id, space_id, event_name, event_type,
-          event_date, end_date, start_time, end_time, guest_count,
-          setup_style, status, total_amount, deposit_amount,
-          deposit_paid, notes
-        } = req.body;
-        
-        if (!customer_id || !event_date || !event_name || !event_type || !start_time || !end_time || !guest_count) {
-          return res.status(400).json({ message: 'Customer, event details, date, times and guest count are required' });
-        }
-        
-        const newBooking = await pool.query(`INSERT INTO bookings (
-            tenant_id, customer_id, venue_id, space_id, event_name, event_type,
-            event_date, end_date, start_time, end_time, guest_count,
-            setup_style, status, total_amount, deposit_amount, deposit_paid, notes
-          ) VALUES (
-            ${tenantId}, ${customer_id}, ${venue_id || null}, ${space_id || null},
-            ${event_name}, ${event_type}, ${event_date}, ${end_date || null},
-            ${start_time}, ${end_time}, ${guest_count}, ${setup_style || null},
-            ${status || 'inquiry'}, ${total_amount || null}, ${deposit_amount || null},
-            ${deposit_paid || false}, ${notes || null}
-          )
-          RETURNING *`);
-        
-        return res.status(201).json(newBooking.rows[0]);
-      }
-    }
-    
-    // COMPANIES
-    if (resource === 'companies') {
-      if (req.method === 'GET') {
-        const companies = await pool.query(`SELECT * FROM companies 
-          WHERE tenant_id = ${tenantId}
-          ORDER BY created_at DESC`);
-        return res.json(companies.rows);
-      }
-    }
-    
-    // CUSTOMER ANALYTICS  
-    if (resource === 'customer-analytics') {
-      try {
-        // Get customers with analytics data
-        const customers = await pool.query(`SELECT 
-            c.id,
-            c.name,
-            c.email,
-            c.phone,
-            c.company_id,
-            c.status,
-            c.notes,
-            COALESCE(SUM(b.total_amount), 0) as total_revenue,
-            COUNT(b.id) as bookings_count,
-            COUNT(CASE WHEN b.status = 'confirmed' THEN 1 END) as confirmed_bookings,
-            COUNT(CASE WHEN b.status = 'inquiry' THEN 1 END) as pending_bookings,
-            COUNT(CASE WHEN b.status = 'cancelled' THEN 1 END) as cancelled_bookings
-          FROM customers c
-          LEFT JOIN bookings b ON c.id = b.customer_id
-          WHERE c.tenant_id = ${tenantId}
-          GROUP BY c.id, c.name, c.email, c.phone, c.company_id, c.status, c.notes
-          ORDER BY c.created_at DESC`);
-        
-        // Format data for frontend
-        const customersWithAnalytics = customers.map(customer => ({
-          id: customer.id,
-          name: customer.name,
-          email: customer.email,
-          phone: customer.phone,
-          companyId: customer.company_id,
-          status: customer.status,
-          notes: customer.notes,
-          analytics: {
-            totalRevenue: parseFloat(customer.total_revenue) || 0,
-            lifetimeValue: parseFloat(customer.total_revenue) || 0,
-            lifetimeValueCategory: parseFloat(customer.total_revenue) > 10000 ? 'High' : parseFloat(customer.total_revenue) > 5000 ? 'Medium' : 'Low',
-            bookingsCount: parseInt(customer.bookings_count) || 0,
-            confirmedBookings: parseInt(customer.confirmed_bookings) || 0,
-            pendingBookings: parseInt(customer.pending_bookings) || 0,
-            cancelledBookings: parseInt(customer.cancelled_bookings) || 0
-          }
-        }));
-        
-        return res.json(customersWithAnalytics.rows);
-      } catch (error) {
-        console.log('Customer analytics query failed:', error);
-        return res.json([].rows);
-      } finally {
-
-        if (pool) {
-
-          await pool.end();
-
-        }
-
       }
     }
     
@@ -685,18 +228,10 @@ module.exports = async function handler(req, res) {
     res.status(500).json({ 
       message: 'Internal server error', 
       error: error.message 
-    } finally {
-
-    
+    });
+  } finally {
     if (pool) {
-
-    
       await pool.end();
-
-    
     }
-
-    
-  });
   }
 };
