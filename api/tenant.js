@@ -221,6 +221,203 @@ module.exports = async function handler(req, res) {
       }
     }
     
+    // PACKAGES
+    if (resource === 'packages') {
+      if (req.method === 'GET') {
+        const packages = await pool.query(`SELECT * FROM packages 
+          WHERE tenant_id = $1 AND is_active = true
+          ORDER BY created_at DESC`, [tenantId]);
+        return res.json(packages.rows);
+        
+      } else if (req.method === 'POST') {
+        const { 
+          name, description, category, price, pricingModel, 
+          includedServiceIds, enabledTaxIds, enabledFeeIds 
+        } = req.body;
+        
+        if (!name || price == null) {
+          return res.status(400).json({ message: 'Name and price are required' });
+        }
+        
+        const newPackage = await pool.query(`INSERT INTO packages (
+            tenant_id, name, description, category, price, pricing_model, 
+            included_service_ids, enabled_tax_ids, enabled_fee_ids, created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+          RETURNING *`, [
+            tenantId, name, description || null, category || 'general', 
+            price, pricingModel || 'fixed',
+            includedServiceIds || [], enabledTaxIds || [], enabledFeeIds || []
+          ]);
+        
+        return res.status(201).json(newPackage.rows[0]);
+        
+      } else if (req.method === 'PUT' && id) {
+        const { 
+          name, description, category, price, pricingModel,
+          includedServiceIds, enabledTaxIds, enabledFeeIds 
+        } = req.body;
+        
+        const updatedPackage = await pool.query(`UPDATE packages 
+          SET name = $1, description = $2, category = $3, price = $4, 
+              pricing_model = $5, included_service_ids = $6, 
+              enabled_tax_ids = $7, enabled_fee_ids = $8
+          WHERE tenant_id = $9 AND id = $10
+          RETURNING *`, [
+            name, description, category, price, pricingModel,
+            includedServiceIds || [], enabledTaxIds || [], enabledFeeIds || [],
+            tenantId, id
+          ]);
+        
+        if (updatedPackage.rows.length === 0) {
+          return res.status(404).json({ message: 'Package not found' });
+        }
+        
+        return res.json(updatedPackage.rows[0]);
+        
+      } else if (req.method === 'DELETE' && id) {
+        const deletedPackage = await pool.query(`UPDATE packages 
+          SET is_active = false 
+          WHERE tenant_id = $1 AND id = $2
+          RETURNING *`, [tenantId, id]);
+        
+        if (deletedPackage.rows.length === 0) {
+          return res.status(404).json({ message: 'Package not found' });
+        }
+        
+        return res.json({ message: 'Package deleted successfully' });
+      }
+    }
+    
+    // SERVICES
+    if (resource === 'services') {
+      if (req.method === 'GET') {
+        const services = await pool.query(`SELECT * FROM services 
+          WHERE tenant_id = $1 AND is_active = true
+          ORDER BY created_at DESC`, [tenantId]);
+        return res.json(services.rows);
+        
+      } else if (req.method === 'POST') {
+        const { 
+          name, description, category, price, pricingModel,
+          enabledTaxIds, enabledFeeIds 
+        } = req.body;
+        
+        if (!name || price == null) {
+          return res.status(400).json({ message: 'Name and price are required' });
+        }
+        
+        const newService = await pool.query(`INSERT INTO services (
+            tenant_id, name, description, category, price, pricing_model, 
+            enabled_tax_ids, enabled_fee_ids, created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+          RETURNING *`, [
+            tenantId, name, description || null, category || 'additional', 
+            price, pricingModel || 'fixed',
+            enabledTaxIds || [], enabledFeeIds || []
+          ]);
+        
+        return res.status(201).json(newService.rows[0]);
+        
+      } else if (req.method === 'PUT' && id) {
+        const { 
+          name, description, category, price, pricingModel,
+          enabledTaxIds, enabledFeeIds 
+        } = req.body;
+        
+        const updatedService = await pool.query(`UPDATE services 
+          SET name = $1, description = $2, category = $3, price = $4, 
+              pricing_model = $5, enabled_tax_ids = $6, enabled_fee_ids = $7
+          WHERE tenant_id = $8 AND id = $9
+          RETURNING *`, [
+            name, description, category, price, pricingModel,
+            enabledTaxIds || [], enabledFeeIds || [],
+            tenantId, id
+          ]);
+        
+        if (updatedService.rows.length === 0) {
+          return res.status(404).json({ message: 'Service not found' });
+        }
+        
+        return res.json(updatedService.rows[0]);
+        
+      } else if (req.method === 'DELETE' && id) {
+        const deletedService = await pool.query(`UPDATE services 
+          SET is_active = false 
+          WHERE tenant_id = $1 AND id = $2
+          RETURNING *`, [tenantId, id]);
+        
+        if (deletedService.rows.length === 0) {
+          return res.status(404).json({ message: 'Service not found' });
+        }
+        
+        return res.json({ message: 'Service deleted successfully' });
+      }
+    }
+    
+    // TAX SETTINGS
+    if (resource === 'tax-settings') {
+      if (req.method === 'GET') {
+        const taxSettings = await pool.query(`SELECT * FROM tax_settings 
+          WHERE tenant_id = $1 AND is_active = true
+          ORDER BY type, name`, [tenantId]);
+        return res.json(taxSettings.rows);
+        
+      } else if (req.method === 'POST') {
+        const { name, type, calculation, value, applyTo, isTaxable, applicableTaxIds } = req.body;
+        
+        if (!name || !type || !calculation || value == null || !applyTo) {
+          return res.status(400).json({ message: 'Required fields missing' });
+        }
+        
+        const newTaxSetting = await pool.query(`INSERT INTO tax_settings (
+            tenant_id, name, type, calculation, value, apply_to, 
+            is_taxable, applicable_tax_ids, created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+          RETURNING *`, [
+            tenantId, name, type, calculation, value, applyTo,
+            isTaxable || false, applicableTaxIds || []
+          ]);
+        
+        return res.status(201).json(newTaxSetting.rows[0]);
+        
+      } else if (req.method === 'PATCH' && id) {
+        const { name, type, calculation, value, applyTo, isActive, isTaxable, applicableTaxIds } = req.body;
+        
+        const updatedTaxSetting = await pool.query(`UPDATE tax_settings 
+          SET name = COALESCE($1, name), 
+              type = COALESCE($2, type),
+              calculation = COALESCE($3, calculation),
+              value = COALESCE($4, value),
+              apply_to = COALESCE($5, apply_to),
+              is_active = COALESCE($6, is_active),
+              is_taxable = COALESCE($7, is_taxable),
+              applicable_tax_ids = COALESCE($8, applicable_tax_ids)
+          WHERE tenant_id = $9 AND id = $10
+          RETURNING *`, [
+            name, type, calculation, value, applyTo, isActive, isTaxable, applicableTaxIds,
+            tenantId, id
+          ]);
+        
+        if (updatedTaxSetting.rows.length === 0) {
+          return res.status(404).json({ message: 'Tax setting not found' });
+        }
+        
+        return res.json(updatedTaxSetting.rows[0]);
+        
+      } else if (req.method === 'DELETE' && id) {
+        const deletedTaxSetting = await pool.query(`UPDATE tax_settings 
+          SET is_active = false 
+          WHERE tenant_id = $1 AND id = $2
+          RETURNING *`, [tenantId, id]);
+        
+        if (deletedTaxSetting.rows.length === 0) {
+          return res.status(404).json({ message: 'Tax setting not found' });
+        }
+        
+        return res.json({ message: 'Tax setting deleted successfully' });
+      }
+    }
+    
     return res.status(404).json({ message: 'Resource not found' });
     
   } catch (error) {

@@ -293,6 +293,44 @@ export default function Packages() {
     }
   };
 
+  const handleDeletePackage = async (packageId: string) => {
+    if (window.confirm('Are you sure you want to delete this package? This action cannot be undone.')) {
+      try {
+        await apiRequest("DELETE", `/api/packages?id=${packageId}`);
+        await queryClient.invalidateQueries({ queryKey: ["/api/packages"] });
+        toast({
+          title: "Package deleted",
+          description: "The package has been deleted successfully"
+        });
+      } catch (error) {
+        toast({
+          title: "Delete failed",
+          description: "Could not delete package",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  const handleDeleteService = async (serviceId: string) => {
+    if (window.confirm('Are you sure you want to delete this service? This action cannot be undone.')) {
+      try {
+        await apiRequest("DELETE", `/api/services?id=${serviceId}`);
+        await queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+        toast({
+          title: "Service deleted",
+          description: "The service has been deleted successfully"
+        });
+      } catch (error) {
+        toast({
+          title: "Delete failed",
+          description: "Could not delete service",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
   if (packagesLoading || servicesLoading) {
     return (
       <div className="flex h-screen overflow-hidden bg-slate-50">
