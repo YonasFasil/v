@@ -27,16 +27,16 @@ module.exports = async function handler(req, res) {
     console.log('Request body:', req.body);
     console.log('Parsed body:', body);
     
-    const { username, password } = body;
+    const { email, password } = body;
     
-    console.log('Extracted username:', username);
+    console.log('Extracted email:', email);
     console.log('Extracted password length:', password ? password.length : 'undefined');
     
-    if (!username || !password) {
-      return res.status(400).json({ message: "Username and password are required" });
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
     }
     
-    console.log('Super admin login attempt for:', username);
+    console.log('Super admin login attempt for:', email);
     
     // Connect to database directly
     if (!process.env.DATABASE_URL) {
@@ -52,14 +52,14 @@ module.exports = async function handler(req, res) {
     const result = await pool.query(`
       SELECT id, username, password, name, email, role, permissions 
       FROM users 
-      WHERE username = $1 AND role = 'super_admin' AND is_active = true
+      WHERE email = $1 AND role = 'super_admin' AND is_active = true
       LIMIT 1
-    `, [username]);
+    `, [email]);
     
     await pool.end();
     
     if (result.rows.length === 0) {
-      console.log('Super admin user not found with username:', username);
+      console.log('Super admin user not found with email:', email);
       return res.status(401).json({ message: "Invalid credentials" });
     }
     
@@ -89,7 +89,7 @@ module.exports = async function handler(req, res) {
       { expiresIn: '24h' }
     );
     
-    console.log('Authentication successful for:', username);
+    console.log('Authentication successful for:', email);
     
     res.json({
       token,
