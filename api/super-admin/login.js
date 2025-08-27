@@ -17,7 +17,20 @@ module.exports = async function handler(req, res) {
   }
   
   try {
-    const { username, password } = req.body;
+    // Parse request body for serverless function
+    let body = req.body;
+    if (typeof body === 'string') {
+      body = JSON.parse(body);
+    }
+    
+    console.log('Request body type:', typeof req.body);
+    console.log('Request body:', req.body);
+    console.log('Parsed body:', body);
+    
+    const { username, password } = body;
+    
+    console.log('Extracted username:', username);
+    console.log('Extracted password length:', password ? password.length : 'undefined');
     
     if (!username || !password) {
       return res.status(400).json({ message: "Username and password are required" });

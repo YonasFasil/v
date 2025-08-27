@@ -13,13 +13,13 @@ export default function SuperAdminLogin() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [credentials, setCredentials] = useState({
-    email: "",
+    username: "",
     password: ""
   });
   const [showPassword, setShowPassword] = useState(false);
 
   const loginMutation = useMutation({
-    mutationFn: (loginData: { email: string; password: string }) =>
+    mutationFn: (loginData: { username: string; password: string }) =>
       apiRequest("/api/super-admin/login", {
         method: "POST",
         body: JSON.stringify(loginData),
@@ -42,8 +42,8 @@ export default function SuperAdminLogin() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!credentials.email || !credentials.password) {
-      toast({ title: "Please enter both email and password", variant: "destructive" });
+    if (!credentials.username || !credentials.password) {
+      toast({ title: "Please enter both username and password", variant: "destructive" });
       return;
     }
     loginMutation.mutate(credentials);
@@ -62,13 +62,13 @@ export default function SuperAdminLogin() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="email">Email Address</Label>
+              <Label htmlFor="username">Username</Label>
               <Input
-                id="email"
-                type="email"
-                value={credentials.email}
-                onChange={(e) => setCredentials(prev => ({ ...prev, email: e.target.value }))}
-                placeholder="admin@yourcompany.com"
+                id="username"
+                type="text"
+                value={credentials.username}
+                onChange={(e) => setCredentials(prev => ({ ...prev, username: e.target.value }))}
+                placeholder="superadmin"
                 required
               />
             </div>
@@ -112,8 +112,8 @@ export default function SuperAdminLogin() {
           <div className="mt-6 text-center text-sm text-gray-600">
             <p>Default credentials for testing:</p>
             <p className="font-mono text-xs bg-gray-100 p-2 rounded mt-2">
-              Email: admin@yourcompany.com<br />
-              Password: password
+              Username: superadmin<br />
+              Password: VenueAdmin2024!
             </p>
           </div>
         </CardContent>
