@@ -100,14 +100,35 @@ module.exports = async function handler(req, res) {
         });
       }
       
+      // Get a default subscription package if none provided
+      let finalPackageId = subscriptionPackageId;
+      if (!finalPackageId) {
+        console.log('No subscription package ID provided, getting default...');
+        const defaultPackageResult = await pool.query(`
+          SELECT id FROM subscription_packages 
+          WHERE is_active = true 
+          ORDER BY sort_order ASC, created_at ASC 
+          LIMIT 1
+        `);
+        
+        if (defaultPackageResult.rows.length > 0) {
+          finalPackageId = defaultPackageResult.rows[0].id;
+          console.log('Using default subscription package:', finalPackageId);
+        } else {
+          console.log('No subscription packages found, creating tenant without package...');
+          // We'll need to handle this case
+        }
+      }
+      
       // Create tenant
+      console.log('Creating tenant with package ID:', finalPackageId);
       const tenantResult = await pool.query(`
         INSERT INTO tenants (
           name, slug, subscription_package_id, status, created_at
         ) VALUES (
           $1, $2, $3, $4, NOW()
         ) RETURNING *
-      `, [name, slug, subscriptionPackageId, subscriptionStatus]);
+      `, [name, slug, finalPackageId, subscriptionStatus]);
       
       const tenantId = tenantResult.rows[0].id;
       const hashedPassword = await bcrypt.hash(adminUser.password, 12);
