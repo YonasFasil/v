@@ -198,10 +198,76 @@ module.exports = async function handler(req, res) {
         } else {
           // Get all venues
           const venues = await pool.query(`SELECT * FROM venues 
-            WHERE tenant_id = $1
+            WHERE tenant_id = $1 AND is_active = true
             ORDER BY created_at DESC`, [tenantId]);
           return res.json(venues.rows);
         }
+        
+      } else if (req.method === 'POST') {
+        const { 
+          name, description, address, city, state, zipCode, country,
+          capacity, phoneNumber, email, website, amenities, setupStyles,
+          cancellationPolicy, images, pricePerHour, isActive
+        } = req.body;
+        
+        if (!name) {
+          return res.status(400).json({ message: 'Venue name is required' });
+        }
+        
+        const newVenue = await pool.query(`INSERT INTO venues (
+            tenant_id, name, description, address, city, state, zip_code, country,
+            capacity, phone_number, email, website, amenities, setup_styles,
+            cancellation_policy, images, price_per_hour, is_active, created_at
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW()
+          ) RETURNING *`, [
+            tenantId, name, description || null, address || null, city || null, 
+            state || null, zipCode || null, country || null, capacity || null,
+            phoneNumber || null, email || null, website || null, 
+            amenities || [], setupStyles || [], cancellationPolicy || null,
+            images || [], pricePerHour || null, isActive !== false
+          ]);
+        
+        return res.status(201).json(newVenue.rows[0]);
+        
+      } else if (req.method === 'PUT' && id) {
+        const { 
+          name, description, address, city, state, zipCode, country,
+          capacity, phoneNumber, email, website, amenities, setupStyles,
+          cancellationPolicy, images, pricePerHour, isActive
+        } = req.body;
+        
+        const updatedVenue = await pool.query(`UPDATE venues 
+          SET name = $1, description = $2, address = $3, city = $4, state = $5,
+              zip_code = $6, country = $7, capacity = $8, phone_number = $9,
+              email = $10, website = $11, amenities = $12, setup_styles = $13,
+              cancellation_policy = $14, images = $15, price_per_hour = $16,
+              is_active = $17, updated_at = NOW()
+          WHERE tenant_id = $18 AND id = $19
+          RETURNING *`, [
+            name, description, address, city, state, zipCode, country, capacity,
+            phoneNumber, email, website, amenities || [], setupStyles || [],
+            cancellationPolicy, images || [], pricePerHour, isActive !== false,
+            tenantId, id
+          ]);
+        
+        if (updatedVenue.rows.length === 0) {
+          return res.status(404).json({ message: 'Venue not found' });
+        }
+        
+        return res.json(updatedVenue.rows[0]);
+        
+      } else if (req.method === 'DELETE' && id) {
+        const deletedVenue = await pool.query(`UPDATE venues 
+          SET is_active = false, updated_at = NOW()
+          WHERE tenant_id = $1 AND id = $2
+          RETURNING *`, [tenantId, id]);
+        
+        if (deletedVenue.rows.length === 0) {
+          return res.status(404).json({ message: 'Venue not found' });
+        }
+        
+        return res.json({ message: 'Venue deleted successfully' });
       }
     }
     
