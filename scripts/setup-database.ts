@@ -1,12 +1,25 @@
 import 'dotenv/config';
-import { neon } from '@neondatabase/serverless';
+import { Pool } from 'pg';
 import bcryptjs from 'bcryptjs';
 
 if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL is required');
 }
 
-const sql = neon(process.env.DATABASE_URL);
+const pool = new Pool({ 
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
+
+// Helper function to execute parameterized queries
+async function executeQuery(text: string, params: any[] = []) {
+  const client = await pool.connect();
+  try {
+    return await client.query(text, params);
+  } finally {
+    client.release();
+  }
+}
 
 async function setupDatabase() {
   console.log('🚀 Setting up database...');
@@ -16,22 +29,22 @@ async function setupDatabase() {
     console.log('📦 Creating default subscription package...');
     
     const packageId = crypto.randomUUID();
-    await sql`
+    await executeQuery(`
       INSERT INTO subscription_packages (id, name, description, price, billing_interval, trial_days, max_venues, max_users, max_bookings_per_month, features, is_active, sort_order, created_at)
-      VALUES (${packageId}, 'Enterprise', 'Full access package for enterprise customers', 0.00, 'monthly', 30, 999, 999, 9999, '["all_features"]'::jsonb, true, 0, NOW())
+      VALUES ($1, 'Enterprise', 'Full access package for enterprise customers', 0.00, 'monthly', 30, 999, 999, 9999, '["all_features"]'::jsonb, true, 0, NOW())
       ON CONFLICT (id) DO NOTHING
-    `;
+    `, [packageId]);
     
     console.log('✅ Default package created');
 
     // Create default tenant
     console.log('🏢 Creating default tenant...');
     const tenantId = crypto.randomUUID();
-    await sql`
+    await executeQuery(`
       INSERT INTO tenants (id, name, slug, subscription_package_id, status, primary_color, current_users, current_venues, monthly_bookings, created_at)
-      VALUES (${tenantId}, 'System Administration', 'system-admin', ${packageId}, 'active', '#3b82f6', 1, 0, 0, NOW())
+      VALUES ($1, 'System Administration', 'system-admin', $2, 'active', '#3b82f6', 1, 0, 0, NOW())
       ON CONFLICT (slug) DO NOTHING
-    `;
+    `, [tenantId, packageId]);
 
     console.log('✅ Default tenant created');
 
@@ -46,14 +59,14 @@ async function setupDatabase() {
     const hashedPassword = await bcryptjs.hash(password, 12);
     const userId = crypto.randomUUID();
 
-    await sql`
+    await executeQuery(`
       INSERT INTO users (id, username, password, name, email, tenant_id, role, permissions, is_active, created_at)
-      VALUES (${userId}, ${username}, ${hashedPassword}, ${name}, ${email}, NULL, 'super_admin', '["all_permissions"]'::jsonb, true, NOW())
+      VALUES ($1, $2, $3, $4, $5, NULL, 'super_admin', '["all_permissions"]'::jsonb, true, NOW())
       ON CONFLICT (username) DO UPDATE SET
-        password = ${hashedPassword},
-        name = ${name},
-        email = ${email}
-    `;
+        password = $3,
+        name = $4,
+        email = $5
+    `, [userId, username, hashedPassword, name, email]);
 
     console.log('✅ Super admin user created/updated');
     

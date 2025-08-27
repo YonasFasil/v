@@ -1,14 +1,14 @@
 import 'dotenv/config';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import { neon, neonConfig } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
 import { eq } from 'drizzle-orm';
 import { users } from '../shared/schema';
 
-// Configure Neon
-neonConfig.fetchConnectionCache = true;
-
-const sql = neon(process.env.DATABASE_URL!);
-const db = drizzle(sql);
+const pool = new Pool({ 
+  connectionString: process.env.DATABASE_URL!,
+  ssl: { rejectUnauthorized: false }
+});
+const db = drizzle(pool);
 
 const ALL_PERMISSIONS = [
   'view_dashboard',
