@@ -42,7 +42,8 @@
       "Bash(git merge:*)",
       "WebFetch(domain:venuinenew-9yickzxju-yonasfasils-projects.vercel.app)",
       "WebFetch(domain:venuinenew-g0bm3pypa-yonasfasils-projects.vercel.app)",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "WebFetch(domain:venuinenew.vercel.app)"
     ],
     "deny": [],
     "ask": [],

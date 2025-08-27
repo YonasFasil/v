@@ -486,6 +486,162 @@ module.exports = async function handler(req, res) {
       }
     }
     
+    // VENUES WITH SPACES
+    if (resource === 'venues-with-spaces') {
+      if (req.method === 'GET') {
+        const venuesWithSpaces = await pool.query(`
+          SELECT v.*, 
+                 COALESCE(
+                   JSON_AGG(
+                     CASE WHEN s.id IS NOT NULL THEN 
+                       JSON_BUILD_OBJECT(
+                         'id', s.id,
+                         'name', s.name,
+                         'capacity', s.capacity,
+                         'price_per_hour', s.price_per_hour
+                       )
+                     END
+                   ) FILTER (WHERE s.id IS NOT NULL), 
+                   '[]'
+                 ) as spaces
+          FROM venues v
+          LEFT JOIN spaces s ON v.id = s.venue_id AND s.is_active = true
+          WHERE v.tenant_id = $1 AND v.is_active = true
+          GROUP BY v.id
+          ORDER BY v.created_at DESC
+        `, [tenantId]);
+        return res.json(venuesWithSpaces.rows);
+      }
+    }
+    
+    // SETTINGS
+    if (resource === 'settings') {
+      if (req.method === 'GET') {
+        const settings = await pool.query(`SELECT * FROM settings 
+          WHERE tenant_id = $1
+          ORDER BY key ASC`, [tenantId]);
+        
+        // Convert to key-value object
+        const settingsObj = {};
+        settings.rows.forEach(setting => {
+          settingsObj[setting.key] = setting.value;
+        });
+        
+        return res.json(settingsObj);
+        
+      } else if (req.method === 'POST' || req.method === 'PUT') {
+        const updates = req.body;
+        
+        // Update or insert each setting
+        for (const [key, value] of Object.entries(updates)) {
+          await pool.query(`
+            INSERT INTO settings (tenant_id, key, value, created_at, updated_at)
+            VALUES ($1, $2, $3, NOW(), NOW())
+            ON CONFLICT (tenant_id, key) 
+            DO UPDATE SET value = $3, updated_at = NOW()
+          `, [tenantId, key, value]);
+        }
+        
+        return res.json({ message: 'Settings updated successfully' });
+      }
+    }
+    
+    // DASHBOARD METRICS
+    if (resource === 'dashboard' && req.query.subresource === 'metrics') {
+      if (req.method === 'GET') {
+        const metrics = await pool.query(`
+          SELECT 
+            (SELECT COUNT(*) FROM venues WHERE tenant_id = $1 AND is_active = true) as total_venues,
+            (SELECT COUNT(*) FROM customers WHERE tenant_id = $1) as total_customers,
+            (SELECT COUNT(*) FROM bookings WHERE tenant_id = $1 AND status != 'cancelled') as total_bookings,
+            (SELECT COUNT(*) FROM proposals WHERE tenant_id = $1) as total_proposals,
+            (SELECT COALESCE(SUM(total_amount), 0) FROM bookings WHERE tenant_id = $1 AND status = 'confirmed') as total_revenue
+        `, [tenantId]);
+        
+        return res.json(metrics.rows[0]);
+      }
+    }
+    
+    // PROPOSALS
+    if (resource === 'proposals') {
+      if (req.method === 'GET') {
+        const proposals = await pool.query(`SELECT p.*, 
+                 c.name as customer_name,
+                 v.name as venue_name
+          FROM proposals p
+          LEFT JOIN customers c ON p.customer_id = c.id
+          LEFT JOIN venues v ON p.venue_id = v.id
+          WHERE p.tenant_id = $1
+          ORDER BY p.created_at DESC`, [tenantId]);
+        return res.json(proposals.rows);
+      }
+    }
+    
+    // COMPANIES
+    if (resource === 'companies') {
+      if (req.method === 'GET') {
+        const companies = await pool.query(`SELECT * FROM companies 
+          WHERE tenant_id = $1
+          ORDER BY created_at DESC`, [tenantId]);
+        return res.json(companies.rows);
+      }
+    }
+    
+    // PAYMENTS
+    if (resource === 'payments') {
+      if (req.method === 'GET') {
+        const payments = await pool.query(`SELECT p.*, 
+                 c.name as customer_name,
+                 b.event_name
+          FROM payments p
+          LEFT JOIN customers c ON p.customer_id = c.id
+          LEFT JOIN bookings b ON p.booking_id = b.id
+          WHERE p.tenant_id = $1
+          ORDER BY p.created_at DESC`, [tenantId]);
+        return res.json(payments.rows);
+      }
+    }
+    
+    // TENANT FEATURES
+    if (resource === 'tenant-features') {
+      if (req.method === 'GET') {
+        // Get tenant's subscription package and features
+        const tenantInfo = await pool.query(`
+          SELECT t.subscription_package_id, sp.features, sp.name as package_name
+          FROM tenants t
+          LEFT JOIN subscription_packages sp ON t.subscription_package_id = sp.id
+          WHERE t.id = $1
+        `, [tenantId]);
+        
+        if (tenantInfo.rows.length > 0) {
+          return res.json({
+            packageId: tenantInfo.rows[0].subscription_package_id,
+            packageName: tenantInfo.rows[0].package_name,
+            features: tenantInfo.rows[0].features || []
+          });
+        } else {
+          return res.json({ features: [] });
+        }
+      }
+    }
+    
+    // EVENTS / CALENDAR EVENTS
+    if (resource === 'events' || resource === 'calendar-events') {
+      if (req.method === 'GET') {
+        const events = await pool.query(`SELECT e.*, 
+                 c.name as customer_name,
+                 v.name as venue_name,
+                 s.name as space_name
+          FROM events e
+          LEFT JOIN customers c ON e.customer_id = c.id
+          LEFT JOIN venues v ON e.venue_id = v.id
+          LEFT JOIN spaces s ON e.space_id = s.id
+          WHERE e.tenant_id = $1 AND e.is_active = true
+          ORDER BY e.start_date DESC`, [tenantId]);
+        return res.json(events.rows);
+      }
+    }
+    
     return res.status(404).json({ message: 'Resource not found' });
     
   } catch (error) {
