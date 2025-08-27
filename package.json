@@ -17,7 +17,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:setup": "tsx scripts/setup-database.ts",
-    "db:reset": "tsx scripts/reset-neon-db.ts",
+    "db:reset": "echo 'Database reset not needed for Supabase - use Supabase dashboard to reset'",
     "test:tenant-isolation": "NODE_ENV=test tsx tests/tenant-isolation.test.js",
     "sec:test": "node tests/security/run.js",
     "sec:check-migrations": "node scripts/check-migrations.mjs",

@@ -182,10 +182,13 @@ function getRLSPool(): Pool {
       throw new Error('DATABASE_URL must be set for RLS tenant isolation');
     }
     
-    // Only support local PostgreSQL for session variables
-    // Neon serverless doesn't support persistent session state
-    if (!databaseUrl.includes('localhost') && !databaseUrl.includes('127.0.0.1')) {
-      throw new Error('RLS tenant isolation requires local PostgreSQL connection');
+    // Support both local PostgreSQL and Supabase for session variables
+    // Supabase supports persistent session state within transactions
+    const isLocal = databaseUrl.includes('localhost') || databaseUrl.includes('127.0.0.1');
+    const isSupabase = databaseUrl.includes('supabase.co');
+    
+    if (!isLocal && !isSupabase) {
+      throw new Error('RLS tenant isolation requires local PostgreSQL or Supabase connection');
     }
     
     rlsPool = new Pool({

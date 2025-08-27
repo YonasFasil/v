@@ -842,7 +842,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const decoded = verifyToken(token!);
       const user = await storage.getUser(decoded.id);
       
-      // Use tenant-aware Neon wrapper
+      // Use tenant-aware Supabase wrapper
       const customers = await withTenantNeon(tenantId, user?.role || 'user', async (tx) => {
         return await storage.getCustomers();
       });
