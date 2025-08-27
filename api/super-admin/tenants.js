@@ -115,9 +115,25 @@ module.exports = async function handler(req, res) {
           finalPackageId = defaultPackageResult.rows[0].id;
           console.log('Using default subscription package:', finalPackageId);
         } else {
-          console.log('No subscription packages found, creating tenant without package...');
-          // We'll need to handle this case
+          console.log('No subscription packages found!');
+          return res.status(400).json({ 
+            message: 'No subscription packages available. Please create a subscription package first.',
+            code: 'NO_PACKAGES_AVAILABLE'
+          });
         }
+      }
+      
+      // Validate that we have a subscription package ID
+      if (!finalPackageId) {
+        console.log('ERROR: finalPackageId is null after package resolution');
+        return res.status(400).json({ 
+          message: 'Unable to assign subscription package to tenant',
+          code: 'MISSING_PACKAGE_ID',
+          debug: { 
+            originalPackageId: subscriptionPackageId,
+            finalPackageId: finalPackageId
+          }
+        });
       }
       
       // Create tenant
