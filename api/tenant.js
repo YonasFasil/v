@@ -565,15 +565,21 @@ module.exports = async function handler(req, res) {
     // PROPOSALS
     if (resource === 'proposals') {
       if (req.method === 'GET') {
-        const proposals = await pool.query(`SELECT p.*, 
-                 c.name as customer_name,
-                 v.name as venue_name
-          FROM proposals p
-          LEFT JOIN customers c ON p.customer_id = c.id
-          LEFT JOIN venues v ON p.venue_id = v.id
-          WHERE p.tenant_id = $1
-          ORDER BY p.created_at DESC`, [tenantId]);
-        return res.json(proposals.rows);
+        try {
+          const proposals = await pool.query(`SELECT p.*, 
+                   c.name as customer_name,
+                   v.name as venue_name
+            FROM proposals p
+            LEFT JOIN customers c ON p.customer_id = c.id AND c.tenant_id = $1
+            LEFT JOIN venues v ON p.venue_id = v.id AND v.tenant_id = $1
+            WHERE p.tenant_id = $1
+            ORDER BY p.created_at DESC`, [tenantId]);
+          return res.json(proposals.rows);
+        } catch (error) {
+          console.error('Proposals query error:', error);
+          // Return empty array if query fails
+          return res.json([]);
+        }
       }
     }
     
@@ -614,13 +620,34 @@ module.exports = async function handler(req, res) {
         `, [tenantId]);
         
         if (tenantInfo.rows.length > 0) {
+          const packageFeatures = tenantInfo.rows[0].features || [];
+          
+          // Convert features array to expected format
+          const enabledFeatures = packageFeatures.map(featureId => ({
+            id: featureId,
+            name: featureId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            enabled: true
+          }));
+          
           return res.json({
             packageId: tenantInfo.rows[0].subscription_package_id,
             packageName: tenantInfo.rows[0].package_name,
-            features: tenantInfo.rows[0].features || []
+            features: {
+              enabled: enabledFeatures,
+              disabled: [],
+              total: enabledFeatures.length,
+              available: enabledFeatures.length
+            }
           });
         } else {
-          return res.json({ features: [] });
+          return res.json({ 
+            features: {
+              enabled: [],
+              disabled: [],
+              total: 0,
+              available: 0
+            }
+          });
         }
       }
     }
@@ -628,17 +655,26 @@ module.exports = async function handler(req, res) {
     // EVENTS / CALENDAR EVENTS
     if (resource === 'events' || resource === 'calendar-events') {
       if (req.method === 'GET') {
-        const events = await pool.query(`SELECT e.*, 
-                 c.name as customer_name,
-                 v.name as venue_name,
-                 s.name as space_name
-          FROM events e
-          LEFT JOIN customers c ON e.customer_id = c.id
-          LEFT JOIN venues v ON e.venue_id = v.id
-          LEFT JOIN spaces s ON e.space_id = s.id
-          WHERE e.tenant_id = $1 AND e.is_active = true
-          ORDER BY e.start_date DESC`, [tenantId]);
-        return res.json(events.rows);
+        try {
+          // First check if events table exists
+          await pool.query('SELECT 1 FROM events LIMIT 1');
+          
+          const events = await pool.query(`SELECT e.*, 
+                   c.name as customer_name,
+                   v.name as venue_name,
+                   s.name as space_name
+            FROM events e
+            LEFT JOIN customers c ON e.customer_id = c.id AND c.tenant_id = $1
+            LEFT JOIN venues v ON e.venue_id = v.id AND v.tenant_id = $1  
+            LEFT JOIN spaces s ON e.space_id = s.id
+            WHERE e.tenant_id = $1 AND e.is_active = true
+            ORDER BY e.start_date DESC`, [tenantId]);
+          return res.json(events.rows);
+        } catch (error) {
+          console.error('Events query error:', error);
+          // Return empty array if events table doesn't exist or query fails
+          return res.json([]);
+        }
       }
     }
     
