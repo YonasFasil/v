@@ -4,8 +4,13 @@
 import { Pool } from 'pg';
 import jwt from 'jsonwebtoken';
 
+function getDatabaseUrl() {
+  return process.env.DATABASE_URL || process.env.SUPABASE_POSTGRES_URL || process.env.POSTGRES_URL;
+}
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: getDatabaseUrl(),
+  ssl: { rejectUnauthorized: false }
 });
 
 export default async function handler(req, res) {

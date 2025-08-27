@@ -1,6 +1,7 @@
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { getDatabaseUrl } = require('../db-config.js');
 
 module.exports = async function handler(req, res) {
   // Set CORS headers
@@ -39,12 +40,13 @@ module.exports = async function handler(req, res) {
     console.log('Super admin login attempt for:', email);
     
     // Connect to database directly
-    if (!process.env.DATABASE_URL) {
+    const databaseUrl = getDatabaseUrl();
+    if (!databaseUrl) {
       return res.status(500).json({ message: "Database not configured" });
     }
     
     const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString: databaseUrl,
       ssl: { rejectUnauthorized: false }
     });
     

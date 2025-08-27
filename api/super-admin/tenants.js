@@ -1,5 +1,6 @@
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
+const { getDatabaseUrl } = require('../db-config.js');
 
 module.exports = async function handler(req, res) {
   // Set CORS headers
@@ -14,12 +15,13 @@ module.exports = async function handler(req, res) {
   let pool;
   
   try {
-    if (!process.env.DATABASE_URL) {
+    const databaseUrl = getDatabaseUrl();
+    if (!databaseUrl) {
       return res.status(500).json({ message: 'Database not configured' });
     }
     
     pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString: databaseUrl,
       ssl: { rejectUnauthorized: false }
     });
     
@@ -79,12 +81,23 @@ module.exports = async function handler(req, res) {
       }
       
       // Check if slug already exists
+      console.log('Checking if slug exists:', slug);
       const existingResult = await pool.query(`
         SELECT id FROM tenants WHERE slug = $1
       `, [slug]);
       
+      console.log('Slug check result:', { 
+        slug, 
+        existingCount: existingResult.rows.length, 
+        existing: existingResult.rows 
+      });
+      
       if (existingResult.rows.length > 0) {
-        return res.status(400).json({ message: 'Slug already exists' });
+        console.log('Slug already exists:', slug, existingResult.rows[0]);
+        return res.status(400).json({ 
+          message: 'Slug already exists',
+          existingTenant: existingResult.rows[0]
+        });
       }
       
       // Create tenant
