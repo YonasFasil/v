@@ -2143,18 +2143,42 @@ export class DbStorage implements IStorage {
   }
 
   async getUser(id: string): Promise<User | undefined> {
-    const result = await this.db.select().from(users).where(eq(users.id, id));
-    return result[0];
+    // Direct database query to bypass Drizzle/Neon compatibility issues
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    
+    try {
+      const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+      return result.rows[0];
+    } finally {
+      await pool.end();
+    }
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const result = await this.db.select().from(users).where(eq(users.username, username));
-    return result[0];
+    // Direct database query to bypass Drizzle/Neon compatibility issues
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    
+    try {
+      const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+      return result.rows[0];
+    } finally {
+      await pool.end();
+    }
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const result = await this.db.select().from(users).where(eq(users.email, email));
-    return result[0];
+    // Direct database query to bypass Drizzle/Neon compatibility issues
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    
+    try {
+      const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+      return result.rows[0];
+    } finally {
+      await pool.end();
+    }
   }
 
   async getUsersByTenant(tenantId: string): Promise<User[]> {
@@ -2848,48 +2872,259 @@ export class DbStorage implements IStorage {
 
   // Tenants (super admin access)
   async getTenants(): Promise<any[]> { 
-    return await this.db.select().from(tenants); 
+    // Direct database query to bypass Drizzle/Neon compatibility issues
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    
+    try {
+      const result = await pool.query('SELECT * FROM tenants ORDER BY created_at DESC');
+      return result.rows;
+    } finally {
+      await pool.end();
+    }
   }
   async getTenant(id: string): Promise<any> { 
-    const result = await this.db.select().from(tenants).where(eq(tenants.id, id));
-    return result[0];
+    // Direct database query to bypass Drizzle/Neon compatibility issues
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    
+    try {
+      const result = await pool.query('SELECT * FROM tenants WHERE id = $1', [id]);
+      return result.rows[0];
+    } finally {
+      await pool.end();
+    }
   }
   async createTenant(tenant: any): Promise<any> { 
-    const result = await this.db.insert(tenants).values(tenant).returning();
-    return result[0];
+    // Direct database query to bypass Drizzle/Neon compatibility issues
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    
+    try {
+      const result = await pool.query(
+        `INSERT INTO tenants (id, name, slug, subscription_package_id, status, 
+         subscription_started_at, subscription_ends_at, stripe_customer_id, stripe_subscription_id,
+         created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+        [
+          tenant.id,
+          tenant.name,
+          tenant.slug || tenant.name.toLowerCase().replace(/\s+/g, '-'),
+          tenant.subscriptionPackageId || null,
+          tenant.status || 'active',
+          tenant.subscriptionStartedAt || new Date(),
+          tenant.subscriptionEndsAt || null,
+          tenant.stripeCustomerId || null,
+          tenant.stripeSubscriptionId || null,
+          tenant.createdAt || new Date(),
+          tenant.updatedAt || new Date()
+        ]
+      );
+      return result.rows[0];
+    } finally {
+      await pool.end();
+    }
   }
   async deleteTenant(id: string): Promise<boolean> {
-    const result = await this.db.delete(tenants).where(eq(tenants.id, id));
-    return result.rowCount > 0;
+    // Direct database query to bypass Drizzle/Neon compatibility issues
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    
+    try {
+      const result = await pool.query('DELETE FROM tenants WHERE id = $1', [id]);
+      return result.rowCount > 0;
+    } finally {
+      await pool.end();
+    }
   }
   async updateTenant(id: string, tenant: any): Promise<any> { 
-    const result = await this.db.update(tenants).set(tenant).where(eq(tenants.id, id)).returning();
-    return result[0];
+    // Direct database query to bypass Drizzle/Neon compatibility issues
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    
+    try {
+      const updates = [];
+      const values = [];
+      let paramIndex = 1;
+      
+      if (tenant.name !== undefined) {
+        updates.push(`name = $${paramIndex++}`);
+        values.push(tenant.name);
+      }
+      if (tenant.slug !== undefined) {
+        updates.push(`slug = $${paramIndex++}`);
+        values.push(tenant.slug);
+      }
+      if (tenant.subscriptionPackageId !== undefined) {
+        updates.push(`subscription_package_id = $${paramIndex++}`);
+        values.push(tenant.subscriptionPackageId);
+      }
+      if (tenant.status !== undefined) {
+        updates.push(`status = $${paramIndex++}`);
+        values.push(tenant.status);
+      }
+      if (tenant.subscriptionStartedAt !== undefined) {
+        updates.push(`subscription_started_at = $${paramIndex++}`);
+        values.push(tenant.subscriptionStartedAt);
+      }
+      if (tenant.subscriptionEndsAt !== undefined) {
+        updates.push(`subscription_ends_at = $${paramIndex++}`);
+        values.push(tenant.subscriptionEndsAt);
+      }
+      if (tenant.stripeCustomerId !== undefined) {
+        updates.push(`stripe_customer_id = $${paramIndex++}`);
+        values.push(tenant.stripeCustomerId);
+      }
+      if (tenant.stripeSubscriptionId !== undefined) {
+        updates.push(`stripe_subscription_id = $${paramIndex++}`);
+        values.push(tenant.stripeSubscriptionId);
+      }
+      
+      updates.push(`updated_at = $${paramIndex++}`);
+      values.push(new Date());
+      values.push(id);
+      
+      const result = await pool.query(
+        `UPDATE tenants SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+        values
+      );
+      return result.rows[0];
+    } finally {
+      await pool.end();
+    }
   }
 
   // Subscription Packages (super admin access)
   async getSubscriptionPackages(): Promise<SubscriptionPackage[]> {
-    return await this.db.select().from(subscriptionPackages);
+    // Direct database query to bypass Drizzle/Neon compatibility issues
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    
+    try {
+      const result = await pool.query('SELECT * FROM subscription_packages ORDER BY sort_order, name');
+      return result.rows;
+    } finally {
+      await pool.end();
+    }
   }
 
   async getSubscriptionPackage(id: string): Promise<SubscriptionPackage | undefined> {
-    const result = await this.db.select().from(subscriptionPackages).where(eq(subscriptionPackages.id, id));
-    return result[0];
+    // Direct database query to bypass Drizzle/Neon compatibility issues
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    
+    try {
+      const result = await pool.query('SELECT * FROM subscription_packages WHERE id = $1', [id]);
+      return result.rows[0];
+    } finally {
+      await pool.end();
+    }
   }
 
   async createSubscriptionPackage(packageData: InsertSubscriptionPackage): Promise<SubscriptionPackage> {
-    const result = await this.db.insert(subscriptionPackages).values(packageData).returning();
-    return result[0];
+    // Direct database query to bypass Drizzle/Neon compatibility issues
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    
+    try {
+      const result = await pool.query(
+        `INSERT INTO subscription_packages (id, name, description, price, billing_interval, 
+         max_venues, max_users, features, is_active, sort_order, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+        [
+          packageData.id || require('crypto').randomUUID(),
+          packageData.name,
+          packageData.description || null,
+          packageData.price,
+          packageData.billingInterval || 'monthly',
+          packageData.maxVenues || null,
+          packageData.maxUsers || null,
+          JSON.stringify(packageData.features || []),
+          packageData.isActive ?? true,
+          packageData.sortOrder || null,
+          new Date()
+        ]
+      );
+      return result.rows[0];
+    } finally {
+      await pool.end();
+    }
   }
 
   async updateSubscriptionPackage(id: string, packageData: Partial<InsertSubscriptionPackage>): Promise<SubscriptionPackage | undefined> {
-    const result = await this.db.update(subscriptionPackages).set(packageData).where(eq(subscriptionPackages.id, id)).returning();
-    return result[0];
+    // Direct database query to bypass Drizzle/Neon compatibility issues
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    
+    try {
+      const updates = [];
+      const values = [];
+      let paramIndex = 1;
+      
+      if (packageData.name !== undefined) {
+        updates.push(`name = $${paramIndex++}`);
+        values.push(packageData.name);
+      }
+      if (packageData.description !== undefined) {
+        updates.push(`description = $${paramIndex++}`);
+        values.push(packageData.description);
+      }
+      if (packageData.price !== undefined) {
+        updates.push(`price = $${paramIndex++}`);
+        values.push(packageData.price);
+      }
+      if (packageData.billingInterval !== undefined) {
+        updates.push(`billing_interval = $${paramIndex++}`);
+        values.push(packageData.billingInterval);
+      }
+      if (packageData.maxVenues !== undefined) {
+        updates.push(`max_venues = $${paramIndex++}`);
+        values.push(packageData.maxVenues);
+      }
+      if (packageData.maxUsers !== undefined) {
+        updates.push(`max_users = $${paramIndex++}`);
+        values.push(packageData.maxUsers);
+      }
+      if (packageData.features !== undefined) {
+        updates.push(`features = $${paramIndex++}`);
+        values.push(JSON.stringify(packageData.features));
+      }
+      if (packageData.isActive !== undefined) {
+        updates.push(`is_active = $${paramIndex++}`);
+        values.push(packageData.isActive);
+      }
+      if (packageData.sortOrder !== undefined) {
+        updates.push(`sort_order = $${paramIndex++}`);
+        values.push(packageData.sortOrder);
+      }
+      
+      if (updates.length === 0) {
+        return await this.getSubscriptionPackage(id);
+      }
+      
+      values.push(id);
+      
+      const result = await pool.query(
+        `UPDATE subscription_packages SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+        values
+      );
+      return result.rows[0];
+    } finally {
+      await pool.end();
+    }
   }
 
   async deleteSubscriptionPackage(id: string): Promise<boolean> {
-    const result = await this.db.delete(subscriptionPackages).where(eq(subscriptionPackages.id, id));
-    return result.rowCount > 0;
+    // Direct database query to bypass Drizzle/Neon compatibility issues
+    const { Pool } = require('pg');
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    
+    try {
+      const result = await pool.query('DELETE FROM subscription_packages WHERE id = $1', [id]);
+      return result.rowCount > 0;
+    } finally {
+      await pool.end();
+    }
   }
 }
 

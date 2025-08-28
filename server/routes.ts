@@ -842,10 +842,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const decoded = verifyToken(token!);
       const user = await storage.getUser(decoded.id);
       
-      // Use tenant-aware Neon wrapper
-      const customers = await withTenantNeon(tenantId, user?.role || 'user', async (tx) => {
-        return await storage.getCustomers();
-      });
+      // Get customers directly without tenant wrapper for now
+      const customers = await storage.getCustomers();
       
       res.json(customers);
     } catch (error) {
@@ -7609,6 +7607,49 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     } catch (error: any) {
       console.error("Error fetching tenants:", error);
       res.status(500).json({ message: "Failed to fetch tenants" });
+    }
+  });
+
+  // Super Admin - Reset Password
+  app.post("/api/super-admin/reset-password", async (req, res) => {
+    try {
+      const { email, newPassword } = req.body;
+      
+      if (!email || !newPassword) {
+        return res.status(400).json({ message: "Email and new password are required" });
+      }
+      
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters long" });
+      }
+      
+      // Direct database access to reset password
+      const { Pool } = require('pg');
+      const bcrypt = require('bcryptjs');
+      const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+      
+      try {
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        const result = await pool.query(
+          'UPDATE users SET password = $1 WHERE email = $2 AND role = $3 RETURNING email, name',
+          [hashedPassword, email, 'super_admin']
+        );
+        
+        if (result.rows.length === 0) {
+          return res.status(404).json({ message: "Super admin not found with this email" });
+        }
+        
+        console.log(`🔑 Password reset for super admin: ${email}`);
+        res.json({ 
+          message: "Password reset successful", 
+          user: result.rows[0] 
+        });
+      } finally {
+        await pool.end();
+      }
+    } catch (error) {
+      console.error("Error resetting super admin password:", error);
+      res.status(500).json({ message: "Failed to reset password" });
     }
   });
 

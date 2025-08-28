@@ -5,7 +5,7 @@
 :root {
   --background: hsl(0 0% 100%);
   --foreground: hsl(210 25% 7.8431%);
-  --card: hsl(180 6.6667% 97.0588%);
+  --card: hsl(0 0% 100%);
   --card-foreground: hsl(210 25% 7.8431%);
   --popover: hsl(0 0% 100%);
   --popover-foreground: hsl(210 25% 7.8431%);
@@ -17,9 +17,9 @@
   --muted-foreground: hsl(210 25% 7.8431%);
   --accent: hsl(162 84% 37%);
   --accent-foreground: hsl(0 0% 100%);
-  --destructive: hsl(356.3033 90.5579% 54.3137%);
+  --destructive: hsl(0 84% 60%);
   --destructive-foreground: hsl(0 0% 100%);
-  --border: hsl(201.4286 30.4348% 90.9804%);
+  --border: hsl(214.3 31.8% 91.4%);
   --input: hsl(200 23.0769% 97.4510%);
   --ring: hsl(202.8169 89.1213% 53.1373%);
   --warning: hsl(33 100% 52%);
@@ -83,7 +83,7 @@
   --muted-foreground: hsl(210 3.3898% 46.2745%);
   --accent: hsl(162 84% 37%);
   --accent-foreground: hsl(0 0% 100%);
-  --destructive: hsl(356.3033 90.5579% 54.3137%);
+  --destructive: hsl(0 84% 60%);
   --destructive-foreground: hsl(0 0% 100%);
   --border: hsl(210 5.2632% 14.9020%);
   --input: hsl(207.6923 27.6596% 18.4314%);

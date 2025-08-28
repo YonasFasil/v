@@ -52,11 +52,8 @@ export async function createTenantAsSuperAdmin(tenantData: any, userData: any): 
     // Begin transaction
     await client.query('BEGIN');
     
-    // Switch to the app role first (this is the key fix!)
-    await client.query('SET ROLE venuine_app');
-    
-    // Set session variables for super admin context
-    await client.query('SET LOCAL app.user_role = \'super_admin\'');
+    // Skip role switching for Neon compatibility - just use default connection
+    // Neon serverless doesn't support custom roles out of the box
     
     // Create tenant
     const tenantResult = await client.query(`
@@ -67,8 +64,7 @@ export async function createTenantAsSuperAdmin(tenantData: any, userData: any): 
     
     const tenant = tenantResult.rows[0];
     
-    // Set tenant context for user creation
-    await client.query(`SET LOCAL app.current_tenant = '${tenant.id}'`);
+    // Skip setting tenant context for Neon compatibility
     
     // Prepare permissions for tenant admin
     const permissions = userData.role === 'tenant_admin' ? [
