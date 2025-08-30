@@ -1,0 +1,3 @@
+CREATE TABLE IF NOT EXISTS events (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id UUID NOT NULL, customer_id UUID, venue_id UUID, space_id UUID, title TEXT NOT NULL, description TEXT, start_date DATE NOT NULL, end_date DATE, start_time TIME, end_time TIME, event_type TEXT DEFAULT 'event', status TEXT DEFAULT 'inquiry', estimated_guests INTEGER, actual_guests INTEGER, setup_style TEXT, special_requirements TEXT, catering_notes TEXT, is_active BOOLEAN DEFAULT true, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW());
+
+ALTER TABLE proposals ADD COLUMN IF NOT EXISTS venue_id UUID;

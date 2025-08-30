@@ -21,7 +21,7 @@ interface Props {
 
 const AVAILABLE_FEATURES = [
   // Advanced Features (Professional+)
-  { id: "event_booking", name: "Event Booking", description: "Calendar view and event booking system", category: "advanced" },
+  { id: "calendar_view", name: "Calendar View", description: "Visual calendar interface for event management", category: "advanced" },
   { id: "proposal_system", name: "Proposal System", description: "Generate and send event proposals to customers", category: "advanced" },
   { id: "leads_management", name: "Lead Management", description: "Advanced lead tracking and conversion tools", category: "advanced" },
   { id: "ai_analytics", name: "AI Analytics", description: "Smart insights and predictive analytics", category: "advanced" },
@@ -263,7 +263,7 @@ export function PackageManagementModal({ open, onOpenChange, package: editPackag
                 <div>• Venue Management - Create and manage venue spaces</div>
                 <div>• Customer Management - Manage customer profiles</div>
                 <div>• Payment Processing - Accept payments and transactions</div>
-                <div>• Unlimited Bookings - No limits on monthly bookings</div>
+                <div>• Event Booking - Create and manage events (table view)</div>
               </div>
             </div>
 

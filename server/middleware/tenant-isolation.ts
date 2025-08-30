@@ -182,10 +182,13 @@ function getRLSPool(): Pool {
       throw new Error('DATABASE_URL must be set for RLS tenant isolation');
     }
     
-    // Only support local PostgreSQL for session variables
-    // Neon serverless doesn't support persistent session state
-    if (!databaseUrl.includes('localhost') && !databaseUrl.includes('127.0.0.1')) {
-      throw new Error('RLS tenant isolation requires local PostgreSQL connection');
+    // Support both local PostgreSQL and Supabase for session variables
+    // Supabase supports persistent session state within transactions
+    const isLocal = databaseUrl.includes('localhost') || databaseUrl.includes('127.0.0.1');
+    const isSupabase = databaseUrl.includes('supabase.co');
+    
+    if (!isLocal && !isSupabase) {
+      throw new Error('RLS tenant isolation requires local PostgreSQL or Supabase connection');
     }
     
     rlsPool = new Pool({
@@ -235,14 +238,14 @@ export async function enforceRLSTenantIsolation(req: Request, res: Response, nex
       
       // Set app.current_tenant - used by RLS policies for tenant filtering
       if (tenantId) {
-        await client.query(`SET LOCAL app.current_tenant = '${tenantId}'`);
+        await client.query('SET LOCAL app.current_tenant = $1', [tenantId]);
       } else {
         // For super_admin or users without tenant context
         await client.query('SET LOCAL app.current_tenant = \'\'');
       }
       
       // Set app.user_role - used by RLS policies for role-based access
-      await client.query(`SET LOCAL app.user_role = '${userRole}'`);
+      await client.query('SET LOCAL app.user_role = $1', [userRole]);
       
       // Attach the RLS-aware client to the request
       // This client has the session variables set and persists for the request
@@ -325,12 +328,12 @@ export async function withTenantRLSContext<T>(
     
     // Set session variables
     if (tenantId) {
-      await client.query(`SET LOCAL app.current_tenant = '${tenantId}'`);
+      await client.query('SET LOCAL app.current_tenant = $1', [tenantId]);
     } else {
       await client.query('SET LOCAL app.current_tenant = \'\'');
     }
     
-    await client.query(`SET LOCAL app.user_role = '${userRole}'`);
+    await client.query('SET LOCAL app.user_role = $1', [userRole]);
     
     // Execute operation with RLS context
     const result = await operation(client);

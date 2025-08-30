@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
 
 interface User {
   id: string;
@@ -108,50 +110,44 @@ export function usePermissions() {
     }
   }, []);
 
-  // Fetch tenant features and update permissions accordingly
+  // Use React Query to fetch tenant features with caching
+  const { data: tenantFeaturesData, isLoading: isFeaturesLoading } = useQuery({
+    queryKey: ['/api/tenant-features'],
+    queryFn: () => apiRequest('/api/tenant-features'),
+    enabled: !!(user && user.role !== 'super_admin'),
+    staleTime: 5 * 60 * 1000, // 5 minutes - features don't change often
+    gcTime: 10 * 60 * 1000, // 10 minutes cache time
+    refetchOnWindowFocus: false, // Don't refetch on window focus - reduces API calls
+    refetchOnMount: false, // Don't refetch on component mount if we have cached data
+  });
+
+  // Update tenant features and permissions when data changes
   useEffect(() => {
-    const fetchTenantFeatures = async () => {
-      if (!user || user.role === 'super_admin') return;
+    if (tenantFeaturesData?.features) {
+      setTenantFeatures(tenantFeaturesData.features);
 
-      try {
-        const response = await fetch('/api/tenant-features', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-          }
-        });
+      // Update permissions based on available features (only for tenant_admin)
+      if (user?.role === 'tenant_admin') {
+        const basePermissions = ['dashboard', 'venues', 'bookings', 'customers', 'payments', 'settings', 'users'];
+        let featureBasedPermissions = [...basePermissions];
 
-        if (response.ok) {
-          const data = await response.json();
-          setTenantFeatures(data.features);
-
-          // Update permissions based on available features (only for tenant_admin)
-          if (user.role === 'tenant_admin') {
-            const basePermissions = ['dashboard', 'venues', 'bookings', 'customers', 'payments', 'settings', 'users'];
-            let featureBasedPermissions = [...basePermissions];
-
-            // Map features to additional permissions
-            const enabledFeatureIds = data.features.enabled.map((f: any) => f.id);
-            
-            if (enabledFeatureIds.includes('proposal_system')) {
-              featureBasedPermissions.push('proposals');
-            }
-            if (enabledFeatureIds.includes('task_management')) {
-              featureBasedPermissions.push('tasks');
-            }
-            // voice_booking and ai_analytics don't need separate permissions
-            // they're handled by the existing 'settings' or 'bookings' permissions
-            
-            console.log('[PERMISSIONS] Feature-based permissions:', featureBasedPermissions);
-            setPermissions(featureBasedPermissions);
-          }
+        // Map features to additional permissions
+        const enabledFeatureIds = tenantFeaturesData.features.enabled.map((f: any) => f.id);
+        
+        if (enabledFeatureIds.includes('proposal_system')) {
+          featureBasedPermissions.push('proposals');
         }
-      } catch (error) {
-        console.error('[PERMISSIONS] Error fetching tenant features:', error);
+        if (enabledFeatureIds.includes('task_management')) {
+          featureBasedPermissions.push('tasks');
+        }
+        // voice_booking and ai_analytics don't need separate permissions
+        // they're handled by the existing 'settings' or 'bookings' permissions
+        
+        console.log('[PERMISSIONS] Feature-based permissions:', featureBasedPermissions);
+        setPermissions(featureBasedPermissions);
       }
-    };
-
-    fetchTenantFeatures();
-  }, [user]);
+    }
+  }, [tenantFeaturesData, user]);
 
   const hasPermission = (permission: string): boolean => {
     return permissions.includes(permission);
@@ -182,6 +178,7 @@ export function usePermissions() {
     user,
     permissions,
     tenantFeatures,
+    loading: isFeaturesLoading && user && user.role !== 'super_admin',
     hasPermission,
     hasFeature,
     hasAnyPermission,

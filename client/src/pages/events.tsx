@@ -16,6 +16,7 @@ import { StatusChangeModal } from "@/components/modals/status-change-modal";
 import { ProposalTrackingModal } from "@/components/proposals/proposal-tracking-modal";
 import { AdvancedCalendar } from "@/components/dashboard/advanced-calendar";
 import { useBookings } from "@/hooks/use-bookings";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useQuery } from "@tanstack/react-query";
 import { Calendar, Clock, MapPin, Users, Table as TableIcon, DollarSign, FileText, Plus, Search, Filter, MoreHorizontal, Eye, Menu } from "lucide-react";
 import { format } from "date-fns";
@@ -25,6 +26,10 @@ import { getStatusConfig } from "@shared/status-utils";
 export default function Events() {
   const { data: bookings, isLoading } = useBookings();
   const { formatEventDate, formatEventTime, formatEventTimeRange } = useEventTime();
+  const { hasFeature } = usePermissions();
+  
+  // Check if user has calendar view feature
+  const hasCalendarView = hasFeature('calendar_view');
   
   // Fetch proposals to check which events have proposals
   const { data: proposals = [] } = useQuery({
@@ -37,7 +42,7 @@ export default function Events() {
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const [viewMode, setViewMode] = useState<"calendar" | "table">("table");
+  const [viewMode, setViewMode] = useState<"calendar" | "table">("table"); // Default to table, calendar only if feature available
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showProposalModal, setShowProposalModal] = useState(false);
@@ -153,22 +158,26 @@ export default function Events() {
             <div className="space-y-6">
               {/* View Mode Tabs */}
               <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as "calendar" | "table")}>
-                <TabsList className="grid w-64 grid-cols-2">
+                <TabsList className={`grid w-64 ${hasCalendarView ? 'grid-cols-2' : 'grid-cols-1'}`}>
                   <TabsTrigger value="table" className="flex items-center gap-2">
                     <TableIcon className="h-4 w-4" />
                     Table
                   </TabsTrigger>
-                  <TabsTrigger value="calendar" className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Calendar
-                  </TabsTrigger>
+                  {hasCalendarView && (
+                    <TabsTrigger value="calendar" className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Calendar
+                    </TabsTrigger>
+                  )}
                 </TabsList>
 
-                <TabsContent value="calendar" className="space-y-6">
-                  <div className="h-[calc(100vh-280px)] md:h-[calc(100vh-280px)]">
-                    <AdvancedCalendar onEventClick={setSelectedBooking} />
-                  </div>
-                </TabsContent>
+                {hasCalendarView && (
+                  <TabsContent value="calendar" className="space-y-6">
+                    <div className="h-[calc(100vh-280px)] md:h-[calc(100vh-280px)]">
+                      <AdvancedCalendar onEventClick={setSelectedBooking} />
+                    </div>
+                  </TabsContent>
+                )}
 
 
                 <TabsContent value="table" className="space-y-0">

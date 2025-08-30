@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +17,7 @@ import {
   Plus
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
-import { getStatusConfig, getAllStatuses, type EventStatus } from "@shared/status-utils";
+import { getStatusConfig, getStatusColor, getAllStatuses, type EventStatus } from "@shared/status-utils";
 
 interface CalendarEvent {
   id: string;
@@ -49,7 +50,8 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
 
   // Fetch calendar data based on mode
   const { data: calendarData, isLoading } = useQuery({
-    queryKey: [`/api/calendar/events?mode=${viewMode}`]
+    queryKey: ['/api/calendar/events', { mode: viewMode }],
+    queryFn: () => apiRequest(`/api/calendar/events?mode=${viewMode}`)
   });
 
   const events = calendarData?.mode === 'events' ? calendarData.data as CalendarEvent[] : [];

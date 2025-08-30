@@ -9,9 +9,9 @@ export interface FeatureRequest extends TenantRequest {
 // Mapping of feature IDs to their descriptions and categories
 export const AVAILABLE_FEATURES = {
   // Optional Features (can be included in packages)
-  event_booking: {
-    name: "Event Booking",
-    description: "Calendar view and event booking system", 
+  calendar_view: {
+    name: "Calendar View",
+    description: "Visual calendar interface for event management", 
     category: "advanced"
   },
   proposal_system: {
@@ -61,7 +61,8 @@ const DEFAULT_FEATURES = [
   'dashboard_analytics',
   'venue_management', 
   'customer_management',
-  'payment_processing'
+  'payment_processing',
+  'event_booking'  // Event booking is now a default feature
 ];
 
 /**
@@ -70,23 +71,51 @@ const DEFAULT_FEATURES = [
 export async function getTenantFeatures(tenantId: string): Promise<string[]> {
   const tenant = await storage.getTenant(tenantId);
   if (!tenant) {
+    console.log('[TENANT-FEATURES-DEBUG] No tenant found for ID:', tenantId);
     return DEFAULT_FEATURES;
   }
 
   // If no package assigned, return default features only
-  if (!tenant.subscriptionPackageId) {
+  // Handle both camelCase and snake_case field names
+  const subscriptionPackageId = tenant.subscriptionPackageId || tenant.subscription_package_id;
+  console.log('[TENANT-FEATURES-DEBUG] Tenant object:', JSON.stringify(tenant, null, 2));
+  console.log('[TENANT-FEATURES-DEBUG] subscriptionPackageId resolved as:', subscriptionPackageId);
+  
+  if (!subscriptionPackageId) {
+    console.log('[TENANT-FEATURES-DEBUG] No subscription package ID found, returning default features');
     return DEFAULT_FEATURES;
   }
 
   // Get the subscription package
-  const subscriptionPackage = await storage.getSubscriptionPackage(tenant.subscriptionPackageId);
-  if (!subscriptionPackage || !subscriptionPackage.isActive) {
+  console.log('[TENANT-FEATURES-DEBUG] Fetching subscription package with ID:', subscriptionPackageId);
+  const subscriptionPackage = await storage.getSubscriptionPackage(subscriptionPackageId);
+  console.log('[TENANT-FEATURES-DEBUG] getSubscriptionPackage result:', subscriptionPackage ? 'found' : 'null', subscriptionPackage?.name || 'no-name');
+  
+  // Handle both camelCase and snake_case field names
+  const isActive = subscriptionPackage?.isActive ?? subscriptionPackage?.is_active;
+  console.log('[TENANT-FEATURES-DEBUG] Package isActive:', isActive);
+  
+  if (!subscriptionPackage || !isActive) {
+    console.log('[TENANT-FEATURES-DEBUG] Package not found or inactive, returning default features');
     return DEFAULT_FEATURES;
   }
 
-  // Combine default features with package-specific features
+  // Get package features
   const packageFeatures = Array.isArray(subscriptionPackage.features) ? subscriptionPackage.features : [];
-  return [...DEFAULT_FEATURES, ...packageFeatures];
+  
+  // If package includes "everything", grant all available features
+  if (packageFeatures.includes('everything')) {
+    const allFeatureIds = Object.keys(AVAILABLE_FEATURES);
+    return [...DEFAULT_FEATURES, ...allFeatureIds];
+  }
+
+  // Filter package features to only include valid feature IDs from AVAILABLE_FEATURES
+  const validPackageFeatures = packageFeatures.filter(feature => 
+    Object.keys(AVAILABLE_FEATURES).includes(feature)
+  );
+
+  // Combine default features with valid package-specific features
+  return [...DEFAULT_FEATURES, ...validPackageFeatures];
 }
 
 /**
@@ -117,7 +146,7 @@ export function addFeatureAccess(req: FeatureRequest, res: Response, next: NextF
  * Middleware to require a specific feature for an endpoint
  */
 export function requireFeature(featureId: string) {
-  return (req: FeatureRequest, res: Response, next: NextFunction) => {
+  return async (req: FeatureRequest, res: Response, next: NextFunction) => {
     if (!req.tenant) {
       return res.status(401).json({ 
         message: "Authentication required",
@@ -125,7 +154,7 @@ export function requireFeature(featureId: string) {
       });
     }
 
-    if (!hasFeatureAccess(req.tenant.id, featureId)) {
+    if (!(await hasFeatureAccess(req.tenant.id, featureId))) {
       const feature = AVAILABLE_FEATURES[featureId as keyof typeof AVAILABLE_FEATURES];
       return res.status(403).json({ 
         message: `This feature (${feature?.name || featureId}) is not available in your current subscription plan`,

@@ -68,7 +68,7 @@ export default function SuperAdminLogin() {
                 type="email"
                 value={credentials.email}
                 onChange={(e) => setCredentials(prev => ({ ...prev, email: e.target.value }))}
-                placeholder="admin@yourcompany.com"
+                placeholder="admin@yourdomain.com"
                 required
               />
             </div>
@@ -112,8 +112,8 @@ export default function SuperAdminLogin() {
           <div className="mt-6 text-center text-sm text-gray-600">
             <p>Default credentials for testing:</p>
             <p className="font-mono text-xs bg-gray-100 p-2 rounded mt-2">
-              Email: admin@yourcompany.com<br />
-              Password: password
+              Email: admin@yourdomain.com<br />
+              Password: VenueAdmin2024!
             </p>
           </div>
         </CardContent>

@@ -69,12 +69,14 @@ export interface IStorage {
 
   // Venues
   getVenues(): Promise<Venue[]>;
+  getVenuesByTenant(tenantId: string): Promise<Venue[]>;
   getVenue(id: string): Promise<Venue | undefined>;
   createVenue(venue: InsertVenue): Promise<Venue>;
   updateVenue(id: string, venue: Partial<InsertVenue>): Promise<Venue | undefined>;
 
   // Spaces
   getSpaces(): Promise<Space[]>;
+  getSpacesByTenant(tenantId: string): Promise<Space[]>;
   getSpace(id: string): Promise<Space | undefined>;
   getSpacesByVenue(venueId: string): Promise<Space[]>;
   createSpace(space: InsertSpace): Promise<Space>;
@@ -82,6 +84,7 @@ export interface IStorage {
 
   // Setup Styles
   getSetupStyles(): Promise<SetupStyle[]>;
+  getSetupStylesByTenant(tenantId: string): Promise<SetupStyle[]>;
   getSetupStyle(id: string): Promise<SetupStyle | undefined>;
   createSetupStyle(setupStyle: InsertSetupStyle): Promise<SetupStyle>;
   updateSetupStyle(id: string, setupStyle: Partial<InsertSetupStyle>): Promise<SetupStyle | undefined>;
@@ -89,6 +92,7 @@ export interface IStorage {
 
   // Companies
   getCompanies(): Promise<Company[]>;
+  getCompaniesByTenant(tenantId: string): Promise<Company[]>;
   getCompany(id: string): Promise<Company | undefined>;
   createCompany(company: InsertCompany): Promise<Company>;
   updateCompany(id: string, company: Partial<InsertCompany>): Promise<Company | undefined>;
@@ -96,6 +100,7 @@ export interface IStorage {
 
   // Customers
   getCustomers(): Promise<Customer[]>;
+  getCustomersByTenant(tenantId: string): Promise<Customer[]>;
   getCustomer(id: string): Promise<Customer | undefined>;
   getCustomerByEmail(email: string): Promise<Customer | undefined>;
   getCustomersByCompany(companyId: string): Promise<Customer[]>;
@@ -104,6 +109,7 @@ export interface IStorage {
 
   // Contracts
   getContracts(): Promise<Contract[]>;
+  getContractsByTenant(tenantId: string): Promise<Contract[]>;
   getContract(id: string): Promise<Contract | undefined>;
   getContractsByCustomer(customerId: string): Promise<Contract[]>;
   createContract(contract: InsertContract): Promise<Contract>;
@@ -112,6 +118,7 @@ export interface IStorage {
 
   // Bookings
   getBookings(): Promise<Booking[]>;
+  getBookingsByTenant(tenantId: string): Promise<Booking[]>;
   getBooking(id: string): Promise<Booking | undefined>;
   getBookingsByCustomer(customerId: string): Promise<Booking[]>;
   getBookingsByContract(contractId: string): Promise<Booking[]>;
@@ -163,12 +170,14 @@ export interface IStorage {
 
   // Packages & Services
   getPackages(): Promise<Package[]>;
+  getPackagesByTenant(tenantId: string): Promise<Package[]>;
   getPackage(id: string): Promise<Package | undefined>;
   createPackage(pkg: InsertPackage): Promise<Package>;
   updatePackage(id: string, pkg: Partial<InsertPackage>): Promise<Package | undefined>;
   deletePackage(id: string): Promise<boolean>;
 
   getServices(): Promise<Service[]>;
+  getServicesByTenant(tenantId: string): Promise<Service[]>;
   getService(id: string): Promise<Service | undefined>;
   createService(service: InsertService): Promise<Service>;
   updateService(id: string, service: Partial<InsertService>): Promise<Service | undefined>;
@@ -911,6 +920,10 @@ export class MemStorage implements IStorage {
     return [];
   }
 
+  async getVenuesByTenant(tenantId: string): Promise<Venue[]> {
+    return Array.from(this.venues.values()).filter(venue => venue.tenantId === tenantId);
+  }
+
   async getVenue(id: string): Promise<Venue | undefined> {
     return this.venues.get(id);
   }
@@ -962,6 +975,10 @@ export class MemStorage implements IStorage {
     
     // If no tenant context, return empty array for security
     return [];
+  }
+
+  async getSpacesByTenant(tenantId: string): Promise<Space[]> {
+    return Array.from(this.spaces.values()).filter(space => space.tenantId === tenantId);
   }
 
   async getSpace(id: string): Promise<Space | undefined> {
@@ -1021,6 +1038,10 @@ export class MemStorage implements IStorage {
     return [];
   }
 
+  async getCustomersByTenant(tenantId: string): Promise<Customer[]> {
+    return Array.from(this.customers.values()).filter(customer => customer.tenantId === tenantId);
+  }
+
   async getCustomer(id: string): Promise<Customer | undefined> {
     return this.customers.get(id);
   }
@@ -1062,6 +1083,10 @@ export class MemStorage implements IStorage {
   // Companies
   async getCompanies(): Promise<Company[]> {
     return Array.from(this.companies.values());
+  }
+
+  async getCompaniesByTenant(tenantId: string): Promise<Company[]> {
+    return Array.from(this.companies.values()).filter(company => company.tenantId === tenantId);
   }
 
   async getCompany(id: string): Promise<Company | undefined> {
@@ -1111,6 +1136,10 @@ export class MemStorage implements IStorage {
   // Contracts
   async getContracts(): Promise<Contract[]> {
     return Array.from(this.contracts.values());
+  }
+
+  async getContractsByTenant(tenantId: string): Promise<Contract[]> {
+    return Array.from(this.contracts.values()).filter(contract => contract.tenantId === tenantId);
   }
 
   async getContract(id: string): Promise<Contract | undefined> {
@@ -1169,6 +1198,10 @@ export class MemStorage implements IStorage {
     
     // If no tenant context, return empty array for security
     return [];
+  }
+
+  async getBookingsByTenant(tenantId: string): Promise<Booking[]> {
+    return Array.from(this.bookings.values()).filter(booking => booking.tenantId === tenantId);
   }
 
   async getBooking(id: string): Promise<Booking | undefined> {
@@ -1393,6 +1426,10 @@ export class MemStorage implements IStorage {
     return []; // No tenant context = no access
   }
 
+  async getPackagesByTenant(tenantId: string): Promise<Package[]> {
+    return Array.from(this.packages.values()).filter(pkg => pkg.tenantId === tenantId);
+  }
+
   async getPackage(id: string): Promise<Package | undefined> {
     const pkg = this.packages.get(id);
     if (!pkg) return undefined;
@@ -1446,6 +1483,10 @@ export class MemStorage implements IStorage {
     }
     
     return []; // No tenant context = no access
+  }
+
+  async getServicesByTenant(tenantId: string): Promise<Service[]> {
+    return Array.from(this.services.values()).filter(service => service.tenantId === tenantId);
   }
 
   async getService(id: string): Promise<Service | undefined> {
@@ -1643,6 +1684,10 @@ export class MemStorage implements IStorage {
   // Setup Styles methods
   async getSetupStyles(): Promise<SetupStyle[]> {
     return Array.from(this.setupStyles.values());
+  }
+
+  async getSetupStylesByTenant(tenantId: string): Promise<SetupStyle[]> {
+    return Array.from(this.setupStyles.values()).filter(style => style.tenantId === tenantId);
   }
 
   async getSetupStyle(id: string): Promise<SetupStyle | undefined> {
@@ -2144,41 +2189,68 @@ export class DbStorage implements IStorage {
 
   async getUser(id: string): Promise<User | undefined> {
     // Direct database query to bypass Drizzle/Neon compatibility issues
-    const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    const result = await sharedPool.query('SELECT * FROM users WHERE id = $1', [id]);
+    const row = result.rows[0];
+    if (!row) return undefined;
     
-    try {
-      const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
-      return result.rows[0];
-    } finally {
-      await pool.end();
-    }
+    // Map database field names to TypeScript property names
+    return {
+      ...row,
+      tenantId: row.tenant_id,
+      isActive: row.is_active,
+      lastLoginAt: row.last_login_at,
+      stripeAccountId: row.stripe_account_id,
+      stripeAccountStatus: row.stripe_account_status,
+      stripeOnboardingCompleted: row.stripe_onboarding_completed,
+      stripeChargesEnabled: row.stripe_charges_enabled,
+      stripePayoutsEnabled: row.stripe_payouts_enabled,
+      stripeConnectedAt: row.stripe_connected_at,
+      createdAt: row.created_at
+    };
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     // Direct database query to bypass Drizzle/Neon compatibility issues
-    const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    const result = await sharedPool.query('SELECT * FROM users WHERE username = $1', [username]);
+    const row = result.rows[0];
+    if (!row) return undefined;
     
-    try {
-      const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
-      return result.rows[0];
-    } finally {
-      await pool.end();
-    }
+    // Map database field names to TypeScript property names
+    return {
+      ...row,
+      tenantId: row.tenant_id,
+      isActive: row.is_active,
+      lastLoginAt: row.last_login_at,
+      stripeAccountId: row.stripe_account_id,
+      stripeAccountStatus: row.stripe_account_status,
+      stripeOnboardingCompleted: row.stripe_onboarding_completed,
+      stripeChargesEnabled: row.stripe_charges_enabled,
+      stripePayoutsEnabled: row.stripe_payouts_enabled,
+      stripeConnectedAt: row.stripe_connected_at,
+      createdAt: row.created_at
+    };
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
     // Direct database query to bypass Drizzle/Neon compatibility issues
-    const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    const result = await sharedPool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const row = result.rows[0];
+    if (!row) return undefined;
     
-    try {
-      const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-      return result.rows[0];
-    } finally {
-      await pool.end();
-    }
+    // Map database field names to TypeScript property names
+    return {
+      ...row,
+      tenantId: row.tenant_id,
+      isActive: row.is_active,
+      lastLoginAt: row.last_login_at,
+      stripeAccountId: row.stripe_account_id,
+      stripeAccountStatus: row.stripe_account_status,
+      stripeOnboardingCompleted: row.stripe_onboarding_completed,
+      stripeChargesEnabled: row.stripe_charges_enabled,
+      stripePayoutsEnabled: row.stripe_payouts_enabled,
+      stripeConnectedAt: row.stripe_connected_at,
+      createdAt: row.created_at
+    };
   }
 
   async getUsersByTenant(tenantId: string): Promise<User[]> {
@@ -2216,6 +2288,10 @@ export class DbStorage implements IStorage {
       // Return all venues so routes can manually filter by tenant - this maintains compatibility
       return await this.db.select().from(venues);
     }
+  }
+
+  async getVenuesByTenant(tenantId: string): Promise<Venue[]> {
+    return await this.db.select().from(venues).where(eq(venues.tenantId, tenantId));
   }
 
   async getVenue(id: string): Promise<Venue | undefined> {
@@ -2267,32 +2343,75 @@ export class DbStorage implements IStorage {
 
   // Spaces
   async getSpaces(): Promise<Space[]> {
+    // Direct database query to bypass Drizzle/Neon compatibility issues
     const context = await getCurrentTenantContext();
     
-    if (context.role === 'super_admin') {
-      return await this.db.select().from(spaces);
-    } else if (context.tenantId) {
+    try {
+      if (context.role === 'super_admin') {
+        const result = await sharedPool.query('SELECT * FROM spaces ORDER BY created_at');
+        return result.rows.map(row => ({
+          ...row,
+          venueId: row.venue_id,
+          pricePerHour: row.price_per_hour,
+          imageUrl: row.image_url,
+          availableSetupStyles: row.available_setup_styles,
+          floorPlan: row.floor_plan,
+          isActive: row.is_active,
+          createdAt: row.created_at
+        }));
+      } else if (context.tenantId) {
+        // Join with venues to filter spaces by tenant
+        const result = await sharedPool.query(`
+          SELECT s.* 
+          FROM spaces s
+          INNER JOIN venues v ON s.venue_id = v.id
+          WHERE v.tenant_id = $1 AND s.is_active = true
+          ORDER BY s.created_at
+        `, [context.tenantId]);
+        
+        return result.rows.map(row => ({
+          ...row,
+          venueId: row.venue_id,
+          pricePerHour: row.price_per_hour,
+          imageUrl: row.image_url,
+          availableSetupStyles: row.available_setup_styles,
+          floorPlan: row.floor_plan,
+          isActive: row.is_active,
+          createdAt: row.created_at
+        }));
+      } else {
+        console.warn('WARNING: getSpaces() called without proper tenant context');
+        return [];
+      }
+    } catch (error) {
+      console.error('Error getting spaces:', error);
+      return [];
+    }
+  }
+
+  async getSpacesByTenant(tenantId: string): Promise<Space[]> {
+    try {
       // Join with venues to filter spaces by tenant
-      return await this.db
-        .select({
-          id: spaces.id,
-          venueId: spaces.venueId,
-          name: spaces.name,
-          description: spaces.description,
-          capacity: spaces.capacity,
-          pricePerHour: spaces.pricePerHour,
-          amenities: spaces.amenities,
-          imageUrl: spaces.imageUrl,
-          availableSetupStyles: spaces.availableSetupStyles,
-          floorPlan: spaces.floorPlan,
-          isActive: spaces.isActive,
-          createdAt: spaces.createdAt
-        })
-        .from(spaces)
-        .innerJoin(venues, eq(spaces.venueId, venues.id))
-        .where(eq(venues.tenantId, context.tenantId));
-    } else {
-      console.warn('WARNING: getSpaces() called without proper tenant context');
+      const result = await sharedPool.query(`
+        SELECT s.* 
+        FROM spaces s
+        INNER JOIN venues v ON s.venue_id = v.id
+        WHERE v.tenant_id = $1 AND s.is_active = true
+        ORDER BY s.created_at
+      `, [tenantId]);
+      
+      return result.rows.map(row => ({
+        ...row,
+        venueId: row.venue_id,
+        pricePerHour: row.price_per_hour,
+        imageUrl: row.image_url,
+        availableSetupStyles: row.available_setup_styles,
+        floorPlan: row.floor_plan,
+        isActive: row.is_active,
+        createdAt: row.created_at
+      }));
+    } catch (error) {
+      console.error('Error getting spaces by tenant:', error);
       return [];
     }
   }
@@ -2331,12 +2450,70 @@ export class DbStorage implements IStorage {
   }
 
   async getSpacesByVenue(venueId: string): Promise<Space[]> {
-    return await this.db.select().from(spaces).where(eq(spaces.venueId, venueId));
+    // Direct database query to bypass Drizzle/Neon compatibility issues
+    try {
+      const result = await sharedPool.query(
+        'SELECT * FROM spaces WHERE venue_id = $1 AND is_active = true ORDER BY created_at',
+        [venueId]
+      );
+      
+      // Map database fields to camelCase for each space
+      return result.rows.map(row => ({
+        ...row,
+        venueId: row.venue_id,
+        pricePerHour: row.price_per_hour,
+        imageUrl: row.image_url,
+        availableSetupStyles: row.available_setup_styles,
+        floorPlan: row.floor_plan,
+        isActive: row.is_active,
+        createdAt: row.created_at
+      }));
+    } catch (error) {
+      console.error('Error getting spaces by venue:', error);
+      return [];
+    }
   }
 
   async createSpace(space: InsertSpace): Promise<Space> {
-    const result = await this.db.insert(spaces).values(space).returning();
-    return result[0];
+    // Direct database query to bypass Drizzle/Neon compatibility issues
+    try {
+      const spaceId = space.id || require('crypto').randomUUID();
+      const result = await sharedPool.query(
+        `INSERT INTO spaces (id, venue_id, name, description, capacity, price_per_hour, 
+         amenities, image_url, available_setup_styles, floor_plan, is_active, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+        [
+          spaceId,
+          space.venueId,
+          space.name,
+          space.description || null,
+          space.capacity,
+          space.pricePerHour || null,
+          space.amenities || [],
+          space.imageUrl || null,
+          space.availableSetupStyles || [],
+          space.floorPlan ? JSON.stringify(space.floorPlan) : null,
+          space.isActive ?? true,
+          new Date()
+        ]
+      );
+      
+      // Map database fields to camelCase
+      const row = result.rows[0];
+      return {
+        ...row,
+        venueId: row.venue_id,
+        pricePerHour: row.price_per_hour,
+        imageUrl: row.image_url,
+        availableSetupStyles: row.available_setup_styles,
+        floorPlan: row.floor_plan,
+        isActive: row.is_active,
+        createdAt: row.created_at
+      };
+    } catch (error) {
+      console.error('Error creating space:', error);
+      throw error;
+    }
   }
 
   async updateSpace(id: string, space: Partial<InsertSpace>): Promise<Space | undefined> {
@@ -2347,6 +2524,10 @@ export class DbStorage implements IStorage {
   // Setup Styles
   async getSetupStyles(): Promise<SetupStyle[]> {
     return await this.db.select().from(setupStyles);
+  }
+
+  async getSetupStylesByTenant(tenantId: string): Promise<SetupStyle[]> {
+    return await this.db.select().from(setupStyles).where(eq(setupStyles.tenantId, tenantId));
   }
 
   async getSetupStyle(id: string): Promise<SetupStyle | undefined> {
@@ -2372,6 +2553,10 @@ export class DbStorage implements IStorage {
   // Companies
   async getCompanies(): Promise<Company[]> {
     return await this.db.select().from(companies);
+  }
+
+  async getCompaniesByTenant(tenantId: string): Promise<Company[]> {
+    return await this.db.select().from(companies).where(eq(companies.tenantId, tenantId));
   }
 
   async getCompany(id: string): Promise<Company | undefined> {
@@ -2406,6 +2591,10 @@ export class DbStorage implements IStorage {
       console.warn('WARNING: getCustomers() called without proper tenant context');
       return [];
     }
+  }
+
+  async getCustomersByTenant(tenantId: string): Promise<Customer[]> {
+    return await this.db.select().from(customers).where(eq(customers.tenantId, tenantId));
   }
 
   async getCustomer(id: string): Promise<Customer | undefined> {
@@ -2447,6 +2636,11 @@ export class DbStorage implements IStorage {
       return [];
     }
   }
+
+  async getContractsByTenant(tenantId: string): Promise<Contract[]> {
+    return await this.db.select().from(contracts).where(eq(contracts.tenantId, tenantId));
+  }
+  
   async getContract(id: string): Promise<Contract | undefined> { 
     const result = await this.db.select().from(contracts).where(eq(contracts.id, id));
     return result[0];
@@ -2479,6 +2673,11 @@ export class DbStorage implements IStorage {
       return [];
     }
   }
+
+  async getBookingsByTenant(tenantId: string): Promise<Booking[]> {
+    return await this.db.select().from(bookings).where(eq(bookings.tenantId, tenantId));
+  }
+
   async getBooking(id: string): Promise<Booking | undefined> { 
     const result = await this.db.select().from(bookings).where(eq(bookings.id, id));
     return result[0];
@@ -2620,6 +2819,11 @@ export class DbStorage implements IStorage {
       return [];
     }
   }
+
+  async getPackagesByTenant(tenantId: string): Promise<Package[]> {
+    return await this.db.select().from(packages).where(eq(packages.tenantId, tenantId));
+  }
+
   async getPackage(id: string): Promise<Package | undefined> { 
     const result = await this.db.select().from(packages).where(eq(packages.id, id));
     return result[0];
@@ -2649,6 +2853,11 @@ export class DbStorage implements IStorage {
       return [];
     }
   }
+
+  async getServicesByTenant(tenantId: string): Promise<Service[]> {
+    return await this.db.select().from(services).where(eq(services.tenantId, tenantId));
+  }
+
   async getService(id: string): Promise<Service | undefined> { 
     const result = await this.db.select().from(services).where(eq(services.id, id));
     return result[0];
@@ -2873,35 +3082,18 @@ export class DbStorage implements IStorage {
   // Tenants (super admin access)
   async getTenants(): Promise<any[]> { 
     // Direct database query to bypass Drizzle/Neon compatibility issues
-    const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    
-    try {
-      const result = await pool.query('SELECT * FROM tenants ORDER BY created_at DESC');
-      return result.rows;
-    } finally {
-      await pool.end();
-    }
+    const result = await sharedPool.query('SELECT * FROM tenants ORDER BY created_at DESC');
+    return result.rows;
   }
   async getTenant(id: string): Promise<any> { 
     // Direct database query to bypass Drizzle/Neon compatibility issues
-    const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    
-    try {
-      const result = await pool.query('SELECT * FROM tenants WHERE id = $1', [id]);
-      return result.rows[0];
-    } finally {
-      await pool.end();
-    }
+    const result = await sharedPool.query('SELECT * FROM tenants WHERE id = $1', [id]);
+    return result.rows[0];
   }
   async createTenant(tenant: any): Promise<any> { 
     // Direct database query to bypass Drizzle/Neon compatibility issues
-    const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    
     try {
-      const result = await pool.query(
+      const result = await sharedPool.query(
         `INSERT INTO tenants (id, name, slug, subscription_package_id, status, 
          subscription_started_at, subscription_ends_at, stripe_customer_id, stripe_subscription_id,
          created_at, updated_at)
@@ -2921,27 +3113,23 @@ export class DbStorage implements IStorage {
         ]
       );
       return result.rows[0];
-    } finally {
-      await pool.end();
+    } catch (error) {
+      console.error('Error creating tenant:', error);
+      throw error;
     }
   }
   async deleteTenant(id: string): Promise<boolean> {
     // Direct database query to bypass Drizzle/Neon compatibility issues
-    const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    
     try {
-      const result = await pool.query('DELETE FROM tenants WHERE id = $1', [id]);
+      const result = await sharedPool.query('DELETE FROM tenants WHERE id = $1', [id]);
       return result.rowCount > 0;
-    } finally {
-      await pool.end();
+    } catch (error) {
+      console.error('Error deleting tenant:', error);
+      throw error;
     }
   }
   async updateTenant(id: string, tenant: any): Promise<any> { 
     // Direct database query to bypass Drizzle/Neon compatibility issues
-    const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    
     try {
       const updates = [];
       const values = [];
@@ -2984,50 +3172,34 @@ export class DbStorage implements IStorage {
       values.push(new Date());
       values.push(id);
       
-      const result = await pool.query(
+      const result = await sharedPool.query(
         `UPDATE tenants SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
         values
       );
       return result.rows[0];
-    } finally {
-      await pool.end();
+    } catch (error) {
+      console.error('Error updating tenant:', error);
+      throw error;
     }
   }
 
   // Subscription Packages (super admin access)
   async getSubscriptionPackages(): Promise<SubscriptionPackage[]> {
     // Direct database query to bypass Drizzle/Neon compatibility issues
-    const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    
-    try {
-      const result = await pool.query('SELECT * FROM subscription_packages ORDER BY sort_order, name');
-      return result.rows;
-    } finally {
-      await pool.end();
-    }
+    const result = await sharedPool.query('SELECT * FROM subscription_packages ORDER BY sort_order, name');
+    return result.rows;
   }
 
   async getSubscriptionPackage(id: string): Promise<SubscriptionPackage | undefined> {
     // Direct database query to bypass Drizzle/Neon compatibility issues
-    const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    
-    try {
-      const result = await pool.query('SELECT * FROM subscription_packages WHERE id = $1', [id]);
-      return result.rows[0];
-    } finally {
-      await pool.end();
-    }
+    const result = await sharedPool.query('SELECT * FROM subscription_packages WHERE id = $1', [id]);
+    return result.rows[0];
   }
 
   async createSubscriptionPackage(packageData: InsertSubscriptionPackage): Promise<SubscriptionPackage> {
     // Direct database query to bypass Drizzle/Neon compatibility issues
-    const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    
     try {
-      const result = await pool.query(
+      const result = await sharedPool.query(
         `INSERT INTO subscription_packages (id, name, description, price, billing_interval, 
          max_venues, max_users, features, is_active, sort_order, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
@@ -3046,16 +3218,14 @@ export class DbStorage implements IStorage {
         ]
       );
       return result.rows[0];
-    } finally {
-      await pool.end();
+    } catch (error) {
+      console.error('Error creating subscription package:', error);
+      throw error;
     }
   }
 
   async updateSubscriptionPackage(id: string, packageData: Partial<InsertSubscriptionPackage>): Promise<SubscriptionPackage | undefined> {
     // Direct database query to bypass Drizzle/Neon compatibility issues
-    const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    
     try {
       const updates = [];
       const values = [];
@@ -3104,32 +3274,40 @@ export class DbStorage implements IStorage {
       
       values.push(id);
       
-      const result = await pool.query(
+      const result = await sharedPool.query(
         `UPDATE subscription_packages SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
         values
       );
       return result.rows[0];
-    } finally {
-      await pool.end();
+    } catch (error) {
+      console.error('Error updating subscription package:', error);
+      throw error;
     }
   }
 
   async deleteSubscriptionPackage(id: string): Promise<boolean> {
     // Direct database query to bypass Drizzle/Neon compatibility issues
-    const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    
     try {
-      const result = await pool.query('DELETE FROM subscription_packages WHERE id = $1', [id]);
+      const result = await sharedPool.query('DELETE FROM subscription_packages WHERE id = $1', [id]);
       return result.rowCount > 0;
-    } finally {
-      await pool.end();
+    } catch (error) {
+      console.error('Error deleting subscription package:', error);
+      throw error;
     }
   }
 }
 
 // Import database instance
 import { db } from './db.js';
+
+// Create a shared PostgreSQL pool for direct queries (avoiding Drizzle/Neon issues)
+const { Pool } = require('pg');
+const sharedPool = new Pool({ 
+  connectionString: process.env.DATABASE_URL,
+  max: 10, // Maximum pool size
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+});
 
 // Use database-backed storage for production tenant isolation
 // Switch to DbStorage now that database is available

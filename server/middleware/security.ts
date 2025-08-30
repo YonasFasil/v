@@ -29,7 +29,7 @@ export function setupSecurity(app: Express) {
       // Production allowlist - only specific domains
       const allowedOrigins = process.env.NODE_ENV === 'production' 
         ? ['https://app.venuine.com', 'https://venuine.com']
-        : ['http://localhost:5173', 'http://localhost:5000', 'http://localhost:3000'];
+        : ['http://localhost:5173', 'http://localhost:5000', 'http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3003', 'http://localhost:3004'];
       
       // Allow environment override for custom domains
       if (process.env.CORS_ORIGINS) {

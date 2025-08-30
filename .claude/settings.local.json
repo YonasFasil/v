@@ -40,6 +40,7 @@
       "WebFetch(domain:localhost)",
       "Bash(\"C:\\Program Files\\PostgreSQL\\16\\bin\\psql.exe\" -U postgres -d venuedb -c \"SELECT name, features FROM subscription_packages WHERE is_active = true ORDER BY name;\")",
       "Bash(git merge:*)",
+<<<<<<< HEAD
       "Bash(PORT=5019 npx tsx server/index.ts)",
       "Bash(\"C:\\Program Files\\PostgreSQL\\16\\bin\\psql.exe\" -U postgres -d venuedb -c \"SELECT email, role FROM users WHERE role = ''super_admin'';\")",
       "Bash(PORT=3000 npx tsx server/index.ts)",
@@ -59,6 +60,12 @@
       "Bash(PORT=2222 npx tsx server/index.ts)",
       "Bash(PORT=2323 npx tsx server/index.ts)",
       "Bash(PORT=2424 npx tsx server/index.ts)"
+=======
+      "WebFetch(domain:venuinenew-9yickzxju-yonasfasils-projects.vercel.app)",
+      "WebFetch(domain:venuinenew-g0bm3pypa-yonasfasils-projects.vercel.app)",
+      "Bash(npm ls:*)",
+      "WebFetch(domain:venuinenew.vercel.app)"
+>>>>>>> b9d4d0be61267d074cd374fce17a8445b26aac46
     ],
     "deny": [],
     "ask": [],

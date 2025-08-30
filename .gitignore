@@ -82,4 +82,8 @@ uploads/
 
 # Session files
 sessions/
+<<<<<<< HEAD
 nul
+=======
+.vercel
+>>>>>>> b9d4d0be61267d074cd374fce17a8445b26aac46

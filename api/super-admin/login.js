@@ -1,7 +1,7 @@
-const { neon } = require('@neondatabase/serverless');
+const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { requireEnv } = require('../../server/utils/requireEnv');
+const { getDatabaseUrl } = require('../db-config.js');
 
 module.exports = async function handler(req, res) {
   // Set CORS headers
@@ -18,7 +18,20 @@ module.exports = async function handler(req, res) {
   }
   
   try {
-    const { email, password } = req.body;
+    // Parse request body for serverless function
+    let body = req.body;
+    if (typeof body === 'string') {
+      body = JSON.parse(body);
+    }
+    
+    console.log('Request body type:', typeof req.body);
+    console.log('Request body:', req.body);
+    console.log('Parsed body:', body);
+    
+    const { email, password } = body;
+    
+    console.log('Extracted email:', email);
+    console.log('Extracted password length:', password ? password.length : 'undefined');
     
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required" });
@@ -27,26 +40,32 @@ module.exports = async function handler(req, res) {
     console.log('Super admin login attempt for:', email);
     
     // Connect to database directly
-    if (!process.env.DATABASE_URL) {
+    const databaseUrl = getDatabaseUrl();
+    if (!databaseUrl) {
       return res.status(500).json({ message: "Database not configured" });
     }
     
-    const sql = neon(process.env.DATABASE_URL);
+    const pool = new Pool({
+      connectionString: databaseUrl,
+      ssl: { rejectUnauthorized: false }
+    });
     
     // Query for super admin user
-    const users = await sql`
+    const result = await pool.query(`
       SELECT id, username, password, name, email, role, permissions 
       FROM users 
-      WHERE email = ${email} AND role = 'super_admin' AND is_active = true
+      WHERE email = $1 AND role = 'super_admin' AND is_active = true
       LIMIT 1
-    `;
+    `, [email]);
     
-    if (users.length === 0) {
+    await pool.end();
+    
+    if (result.rows.length === 0) {
       console.log('Super admin user not found with email:', email);
       return res.status(401).json({ message: "Invalid credentials" });
     }
     
-    const user = users[0];
+    const user = result.rows[0];
     
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
@@ -56,7 +75,10 @@ module.exports = async function handler(req, res) {
     }
     
     // Generate JWT token
-    const jwtSecret = requireEnv('JWT_SECRET');
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      return res.status(500).json({ message: "JWT secret not configured" });
+    }
     const token = jwt.sign(
       {
         id: user.id,

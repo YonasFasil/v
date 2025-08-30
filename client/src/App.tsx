@@ -34,7 +34,9 @@ const PaymentCheckout = lazy(() => import("@/pages/payment-checkout"));
 const PaymentSuccess = lazy(() => import("@/pages/payment-success"));
 const SuperAdminDashboard = lazy(() => import("@/pages/super-admin-dashboard"));
 const Users = lazy(() => import("@/pages/users"));
+const UpgradePackage = lazy(() => import("@/pages/upgrade-package"));
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { FullyProtectedRoute } from "@/components/auth/FullyProtectedRoute";
 
 // Loading component for lazy-loaded routes
 function PageLoader() {
@@ -53,6 +55,25 @@ function LazyProtectedRoute({ children }: { children: React.ReactNode }) {
         {children}
       </Suspense>
     </ProtectedRoute>
+  );
+}
+
+// Wrapper for feature-protected routes
+function LazyFeatureProtectedRoute({ 
+  children, 
+  requiredFeature, 
+  featureName 
+}: { 
+  children: React.ReactNode;
+  requiredFeature: string;
+  featureName: string;
+}) {
+  return (
+    <FullyProtectedRoute requiredFeature={requiredFeature} featureName={featureName}>
+      <Suspense fallback={<PageLoader />}>
+        {children}
+      </Suspense>
+    </FullyProtectedRoute>
   );
 }
 
@@ -76,9 +97,9 @@ function Router() {
         </LazyProtectedRoute>
       </Route>
       <Route path="/leads">
-        <LazyProtectedRoute>
+        <LazyFeatureProtectedRoute requiredFeature="leads_management" featureName="Lead Management">
           <Leads />
-        </LazyProtectedRoute>
+        </LazyFeatureProtectedRoute>
       </Route>
       <Route path="/payments">
         <LazyProtectedRoute>
@@ -86,9 +107,9 @@ function Router() {
         </LazyProtectedRoute>
       </Route>
       <Route path="/tasks">
-        <LazyProtectedRoute>
+        <LazyFeatureProtectedRoute requiredFeature="task_management" featureName="Task Management">
           <Tasks />
-        </LazyProtectedRoute>
+        </LazyFeatureProtectedRoute>
       </Route>
       <Route path="/venues">
         <LazyProtectedRoute>
@@ -96,9 +117,9 @@ function Router() {
         </LazyProtectedRoute>
       </Route>
       <Route path="/setup-styles">
-        <LazyProtectedRoute>
+        <LazyFeatureProtectedRoute requiredFeature="floor_plans" featureName="Floor Plans">
           <SetupStyles />
-        </LazyProtectedRoute>
+        </LazyFeatureProtectedRoute>
       </Route>
       <Route path="/packages">
         <LazyProtectedRoute>
@@ -106,19 +127,19 @@ function Router() {
         </LazyProtectedRoute>
       </Route>
       <Route path="/ai-analytics">
-        <LazyProtectedRoute>
+        <LazyFeatureProtectedRoute requiredFeature="ai_analytics" featureName="AI Analytics">
           <AIAnalytics />
-        </LazyProtectedRoute>
+        </LazyFeatureProtectedRoute>
       </Route>
       <Route path="/reports">
-        <LazyProtectedRoute>
+        <LazyFeatureProtectedRoute requiredFeature="advanced_reports" featureName="Advanced Reports">
           <Reports />
-        </LazyProtectedRoute>
+        </LazyFeatureProtectedRoute>
       </Route>
       <Route path="/voice-booking">
-        <LazyProtectedRoute>
+        <LazyFeatureProtectedRoute requiredFeature="voice_booking" featureName="Voice Booking">
           <VoiceBooking />
-        </LazyProtectedRoute>
+        </LazyFeatureProtectedRoute>
       </Route>
       <Route path="/settings">
         <LazyProtectedRoute>
@@ -126,9 +147,9 @@ function Router() {
         </LazyProtectedRoute>
       </Route>
       <Route path="/proposals">
-        <LazyProtectedRoute>
+        <LazyFeatureProtectedRoute requiredFeature="proposal_system" featureName="Proposal System">
           <Proposals />
-        </LazyProtectedRoute>
+        </LazyFeatureProtectedRoute>
       </Route>
       <Route path="/users">
         <ProtectedRoute requiredRole="tenant_admin">
@@ -136,6 +157,11 @@ function Router() {
             <Users />
           </Suspense>
         </ProtectedRoute>
+      </Route>
+      <Route path="/upgrade-package">
+        <LazyProtectedRoute>
+          <UpgradePackage />
+        </LazyProtectedRoute>
       </Route>
       <Route path="/proposal/:proposalId">
         <Suspense fallback={<PageLoader />}>

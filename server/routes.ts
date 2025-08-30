@@ -48,13 +48,82 @@ import {
 } from "./services/gemini";
 import { getStatusColor, type EventStatus } from "@shared/status-utils";
 
-// Configure multer for file uploads
-const upload = multer({
+// Secure file upload configurations
+
+// File type validation helper
+const isValidImportFile = (mimetype: string, filename: string): boolean => {
+  const allowedTypes = [
+    'text/csv',
+    'application/vnd.ms-excel', // .xls
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+    'text/plain' // .txt
+  ];
+  const allowedExtensions = ['.csv', '.xlsx', '.xls', '.txt'];
+  
+  const hasValidMime = allowedTypes.includes(mimetype);
+  const hasValidExtension = allowedExtensions.some(ext => 
+    filename.toLowerCase().endsWith(ext)
+  );
+  
+  return hasValidMime && hasValidExtension;
+};
+
+// Sanitize filename to prevent path traversal
+const sanitizeFilename = (filename: string): string => {
+  return filename
+    .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace special chars
+    .replace(/^\.+/, '') // Remove leading dots
+    .replace(/\.+$/, '') // Remove trailing dots
+    .substring(0, 100); // Limit length
+};
+
+// Import upload configuration (CSV/Excel only)
+const importUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit for imports
+    files: 1, // Only one file at a time
+  },
+  fileFilter: (req, file, cb) => {
+    if (!isValidImportFile(file.mimetype, file.originalname)) {
+      return cb(new Error('Invalid file type. Only CSV, Excel (.xlsx, .xls) and TXT files are allowed.'));
+    }
+    
+    // Sanitize the filename
+    file.originalname = sanitizeFilename(file.originalname);
+    cb(null, true);
+  }
+});
+
+// General attachment upload (for communications)
+const attachmentUpload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
+    files: 5 // Max 5 attachments
   },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/jpg', 
+      'image/png',
+      'text/plain',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    
+    if (!allowedTypes.includes(file.mimetype)) {
+      return cb(new Error('Invalid file type. Only PDF, images, and text documents are allowed.'));
+    }
+    
+    // Sanitize the filename
+    file.originalname = sanitizeFilename(file.originalname);
+    cb(null, true);
+  }
 });
+
+// All upload configurations completed
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -224,13 +293,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/tenant-features", 
     requireAuth(),
     async (req: AuthenticatedRequest, res) => {
+    console.log('[TENANT-FEATURES-DEBUG] Starting tenant-features request');
     try {
       const user = req.user;
+      console.log('[TENANT-FEATURES-DEBUG] User:', user?.email, 'tenantId:', user?.tenantId);
       if (!user?.tenantId) {
+        console.log('[TENANT-FEATURES-DEBUG] No tenantId found in user');
         return res.status(400).json({ message: "No tenant associated with user" });
       }
 
+      // Get tenant information
+      console.log('[TENANT-FEATURES-DEBUG] Looking for tenant:', user.tenantId);
+      const tenant = await storage.getTenant(user.tenantId);
+      console.log('[TENANT-FEATURES-DEBUG] Found tenant:', tenant ? 'YES' : 'NO', tenant?.name, tenant?.subscriptionPackageId);
+      if (!tenant) {
+        console.log('[TENANT-FEATURES-DEBUG] Tenant lookup failed');
+        return res.status(404).json({ message: "Tenant not found. Please check your account setup." });
+      }
+
+      console.log('[TENANT-FEATURES-DEBUG] About to call getTenantFeatures with tenantId:', user.tenantId);
       const availableFeatures = await getTenantFeatures(user.tenantId);
+      console.log('[TENANT-FEATURES-DEBUG] getTenantFeatures returned:', availableFeatures.length, 'features:', availableFeatures);
       const featureDetails = availableFeatures.map(featureId => ({
         id: featureId,
         ...AVAILABLE_FEATURES[featureId as keyof typeof AVAILABLE_FEATURES] || { name: featureId, description: '', category: 'default' },
@@ -248,6 +331,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }));
 
       res.json({
+        tenant: tenant,
+        package: tenant?.subscriptionPackageId ? await storage.getSubscriptionPackage(tenant.subscriptionPackageId) : null,
         features: {
           enabled: featureDetails,
           disabled: disabledFeatures,
@@ -458,12 +543,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not found" });
       }
       
-      // Get all venues and filter by tenant
-      const allVenues = await storage.getVenues();
-      console.log(`🏢 VENUES API: Total venues in DB: ${allVenues.length}`);
-      console.log(`🏢 VENUES API: User tenant: ${user.tenantId}`);
-      const venues = allVenues.filter(v => v.tenantId === user.tenantId);
-      console.log(`🎯 VENUES API: Returning ${venues.length} venues for tenant`);
+      // Get venues filtered by tenant
+      const venues = await storage.getVenuesByTenant(tenantId);
+      console.log(`🎯 VENUES API: Returning ${venues.length} venues for tenant ${tenantId}`);
       
       res.json(venues);
     } catch (error) {
@@ -564,8 +646,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Authentication required" });
       }
       
-      // Get spaces - RLS will automatically filter by tenant
-      const spaces = await storage.getSpaces();
+      // Get spaces filtered by tenant
+      const spaces = await storage.getSpacesByTenant(tenantId);
       
       res.json(spaces);
     } catch (error) {
@@ -601,7 +683,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Authentication required" });
       }
       
-      const setupStyles = await storage.getSetupStyles();
+      const setupStyles = await storage.getSetupStylesByTenant(tenantId);
       res.json(setupStyles);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch setup styles" });
@@ -752,8 +834,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const venuesWithSpaces = await Promise.all(
         venues.map(async (venue) => {
-          const allSpaces = await storage.getSpaces();
-          const spaces = allSpaces.filter(s => s.venueId === venue.id && s.tenantId === user.tenantId);
+          const spaces = await storage.getSpacesByVenue(venue.id);
           console.log(`🔍 Venue ${venue.name}: ${spaces.length} spaces`);
           return { ...venue, spaces };
         })
@@ -774,7 +855,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Authentication required" });
       }
       
-      const packages = await storage.getPackages();
+      const packages = await storage.getPackagesByTenant(tenantId);
       res.json(packages);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch packages" });
@@ -805,7 +886,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Authentication required" });
       }
       
-      const services = await storage.getServices();
+      const services = await storage.getServicesByTenant(tenantId);
       res.json(services);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch services" });
@@ -842,8 +923,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const decoded = verifyToken(token!);
       const user = await storage.getUser(decoded.id);
       
-      // Get customers directly without tenant wrapper for now
-      const customers = await storage.getCustomers();
+      // Get customers filtered by tenant
+      const customers = await storage.getCustomersByTenant(tenantId);
       
       res.json(customers);
     } catch (error) {
@@ -860,10 +941,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Authentication required" });
       }
       
-      // RLS automatically filters by tenant
-      const customers = await storage.getCustomers();
-      const bookings = await storage.getBookings();
-      const payments = await storage.getPayments();
+      // Get data filtered by tenant
+      const customers = await storage.getCustomersByTenant(tenantId);
+      const bookings = await storage.getBookingsByTenant(tenantId);
+      const payments = await storage.getPayments(); // Payments will be filtered by tenant in storage layer
       
       const customerAnalytics = customers.map(customer => {
         // Find all bookings for this customer
@@ -980,7 +1061,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Authentication required" });
       }
       
-      const companies = await storage.getCompanies();
+      const companies = await storage.getCompaniesByTenant(tenantId);
       res.json(companies);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch companies" });
@@ -1099,7 +1180,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Authentication required" });
       }
       
-      const contracts = await storage.getContracts();
+      const contracts = await storage.getContractsByTenant(tenantId);
       res.json(contracts);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch contracts" });
@@ -1192,7 +1273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Authentication required" });
       }
       
-      const bookings = await storage.getBookings();
+      const bookings = await storage.getBookingsByTenant(tenantId);
       
       // Debug: Log what bookings exist for conflict detection
       console.log('🔍 GET /api/bookings - returning bookings for conflict detection:', bookings.map(b => ({
@@ -1489,6 +1570,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Booking update error:', error);
       res.status(500).json({ message: "Failed to update booking" });
+    }
+  });
+
+  // Bulk update all bookings in a contract (for multi-date events)
+  app.patch("/api/bookings/contract/:contractId/status", async (req, res) => {
+    try {
+      const tenantId = await getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const contractId = req.params.contractId;
+      const updateData = { ...req.body };
+
+      // Auto-complete booking if status is being set to completed and no completedAt timestamp
+      if (updateData.status === "completed" && !updateData.completedAt) {
+        updateData.completedAt = new Date();
+      }
+
+      // Handle cancellation data
+      if (updateData.status === "cancelled") {
+        if (!updateData.cancelledAt) {
+          updateData.cancelledAt = new Date();
+        }
+        // Ensure cancellation reason is provided
+        if (!updateData.cancellationReason) {
+          return res.status(400).json({ message: "Cancellation reason is required" });
+        }
+      }
+
+      // Get all bookings for this contract to verify tenant ownership
+      const contractBookings = await storage.getBookingsByContract(contractId);
+      
+      if (!contractBookings || contractBookings.length === 0) {
+        return res.status(404).json({ message: "Contract bookings not found" });
+      }
+
+      // Verify all bookings belong to this tenant
+      const belongsToTenant = contractBookings.every(booking => booking.tenantId === tenantId);
+      if (!belongsToTenant) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+
+      // Update all bookings in the contract
+      const updatedBookings = [];
+      for (const booking of contractBookings) {
+        const updated = await storage.updateBooking(booking.id, updateData);
+        if (updated) {
+          updatedBookings.push(updated);
+        }
+      }
+
+      res.json({ 
+        message: `Updated ${updatedBookings.length} bookings in contract`, 
+        bookings: updatedBookings 
+      });
+    } catch (error) {
+      console.error('Contract booking update error:', error);
+      res.status(500).json({ message: "Failed to update contract bookings" });
     }
   });
 
@@ -2130,6 +2270,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Proposals
   app.get("/api/proposals", 
     requireAuth('proposals'),
+    requireTenant,
+    addFeatureAccess,
+    requireFeature('proposal_system'),
     async (req: AuthenticatedRequest, res) => {
     try {
       const tenantId = req.user!.tenantId;
@@ -2144,7 +2287,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/proposals", async (req, res) => {
+  app.post("/api/proposals", 
+    requireAuth('proposals'),
+    requireTenant,
+    addFeatureAccess,
+    requireFeature('proposal_system'),
+    async (req, res) => {
     try {
       const tenantId = await getTenantIdFromAuth(req);
       if (!tenantId) {
@@ -2287,6 +2435,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Tasks
   app.get("/api/tasks", 
     requireAuth('tasks'),
+    requireTenant,
+    addFeatureAccess,
+    requireFeature('task_management'),
     async (req: AuthenticatedRequest, res) => {
     try {
       const tenantId = req.user!.tenantId;
@@ -2303,6 +2454,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/tasks", 
     requireAuth('tasks'),
+    requireTenant,
+    addFeatureAccess,
+    requireFeature('task_management'),
     async (req: AuthenticatedRequest, res) => {
     try {
       const tenantId = req.user!.tenantId;
@@ -2377,11 +2531,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Features
   // ===== IMPORT ROUTES =====
   
-  app.post("/api/packages/import", async (req, res) => {
+  app.post("/api/packages/import", importUpload.single('file'), async (req, res) => {
     try {
-      const { items } = req.body;
+      // Get tenant ID for isolation
+      const tenantId = await getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      let items;
+      
+      // Handle file upload if present
+      if (req.file) {
+        try {
+          const fileBuffer = req.file.buffer;
+          const fileName = req.file.originalname.toLowerCase();
+          
+          if (fileName.endsWith('.csv')) {
+            // Parse CSV
+            const csvText = fileBuffer.toString('utf-8');
+            const Papa = require('papaparse');
+            const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+            items = parsed.data.map((row: any, index: number) => ({ ...row, row: index + 2 }));
+          } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+            // Parse Excel
+            const XLSX = require('xlsx');
+            const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+            items = jsonData.map((row: any, index: number) => ({ ...row, row: index + 2 }));
+          } else {
+            return res.status(400).json({ error: "Unsupported file format" });
+          }
+        } catch (parseError) {
+          console.error('File parsing error:', parseError);
+          return res.status(400).json({ error: "Failed to parse uploaded file" });
+        }
+      } else {
+        // Fallback to JSON body for API compatibility
+        items = req.body.items;
+      }
+
       if (!items || !Array.isArray(items)) {
-        return res.status(400).json({ error: "Invalid import data" });
+        return res.status(400).json({ error: "Invalid import data - expected file upload or items array" });
       }
 
       let imported = 0;
@@ -2399,7 +2592,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
 
-          // Create the package
+          // Create the package with tenant ID
           const newPackage = {
             name: item.name,
             description: item.description || "",
@@ -2407,12 +2600,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             price: item.price.toString(),
             pricingModel: item.pricingModel || "fixed",
             applicableSpaceIds: [],
-            includedServiceIds: []
+            includedServiceIds: [],
+            tenantId: tenantId
           };
 
-          // If includedServices are provided, try to match them with existing services
+          // If includedServices are provided, try to match them with existing tenant services
           if (item.includedServices && item.includedServices.length > 0) {
-            const allServices = await storage.getServices();
+            const allServices = await storage.getServicesByTenant(tenantId);
             const matchedServiceIds = [];
             const unmatchedServices = [];
             
@@ -2457,11 +2651,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/services/import", async (req, res) => {
+  app.post("/api/services/import", importUpload.single('file'), async (req, res) => {
     try {
-      const { items } = req.body;
+      // Get tenant ID for isolation
+      const tenantId = await getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      let items;
+      
+      // Handle file upload if present
+      if (req.file) {
+        try {
+          const fileBuffer = req.file.buffer;
+          const fileName = req.file.originalname.toLowerCase();
+          
+          if (fileName.endsWith('.csv')) {
+            // Parse CSV
+            const csvText = fileBuffer.toString('utf-8');
+            const Papa = require('papaparse');
+            const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+            items = parsed.data.map((row: any, index: number) => ({ ...row, row: index + 2 }));
+          } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+            // Parse Excel
+            const XLSX = require('xlsx');
+            const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+            items = jsonData.map((row: any, index: number) => ({ ...row, row: index + 2 }));
+          } else {
+            return res.status(400).json({ error: "Unsupported file format" });
+          }
+        } catch (parseError) {
+          console.error('File parsing error:', parseError);
+          return res.status(400).json({ error: "Failed to parse uploaded file" });
+        }
+      } else {
+        // Fallback to JSON body for API compatibility
+        items = req.body.items;
+      }
+
       if (!items || !Array.isArray(items)) {
-        return res.status(400).json({ error: "Invalid import data" });
+        return res.status(400).json({ error: "Invalid import data - expected file upload or items array" });
       }
 
       let imported = 0;
@@ -2477,13 +2710,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
 
-          // Create the service
+          // Create the service with tenant ID
           const newService = {
             name: item.name,
             description: item.description || "",
             category: item.category,
             price: item.price.toString(),
-            pricingModel: item.pricingModel || "fixed"
+            pricingModel: item.pricingModel || "fixed",
+            tenantId: tenantId
           };
 
           await storage.createService(newService);
@@ -3549,6 +3783,9 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
   // Enhanced calendar data for two different modes
   app.get("/api/calendar/events", 
     requireAuth('bookings'),
+    requireTenant,
+    addFeatureAccess,
+    requireFeature('event_booking'),
     async (req: AuthenticatedRequest, res) => {
     try {
       const tenantId = req.user!.tenantId;
@@ -6023,7 +6260,7 @@ Respond with specific, factual information from the actual data only. If the use
     }
   });
 
-  app.post("/api/proposals/:id/communications", upload.array('attachments', 5), async (req, res) => {
+  app.post("/api/proposals/:id/communications", attachmentUpload.array('attachments', 5), async (req, res) => {
     try {
       console.log('Received communication data:', req.body);
       console.log('Received files:', req.files ? (req.files as Express.Multer.File[]).length : 0);
@@ -7992,6 +8229,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     try {
       const tenantId = req.params.id;
       const updateData = req.body;
+      console.log('[TENANT-UPDATE] Updating tenant:', tenantId, 'with data:', updateData);
       
       const tenant = await storage.getTenant(tenantId);
       if (!tenant) {
@@ -8004,8 +8242,10 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
         ...updateData,
         updatedAt: new Date()
       };
+      console.log('[TENANT-UPDATE] Updated tenant object:', updatedTenant);
       
       await storage.updateTenant(tenantId, updatedTenant);
+      console.log('[TENANT-UPDATE] Tenant updated successfully');
       res.json(updatedTenant);
     } catch (error: any) {
       console.error("Error updating tenant:", error);

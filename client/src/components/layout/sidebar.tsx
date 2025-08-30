@@ -27,7 +27,7 @@ import {
 
 const navigationItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, permission: "dashboard" },
-  { name: "Events & Bookings", href: "/events", icon: Calendar, permission: "bookings", feature: "event_booking" },
+  { name: "Events & Bookings", href: "/events", icon: Calendar, permission: "bookings" },  // No feature required - it's default now
   { name: "Customers", href: "/customers", icon: Users, permission: "customers" },
   { name: "Leads", href: "/leads", icon: UserPlus, permission: "customers", feature: "leads_management" },
   { name: "Proposals", href: "/proposals", icon: FileText, permission: "proposals", feature: "proposal_system" },
@@ -311,6 +311,32 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
                 </Link>
               );
             })}
+          </div>
+        )}
+
+        {/* Upgrade Package Button - Show for non-super admin users */}
+        {!collapsed && user && user.role !== 'super_admin' && (
+          <div className="pt-4 px-4">
+            <Link href="/upgrade-package">
+              <div className="flex items-center px-3 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-lg text-white font-medium transition-all duration-200 cursor-pointer">
+                <Zap className="w-5 h-5 mr-3" />
+                Upgrade Package
+              </div>
+            </Link>
+          </div>
+        )}
+
+        {/* Upgrade Package Button - Collapsed */}
+        {collapsed && user && user.role !== 'super_admin' && (
+          <div className="pt-4 px-2">
+            <Link href="/upgrade-package">
+              <div 
+                className="flex items-center justify-center w-10 h-10 mx-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-lg text-white transition-all duration-200 cursor-pointer"
+                title="Upgrade Package"
+              >
+                <Zap className="w-5 h-5" />
+              </div>
+            </Link>
           </div>
         )}
       </nav>

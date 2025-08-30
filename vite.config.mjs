@@ -23,6 +23,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 500,
   },
   server: {
+    port: 3001,
     fs: {
       strict: true,
       deny: ["**/.*"],

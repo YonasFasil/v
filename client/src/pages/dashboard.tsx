@@ -17,6 +17,7 @@ import { EventEditFullModal } from "@/components/forms/event-edit-full-modal";
 import { EventSummaryModal } from "@/components/forms/event-summary-modal";
 import { CreateEventModal } from "@/components/forms/create-event-modal";
 import { VoiceBookingModal } from "@/components/ai/voice-booking-modal";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export default function Dashboard() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -25,6 +26,9 @@ export default function Dashboard() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCreateEventModal, setShowCreateEventModal] = useState(false);
   const [showVoiceBookingModal, setShowVoiceBookingModal] = useState(false);
+  
+  const { hasFeature } = usePermissions();
+  const hasCalendarView = hasFeature('calendar_view');
   
   // Load full contract data if event is part of a contract
   const { data: allBookings = [] } = useQuery({ queryKey: ["/api/bookings"] });
@@ -71,10 +75,12 @@ export default function Dashboard() {
           
           {/* Main Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4 flex-1">
-            {/* Calendar - Full Width */}
-            <div className="lg:col-span-12">
-              <AdvancedCalendar onEventClick={handleEventClick} />
-            </div>
+            {/* Calendar - Full Width (only if feature is available) */}
+            {hasCalendarView && (
+              <div className="lg:col-span-12">
+                <AdvancedCalendar onEventClick={handleEventClick} />
+              </div>
+            )}
             
             {/* Recent Bookings - Full Width */}
             <div className="lg:col-span-8 h-full min-h-[500px]">

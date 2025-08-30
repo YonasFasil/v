@@ -49,9 +49,10 @@ const FEATURE_DESCRIPTIONS = {
   venue_management: "Create and manage venue spaces and amenities", 
   customer_management: "Manage customer profiles and contact information",
   payment_processing: "Accept payments and manage transactions",
+  event_booking: "Create and manage events (table view) - Default feature",
   
   // Optional features (package-dependent)
-  event_booking: "Calendar view and event booking system",
+  calendar_view: "Visual calendar interface for event management",
   proposal_system: "Generate and send event proposals to customers",
   leads_management: "Advanced lead tracking and conversion tools",
   ai_analytics: "Smart insights and predictive analytics",
@@ -86,7 +87,7 @@ const getAvailablePermissions = (packageFeatures: string[]) => {
   ];
   
   const featurePermissions: {[key: string]: string[]} = {
-    event_booking: ["event_view", "event_create", "event_edit", "event_delete"],
+    calendar_view: ["calendar_view_access", "calendar_navigation"],
     proposal_system: ["proposal_view", "proposal_create", "proposal_edit", "proposal_delete"],
     leads_management: ["lead_view", "lead_create", "lead_edit", "lead_delete"],
     ai_analytics: ["ai_analytics_view", "ai_insights_access"],
@@ -113,7 +114,6 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
   
   const [editData, setEditData] = useState({
     name: "",
-    customDomain: "",
     status: "active",
     subscriptionPackageId: "",
     primaryColor: "#3b82f6",
@@ -146,19 +146,20 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
     enabled: open
   });
 
-  // Get current package for this tenant
-  const currentPackage = packages.find(pkg => pkg.id === tenant?.subscriptionPackageId);
+  // Get current package for this tenant (handle both camelCase and snake_case)
+  const tenantPackageId = tenant?.subscriptionPackageId || tenant?.subscription_package_id;
+  const currentPackage = packages.find(pkg => pkg.id === tenantPackageId);
   const packageFeatures = Array.isArray(currentPackage?.features) ? currentPackage.features : [];
 
   // Update local state when tenant changes
   useEffect(() => {
     if (tenant) {
+      const packageId = tenant.subscriptionPackageId || tenant.subscription_package_id || "none";
       setEditData({
         name: tenant.name || "",
-        customDomain: tenant.customDomain || "",
         status: tenant.status || "active",
-        subscriptionPackageId: tenant.subscriptionPackageId || "none",
-        primaryColor: tenant.primaryColor || "#3b82f6",
+        subscriptionPackageId: packageId,
+        primaryColor: tenant.primaryColor || tenant.primary_color || "#3b82f6",
         notes: ""
       });
     }
@@ -197,7 +198,7 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
     mutationFn: (userData: typeof newUserData) =>
       apiRequest(`/api/super-admin/tenants/${tenant?.id}/users`, {
         method: "POST",
-        body: JSON.stringify(userData),
+        body: JSON.stringify({...userData, tenantId: tenant?.id}),
       }),
     onSuccess: () => {
       toast({ title: "User added successfully" });
@@ -267,7 +268,7 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
       return;
     }
-    addUserMutation.mutate({ ...newUserData, tenantId: tenant?.id });
+    addUserMutation.mutate(newUserData);
   };
 
   const handlePermissionToggle = (userId: string, permission: string) => {
@@ -375,15 +376,6 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="customDomain">Custom Domain</Label>
-                    <Input
-                      id="customDomain"
-                      value={editData.customDomain}
-                      onChange={(e) => setEditData(prev => ({ ...prev, customDomain: e.target.value }))}
-                      placeholder="bookings.company.com"
-                    />
-                  </div>
-                  <div>
                     <Label htmlFor="status">Status</Label>
                     <Select 
                       value={editData.status} 
@@ -421,8 +413,8 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
                   </div>
                   <div className="flex justify-between">
                     <span>Status:</span>
-                    <Badge className={getStatusColor(tenant.status)}>
-                      {tenant.status}
+                    <Badge className={getStatusColor(editData.status)}>
+                      {editData.status}
                     </Badge>
                   </div>
                   <div className="flex justify-between">
@@ -520,7 +512,7 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
                       <div>
                         <h5 className="text-sm font-medium text-blue-700 mb-2">Package Features</h5>
                         <div className="grid grid-cols-1 gap-2">
-                          {['event_booking', 'proposal_system', 'leads_management', 'ai_analytics', 'voice_booking', 'floor_plans', 'advanced_reports', 'task_management', 'custom_fields'].map((featureId) => {
+                          {['calendar_view', 'proposal_system', 'leads_management', 'ai_analytics', 'voice_booking', 'floor_plans', 'advanced_reports', 'task_management', 'custom_fields'].map((featureId) => {
                             const isIncluded = packageFeatures.includes(featureId);
                             return (
                               <div
@@ -570,6 +562,17 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
                 )}
               </CardContent>
             </Card>
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleUpdateTenant}
+                disabled={updateTenantMutation.isPending}
+              >
+                {updateTenantMutation.isPending ? "Updating..." : "Update Tenant"}
+              </Button>
+            </div>
           </TabsContent>
 
           <TabsContent value="users" className="space-y-4">
@@ -855,6 +858,17 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
                 </div>
               </CardContent>
             </Card>
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleUpdateTenant}
+                disabled={updateTenantMutation.isPending}
+              >
+                {updateTenantMutation.isPending ? "Updating..." : "Update Tenant"}
+              </Button>
+            </div>
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-4">
@@ -885,6 +899,17 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
                 </div>
               </CardContent>
             </Card>
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleUpdateTenant}
+                disabled={updateTenantMutation.isPending}
+              >
+                {updateTenantMutation.isPending ? "Updating..." : "Update Tenant"}
+              </Button>
+            </div>
           </TabsContent>
         </Tabs>
       </DialogContent>

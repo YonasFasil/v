@@ -1,5 +1,5 @@
-const { drizzle } = require('drizzle-orm/neon-serverless');
-const { neon, neonConfig } = require('@neondatabase/serverless');
+const { drizzle } = require('drizzle-orm/node-postgres');
+const { Pool } = require('pg');
 const { eq } = require('drizzle-orm');
 require('dotenv/config');
 
@@ -7,11 +7,11 @@ require('dotenv/config');
 const schema = require('../dist/shared/schema');
 const users = schema.users;
 
-// Configure Neon
-neonConfig.fetchConnectionCache = true;
-
-const sql = neon(process.env.DATABASE_URL);
-const db = drizzle(sql);
+const pool = new Pool({ 
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
+const db = drizzle(pool);
 
 const ALL_PERMISSIONS = [
   'view_dashboard',

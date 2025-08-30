@@ -115,14 +115,14 @@ if (problematicStorageCalls.size > 0) {
   });
 }
 
-// Check for withTenantNeon usage (broken)
+// Check for withTenantNeon usage (now implemented with Supabase)
 const withTenantNeonCount = (routesContent.match(/withTenantNeon/g) || []).length;
 if (withTenantNeonCount > 0) {
-  console.log(`❌ Found ${withTenantNeonCount} uses of broken withTenantNeon function`);
+  console.log(`✅ Found ${withTenantNeonCount} uses of withTenantNeon function (now using Supabase)`);
 }
 
 console.log(`\nRecommendations:`);
 console.log(`1. Replace all storage.getX() calls with direct DB queries + tenant filtering`);
-console.log(`2. Fix or replace withTenantNeon function`);
+console.log(`2. withTenantNeon function now uses Supabase backend`);
 console.log(`3. Add manual tenant filtering: .where(eq(schema.table.tenantId, tenantId))`);
 console.log(`4. Use the secure pattern from venues endpoint as a template`);

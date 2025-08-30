@@ -1,6 +1,5 @@
-// Legacy db export for backward compatibility
-// NEW CODE SHOULD USE withTenantNeon() from ./db/tenant-neon.ts
-import { getDatabase } from './db/tenant-neon';
+// Database exports using Supabase
+import { getDatabase } from './db/tenant-supabase';
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -8,8 +7,8 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-// Export legacy db instance for existing code
+// Export db instance for existing code
 export const db = getDatabase();
 
-// Re-export tenant-aware helpers
-export { withTenantNeon, isLocal } from './db/tenant-neon';
+// Export tenant-aware helpers
+export { withTenantSupabase as withTenantNeon, isLocal } from './db/tenant-supabase';

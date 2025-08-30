@@ -6,9 +6,9 @@ module.exports = async function handler(req, res) {
   const url = req.url || '';
   
   if (url.includes('/metrics')) {
-    req.query = { ...req.query, resource: 'dashboard', action: 'metrics' };
+    req.query = { ...req.query, resource: 'dashboard', subresource: 'metrics' };
   } else if (url.includes('/analytics')) {
-    req.query = { ...req.query, resource: 'dashboard', action: 'analytics' };
+    req.query = { ...req.query, resource: 'dashboard', subresource: 'analytics' };
   } else {
     req.query = { ...req.query, resource: 'dashboard' };
   }

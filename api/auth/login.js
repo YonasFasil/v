@@ -1,7 +1,7 @@
-const { neon } = require('@neondatabase/serverless');
+const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { requireEnv } = require('../../server/utils/requireEnv');
+const { getDatabaseUrl } = require('../db-config.js');
 
 module.exports = async function handler(req, res) {
   // Set CORS headers
@@ -27,28 +27,34 @@ module.exports = async function handler(req, res) {
     console.log('Tenant login attempt for:', email);
     
     // Connect to database
-    if (!process.env.DATABASE_URL) {
+    const databaseUrl = getDatabaseUrl();
+    if (!databaseUrl) {
       return res.status(500).json({ message: "Database not configured" });
     }
     
-    const sql = neon(process.env.DATABASE_URL);
+    const pool = new Pool({
+      connectionString: databaseUrl,
+      ssl: { rejectUnauthorized: false }
+    });
     
     // Query for tenant user (not super admin)
-    const users = await sql`
+    const result = await pool.query(`
       SELECT u.id, u.username, u.password, u.name, u.email, u.role, u.permissions, u.tenant_id,
              t.id as tenant_id_ref, t.name as tenant_name, t.slug as tenant_slug, t.status as tenant_status
       FROM users u
       LEFT JOIN tenants t ON u.tenant_id = t.id
-      WHERE u.email = ${email} AND u.is_active = true AND u.role != 'super_admin'
+      WHERE u.email = $1 AND u.is_active = true AND u.role != 'super_admin'
       LIMIT 1
-    `;
+    `, [email]);
     
-    if (users.length === 0) {
+    await pool.end();
+    
+    if (result.rows.length === 0) {
       console.log('Tenant user not found with email:', email);
       return res.status(401).json({ message: "Invalid credentials" });
     }
     
-    const user = users[0];
+    const user = result.rows[0];
     
     // Check if tenant is active
     if (!user.tenant_id_ref) {
@@ -69,7 +75,10 @@ module.exports = async function handler(req, res) {
     }
     
     // Generate JWT token
-    const jwtSecret = requireEnv('JWT_SECRET');
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      return res.status(500).json({ message: "JWT secret not configured" });
+    }
     const token = jwt.sign(
       {
         id: user.id,

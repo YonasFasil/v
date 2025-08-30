@@ -57,14 +57,14 @@ try {
 // STEP 4: Check tenant context setting
 console.log('\n4️⃣ STEP 4 - Tenant Context Setting:');
 try {
-  const tenantNeonPath = path.join(__dirname, '../server/db/tenant-neon.ts');
+  const tenantSupabasePath = path.join(__dirname, '../server/db/tenant-supabase.ts');
   const tenantContextPath = path.join(__dirname, '../server/db/tenant-context.ts');
   
-  console.log(`   ✅ tenant-neon.ts exists: ${fs.existsSync(tenantNeonPath)}`);
+  console.log(`   ✅ tenant-supabase.ts exists: ${fs.existsSync(tenantSupabasePath)}`);
   console.log(`   ✅ tenant-context.ts exists: ${fs.existsSync(tenantContextPath)}`);
   
-  if (fs.existsSync(tenantNeonPath)) {
-    const content = fs.readFileSync(tenantNeonPath, 'utf8');
+  if (fs.existsSync(tenantSupabasePath)) {
+    const content = fs.readFileSync(tenantSupabasePath, 'utf8');
     const hasSetConfig = content.includes('set_config') || content.includes('SET LOCAL');
     console.log(`   ✅ Uses set_config/SET LOCAL: ${hasSetConfig}`);
   }

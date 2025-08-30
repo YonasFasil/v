@@ -47,13 +47,23 @@ export function StatusChangeModal({ open, onOpenChange, booking, onStatusChanged
         updateData.notes = booking.notes ? `${booking.notes}\n\nStatus Update: ${notes}` : `Status Update: ${notes}`;
       }
 
-      const response = await apiRequest(`/api/bookings/${booking.id}`, {
-        method: "PATCH",
-        body: JSON.stringify(updateData),
-        headers: { "Content-Type": "application/json" }
-      });
-
-      return response;
+      // If this booking has a contractId (multi-date event), update all related bookings
+      if (booking.contractId) {
+        const response = await apiRequest(`/api/bookings/contract/${booking.contractId}/status`, {
+          method: "PATCH",
+          body: JSON.stringify(updateData),
+          headers: { "Content-Type": "application/json" }
+        });
+        return response;
+      } else {
+        // Single booking update
+        const response = await apiRequest(`/api/bookings/${booking.id}`, {
+          method: "PATCH",
+          body: JSON.stringify(updateData),
+          headers: { "Content-Type": "application/json" }
+        });
+        return response;
+      }
     },
     onError: (error: any) => {
       toast({
