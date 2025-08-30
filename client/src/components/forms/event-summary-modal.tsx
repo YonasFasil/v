@@ -28,7 +28,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { formatEventDate, formatEventDateTime, formatEventDateShort, formatEventDateMedium, formatEventTimestamp } from "@/lib/dateUtils";
 
 interface Props {
   open: boolean;
@@ -281,7 +281,7 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
                         {booking.contractEvents?.map((event: any, index: number) => (
                           <div key={index} className="text-sm bg-gray-50 p-2 rounded">
                             <div className="font-medium">
-                              {event.eventDate ? format(new Date(event.eventDate), 'MMM d, yyyy') : 'Date TBD'}
+                              {formatEventDateShort(event.eventDate) || 'Date TBD'}
                             </div>
                             <div className="text-gray-600">
                               {event.startTime} - {event.endTime} • {event.guestCount} guests
@@ -304,7 +304,7 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-600">Date</span>
                       <span className="font-medium">
-                        {booking.eventDate ? format(new Date(booking.eventDate), 'EEEE, MMMM d, yyyy') : 'No date set'}
+                        {formatEventDateTime(booking.eventDate)}
                       </span>
                     </div>
 
@@ -345,7 +345,7 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
                           <div key={index} className="text-sm bg-gray-50 p-2 rounded">
                             <div className="font-medium">{eventVenue?.name || 'Unknown Venue'}</div>
                             <div className="text-gray-600">
-                              {eventSpace?.name || 'Unknown Space'} • {event.eventDate ? format(new Date(event.eventDate), 'MMM d') : 'TBD'}
+                              {eventSpace?.name || 'Unknown Space'} • {formatEventDateMedium(event.eventDate)}
                             </div>
                           </div>
                         );
@@ -399,7 +399,7 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
                       return (
                         <div key={index} className="border border-gray-200 rounded-lg p-3">
                           <div className="text-sm font-medium text-gray-800 mb-2">
-                            {event.eventDate ? format(new Date(event.eventDate), 'MMM d, yyyy') : 'TBD'}
+                            {formatEventDateShort(event.eventDate) || 'TBD'}
                           </div>
                           
                           {eventPackage ? (
@@ -653,7 +653,7 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
                             {comm.type === 'proposal' ? 'Proposal Email' : comm.type} {comm.direction === 'outbound' ? '→' : '←'}
                           </span>
                           <span className="text-xs text-gray-500">
-                            {comm.sentAt ? format(new Date(comm.sentAt), 'MMM d, h:mm a') : 'No date'}
+                            {formatEventTimestamp(comm.sentAt)}
                           </span>
                         </div>
                         {comm.subject && (
