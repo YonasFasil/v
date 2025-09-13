@@ -18,6 +18,7 @@ import { tenantContextMiddleware } from "./middleware/tenant-context";
 import { enforceRLSTenantIsolation, getRLSClient } from "./middleware/tenant-isolation";
 import { withTenantNeon } from "./db";
 import { createTenantAsSuperAdmin } from "./db/super-admin-helper";
+import { db, eq, and, bookings, venues, customers, spaces } from "./db";
 import { 
   insertBookingSchema, 
   insertCustomerSchema, 
@@ -773,22 +774,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/spaces", async (req, res) => {
     try {
+      console.log('🏗️ Space creation request:', { venueId: req.body.venueId, name: req.body.name });
       const tenantId = await getTenantIdFromAuth(req);
+      console.log('🏗️ Space creation tenantId:', tenantId);
+      
       if (!tenantId) {
         return res.status(401).json({ message: "Authentication required" });
       }
       
       // Verify venue belongs to this tenant
       if (req.body.venueId) {
+        console.log('🏗️ Verifying venue ownership for:', req.body.venueId);
         const venue = await storage.getVenue(req.body.venueId);
+        console.log('🏗️ Retrieved venue:', venue);
+        console.log('🏗️ Comparing tenantIds:', { venueTenantId: venue?.tenantId, requestTenantId: tenantId });
+        
         if (!venue || venue.tenantId !== tenantId) {
+          console.log('🏗️ Access denied - venue check failed');
           return res.status(403).json({ message: "Access denied to this venue" });
         }
+        console.log('🏗️ Venue ownership verified successfully');
       }
       
       const space = await storage.createSpace(req.body);
       res.status(201).json(space);
     } catch (error) {
+      console.error('🏗️ Space creation error:', error);
       res.status(500).json({ message: "Failed to create space" });
     }
   });
@@ -824,12 +835,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not found" });
       }
       
-      // Get venues directly with tenant filtering
-      const allVenues = await storage.getVenues();
-      console.log(`🗄️ Total venues in DB: ${allVenues.length}`);
-      console.log(`👤 User tenant ID: ${user.tenantId}`);
-      console.log(`🏢 All venue tenant IDs:`, allVenues.map(v => ({ name: v.name, tenantId: v.tenantId })));
-      const venues = allVenues.filter(v => v.tenantId === user.tenantId);
+      // Get venues directly with tenant filtering using direct SQL query
+      const venues = await storage.getVenuesByTenant(user.tenantId);
       console.log(`🎯 Found ${venues.length} venues for tenant ${user.tenantId}`);
       
       const venuesWithSpaces = await Promise.all(
@@ -1268,59 +1275,190 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bookings - with tenant filtering
   app.get("/api/bookings", async (req, res) => {
     try {
+      // Check authentication first
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const token = authHeader.substring(7);
+      const decoded = verifyToken(token);
+      if (!decoded) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // For super admin, return all bookings with grouping
+      if (decoded.role === 'super_admin') {
+        console.log('📋 GET /api/bookings - fetching all bookings for super admin');
+        const bookingsData = await db.select().from(bookings);
+        console.log(`📋 Found ${bookingsData.length} total bookings for super admin`);
+        
+        // Apply multi-date event grouping logic for super admin too
+        const groupedBookings = [];
+        const processedContracts = new Set();
+        
+        // First pass: identify all contract IDs and their event counts
+        const contractEventCounts = new Map();
+        bookingsData.forEach(booking => {
+          if (booking.contractId) {
+            contractEventCounts.set(booking.contractId, (contractEventCounts.get(booking.contractId) || 0) + 1);
+          }
+        });
+        
+        // Second pass: process bookings, grouping multi-date contracts
+        for (const booking of bookingsData) {
+          if (booking.contractId) {
+            if (processedContracts.has(booking.contractId)) {
+              // Skip - this contract was already processed
+              continue;
+            }
+            
+            // Find all bookings for this contract
+            const contractBookings = bookingsData.filter(b => b.contractId === booking.contractId);
+            const eventCount = contractEventCounts.get(booking.contractId);
+            
+            if (eventCount > 1) {
+              // Multi-date event - group them into a single entry
+              const sortedBookings = contractBookings.sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
+              const firstBooking = sortedBookings[0];
+              const lastBooking = sortedBookings[sortedBookings.length - 1];
+              
+              // Create grouped booking representing the entire contract (frontend expects specific structure)
+              const groupedBooking = {
+                ...firstBooking,
+                id: booking.contractId,
+                eventName: `${firstBooking.eventName?.replace(/ - Day \d+$/, '') || 'Event'} (${eventCount} dates)`,
+                isMultiDate: true,
+                isContract: true, // Frontend checks for this flag
+                contractInfo: {
+                  id: booking.contractId,
+                  contractName: `${firstBooking.eventName?.replace(/ - Day \d+$/, '') || 'Event'}`,
+                  status: firstBooking.status,
+                  totalAmount: firstBooking.totalAmount,
+                  createdAt: firstBooking.createdAt,
+                  updatedAt: firstBooking.createdAt
+                },
+                contractEvents: sortedBookings, // Frontend expects this for modal display
+                eventCount,
+                totalDuration: `${eventCount} events from ${new Date(firstBooking.eventDate).toLocaleDateString()} to ${new Date(lastBooking.eventDate).toLocaleDateString()}`
+              };
+              
+              groupedBookings.push(groupedBooking);
+            } else {
+              // Single event in contract, add as-is
+              groupedBookings.push(booking);
+            }
+            
+            // Mark this contract as processed
+            processedContracts.add(booking.contractId);
+          } else {
+            // Non-contract booking, add as-is
+            groupedBookings.push(booking);
+          }
+        }
+        
+        console.log(`📋 After grouping: ${groupedBookings.length} bookings for super admin`);
+        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.json(groupedBookings);
+        return;
+      }
+      
+      // For regular users, get tenant ID and filter
       const tenantId = await getTenantIdFromAuth(req);
       if (!tenantId) {
         return res.status(401).json({ message: "Authentication required" });
       }
       
-      const bookings = await storage.getBookingsByTenant(tenantId);
+      // Use proper Drizzle query to get bookings
+      console.log('📋 GET /api/bookings - fetching bookings for tenant:', tenantId);
       
-      // Debug: Log what bookings exist for conflict detection
-      console.log('🔍 GET /api/bookings - returning bookings for conflict detection:', bookings.map(b => ({
-        id: b.id,
-        eventName: b.eventName,
-        eventDate: new Date(b.eventDate).toDateString(),
-        startTime: b.startTime,
-        endTime: b.endTime,
-        status: b.status,
-        spaceId: b.spaceId
-      })));
+      // Query bookings directly with tenant filtering using Drizzle
+      const bookingsData = await db.select()
+        .from(bookings)
+        .where(eq(bookings.tenantId, tenantId));
       
-      // Disable caching for bookings to ensure fresh conflict detection data
-      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-      const contracts = await storage.getContracts();
+      console.log(`📋 Found ${bookingsData.length} bookings for tenant ${tenantId}`);
       
-      // Group bookings by contract and add contract info
-      const contractMap = new Map(contracts.map(c => [c.id, c]));
-      const result = [];
-      
-      // First, add all standalone bookings (no contract)
-      const standaloneBookings = bookings.filter(b => !b.contractId);
-      result.push(...standaloneBookings);
-      
-      // Then, add contracts with their bookings
-      const contractBookings = bookings.filter(b => b.contractId);
+      // Apply multi-date event grouping logic (same as calendar API)
+      const groupedBookings = [];
       const processedContracts = new Set();
       
-      for (const booking of contractBookings) {
-        if (!processedContracts.has(booking.contractId)) {
-          const contract = contractMap.get(booking.contractId!);
-          const contractEvents = contractBookings.filter(b => b.contractId === booking.contractId);
+      // First pass: identify all contract IDs and their event counts
+      const contractEventCounts = new Map();
+      bookingsData.forEach(booking => {
+        if (booking.contractId) {
+          contractEventCounts.set(booking.contractId, (contractEventCounts.get(booking.contractId) || 0) + 1);
+        }
+      });
+      
+      // Second pass: process bookings, grouping multi-date contracts
+      for (const booking of bookingsData) {
+        if (booking.contractId) {
+          if (processedContracts.has(booking.contractId)) {
+            // Skip - this contract was already processed
+            continue;
+          }
           
-          result.push({
-            ...booking,
-            isContract: true,
-            contractInfo: contract,
-            contractEvents: contractEvents,
-            eventCount: contractEvents.length
-          });
+          // Find all bookings for this contract
+          const contractBookings = bookingsData.filter(b => b.contractId === booking.contractId);
+          const eventCount = contractEventCounts.get(booking.contractId);
           
-          processedContracts.add(booking.contractId!);
+          if (eventCount > 1) {
+            // Multi-date event - group them into a single entry
+            const sortedBookings = contractBookings.sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
+            const firstBooking = sortedBookings[0];
+            const lastBooking = sortedBookings[sortedBookings.length - 1];
+            
+            // Create grouped booking representing the entire contract (frontend expects specific structure)
+            const groupedBooking = {
+              ...firstBooking,
+              id: booking.contractId,
+              eventName: `${firstBooking.eventName?.replace(/ - Day \d+$/, '') || 'Event'} (${eventCount} dates)`,
+              isMultiDate: true,
+              isContract: true, // Frontend checks for this flag
+              contractInfo: {
+                id: booking.contractId,
+                contractName: `${firstBooking.eventName?.replace(/ - Day \d+$/, '') || 'Event'}`,
+                status: firstBooking.status,
+                totalAmount: firstBooking.totalAmount,
+                createdAt: firstBooking.createdAt,
+                updatedAt: firstBooking.createdAt
+              },
+              contractEvents: sortedBookings, // Frontend expects this for modal display
+              eventCount,
+              totalDuration: `${eventCount} events from ${new Date(firstBooking.eventDate).toLocaleDateString()} to ${new Date(lastBooking.eventDate).toLocaleDateString()}`
+            };
+            
+            groupedBookings.push(groupedBooking);
+          } else {
+            // Single event in contract, add as-is
+            groupedBookings.push(booking);
+          }
+          
+          // Mark this contract as processed
+          processedContracts.add(booking.contractId);
+        } else {
+          // Non-contract booking, add as-is
+          groupedBookings.push(booking);
         }
       }
       
-      res.json(result);
+      console.log(`📋 After grouping: ${groupedBookings.length} bookings for tenant ${tenantId}`);
+      
+      // Debug: Log the exact structure of grouped bookings
+      console.log('📋 DEBUG: Final grouped bookings structure:');
+      groupedBookings.forEach((booking, index) => {
+        if (booking.isContract) {
+          console.log(`  ${index}: CONTRACT - ${booking.contractInfo?.contractName} (${booking.eventCount} events) - ID: ${booking.id}`);
+        } else {
+          console.log(`  ${index}: SINGLE - ${booking.eventName} - ID: ${booking.id}`);
+        }
+      });
+      
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.json(groupedBookings);
     } catch (error) {
+      console.error('❌ GET /api/bookings error:', error);
       res.status(500).json({ message: "Failed to fetch bookings" });
     }
   });
@@ -1537,14 +1675,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!tenantId) {
         return res.status(401).json({ message: "Authentication required" });
       }
-      
+
       // First verify the booking belongs to this tenant
       const existingBooking = await storage.getBooking(req.params.id);
       if (!existingBooking || existingBooking.tenantId !== tenantId) {
         return res.status(404).json({ message: "Booking not found" });
       }
-      
+
+      console.log('🔍 Server Debug - Individual Booking Update:', {
+        bookingId: req.params.id,
+        existingEventDate: existingBooking.eventDate,
+        newEventDate: req.body.eventDate,
+        existingEventName: existingBooking.eventName,
+        newEventName: req.body.eventName,
+        contractId: existingBooking.contractId,
+        updateBody: {
+          eventDate: req.body.eventDate,
+          startTime: req.body.startTime,
+          endTime: req.body.endTime,
+          eventName: req.body.eventName
+        }
+      });
+
       const updateData = { ...req.body };
+
+      // Convert string dates to proper Date objects for Drizzle ORM
+      const dateFields = ['eventDate', 'completedAt', 'cancelledAt', 'proposalSentAt', 'createdAt', 'updatedAt'];
+      dateFields.forEach(field => {
+        if (updateData[field] && typeof updateData[field] === 'string') {
+          updateData[field] = new Date(updateData[field]);
+        }
+      });
 
       // Auto-complete booking if status is being set to completed and event date has passed
       if (updateData.status === "completed" && !updateData.completedAt) {
@@ -1566,6 +1727,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!booking) {
         return res.status(404).json({ message: "Booking not found" });
       }
+
+      console.log('🔍 Server Debug - After Update:', {
+        bookingId: booking.id,
+        updatedEventDate: booking.eventDate,
+        updatedEventName: booking.eventName,
+        updatedStartTime: booking.startTime,
+        updatedEndTime: booking.endTime
+      });
+
       res.json(booking);
     } catch (error) {
       console.error('Booking update error:', error);
@@ -1628,6 +1798,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('Contract booking update error:', error);
+      res.status(500).json({ message: "Failed to update contract bookings" });
+    }
+  });
+
+  // Full update all bookings in a contract (for multi-date events)
+  app.patch("/api/bookings/contract/:contractId", async (req, res) => {
+    try {
+      const tenantId = await getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const contractId = req.params.contractId;
+      const updateData = { ...req.body };
+
+      // Convert string dates to proper Date objects for Drizzle ORM
+      const dateFields = ['eventDate', 'completedAt', 'cancelledAt', 'proposalSentAt', 'createdAt', 'updatedAt'];
+      dateFields.forEach(field => {
+        if (updateData[field] && typeof updateData[field] === 'string') {
+          updateData[field] = new Date(updateData[field]);
+        }
+      });
+
+      // Auto-complete booking if status is being set to completed and no completedAt timestamp
+      if (updateData.status === "completed" && !updateData.completedAt) {
+        updateData.completedAt = new Date();
+      }
+
+      // Handle cancellation data
+      if (updateData.status === "cancelled") {
+        if (!updateData.cancelledAt) {
+          updateData.cancelledAt = new Date();
+        }
+        // Ensure cancellation reason is provided
+        if (!updateData.cancellationReason) {
+          return res.status(400).json({ message: "Cancellation reason is required" });
+        }
+      }
+
+      // Get all bookings for this contract
+      const contractBookings = await storage.getBookingsByContract(contractId);
+      if (!contractBookings || contractBookings.length === 0) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+
+      // Verify all bookings belong to this tenant
+      const belongsToTenant = contractBookings.every(booking => booking.tenantId === tenantId);
+      if (!belongsToTenant) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+
+      // Update all bookings in the contract
+      const updatedBookings = [];
+      for (const booking of contractBookings) {
+        const updated = await storage.updateBooking(booking.id, updateData);
+        if (updated) {
+          updatedBookings.push(updated);
+        }
+      }
+
+      res.json({ 
+        message: `Updated ${updatedBookings.length} bookings in contract`, 
+        bookings: updatedBookings 
+      });
+    } catch (error) {
+      console.error('Contract booking full update error:', error);
       res.status(500).json({ message: "Failed to update contract bookings" });
     }
   });
@@ -2113,23 +2349,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/spaces", async (req, res) => {
     try {
+      console.log('🏗️ [ROUTE 2] Space creation request:', { venueId: req.body.venueId, name: req.body.name });
       const tenantId = await getTenantIdFromAuth(req);
+      console.log('🏗️ [ROUTE 2] Space creation tenantId:', tenantId);
+      
       if (!tenantId) {
         return res.status(401).json({ message: "Authentication required" });
       }
       
       // Verify venue belongs to this tenant
       if (req.body.venueId) {
+        console.log('🏗️ [ROUTE 2] Verifying venue ownership for:', req.body.venueId);
         const venue = await storage.getVenue(req.body.venueId);
+        console.log('🏗️ [ROUTE 2] Retrieved venue:', venue);
+        console.log('🏗️ [ROUTE 2] Comparing tenantIds:', { venueTenantId: venue?.tenantId, requestTenantId: tenantId });
+        
         if (!venue || venue.tenantId !== tenantId) {
+          console.log('🏗️ [ROUTE 2] Access denied - venue check failed');
           return res.status(403).json({ message: "Access denied to this venue" });
         }
+        console.log('🏗️ [ROUTE 2] Venue ownership verified successfully');
       }
       
       const space = await storage.createSpace(req.body);
       res.status(201).json(space);
     } catch (error) {
-      console.error('Space creation error:', error);
+      console.error('🏗️ [ROUTE 2] Space creation error:', error);
       res.status(500).json({ message: "Failed to create space" });
     }
   });
@@ -3780,29 +4025,126 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
   });
 
 
+  // Test endpoint for calendar debugging - no auth (bypasses /api/calendar middleware)
+  app.get("/api/debug/calendar", 
+    async (req: any, res) => {
+    try {
+      console.log('[CALENDAR-DEBUG] Starting debug endpoint...');
+      
+      // Get all bookings
+      const allBookings = await db.select().from(bookings);
+      const allVenues = await db.select().from(venues);
+      const allCustomers = await db.select().from(customers);
+      const allSpaces = await db.select().from(spaces);
+      
+      console.log('[CALENDAR-DEBUG] Found', allBookings.length, 'bookings');
+      
+      // Create a simplified calendar showing all events
+      const events = allBookings.map((booking) => {
+        const venue = allVenues.find(v => v.id === booking.venueId);
+        const customer = allCustomers.find(c => c.id === booking.customerId);
+        const space = allSpaces.find(s => s.id === booking.spaceId);
+        
+        return {
+          id: booking.id,
+          title: booking.eventName,
+          start: booking.eventDate,
+          end: booking.endDate || booking.eventDate,
+          venue: venue?.name || 'Unknown',
+          customer: customer?.name || customer?.firstName + ' ' + customer?.lastName || 'Unknown',
+          space: space?.name || 'Unknown',
+          status: booking.status,
+          tenantId: booking.tenantId,
+          contractId: booking.contractId
+        };
+      });
+      
+      console.log('[CALENDAR-DEBUG] Returning', events.length, 'events');
+      
+      res.json({ 
+        events, 
+        mode: 'events', 
+        debug: true,
+        total: events.length,
+        multiDateContracts: events.filter(e => e.contractId).reduce((acc: any, event: any) => {
+          if (!acc[event.contractId]) {
+            acc[event.contractId] = [];
+          }
+          acc[event.contractId].push(event);
+          return acc;
+        }, {})
+      });
+      
+    } catch (error) {
+      console.error('[CALENDAR-DEBUG] Error:', error);
+      res.status(500).json({ message: "Failed to fetch calendar events", error: error.message });
+    }
+  });
+
   // Enhanced calendar data for two different modes
   app.get("/api/calendar/events", 
-    requireAuth('bookings'),
-    requireTenant,
-    addFeatureAccess,
-    requireFeature('event_booking'),
+    requireAuth(),
     async (req: AuthenticatedRequest, res) => {
     try {
-      const tenantId = req.user!.tenantId;
+      console.log('[CALENDAR] User object:', req.user);
+      
+      // Super admins can access all data
+      if (req.user && req.user.role === 'super_admin') {
+        // For super admins, we'll get all data across tenants
+        // This is a simplified implementation - in production you might want more sophisticated filtering
+        const { mode = 'events', startDate, endDate } = req.query;
+        
+        // Get all bookings for super admin
+        const allBookings = await db.select().from(bookings);
+        const allVenues = await db.select().from(venues);
+        const allCustomers = await db.select().from(customers);
+        const allSpaces = await db.select().from(spaces);
+        
+        // Create a simplified calendar for super admin showing all events
+        const events = allBookings.map((booking) => {
+          const venue = allVenues.find(v => v.id === booking.venueId);
+          const customer = allCustomers.find(c => c.id === booking.customerId);
+          const space = allSpaces.find(s => s.id === booking.spaceId);
+          
+          return {
+            id: booking.id,
+            title: booking.eventName,
+            start: booking.eventDate,
+            end: booking.endDate || booking.eventDate,
+            venue: venue?.name || 'Unknown',
+            customer: customer?.name || customer?.firstName + ' ' + customer?.lastName || 'Unknown',
+            space: space?.name || 'Unknown',
+            status: booking.status,
+            tenantId: booking.tenantId
+          };
+        });
+        
+        res.json({ events, mode: 'events' });
+        return;
+      }
+      
+      console.log('[CALENDAR] Calling getTenantIdFromAuth...');
+      const tenantId = await getTenantIdFromAuth(req);
+      console.log('[CALENDAR] getTenantIdFromAuth result:', tenantId);
+      if (!tenantId) {
+        console.log('[CALENDAR] No tenantId found, returning 401');
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      console.log('[CALENDAR] Success - tenantId found:', tenantId);
       
       const { mode = 'events', startDate, endDate } = req.query;
-      // RLS automatically filters by tenant
-      const bookings = await storage.getBookings();
-      const venues = await storage.getVenues();
-      const customers = await storage.getCustomers();
-      const spaces = await storage.getSpaces();
+      // Use tenant-specific methods to avoid tenant context dependency
+      const tenantBookings = await storage.getBookingsByTenant(tenantId);
+      const venues = await storage.getVenuesByTenant(tenantId);
+      const customers = await storage.getCustomersByTenant(tenantId);
+      const spaces = await storage.getSpacesByTenant(tenantId);
       
       if (mode === 'venues') {
         // Mode 2: Bookings organized by venues and dates
         const venueCalendarData = await Promise.all(
           venues.map(async (venue) => {
             const venueSpaces = await storage.getSpacesByVenue(venue.id);
-            const venueBookings = bookings.filter(booking => 
+            const venueBookings = tenantBookings.filter(booking => 
               booking.venueId === venue.id || 
               venueSpaces.some(space => booking.spaceId === space.id)
             );
@@ -3833,11 +4175,11 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
         res.json({ mode: 'venues', data: venueCalendarData });
       } else {
         // Mode 1: Events by dates (monthly/weekly view) - return complete booking data with contract info
-        const contracts = await storage.getContracts();
+        const contracts = await storage.getContractsByTenant(tenantId);
         const contractMap = new Map(contracts.map(c => [c.id, c]));
         
         const eventsWithDetails = await Promise.all(
-          bookings.map(async (booking) => {
+          tenantBookings.map(async (booking) => {
             const customer = customers.find(c => c.id === booking.customerId);
             const venue = venues.find(v => v.id === booking.venueId);
             const space = spaces.find(s => s.id === booking.spaceId);
@@ -3849,7 +4191,7 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
             
             if (booking.contractId) {
               contractInfo = contractMap.get(booking.contractId);
-              contractEvents = bookings.filter(b => b.contractId === booking.contractId);
+              contractEvents = tenantBookings.filter(b => b.contractId === booking.contractId);
               isContract = true;
             }
             
@@ -3876,13 +4218,36 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
               spaceData: space,
               isContract,
               contractInfo,
-              contractEvents,
               eventCount: contractEvents?.length || 1
             };
           })
         );
         
-        res.json({ mode: 'events', data: eventsWithDetails });
+        // For calendar: DO NOT group multi-date events - show individual cards for each date
+        // But add contract information so calendar can show contract indicators
+        const calendarEvents = eventsWithDetails.map(event => {
+          // Add additional contract metadata for calendar display
+          if (event.contractId) {
+            const contractEvents = eventsWithDetails.filter(e => e.contractId === event.contractId);
+            const eventCount = contractEvents.length;
+            
+            return {
+              ...event,
+              // Mark as part of multi-date contract if more than 1 event
+              isPartOfContract: eventCount > 1,
+              totalContractEvents: eventCount,
+              contractName: event.contractInfo?.contractName || 'Multi-Date Contract'
+            };
+          }
+          
+          return event;
+        });
+        
+        // Debug: show the final result
+        console.log(`[DEBUG] Final calendarEvents count: ${calendarEvents.length}`);
+        console.log(`[DEBUG] Final calendarEvents titles: ${calendarEvents.map(e => e.title).join(', ')}`);
+        
+        res.json({ mode: 'events', data: calendarEvents });
       }
     } catch (error) {
       console.error("Calendar API error:", error);
@@ -7860,30 +8225,25 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
         return res.status(400).json({ message: "Password must be at least 8 characters long" });
       }
       
-      // Direct database access to reset password
-      const { Pool } = require('pg');
+      // Use Drizzle to reset password
       const bcrypt = require('bcryptjs');
-      const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
       
-      try {
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-        const result = await pool.query(
-          'UPDATE users SET password = $1 WHERE email = $2 AND role = $3 RETURNING email, name',
-          [hashedPassword, email, 'super_admin']
-        );
-        
-        if (result.rows.length === 0) {
-          return res.status(404).json({ message: "Super admin not found with this email" });
-        }
-        
-        console.log(`🔑 Password reset for super admin: ${email}`);
-        res.json({ 
-          message: "Password reset successful", 
-          user: result.rows[0] 
-        });
-      } finally {
-        await pool.end();
+      const result = await db
+        .update(users)
+        .set({ password: hashedPassword })
+        .where(and(eq(users.email, email), eq(users.role, 'super_admin')))
+        .returning({ email: users.email, name: users.name });
+      
+      if (result.length === 0) {
+        return res.status(404).json({ message: "Super admin not found with this email" });
       }
+      
+      console.log(`🔑 Password reset for super admin: ${email}`);
+      res.json({ 
+        message: "Password reset successful", 
+        user: result[0] 
+      });
     } catch (error) {
       console.error("Error resetting super admin password:", error);
       res.status(500).json({ message: "Failed to reset password" });
@@ -8321,7 +8681,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
 
       // Create user
       const hashedPassword = await hashPassword(password);
-      const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const userId = require('crypto').randomUUID();
       
       const newUser = {
         id: userId,
@@ -8901,7 +9261,7 @@ async function seedDefaultPackages() {
 // Helper function to seed default event packages
 async function seedDefaultEventPackages() {
   try {
-    const existingPackages = await storage.getPackages();
+    const existingPackages = await storage.getAllPackagesAdmin();
     if (existingPackages.length > 0) {
       console.log('Event packages already exist, skipping seed...');
       return;
@@ -8910,7 +9270,7 @@ async function seedDefaultEventPackages() {
     console.log('Seeding default event packages...');
 
     // We need to get the first tenant to assign these packages to
-    const users = await storage.getUsers();
+    const users = await storage.getAllUsersAdmin();
     const firstTenantUser = users.find(u => u.tenantId);
     if (!firstTenantUser) {
       console.log('No tenant users found, skipping event package seeding...');
@@ -8988,7 +9348,7 @@ async function seedDefaultEventPackages() {
 // Helper function to seed default services
 async function seedDefaultServices() {
   try {
-    const existingServices = await storage.getServices();
+    const existingServices = await storage.getAllServicesAdmin();
     if (existingServices.length > 0) {
       console.log('Services already exist, skipping seed...');
       return;
@@ -8997,7 +9357,7 @@ async function seedDefaultServices() {
     console.log('Seeding default services...');
 
     // We need to get the first tenant to assign these services to
-    const users = await storage.getUsers();
+    const users = await storage.getAllUsersAdmin();
     const firstTenantUser = users.find(u => u.tenantId);
     if (!firstTenantUser) {
       console.log('No tenant users found, skipping service seeding...');

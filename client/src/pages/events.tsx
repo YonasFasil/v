@@ -52,9 +52,23 @@ export default function Events() {
   const handleEventClick = async (booking: any, source: 'calendar' | 'table' = 'calendar') => {
     // For calendar events: allow individual event editing even if part of contract
     if (source === 'calendar') {
+      console.log('🔍 Events Page Debug - Calendar Event Click:', {
+        eventId: booking.id,
+        eventDate: booking.eventDate,
+        eventName: booking.eventName || booking.title,
+        isPartOfContract: booking.isPartOfContract,
+        contractId: booking.contractId,
+        startTime: booking.startTime,
+        endTime: booking.endTime
+      });
+
       // Strip out contract-related properties to force individual event editing
+      // Preserve all individual event data including correct dates and times
       const individualEvent = {
         ...booking,
+        // Ensure consistent naming between calendar and booking APIs
+        eventName: booking.eventName || booking.title,
+        eventDate: booking.eventDate || booking.start,
         isContract: false,
         isPartOfContract: false,
         contractId: undefined,
@@ -62,6 +76,15 @@ export default function Events() {
         contractEvents: undefined,
         eventCount: 1
       };
+
+      console.log('🔍 Events Page Debug - Individual Event after processing:', {
+        eventId: individualEvent.id,
+        eventDate: individualEvent.eventDate,
+        eventName: individualEvent.eventName,
+        startTime: individualEvent.startTime,
+        endTime: individualEvent.endTime
+      });
+
       setSelectedBooking(individualEvent);
       return;
     }

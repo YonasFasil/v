@@ -143,6 +143,14 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   // Initialize form data when booking changes
   useEffect(() => {
     if (booking && open) {
+      console.log('🔍 Event Edit Modal Debug - Modal Opening with booking:', {
+        bookingId: booking.id,
+        eventDate: booking.eventDate,
+        eventName: booking.eventName,
+        isContract: booking.isContract,
+        isPartOfContract: booking.isPartOfContract,
+        contractId: booking.contractId
+      });
       if (booking.isContract && booking.contractEvents) {
         // Handle contract with multiple events
         setEventName(booking.contractInfo?.contractName || "Multi-Date Contract");
@@ -179,10 +187,33 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
         setSelectedCustomer(booking.customerId || "");
         
         // Initialize dates with existing booking data - preserve original date
+        // Ensure proper date parsing to prevent timezone issues
+        let eventDate: Date;
+        if (booking.eventDate) {
+          // If eventDate is a string, parse it carefully to avoid timezone issues
+          if (typeof booking.eventDate === 'string') {
+            // Handle ISO date strings or date-only strings
+            eventDate = new Date(booking.eventDate + (booking.eventDate.includes('T') ? '' : 'T00:00:00'));
+          } else {
+            eventDate = new Date(booking.eventDate);
+          }
+        } else {
+          eventDate = new Date();
+        }
+
+        console.log('🔍 Event Edit Modal Debug - Individual Event Initialization:', {
+          bookingId: booking.id,
+          originalEventDate: booking.eventDate,
+          parsedEventDate: eventDate,
+          eventName: booking.eventName,
+          startTime: booking.startTime,
+          endTime: booking.endTime
+        });
+
         const bookingDate: SelectedDate = {
-          date: booking.eventDate ? new Date(booking.eventDate) : new Date(),
+          date: eventDate,
           startTime: booking.startTime || "09:00",
-          endTime: booking.endTime || "17:00", 
+          endTime: booking.endTime || "17:00",
           spaceId: booking.spaceId,
           packageId: booking.packageId || "",
           selectedServices: booking.selectedServices || [],
@@ -202,6 +233,23 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
       }
     }
   }, [booking, open]);
+
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!open) {
+      // Reset form state to prevent stale data
+      setCurrentStep(1);
+      setSelectedDates([]);
+      setActiveTabIndex(0);
+      setEventName("");
+      setSelectedCustomer("");
+      setEventStatus("inquiry");
+      setSelectedVenue("");
+      setTaxFeeOverrides({});
+      setShowCommunication(false);
+      setCommunicationMessage("");
+    }
+  }, [open]);
 
   // Calendar calculations
   const monthStart = startOfMonth(currentDate);
@@ -322,7 +370,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
     (taxSettings as any[])?.forEach((fee: any) => {
       if ((fee.type === 'fee' || fee.type === 'service_charge') && 
           fee.isActive && 
-          taxFeeOverrides.enabledFeeIds.includes(fee.id)) {
+          (taxFeeOverrides.enabledFeeIds || []).includes(fee.id)) {
         
         if (fee.calculation === 'percentage') {
           feesTotal += subtotal * (parseFloat(fee.value) / 100);
@@ -338,7 +386,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
         (fee.type === 'fee' || fee.type === 'service_charge') && 
         fee.isActive && 
         fee.isTaxable &&
-        taxFeeOverrides.enabledFeeIds.includes(fee.id))
+        (taxFeeOverrides.enabledFeeIds || []).includes(fee.id))
       .reduce((sum, fee) => {
         const feeAmount = fee.calculation === 'percentage' 
           ? subtotal * (parseFloat(fee.value) / 100)
@@ -352,7 +400,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
     (taxSettings as any[])?.forEach((tax: any) => {
       if (tax.type === 'tax' && 
           tax.isActive && 
-          taxFeeOverrides.enabledTaxIds.includes(tax.id)) {
+          (taxFeeOverrides.enabledTaxIds || []).includes(tax.id)) {
         
         taxesTotal += taxableBase * (parseFloat(tax.value) / 100);
       }
@@ -401,6 +449,54 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
 
   const updateBooking = useMutation({
     mutationFn: async (bookingData: any) => {
+      // Debug: Log booking structure to understand the issue
+      console.log('🔍 Edit Modal Debug:', {
+        id: booking?.id,
+        isContract: booking?.isContract,
+        contractInfo: booking?.contractInfo,
+        contractEvents: booking?.contractEvents,
+        eventCount: booking?.eventCount,
+        hasContractId: !!booking?.contractInfo?.id,
+        contractEventsLength: booking?.contractEvents?.length,
+        eventCountValue: booking?.eventCount
+      });
+      
+      // Only use contract endpoints for editing complete contracts
+      // Individual events (even if part of contract) should use individual booking endpoints
+      // Add extra debugging to understand what's happening
+      console.log('📋 Pre-check values:', {
+        isContract: booking?.isContract,
+        hasContractInfo: !!booking?.contractInfo,
+        contractInfoId: booking?.contractInfo?.id,
+        contractEventsLength: booking?.contractEvents?.length,
+        eventCount: booking?.eventCount,
+        contractEventDatesLength: booking?.contractInfo?.eventDates?.length
+      });
+      
+      const isEditingFullContract = booking?.isContract && booking?.contractInfo?.id && (
+        (booking?.contractEvents?.length > 1) || 
+        (booking?.eventCount > 1) ||
+        (booking?.contractInfo?.eventDates?.length > 1)
+      );
+      
+      console.log('📍 Route Decision:', { 
+        isEditingFullContract, 
+        contractId: booking?.contractInfo?.id,
+        bookingId: booking?.id,
+        hasContractEvents: !!booking?.contractEvents,
+        contractEventsLength: booking?.contractEvents?.length
+      });
+      
+      if (isEditingFullContract) {
+        const response = await apiRequest(`/api/bookings/contract/${booking.contractInfo.id}`, {
+          method: "PATCH",
+          body: JSON.stringify(bookingData),
+          headers: { "Content-Type": "application/json" }
+        });
+        return response;
+      }
+      
+      // For single events (even if they have contract info), use regular booking endpoint
       const response = await apiRequest(`/api/bookings/${booking.id}`, {
         method: "PATCH",
         body: JSON.stringify(bookingData),
@@ -408,11 +504,32 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
       });
       return response;
     },
-    onSuccess: () => {
+    onSuccess: (updatedBooking) => {
+      console.log('🔍 Update Success - Invalidating Queries:', {
+        updatedBookingId: updatedBooking?.id,
+        updatedEventDate: updatedBooking?.eventDate,
+        updatedEventName: updatedBooking?.eventName
+      });
+
+      // More aggressive cache invalidation to ensure fresh data
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/calendar/events"] });
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return key === '/api/calendar/events' ||
+                 key === '/api/calendar' ||
+                 (typeof key === 'string' && key.includes('calendar'));
+        }
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/metrics"] });
-      toast({ title: "Event updated successfully!" });
+
+      // Force refetch after a short delay to ensure consistency
+      setTimeout(() => {
+        queryClient.refetchQueries({ queryKey: ["/api/bookings"] });
+        queryClient.refetchQueries({ queryKey: ["/api/calendar/events"] });
+      }, 100);
+
+      toast({ title: "Event updated successfully!", variant: "success" });
       onOpenChange(false);
     },
     onError: (error: any) => {
@@ -422,6 +539,12 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
 
   const deleteBooking = useMutation({
     mutationFn: async () => {
+      // For contract events, we need to handle deletion differently
+      if (booking?.isContract && booking?.contractInfo?.id) {
+        // For now, prevent deleting contracts through individual booking modal
+        throw new Error("Contract events must be deleted through contract management");
+      }
+      
       const response = await apiRequest("DELETE", `/api/bookings/${booking.id}`);
       return response;
     },
@@ -816,6 +939,18 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
 
     // For multi-date events, we'll submit the primary date
     const primaryDate = selectedDates[0];
+
+    console.log('🔍 Event Edit Modal Debug - Form Submission:', {
+      bookingId: booking?.id,
+      originalBookingDate: booking?.eventDate,
+      selectedDatesLength: selectedDates.length,
+      primaryDateValue: primaryDate.date,
+      primaryDateISO: primaryDate.date.toISOString(),
+      eventName,
+      selectedVenue,
+      selectedCustomer
+    });
+
     const bookingData = {
       eventName,
       eventType: selectedPackageData?.name || "Custom Event",
@@ -838,6 +973,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
       serviceTaxOverrides: primaryDate.serviceTaxOverrides || null
     };
 
+    console.log('🔍 Event Edit Modal Debug - Final Booking Data:', bookingData);
     updateBooking.mutate(bookingData);
   };
 
