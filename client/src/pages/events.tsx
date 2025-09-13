@@ -48,6 +48,43 @@ export default function Events() {
   const [showProposalModal, setShowProposalModal] = useState(false);
   const [selectedProposalId, setSelectedProposalId] = useState("");
 
+  // Enhanced event click handler with individual event editing support
+  const handleEventClick = async (booking: any, source: 'calendar' | 'table' = 'calendar') => {
+    // For calendar events: allow individual event editing even if part of contract
+    if (source === 'calendar') {
+      // Strip out contract-related properties to force individual event editing
+      const individualEvent = {
+        ...booking,
+        isContract: false,
+        isPartOfContract: false,
+        contractId: undefined,
+        contractInfo: null,
+        contractEvents: undefined,
+        eventCount: 1
+      };
+      setSelectedBooking(individualEvent);
+      return;
+    }
+    
+    // For table row clicks: show full contract data for contract events
+    if (booking.contractId || booking.isPartOfContract) {
+      const contractId = booking.contractId || booking.contractInfo?.id;
+      if (contractId) {
+        const contractBooking = (bookings as any[])?.find((b: any) => 
+          b.isContract && b.contractInfo?.id === contractId
+        );
+        if (contractBooking) {
+          // Found the full contract data - use it to show complete modal with all events
+          setSelectedBooking(contractBooking);
+          return;
+        }
+      }
+    }
+    
+    // For single events or if contract lookup failed, use the booking as-is
+    setSelectedBooking(booking);
+  };
+
   const getDisplayStatus = (status: string, proposalStatus?: string) => {
     // Show proposal status when active for leads
     if (status === "inquiry" && proposalStatus === "sent") return "Proposal Sent";
@@ -174,7 +211,7 @@ export default function Events() {
                 {hasCalendarView && (
                   <TabsContent value="calendar" className="space-y-6">
                     <div className="h-[calc(100vh-280px)] md:h-[calc(100vh-280px)]">
-                      <AdvancedCalendar onEventClick={setSelectedBooking} />
+                      <AdvancedCalendar onEventClick={(booking) => handleEventClick(booking, 'calendar')} />
                     </div>
                   </TabsContent>
                 )}
@@ -200,7 +237,7 @@ export default function Events() {
                             className={`cursor-pointer hover:bg-slate-50 ${
                               booking.isContract ? 'bg-purple-50/30' : ''
                             }`}
-                            onClick={() => setSelectedBooking(booking)}
+                            onClick={() => handleEventClick(booking, 'table')}
                           >
                             <TableCell className="font-medium">
                               <div>

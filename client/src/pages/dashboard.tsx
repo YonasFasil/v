@@ -33,20 +33,40 @@ export default function Dashboard() {
   // Load full contract data if event is part of a contract
   const { data: allBookings = [] } = useQuery({ queryKey: ["/api/bookings"] });
   
-  const handleEventClick = async (booking: any) => {
-    if (booking.contractId) {
-      // Find the full contract representation from the bookings list
-      const contractBooking = (allBookings as any[]).find((b: any) => 
-        b.isContract && b.contractInfo?.id === booking.contractId
-      );
-      if (contractBooking) {
-        setSelectedEvent(contractBooking);
-      } else {
-        setSelectedEvent(booking);
-      }
-    } else {
-      setSelectedEvent(booking);
+  const handleEventClick = async (booking: any, source: 'calendar' | 'table' = 'calendar') => {
+    // For calendar events: allow individual event editing even if part of contract
+    if (source === 'calendar') {
+      // Strip out contract-related properties to force individual event editing
+      const individualEvent = {
+        ...booking,
+        isContract: false,
+        isPartOfContract: false,
+        contractId: undefined,
+        contractInfo: null,
+        contractEvents: undefined,
+        eventCount: 1
+      };
+      setSelectedEvent(individualEvent);
+      return;
     }
+    
+    // For table row clicks: show full contract data for contract events
+    if (booking.contractId || booking.isPartOfContract) {
+      const contractId = booking.contractId || booking.contractInfo?.id;
+      if (contractId) {
+        const contractBooking = (allBookings as any[]).find((b: any) => 
+          b.isContract && b.contractInfo?.id === contractId
+        );
+        if (contractBooking) {
+          // Found the full contract data - use it to show complete modal with all events
+          setSelectedEvent(contractBooking);
+          return;
+        }
+      }
+    }
+    
+    // For single events or if contract lookup failed, use the booking as-is
+    setSelectedEvent(booking);
   };
 
   return (
@@ -78,13 +98,13 @@ export default function Dashboard() {
             {/* Calendar - Full Width (only if feature is available) */}
             {hasCalendarView && (
               <div className="lg:col-span-12">
-                <AdvancedCalendar onEventClick={handleEventClick} />
+                <AdvancedCalendar onEventClick={(booking) => handleEventClick(booking, 'calendar')} />
               </div>
             )}
-            
+
             {/* Recent Bookings - Full Width */}
             <div className="lg:col-span-8 h-full min-h-[500px]">
-              <RecentBookings />
+              <RecentBookings onEventClick={(booking) => handleEventClick(booking, 'table')} />
             </div>
             
             {/* Right Column - Side Widgets */}
