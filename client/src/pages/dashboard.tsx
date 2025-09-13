@@ -34,50 +34,35 @@ export default function Dashboard() {
   const { data: allBookings = [] } = useQuery({ queryKey: ["/api/bookings"] });
   
   const handleEventClick = async (booking: any, source: 'calendar' | 'table' = 'calendar') => {
-    // For calendar events: allow individual event editing even if part of contract
-    if (source === 'calendar') {
-      console.log('🔍 Dashboard Debug - Calendar Event Click:', {
-        eventId: booking.id,
-        eventDate: booking.eventDate,
-        eventName: booking.eventName || booking.title,
-        isPartOfContract: booking.isPartOfContract,
-        contractId: booking.contractId,
-        startTime: booking.startTime,
-        endTime: booking.endTime
-      });
 
-      // Strip out contract-related properties to force individual event editing
-      // Preserve all individual event data including correct dates and times
+    // For calendar events: treat as individual events for editing
+    if (source === 'calendar') {
+      // Prepare individual event data - strip contract context
       const individualEvent = {
         ...booking,
-        // Ensure consistent naming between calendar and booking APIs
         eventName: booking.eventName || booking.title,
         eventDate: booking.eventDate || booking.start,
+        // Mark as individual to force single event editing
         isContract: false,
         isPartOfContract: false,
         contractId: undefined,
         contractInfo: null,
         contractEvents: undefined,
-        eventCount: 1
+        eventCount: 1,
+        _editAsIndividual: true // Flag for the edit modal
       };
 
-      console.log('🔍 Dashboard Debug - Individual Event after processing:', {
-        eventId: individualEvent.id,
-        eventDate: individualEvent.eventDate,
-        eventName: individualEvent.eventName,
-        startTime: individualEvent.startTime,
-        endTime: individualEvent.endTime
-      });
-
       setSelectedEvent(individualEvent);
+      // Skip EventSummaryModal and go directly to edit mode for calendar clicks
+      setShowEditModal(true);
       return;
     }
-    
+
     // For table row clicks: show full contract data for contract events
     if (booking.contractId || booking.isPartOfContract) {
       const contractId = booking.contractId || booking.contractInfo?.id;
       if (contractId) {
-        const contractBooking = (allBookings as any[]).find((b: any) => 
+        const contractBooking = (allBookings as any[]).find((b: any) =>
           b.isContract && b.contractInfo?.id === contractId
         );
         if (contractBooking) {
@@ -87,7 +72,7 @@ export default function Dashboard() {
         }
       }
     }
-    
+
     // For single events or if contract lookup failed, use the booking as-is
     setSelectedEvent(booking);
   };
@@ -146,8 +131,8 @@ export default function Dashboard() {
         />
 
         {/* Event Edit Modal - Shows when clicking Edit in summary modal */}
-        <EventEditFullModal 
-          open={showEditModal} 
+        <EventEditFullModal
+          open={showEditModal}
           onOpenChange={(open) => {
             setShowEditModal(false);
             if (!open) {

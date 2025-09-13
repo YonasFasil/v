@@ -1,8 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
 import { type TenantRequest } from "./tenant";
+import { type AuthenticatedRequest } from "./auth";
 
-export interface FeatureRequest extends TenantRequest {
+export interface FeatureRequest extends TenantRequest, AuthenticatedRequest {
   hasFeature?: (featureId: string) => Promise<boolean>;
 }
 
@@ -147,6 +148,11 @@ export function addFeatureAccess(req: FeatureRequest, res: Response, next: NextF
  */
 export function requireFeature(featureId: string) {
   return async (req: FeatureRequest, res: Response, next: NextFunction) => {
+    // Super admins have access to all features
+    if (req.user?.role === 'super_admin') {
+      return next();
+    }
+    
     if (!req.tenant) {
       return res.status(401).json({ 
         message: "Authentication required",

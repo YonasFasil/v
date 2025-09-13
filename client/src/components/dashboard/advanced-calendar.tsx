@@ -32,6 +32,13 @@ interface CalendarEvent {
   startTime: string;
   endTime: string;
   color: string;
+  // Contract properties
+  contractId?: string;
+  isPartOfContract?: boolean;
+  totalContractEvents?: number;
+  contractName?: string;
+  isContract?: boolean;
+  contractInfo?: any;
 }
 
 interface VenueCalendarData {
@@ -41,7 +48,7 @@ interface VenueCalendarData {
 }
 
 interface AdvancedCalendarProps {
-  onEventClick?: (event: any) => void;
+  onEventClick?: (event: any, source?: 'calendar' | 'table') => void;
 }
 
 export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
@@ -78,15 +85,6 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
     const filteredEvents = events.filter(event => 
       isSameDay(new Date(event.start), date) && event.status !== 'cancelled'
     );
-    // Debug logging to help identify duplicate event issues
-    if (filteredEvents.length > 0) {
-      console.log(`Events for ${format(date, 'yyyy-MM-dd')}:`, filteredEvents.map(e => ({
-        id: e.id,
-        title: e.title,
-        guestCount: e.guestCount,
-        status: e.status
-      })));
-    }
     return filteredEvents;
   };
 
@@ -217,10 +215,17 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
                       return (
                         <div
                           key={event.id}
-                          onClick={() => onEventClick?.(event)}
-                          className={`p-3 rounded-md cursor-pointer transition-all hover:shadow-sm border ${statusClasses}`}
+                          onClick={() => onEventClick?.(event, 'calendar')}
+                          className={`p-3 rounded-md cursor-pointer transition-all hover:shadow-sm border ${statusClasses} relative`}
                         >
-                          <div className="font-semibold text-sm mb-2">{event.title}</div>
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="font-semibold text-sm">{event.title}</div>
+                            {event.isPartOfContract && (
+                              <div className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ml-2">
+                                Multi-date
+                              </div>
+                            )}
+                          </div>
                           <div className="text-xs space-y-1">
                             <div className="flex items-center gap-2">
                               <Clock className="w-3 h-3" />
@@ -290,10 +295,13 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
                         return (
                           <div
                             key={event.id}
-                            onClick={() => onEventClick?.(event)}
-                            className={`text-xs p-2.5 rounded-md cursor-pointer transition-all hover:shadow-md border ${statusClasses}`}
-                            title={`${event.title} - ${event.customerName} - ${event.startTime}`}
+                            onClick={() => onEventClick?.(event, 'calendar')}
+                            className={`text-xs p-2.5 rounded-md cursor-pointer transition-all hover:shadow-md border ${statusClasses} relative`}
+                            title={`${event.title} - ${event.customerName} - ${event.startTime}${event.isPartOfContract ? ' (Multi-date Event)' : ''}`}
                           >
+                            {event.isPartOfContract && (
+                              <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-500 rounded-full border-2 border-white"></div>
+                            )}
                             <div className="font-semibold leading-tight mb-1.5 line-clamp-2 text-xs">
                               {event.title}
                             </div>

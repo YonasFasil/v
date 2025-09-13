@@ -143,21 +143,58 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   // Initialize form data when booking changes
   useEffect(() => {
     if (booking && open) {
-      console.log('🔍 Event Edit Modal Debug - Modal Opening with booking:', {
-        bookingId: booking.id,
-        eventDate: booking.eventDate,
-        eventName: booking.eventName,
-        isContract: booking.isContract,
-        isPartOfContract: booking.isPartOfContract,
-        contractId: booking.contractId
-      });
-      if (booking.isContract && booking.contractEvents) {
-        // Handle contract with multiple events
+      // Check if this is an individual event being edited from a contract
+      const editAsIndividual = booking._editAsIndividual;
+
+      if (editAsIndividual) {
+        // Individual event editing: Use the specific event data, not the contract
+        setEventName(booking.eventName || booking.title || "");
+        setEventStatus(booking.status || "inquiry");
+        setSelectedVenue(booking.venueId || "");
+        setSelectedCustomer(booking.customerId || "");
+
+        // Parse the event date properly
+        let eventDate: Date;
+        if (booking.eventDate || booking.start) {
+          const dateStr = booking.eventDate || booking.start;
+          if (typeof dateStr === 'string') {
+            eventDate = new Date(dateStr + (dateStr.includes('T') ? '' : 'T00:00:00'));
+          } else {
+            eventDate = new Date(dateStr);
+          }
+        } else {
+          eventDate = new Date();
+        }
+
+        const individualEventDate: SelectedDate = {
+          date: eventDate,
+          startTime: booking.startTime || "09:00",
+          endTime: booking.endTime || "17:00",
+          spaceId: booking.spaceId || "",
+          packageId: booking.packageId || "",
+          selectedServices: booking.selectedServices || [],
+          guestCount: booking.guestCount || 1,
+          itemQuantities: booking.itemQuantities || {},
+          pricingOverrides: booking.pricingOverrides || {},
+          serviceTaxOverrides: booking.serviceTaxOverrides || {}
+        };
+
+        setSelectedDates([individualEventDate]);
+        setActiveTabIndex(0);
+
+        if (booking.taxFeeOverrides) {
+          setTaxFeeOverrides(booking.taxFeeOverrides);
+        }
+
+        // For editing, start at step 3 (final details) since everything is pre-configured
+        setCurrentStep(3);
+      } else if (booking.isContract && booking.contractEvents) {
+        // Handle full contract editing with multiple events
         setEventName(booking.contractInfo?.contractName || "Multi-Date Contract");
         setEventStatus(booking.status || "inquiry");
         setSelectedVenue(booking.venueId || "");
         setSelectedCustomer(booking.customerId || "");
-        
+
         // Initialize all contract events as selected dates - preserve original dates
         const contractDates = booking.contractEvents.map((event: any) => ({
           date: event.eventDate ? new Date(event.eventDate) : new Date(),
@@ -171,21 +208,24 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
           pricingOverrides: event.pricingOverrides || {},
           serviceTaxOverrides: event.serviceTaxOverrides || {}
         }));
-        
+
         setSelectedDates(contractDates);
         setActiveTabIndex(0);
-        
+
         // Initialize tax/fee overrides from contract data if available
         if (booking.contractEvents?.[0]?.taxFeeOverrides) {
           setTaxFeeOverrides(booking.contractEvents[0].taxFeeOverrides);
         }
+
+        // For multi-date editing, start at step 3 (final details)
+        setCurrentStep(3);
       } else {
         // Handle single event
         setEventName(booking.eventName || "");
         setEventStatus(booking.status || "inquiry");
         setSelectedVenue(booking.venueId || "");
         setSelectedCustomer(booking.customerId || "");
-        
+
         // Initialize dates with existing booking data - preserve original date
         // Ensure proper date parsing to prevent timezone issues
         let eventDate: Date;
@@ -201,15 +241,6 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
           eventDate = new Date();
         }
 
-        console.log('🔍 Event Edit Modal Debug - Individual Event Initialization:', {
-          bookingId: booking.id,
-          originalEventDate: booking.eventDate,
-          parsedEventDate: eventDate,
-          eventName: booking.eventName,
-          startTime: booking.startTime,
-          endTime: booking.endTime
-        });
-
         const bookingDate: SelectedDate = {
           date: eventDate,
           startTime: booking.startTime || "09:00",
@@ -222,14 +253,17 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
           pricingOverrides: booking.pricingOverrides || {},
           serviceTaxOverrides: booking.serviceTaxOverrides || {}
         };
-        
+
         setSelectedDates([bookingDate]);
         setActiveTabIndex(0);
-        
+
         // Initialize tax/fee overrides from booking data
         if (booking.taxFeeOverrides) {
           setTaxFeeOverrides(booking.taxFeeOverrides);
         }
+
+        // For single event editing, start at step 3 (final details)
+        setCurrentStep(3);
       }
     }
   }, [booking, open]);
@@ -449,43 +483,18 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
 
   const updateBooking = useMutation({
     mutationFn: async (bookingData: any) => {
-      // Debug: Log booking structure to understand the issue
-      console.log('🔍 Edit Modal Debug:', {
-        id: booking?.id,
-        isContract: booking?.isContract,
-        contractInfo: booking?.contractInfo,
-        contractEvents: booking?.contractEvents,
-        eventCount: booking?.eventCount,
-        hasContractId: !!booking?.contractInfo?.id,
-        contractEventsLength: booking?.contractEvents?.length,
-        eventCountValue: booking?.eventCount
-      });
-      
       // Only use contract endpoints for editing complete contracts
       // Individual events (even if part of contract) should use individual booking endpoints
-      // Add extra debugging to understand what's happening
-      console.log('📋 Pre-check values:', {
-        isContract: booking?.isContract,
-        hasContractInfo: !!booking?.contractInfo,
-        contractInfoId: booking?.contractInfo?.id,
-        contractEventsLength: booking?.contractEvents?.length,
-        eventCount: booking?.eventCount,
-        contractEventDatesLength: booking?.contractInfo?.eventDates?.length
-      });
       
-      const isEditingFullContract = booking?.isContract && booking?.contractInfo?.id && (
-        (booking?.contractEvents?.length > 1) || 
+      // Check if this event should be forced to individual editing (from calendar clicks)
+      const editAsIndividual = booking?._editAsIndividual;
+
+      const isEditingFullContract = !editAsIndividual && booking?.isContract && booking?.contractInfo?.id && (
+        (booking?.contractEvents?.length > 1) ||
         (booking?.eventCount > 1) ||
         (booking?.contractInfo?.eventDates?.length > 1)
       );
       
-      console.log('📍 Route Decision:', { 
-        isEditingFullContract, 
-        contractId: booking?.contractInfo?.id,
-        bookingId: booking?.id,
-        hasContractEvents: !!booking?.contractEvents,
-        contractEventsLength: booking?.contractEvents?.length
-      });
       
       if (isEditingFullContract) {
         const response = await apiRequest(`/api/bookings/contract/${booking.contractInfo.id}`, {
@@ -505,11 +514,6 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
       return response;
     },
     onSuccess: (updatedBooking) => {
-      console.log('🔍 Update Success - Invalidating Queries:', {
-        updatedBookingId: updatedBooking?.id,
-        updatedEventDate: updatedBooking?.eventDate,
-        updatedEventName: updatedBooking?.eventName
-      });
 
       // More aggressive cache invalidation to ensure fresh data
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
@@ -702,36 +706,42 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
 
   const handleDateClick = (day: Date) => {
     if (!isSameMonth(day, currentDate)) return;
-    
-    // Block past date selection
+
+    // For editing existing events, allow modification of past dates that are already selected
+    // Only block NEW past date selections
     const today = startOfDay(new Date());
-    if (isBefore(day, today)) {
-      toast({
-        title: "❌ Cannot Select Past Date",
-        description: "Past dates cannot be selected for event booking. Please choose today or a future date.",
-        variant: "destructive",
-        duration: 5000
-      });
-      return;
-    }
-    
     const existingIndex = selectedDates.findIndex(d => isSameDay(d.date, day));
+
     if (existingIndex >= 0) {
+      // Existing date - allow removal regardless of past/future
       setSelectedDates(prev => prev.filter((_, i) => i !== existingIndex));
       if (activeTabIndex >= selectedDates.length - 1) {
         setActiveTabIndex(Math.max(0, selectedDates.length - 2));
       }
     } else {
+      // New date selection - block past dates only for new selections
+      if (isBefore(day, today)) {
+        toast({
+          title: "❌ Cannot Select Past Date",
+          description: "Past dates cannot be selected for new events. Please choose today or a future date.",
+          variant: "destructive",
+          duration: 5000
+        });
+        return;
+      }
+
+      // Add new date
       setSelectedDates(prev => [...prev, {
         date: day,
-        startTime: "09:00 AM",
-        endTime: "05:00 PM",
+        startTime: "09:00",
+        endTime: "17:00",
         spaceId: selectedVenueData?.spaces?.[0]?.id || "",
         guestCount: 1,
         packageId: "",
         selectedServices: [],
         itemQuantities: {},
-        pricingOverrides: {}
+        pricingOverrides: {},
+        serviceTaxOverrides: {}
       }]);
     }
   };
@@ -752,18 +762,21 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
       return;
     }
 
-    // Check for past dates before saving
-    const today = startOfDay(new Date());
-    const pastDates = selectedDates.filter(dateInfo => isBefore(dateInfo.date, today));
-    if (pastDates.length > 0) {
-      const pastDatesList = pastDates.map(d => format(d.date, 'MMM d, yyyy')).join(', ');
-      toast({
-        title: "❌ Cannot Save - Past Date Selected",
-        description: `Past dates cannot be used for event booking: ${pastDatesList}. Please remove past dates and select future dates only.`,
-        variant: "destructive",
-        duration: 8000
-      });
-      return;
+    // For new events (not editing), check for past dates before saving
+    // When editing existing events, allow past dates to be preserved
+    if (!booking) {  // Only check for new events
+      const today = startOfDay(new Date());
+      const pastDates = selectedDates.filter(dateInfo => isBefore(dateInfo.date, today));
+      if (pastDates.length > 0) {
+        const pastDatesList = pastDates.map(d => format(d.date, 'MMM d, yyyy')).join(', ');
+        toast({
+          title: "❌ Cannot Save - Past Date Selected",
+          description: `Past dates cannot be used for event booking: ${pastDatesList}. Please remove past dates and select future dates only.`,
+          variant: "destructive",
+          duration: 8000
+        });
+        return;
+      }
     }
 
     // Check for blocking conflicts before saving
@@ -940,16 +953,6 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
     // For multi-date events, we'll submit the primary date
     const primaryDate = selectedDates[0];
 
-    console.log('🔍 Event Edit Modal Debug - Form Submission:', {
-      bookingId: booking?.id,
-      originalBookingDate: booking?.eventDate,
-      selectedDatesLength: selectedDates.length,
-      primaryDateValue: primaryDate.date,
-      primaryDateISO: primaryDate.date.toISOString(),
-      eventName,
-      selectedVenue,
-      selectedCustomer
-    });
 
     const bookingData = {
       eventName,
@@ -970,10 +973,11 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
       notes: "",
       itemQuantities: primaryDate.itemQuantities || {},
       pricingOverrides: primaryDate.pricingOverrides || {},
-      serviceTaxOverrides: primaryDate.serviceTaxOverrides || null
+      serviceTaxOverrides: primaryDate.serviceTaxOverrides || null,
+      // Include selectedDates for individual booking updates in contracts
+      selectedDates: selectedDates
     };
 
-    console.log('🔍 Event Edit Modal Debug - Final Booking Data:', bookingData);
     updateBooking.mutate(bookingData);
   };
 
@@ -1351,20 +1355,25 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                         const today = startOfDay(new Date());
                         const isPast = isBefore(day, today);
                         const isTodayDate = isToday(day);
-                        
+
+                        // Allow clicking on past dates if they are already selected (for editing)
+                        const isDisabled = isPast && !isSelected;
+
                         return (
                           <button
                             key={index}
                             onClick={() => handleDateClick(day)}
-                            disabled={isPast}
+                            disabled={isDisabled}
                             className={cn(
                               "h-12 w-12 rounded-full flex items-center justify-center text-sm font-medium transition-colors",
-                              isPast 
-                                ? "text-slate-300 cursor-not-allowed bg-slate-50" 
-                                : isCurrentMonth 
-                                  ? "text-slate-900 hover:bg-slate-100" 
+                              isDisabled
+                                ? "text-slate-300 cursor-not-allowed bg-slate-50"
+                                : isCurrentMonth
+                                  ? "text-slate-900 hover:bg-slate-100"
                                   : "text-slate-400",
-                              isSelected && !isPast && "bg-blue-600 text-white hover:bg-blue-700",
+                              isSelected && "bg-blue-600 text-white hover:bg-blue-700",
+                              // Special styling for selected past dates (editing mode)
+                              isSelected && isPast && "bg-orange-500 text-white hover:bg-orange-600",
                               isTodayDate && !isSelected && !isPast && "bg-green-50 text-green-700 border border-green-200"
                             )}
                           >

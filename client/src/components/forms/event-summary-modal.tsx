@@ -62,7 +62,7 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
   const { data: customers = [] } = useQuery({ queryKey: ["/api/customers"] });
   const { data: communications = [] } = useQuery({ 
     queryKey: ["/api/communications", booking?.id], 
-    enabled: !!booking?.id 
+    enabled: !!booking?.id && !booking?.isContract // Disable communications for contract events for now
   });
 
   // Get proposal data if this booking has a proposal
@@ -76,15 +76,26 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
   // Status update mutation - moved before early return to maintain hook order
   const updateStatusMutation = useMutation({
     mutationFn: async ({ bookingId, newStatus }: { bookingId: string; newStatus: EventStatus }) => {
-      return apiRequest(`/api/bookings/${bookingId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ status: newStatus }),
-        headers: { "Content-Type": "application/json" }
-      });
+      // Handle contract status updates differently
+      if (booking?.isContract && booking?.contractInfo?.id) {
+        return apiRequest(`/api/bookings/contract/${booking.contractInfo.id}/status`, {
+          method: "PATCH", 
+          body: JSON.stringify({ status: newStatus }),
+          headers: { "Content-Type": "application/json" }
+        });
+      } else {
+        return apiRequest(`/api/bookings/${bookingId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ status: newStatus }),
+          headers: { "Content-Type": "application/json" }
+        });
+      }
     },
     onMutate: async ({ bookingId, newStatus }) => {
       // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
-      await queryClient.cancelQueries({ queryKey: ['/api/calendar/events'] });
+      await queryClient.cancelQueries({ 
+        predicate: (query) => query.queryKey[0] === '/api/calendar/events' 
+      });
       await queryClient.cancelQueries({ queryKey: ['/api/bookings'] });
       await queryClient.cancelQueries({ queryKey: ['/api/dashboard/metrics'] });
 
@@ -146,11 +157,14 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
     onSuccess: (data, variables) => {
       toast({
         title: "Status updated",
-        description: "Event status has been successfully updated."
+        description: "Event status has been successfully updated.",
+        variant: "success"
       });
       
-      // Immediately invalidate cache to ensure fresh data
-      queryClient.invalidateQueries({ queryKey: ['/api/calendar/events'] });
+      // Immediately invalidate cache to ensure fresh data (use predicate to catch all calendar query variants)
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0] === '/api/calendar/events' 
+      });
       queryClient.invalidateQueries({ queryKey: ['/api/bookings'] });
       queryClient.invalidateQueries({ queryKey: ['/api/dashboard/metrics'] });
     }

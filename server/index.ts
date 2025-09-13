@@ -84,23 +84,9 @@ app.use((req, res, next) => {
   server.listen(port, host, async () => {
     log(`serving on port ${port}`);
     
-    // Auto-start email monitoring if configured
-    try {
-      const emailSettings = await storage.getSetting('email');
-      if (emailSettings && emailSettings.value) {
-        const config = emailSettings.value;
-        if (config.email && config.appPassword && !emailMonitorService.isMonitoring()) {
-          emailMonitorService.configure({
-            email: config.email,
-            appPassword: config.appPassword
-          });
-          await emailMonitorService.startMonitoring();
-          log(`📧 Email monitoring auto-started for ${config.email}`);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to auto-start email monitoring:', error);
-    }
+    // Auto-start email monitoring disabled during development due to tenant context issues
+    // Email monitoring will be started when tenants access their settings
+    log('📧 Email monitoring auto-start disabled - will be started per tenant when needed');
   });
 })();
 

@@ -28,8 +28,6 @@ export const venues = pgTable("venues", {
   tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   description: text("description"),
-  capacity: integer("capacity"), // Optional - venue is like a hotel, capacity is for individual spaces
-  pricePerHour: decimal("price_per_hour", { precision: 10, scale: 2 }),
   amenities: text("amenities").array(),
   imageUrl: text("image_url"),
   isActive: boolean("is_active").default(true),
@@ -59,8 +57,6 @@ export const spaces = pgTable("spaces", {
   pricePerHour: decimal("price_per_hour", { precision: 10, scale: 2 }),
   amenities: text("amenities").array(),
   imageUrl: text("image_url"),
-  availableSetupStyles: text("available_setup_styles").array(), // Available setup styles for this space (references setupStyles.id)
-  floorPlan: jsonb("floor_plan"), // 2D floor plan configuration with elements, furniture, etc.
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });

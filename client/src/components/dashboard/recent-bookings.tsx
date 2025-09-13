@@ -6,7 +6,11 @@ import { Calendar, Clock, MapPin, Users, DollarSign, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { getStatusConfig } from "@shared/status-utils";
 
-export function RecentBookings() {
+interface RecentBookingsProps {
+  onEventClick?: (event: any) => void;
+}
+
+export function RecentBookings({ onEventClick }: RecentBookingsProps) {
   const { data: bookings, isLoading } = useBookings();
 
   const getStatusColor = (status: string) => {
@@ -72,13 +76,14 @@ export function RecentBookings() {
             <p className="text-sm text-slate-500">New bookings will appear here</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3 overflow-y-auto max-h-[600px] pr-2">
             {recentBookings.map((booking, index) => {
               const statusConfig = getStatusConfig(booking.status);
               return (
                 <div 
                   key={booking.id} 
-                  className="bg-white border border-slate-200 hover:bg-slate-50 transition-colors duration-200 p-4 rounded-lg"
+                  onClick={() => onEventClick?.(booking)}
+                  className="bg-white border border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all duration-200 p-4 rounded-lg cursor-pointer relative"
                 >
                   {/* Status indicator */}
                   <div 

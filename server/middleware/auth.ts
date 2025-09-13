@@ -52,20 +52,21 @@ export function verifyToken(token: string): { id: string; email: string; role: s
 // Super admin authentication
 export async function authenticateSuperAdmin(email: string, password: string): Promise<{ token: string; user: any } | null> {
   try {
-    // Direct database query to bypass Drizzle/Neon compatibility issues
-    const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    // Use Drizzle to find super admin
+    const result = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        password: users.password,
+        name: users.name,
+        role: users.role,
+        permissions: users.permissions
+      })
+      .from(users)
+      .where(and(eq(users.email, email), eq(users.role, 'super_admin')))
+      .limit(1);
     
-    let superAdmin;
-    try {
-      const result = await pool.query(
-        'SELECT id, email, password, name, role, permissions FROM users WHERE email = $1 AND role = $2 LIMIT 1',
-        [email, 'super_admin']
-      );
-      superAdmin = result.rows[0];
-    } finally {
-      await pool.end();
-    }
+    const superAdmin = result[0];
 
     if (!superAdmin) {
       console.log('Super admin user not found with email:', email);

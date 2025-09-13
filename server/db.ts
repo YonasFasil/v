@@ -1,18 +1,6 @@
-// Database exports using Neon
-import { drizzle } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
-import * as schema from "../shared/schema";
-
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
-}
-
-const sql = neon(process.env.DATABASE_URL);
-
-// Export db instance for existing code
-export const db = drizzle(sql, { schema });
+// Clean Drizzle ORM setup - re-export from drizzle.ts
+export { db, default } from './db/drizzle';
+export * from './db/drizzle';
 
 // Export isLocal helper for compatibility
 export const isLocal = process.env.NODE_ENV === "development";

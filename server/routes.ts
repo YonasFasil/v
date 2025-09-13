@@ -1809,33 +1809,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!tenantId) {
         return res.status(401).json({ message: "Authentication required" });
       }
-      
+
       const contractId = req.params.contractId;
       const updateData = { ...req.body };
-
-      // Convert string dates to proper Date objects for Drizzle ORM
-      const dateFields = ['eventDate', 'completedAt', 'cancelledAt', 'proposalSentAt', 'createdAt', 'updatedAt'];
-      dateFields.forEach(field => {
-        if (updateData[field] && typeof updateData[field] === 'string') {
-          updateData[field] = new Date(updateData[field]);
-        }
-      });
-
-      // Auto-complete booking if status is being set to completed and no completedAt timestamp
-      if (updateData.status === "completed" && !updateData.completedAt) {
-        updateData.completedAt = new Date();
-      }
-
-      // Handle cancellation data
-      if (updateData.status === "cancelled") {
-        if (!updateData.cancelledAt) {
-          updateData.cancelledAt = new Date();
-        }
-        // Ensure cancellation reason is provided
-        if (!updateData.cancellationReason) {
-          return res.status(400).json({ message: "Cancellation reason is required" });
-        }
-      }
 
       // Get all bookings for this contract
       const contractBookings = await storage.getBookingsByContract(contractId);
@@ -1849,19 +1825,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Contract not found" });
       }
 
-      // Update all bookings in the contract
-      const updatedBookings = [];
-      for (const booking of contractBookings) {
-        const updated = await storage.updateBooking(booking.id, updateData);
-        if (updated) {
-          updatedBookings.push(updated);
-        }
-      }
+      // Check if this is an individual booking update (contains selectedDates array)
+      if (updateData.selectedDates && Array.isArray(updateData.selectedDates)) {
+        console.log('📝 Contract update with individual booking data detected');
 
-      res.json({ 
-        message: `Updated ${updatedBookings.length} bookings in contract`, 
-        bookings: updatedBookings 
-      });
+        // Handle individual booking updates for each date
+        const updatedBookings = [];
+        const selectedDates = updateData.selectedDates;
+
+        // Remove selectedDates from updateData to avoid applying it to all bookings
+        const { selectedDates: _, ...commonUpdateData } = updateData;
+
+        // Convert common string dates to proper Date objects for Drizzle ORM
+        const dateFields = ['completedAt', 'cancelledAt', 'proposalSentAt', 'createdAt', 'updatedAt'];
+        dateFields.forEach(field => {
+          if (commonUpdateData[field] && typeof commonUpdateData[field] === 'string') {
+            commonUpdateData[field] = new Date(commonUpdateData[field]);
+          }
+        });
+
+        // Auto-complete booking if status is being set to completed and no completedAt timestamp
+        if (commonUpdateData.status === "completed" && !commonUpdateData.completedAt) {
+          commonUpdateData.completedAt = new Date();
+        }
+
+        // Handle cancellation data
+        if (commonUpdateData.status === "cancelled") {
+          if (!commonUpdateData.cancelledAt) {
+            commonUpdateData.cancelledAt = new Date();
+          }
+          // Ensure cancellation reason is provided
+          if (!commonUpdateData.cancellationReason) {
+            return res.status(400).json({ message: "Cancellation reason is required" });
+          }
+        }
+
+        // Sort bookings by event date to match with selectedDates array
+        const sortedBookings = contractBookings.sort((a, b) =>
+          new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime()
+        );
+
+        // Update each booking with its corresponding selectedDate data
+        for (let i = 0; i < Math.min(sortedBookings.length, selectedDates.length); i++) {
+          const booking = sortedBookings[i];
+          const selectedDate = selectedDates[i];
+
+          // Prepare individual booking update data
+          const individualUpdateData = {
+            ...commonUpdateData,
+            eventDate: new Date(selectedDate.date),
+            startTime: selectedDate.startTime,
+            endTime: selectedDate.endTime,
+            spaceId: selectedDate.spaceId,
+            guestCount: selectedDate.guestCount,
+            packageId: selectedDate.packageId || null,
+            selectedServices: selectedDate.selectedServices || [],
+            itemQuantities: selectedDate.itemQuantities || {},
+            pricingOverrides: selectedDate.pricingOverrides || {},
+            serviceTaxOverrides: selectedDate.serviceTaxOverrides || {}
+          };
+
+          console.log(`📅 Updating booking ${booking.id} with date:`, selectedDate.date);
+
+          const updated = await storage.updateBooking(booking.id, individualUpdateData);
+          if (updated) {
+            updatedBookings.push(updated);
+          }
+        }
+
+        res.json({
+          message: `Updated ${updatedBookings.length} individual bookings in contract`,
+          bookings: updatedBookings
+        });
+
+      } else {
+        console.log('📝 Contract bulk update detected (no individual booking data)');
+
+        // Handle bulk updates (status, customer, venue changes) - apply to all bookings
+        // Convert string dates to proper Date objects for Drizzle ORM
+        const dateFields = ['eventDate', 'completedAt', 'cancelledAt', 'proposalSentAt', 'createdAt', 'updatedAt'];
+        dateFields.forEach(field => {
+          if (updateData[field] && typeof updateData[field] === 'string') {
+            updateData[field] = new Date(updateData[field]);
+          }
+        });
+
+        // Auto-complete booking if status is being set to completed and no completedAt timestamp
+        if (updateData.status === "completed" && !updateData.completedAt) {
+          updateData.completedAt = new Date();
+        }
+
+        // Handle cancellation data
+        if (updateData.status === "cancelled") {
+          if (!updateData.cancelledAt) {
+            updateData.cancelledAt = new Date();
+          }
+          // Ensure cancellation reason is provided
+          if (!updateData.cancellationReason) {
+            return res.status(400).json({ message: "Cancellation reason is required" });
+          }
+        }
+
+        // Update all bookings in the contract with the same data
+        const updatedBookings = [];
+        for (const booking of contractBookings) {
+          const updated = await storage.updateBooking(booking.id, updateData);
+          if (updated) {
+            updatedBookings.push(updated);
+          }
+        }
+
+        res.json({
+          message: `Updated ${updatedBookings.length} bookings in contract`,
+          bookings: updatedBookings
+        });
+      }
     } catch (error) {
       console.error('Contract booking full update error:', error);
       res.status(500).json({ message: "Failed to update contract bookings" });

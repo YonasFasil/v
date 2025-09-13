@@ -25,8 +25,8 @@ async function getTenantIdFromAuth(req: Request): Promise<string | null> {
     return decoded.assumedTenantId;
   }
   
-  // Get user to find their tenant ID
-  const user = await storage.getUser(decoded.id);
+  // Get user to find their tenant ID (using direct lookup to avoid circular dependency)
+  const user = await storage.getUserByIdDirect(decoded.id);
   return user?.tenantId || null;
 }
 
@@ -45,8 +45,8 @@ async function getUserFromAuth(req: Request): Promise<any | null> {
     return null;
   }
   
-  // Get user details
-  const user = await storage.getUser(decoded.id);
+  // Get user details (using direct lookup to avoid circular dependency)
+  const user = await storage.getUserByIdDirect(decoded.id);
   return user || null;
 }
 

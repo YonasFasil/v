@@ -30,8 +30,8 @@ async function setupDatabase() {
     
     const packageId = crypto.randomUUID();
     await executeQuery(`
-      INSERT INTO subscription_packages (id, name, description, price, billing_interval, trial_days, max_venues, max_users, max_bookings_per_month, features, is_active, sort_order, created_at)
-      VALUES ($1, 'Enterprise', 'Full access package for enterprise customers', 0.00, 'monthly', 30, 999, 999, 9999, '["all_features"]'::jsonb, true, 0, NOW())
+      INSERT INTO subscription_packages (id, name, description, price, billing_interval, max_venues, max_users, features, is_active, sort_order, created_at)
+      VALUES ($1, 'Enterprise', 'Full access package for enterprise customers', 0.00, 'monthly', 999, 999, '["all_features"]'::jsonb, true, 0, NOW())
       ON CONFLICT (id) DO NOTHING
     `, [packageId]);
     
