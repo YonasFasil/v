@@ -386,6 +386,60 @@ module.exports = async function handler(req, res) {
           return res.status(400).json({ message: 'Event name, date, start time, and end time are required' });
         }
 
+        // Check space availability if spaceId is provided
+        if (spaceId) {
+          // Check for conflicting bookings in the same space, date, and overlapping time
+          const conflictQuery = `
+            SELECT
+              b.id, b.event_name, b.status, b.start_time, b.end_time,
+              c.name as customer_name
+            FROM bookings b
+            LEFT JOIN customers c ON b.customer_id = c.id
+            WHERE b.tenant_id = $1
+              AND b.space_id = $2
+              AND b.event_date::date = $3::date
+              AND b.status != 'cancelled'
+              AND (
+                (b.start_time < $5 AND b.end_time > $4) OR
+                (b.start_time >= $4 AND b.start_time < $5)
+              )
+          `;
+
+          const conflicts = await pool.query(conflictQuery, [
+            tenantId, spaceId, eventDate, startTime, endTime
+          ]);
+
+          if (conflicts.rows.length > 0) {
+            const conflictingBooking = conflicts.rows[0];
+
+            // Define blocking statuses (paid bookings that cannot be overbooked)
+            const blockingStatuses = ['confirmed_deposit_paid', 'confirmed_fully_paid'];
+            const isBlocking = blockingStatuses.includes(conflictingBooking.status);
+
+            const conflictResponse = {
+              message: isBlocking ? 'Space is unavailable - confirmed paid booking exists' : 'Space overlap detected with tentative booking',
+              conflictType: isBlocking ? 'blocking' : 'warning',
+              conflictingBooking: {
+                id: conflictingBooking.id,
+                eventName: conflictingBooking.event_name,
+                status: conflictingBooking.status,
+                startTime: conflictingBooking.start_time,
+                endTime: conflictingBooking.end_time,
+                customerName: conflictingBooking.customer_name
+              }
+            };
+
+            // For blocking conflicts, return 409 to prevent creation
+            // For warnings, we could still allow creation but return conflict info
+            if (isBlocking) {
+              return res.status(409).json(conflictResponse);
+            }
+
+            // For non-blocking conflicts, log the warning but allow creation
+            console.log('⚠️ Non-blocking booking overlap detected:', conflictResponse);
+          }
+        }
+
         const newBooking = await pool.query(`
           INSERT INTO bookings (
             tenant_id, event_name, event_type, customer_id, venue_id, space_id,
@@ -944,7 +998,140 @@ module.exports = async function handler(req, res) {
         }
       }
     }
-    
+
+    // CONTRACTS - Handle multi-date event creation
+    if (resource === 'contracts') {
+      if (req.method === 'POST') {
+        const { contractData, bookingsData } = req.body;
+
+        if (!contractData || !bookingsData || !Array.isArray(bookingsData)) {
+          return res.status(400).json({ message: 'Contract data and bookings array are required' });
+        }
+
+        // Generate a unique contract ID
+        const { v4: uuidv4 } = require('uuid');
+        const contractId = uuidv4();
+
+        try {
+          // Check availability for all bookings first
+          const conflicts = [];
+
+          for (const bookingData of bookingsData) {
+            const { spaceId, eventDate, startTime, endTime } = bookingData;
+
+            if (spaceId) {
+              const conflictQuery = `
+                SELECT
+                  b.id, b.event_name, b.status, b.start_time, b.end_time,
+                  c.name as customer_name
+                FROM bookings b
+                LEFT JOIN customers c ON b.customer_id = c.id
+                WHERE b.tenant_id = $1
+                  AND b.space_id = $2
+                  AND b.event_date::date = $3::date
+                  AND b.status != 'cancelled'
+                  AND (
+                    (b.start_time < $5 AND b.end_time > $4) OR
+                    (b.start_time >= $4 AND b.start_time < $5)
+                  )
+              `;
+
+              const result = await pool.query(conflictQuery, [
+                tenantId, spaceId, eventDate, startTime, endTime
+              ]);
+
+              if (result.rows.length > 0) {
+                const conflictingBooking = result.rows[0];
+                const blockingStatuses = ['confirmed_deposit_paid', 'confirmed_fully_paid'];
+                const isBlocking = blockingStatuses.includes(conflictingBooking.status);
+
+                if (isBlocking) {
+                  conflicts.push({
+                    date: eventDate,
+                    conflictingBooking: {
+                      id: conflictingBooking.id,
+                      eventName: conflictingBooking.event_name,
+                      status: conflictingBooking.status,
+                      startTime: conflictingBooking.start_time,
+                      endTime: conflictingBooking.end_time,
+                      customerName: conflictingBooking.customer_name
+                    }
+                  });
+                }
+              }
+            }
+          }
+
+          // If there are blocking conflicts, return error
+          if (conflicts.length > 0) {
+            return res.status(409).json({
+              message: 'Contract cannot be created due to confirmed paid booking conflicts',
+              conflictType: 'blocking',
+              conflictingBooking: conflicts[0].conflictingBooking,
+              conflicts: conflicts
+            });
+          }
+
+          // Create all bookings with the same contract ID
+          const createdBookings = [];
+
+          for (const bookingData of bookingsData) {
+            const {
+              eventName, eventType, customerId, venueId, spaceId,
+              eventDate, endDate, startTime, endTime, guestCount,
+              setupStyle, status = 'inquiry', totalAmount, depositAmount,
+              notes, isMultiDay, proposalId, proposalStatus, proposalSentAt
+            } = bookingData;
+
+            const newBooking = await pool.query(`
+              INSERT INTO bookings (
+                tenant_id, event_name, event_type, customer_id, venue_id, space_id,
+                event_date, end_date, start_time, end_time, guest_count,
+                setup_style, status, total_amount, deposit_amount, notes,
+                contract_id, is_multi_day, proposal_id, proposal_status,
+                proposal_sent_at, created_at
+              ) VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, NOW()
+              ) RETURNING *
+            `, [
+              tenantId, eventName, eventType, customerId, venueId, spaceId,
+              eventDate, endDate, startTime, endTime, guestCount,
+              setupStyle, status, totalAmount, depositAmount, notes,
+              contractId, isMultiDay, proposalId, proposalStatus, proposalSentAt
+            ]);
+
+            createdBookings.push(newBooking.rows[0]);
+          }
+
+          return res.status(201).json({
+            message: 'Contract created successfully',
+            contractId: contractId,
+            bookings: createdBookings
+          });
+
+        } catch (error) {
+          console.error('Contract creation error:', error);
+          return res.status(500).json({ message: 'Failed to create contract' });
+        }
+      }
+
+      // GET contracts (return grouped bookings by contract_id)
+      if (req.method === 'GET') {
+        try {
+          const contracts = await pool.query(`
+            SELECT DISTINCT contract_id
+            FROM bookings
+            WHERE tenant_id = $1 AND contract_id IS NOT NULL
+          `, [tenantId]);
+
+          return res.json(contracts.rows);
+        } catch (error) {
+          console.error('Contracts query error:', error);
+          return res.json([]);
+        }
+      }
+    }
+
     return res.status(404).json({ message: 'Resource not found' });
     
   } catch (error) {
