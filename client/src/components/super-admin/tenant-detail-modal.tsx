@@ -135,8 +135,8 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
 
   // Fetch tenant details including users
   const { data: tenantUsers = [] } = useQuery<TenantUser[]>({
-    queryKey: [`/api/super-admin/tenants/${tenant?.id}/users`],
-    queryFn: () => apiRequest(`/api/super-admin/tenants/${tenant?.id}/users`),
+    queryKey: [`/api/super-admin/tenants?action=users&tenantId=${tenant?.id}`],
+    queryFn: () => apiRequest(`/api/super-admin/tenants?action=users&tenantId=${tenant?.id}`),
     enabled: !!tenant?.id && open
   });
 
@@ -179,14 +179,14 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
   // Update tenant mutation
   const updateTenantMutation = useMutation({
     mutationFn: (data: Partial<Tenant>) =>
-      apiRequest(`/api/super-admin/tenants/${tenant?.id}`, {
+      apiRequest(`/api/super-admin/tenants?action=tenant&tenantId=${tenant?.id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
       toast({ title: "Tenant updated successfully" });
       queryClient.invalidateQueries({ queryKey: ["/api/super-admin/tenants"] });
-      queryClient.invalidateQueries({ queryKey: [`/api/super-admin/tenants/${tenant?.id}/users`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/super-admin/tenants?action=users&tenantId=${tenant?.id}`] });
     },
     onError: (error: any) => {
       toast({ title: "Error updating tenant", description: error.message, variant: "destructive" });
@@ -196,15 +196,15 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
   // Add user mutation
   const addUserMutation = useMutation({
     mutationFn: (userData: typeof newUserData) =>
-      apiRequest(`/api/super-admin/tenants/${tenant?.id}/users`, {
+      apiRequest(`/api/super-admin/tenants?action=createUser&tenantId=${tenant?.id}`, {
         method: "POST",
         body: JSON.stringify({...userData, tenantId: tenant?.id}),
       }),
     onSuccess: () => {
       toast({ title: "User added successfully" });
-      queryClient.invalidateQueries({ queryKey: [`/api/super-admin/tenants/${tenant?.id}/users`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/super-admin/tenants?action=users&tenantId=${tenant?.id}`] });
       // Also invalidate ALL tenant-level queries to ensure sync
-      queryClient.invalidateQueries({ 
+      queryClient.invalidateQueries({
         predicate: (query) => query.queryKey[0]?.toString().includes("/api/tenant/")
       });
       setNewUserData({ username: "", name: "", email: "", password: "", role: "tenant_user" });
@@ -218,14 +218,14 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
   // Delete user mutation
   const deleteUserMutation = useMutation({
     mutationFn: (userId: string) =>
-      apiRequest(`/api/super-admin/tenants/${tenant?.id}/users/${userId}`, {
+      apiRequest(`/api/super-admin/tenants?action=user&tenantId=${tenant?.id}&userId=${userId}`, {
         method: "DELETE",
       }),
     onSuccess: () => {
       toast({ title: "User removed successfully" });
-      queryClient.invalidateQueries({ queryKey: [`/api/super-admin/tenants/${tenant?.id}/users`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/super-admin/tenants?action=users&tenantId=${tenant?.id}`] });
       // Also invalidate ALL tenant-level queries to ensure sync
-      queryClient.invalidateQueries({ 
+      queryClient.invalidateQueries({
         predicate: (query) => query.queryKey[0]?.toString().includes("/api/tenant/")
       });
     },
@@ -237,15 +237,15 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
   // Update user permissions mutation
   const updatePermissionsMutation = useMutation({
     mutationFn: ({ userId, permissions }: { userId: string; permissions: string[] }) =>
-      apiRequest(`/api/super-admin/tenants/${tenant?.id}/users/${userId}/permissions`, {
+      apiRequest(`/api/super-admin/tenants?action=permissions&tenantId=${tenant?.id}&userId=${userId}`, {
         method: "PUT",
         body: JSON.stringify({ permissions }),
       }),
     onSuccess: () => {
       toast({ title: "Permissions updated successfully" });
-      queryClient.invalidateQueries({ queryKey: [`/api/super-admin/tenants/${tenant?.id}/users`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/super-admin/tenants?action=users&tenantId=${tenant?.id}`] });
       // Also invalidate ALL tenant-level queries to ensure sync
-      queryClient.invalidateQueries({ 
+      queryClient.invalidateQueries({
         predicate: (query) => query.queryKey[0]?.toString().includes("/api/tenant/")
       });
       setEditingPermissions(null);
