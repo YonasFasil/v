@@ -274,7 +274,13 @@ module.exports = async function handler(req, res) {
     // BOOKINGS
     if (resource === 'bookings') {
       if (req.method === 'GET') {
-        const bookings = await pool.query(`SELECT b.*, 
+        const bookings = await pool.query(`SELECT b.*,
+                 b.event_name as "eventName",
+                 b.event_date as "eventDate",
+                 b.start_time as "startTime",
+                 b.end_time as "endTime",
+                 b.guest_count as "guestCount",
+                 b.total_amount as "totalAmount",
                  c.name as customer_name,
                  v.name as venue_name,
                  s.name as space_name

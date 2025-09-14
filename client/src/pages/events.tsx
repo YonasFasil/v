@@ -308,7 +308,7 @@ export default function Events() {
                               {booking.totalAmount ? `$${parseFloat(booking.totalAmount).toLocaleString()}` : '-'}
                             </TableCell>
                             <TableCell className="text-sm text-slate-600">
-                              Venue Location
+                              {booking.venue_name || 'No Venue'}
                             </TableCell>
                           </TableRow>
                         ))}
