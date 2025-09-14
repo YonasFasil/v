@@ -166,24 +166,45 @@ module.exports = async function handler(req, res) {
     // CUSTOMERS
     if (resource === 'customers') {
       if (req.method === 'GET') {
-        const customers = await pool.query(`SELECT * FROM customers 
+        const customers = await pool.query(`SELECT * FROM customers
           WHERE tenant_id = $1
           ORDER BY created_at DESC`, [tenantId]);
         return res.json(customers.rows);
-        
+
       } else if (req.method === 'POST') {
         const { name, email, phone, notes } = req.body;
-        
+
         if (!name || !email) {
           return res.status(400).json({ message: 'Name and email are required' });
         }
-        
+
         const newCustomer = await pool.query(`INSERT INTO customers (
             tenant_id, name, email, phone, notes, created_at
           ) VALUES ($1, $2, $3, $4, $5, NOW())
           RETURNING *`, [tenantId, name, email, phone || null, notes || null]);
-        
+
         return res.status(201).json(newCustomer.rows[0]);
+      }
+    }
+
+    // CUSTOMER ANALYTICS
+    if (resource === 'customer-analytics') {
+      if (req.method === 'GET') {
+        const analytics = await pool.query(`
+          SELECT
+            c.*,
+            COUNT(DISTINCT b.id) as "bookingCount",
+            COALESCE(SUM(b.total_amount), 0) as "totalRevenue",
+            MAX(b.event_date) as "lastBookingDate",
+            COUNT(DISTINCT p.id) as "proposalCount"
+          FROM customers c
+          LEFT JOIN bookings b ON c.id = b.customer_id AND c.tenant_id = b.tenant_id
+          LEFT JOIN proposals p ON c.id = p.customer_id AND c.tenant_id = p.tenant_id
+          WHERE c.tenant_id = $1
+          GROUP BY c.id
+          ORDER BY c.created_at DESC
+        `, [tenantId]);
+        return res.json(analytics.rows);
       }
     }
     
@@ -290,8 +311,60 @@ module.exports = async function handler(req, res) {
           LEFT JOIN spaces s ON b.space_id = s.id
           WHERE b.tenant_id = $1
           ORDER BY b.event_date DESC`, [tenantId]);
-        
-        return res.json(bookings.rows);
+
+        // Group bookings by contract_id and create contract objects
+        const contracts = new Map();
+        const singleBookings = [];
+
+        bookings.rows.forEach(booking => {
+          if (booking.contract_id) {
+            if (!contracts.has(booking.contract_id)) {
+              // Create a contract object
+              contracts.set(booking.contract_id, {
+                id: booking.contract_id,
+                isContract: true,
+                contractInfo: {
+                  id: booking.contract_id,
+                  contractName: `${booking.eventName} (Multi-Date)`
+                },
+                contractEvents: [],
+                eventCount: 0,
+                status: booking.status,
+                customer_name: booking.customer_name,
+                venue_name: booking.venue_name,
+                totalAmount: 0,
+                created_at: booking.created_at
+              });
+            }
+
+            const contract = contracts.get(booking.contract_id);
+            contract.contractEvents.push({
+              ...booking,
+              isPartOfContract: true
+            });
+            contract.eventCount = contract.contractEvents.length;
+            contract.totalAmount = (parseFloat(contract.totalAmount || 0) + parseFloat(booking.totalAmount || 0)).toFixed(2);
+          } else {
+            // Single booking (not part of contract)
+            singleBookings.push({
+              ...booking,
+              isContract: false,
+              isPartOfContract: false
+            });
+          }
+        });
+
+        // Combine contracts and single bookings
+        const result = [...Array.from(contracts.values()), ...singleBookings];
+
+        // Sort by created_at or event_date
+        result.sort((a, b) => {
+          const dateA = new Date(a.contractEvents?.[0]?.eventDate || a.eventDate || a.created_at);
+          const dateB = new Date(b.contractEvents?.[0]?.eventDate || b.eventDate || b.created_at);
+          return dateB - dateA;
+        });
+
+        return res.json(result);
       }
     }
     
