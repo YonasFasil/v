@@ -366,6 +366,38 @@ module.exports = async function handler(req, res) {
 
         return res.json(result);
       }
+
+      if (req.method === 'POST') {
+        // Create new booking/event
+        const {
+          eventName, eventType, customerId, venueId, spaceId,
+          eventDate, endDate, startTime, endTime, guestCount,
+          setupStyle, status = 'inquiry', totalAmount, depositAmount,
+          notes, contractId, isMultiDay
+        } = req.body;
+
+        if (!eventName || !eventDate || !startTime || !endTime) {
+          return res.status(400).json({ message: 'Event name, date, start time, and end time are required' });
+        }
+
+        const newBooking = await pool.query(`
+          INSERT INTO bookings (
+            tenant_id, event_name, event_type, customer_id, venue_id, space_id,
+            event_date, end_date, start_time, end_time, guest_count,
+            setup_style, status, total_amount, deposit_amount, notes,
+            contract_id, is_multi_day, created_at
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW()
+          ) RETURNING *
+        `, [
+          tenantId, eventName, eventType, customerId, venueId, spaceId,
+          eventDate, endDate, startTime, endTime, guestCount,
+          setupStyle, status, totalAmount, depositAmount, notes,
+          contractId, isMultiDay
+        ]);
+
+        return res.status(201).json(newBooking.rows[0]);
+      }
     }
     
     // PACKAGES
@@ -709,6 +741,24 @@ module.exports = async function handler(req, res) {
           WHERE tenant_id = $1
           ORDER BY created_at DESC`, [tenantId]);
         return res.json(tasks.rows);
+      }
+    }
+
+    // COMMUNICATIONS
+    if (resource === 'communications') {
+      if (req.method === 'GET') {
+        if (id) {
+          // Get specific communication
+          const communication = await pool.query(`SELECT * FROM communications
+            WHERE tenant_id = $1 AND id = $2`, [tenantId, id]);
+          return res.json(communication.rows[0] || null);
+        } else {
+          // Get all communications
+          const communications = await pool.query(`SELECT * FROM communications
+            WHERE tenant_id = $1
+            ORDER BY created_at DESC`, [tenantId]);
+          return res.json(communications.rows);
+        }
       }
     }
 
