@@ -828,23 +828,55 @@ module.exports = async function handler(req, res) {
       if (req.method === 'GET') {
         try {
           // Query bookings table (events are stored as bookings)
-          const events = await pool.query(`SELECT b.*,
+          const events = await pool.query(`SELECT
+                   b.id,
                    b.event_name as title,
-                   b.event_date as start_date,
-                   b.guest_count as estimated_guests,
-                   c.name as customer_name,
-                   v.name as venue_name,
-                   s.name as space_name
+                   b.event_name as "eventName",
+                   b.event_date as start,
+                   b.event_date as "eventDate",
+                   b.start_time as "startTime",
+                   b.end_time as "endTime",
+                   b.guest_count as "guestCount",
+                   b.total_amount as "totalAmount",
+                   b.status,
+                   b.contract_id as "contractId",
+                   CASE WHEN b.contract_id IS NOT NULL THEN true ELSE false END as "isPartOfContract",
+                   c.name as "customerName",
+                   v.name as "venueName",
+                   s.name as "spaceName",
+                   -- Add color based on status
+                   CASE
+                     WHEN b.status = 'confirmed' THEN '#22c55e'
+                     WHEN b.status = 'inquiry' THEN '#3b82f6'
+                     WHEN b.status = 'tentative' THEN '#f59e0b'
+                     WHEN b.status = 'cancelled' THEN '#ef4444'
+                     ELSE '#6b7280'
+                   END as color
             FROM bookings b
             LEFT JOIN customers c ON b.customer_id = c.id AND c.tenant_id = $1
             LEFT JOIN venues v ON b.venue_id = v.id AND v.tenant_id = $1
             LEFT JOIN spaces s ON b.space_id = s.id
             WHERE b.tenant_id = $1
             ORDER BY b.event_date DESC`, [tenantId]);
+
+          // For calendar API, return the format the calendar component expects
+          if (resource === 'calendar-events') {
+            const mode = req.query.mode || 'events';
+            return res.json({
+              mode: mode,
+              data: events.rows
+            });
+          }
+
+          // For regular events API, return raw array
           return res.json(events.rows);
         } catch (error) {
           console.error('Events query error:', error);
-          // Return empty array if bookings table doesn't exist or query fails
+          // Return appropriate empty response based on resource type
+          if (resource === 'calendar-events') {
+            const mode = req.query.mode || 'events';
+            return res.json({ mode: mode, data: [] });
+          }
           return res.json([]);
         }
       }
