@@ -528,6 +528,36 @@ module.exports = async function handler(req, res) {
             valueIndex++;
           }
 
+          if (updateData.eventDate) {
+            updateFields.push(`event_date = $${valueIndex + 2}`);
+            updateValues.push(updateData.eventDate);
+            valueIndex++;
+          }
+
+          if (updateData.endDate) {
+            updateFields.push(`end_date = $${valueIndex + 2}`);
+            updateValues.push(updateData.endDate);
+            valueIndex++;
+          }
+
+          if (updateData.eventType) {
+            updateFields.push(`event_type = $${valueIndex + 2}`);
+            updateValues.push(updateData.eventType);
+            valueIndex++;
+          }
+
+          if (updateData.setupStyle) {
+            updateFields.push(`setup_style = $${valueIndex + 2}`);
+            updateValues.push(updateData.setupStyle);
+            valueIndex++;
+          }
+
+          if (updateData.depositAmount) {
+            updateFields.push(`deposit_amount = $${valueIndex + 2}`);
+            updateValues.push(updateData.depositAmount);
+            valueIndex++;
+          }
+
           if (updateFields.length === 0) {
             return res.status(400).json({ message: 'No fields to update' });
           }
@@ -1252,7 +1282,7 @@ module.exports = async function handler(req, res) {
         }
       }
 
-      // PATCH contract (update all bookings in a contract)
+      // PATCH contract (supports complex multidate event editing)
       if (req.method === 'PATCH') {
         const contractId = req.query.contractId;
 
@@ -1263,53 +1293,137 @@ module.exports = async function handler(req, res) {
         try {
           const updateData = req.body;
 
-          // Build dynamic update query based on provided fields
-          const updateFields = [];
-          const updateValues = [];
-          let valueIndex = 1;
+          // Handle different types of contract updates
+          if (updateData.bookingsData && Array.isArray(updateData.bookingsData)) {
+            // Complex multidate event update: replace all bookings in the contract
+            console.log('Performing complex multidate event update for contract:', contractId);
 
-          // Add tenant_id and contract_id to WHERE clause values
-          updateValues.push(tenantId, contractId);
+            // First, delete existing bookings in the contract
+            await pool.query(`
+              DELETE FROM bookings
+              WHERE tenant_id = $1 AND contract_id = $2
+            `, [tenantId, contractId]);
 
-          if (updateData.status) {
-            updateFields.push(`status = $${valueIndex + 2}`);
-            updateValues.push(updateData.status);
-            valueIndex++;
+            // Create new bookings with the updated data
+            const createdBookings = [];
+            for (const bookingData of updateData.bookingsData) {
+              const {
+                eventName, eventType, customerId, venueId, spaceId,
+                eventDate, endDate, startTime, endTime, guestCount,
+                setupStyle, status = 'inquiry', totalAmount, depositAmount,
+                notes, isMultiDay, proposalId, proposalStatus, proposalSentAt
+              } = bookingData;
+
+              const newBooking = await pool.query(`
+                INSERT INTO bookings (
+                  tenant_id, event_name, event_type, customer_id, venue_id, space_id,
+                  event_date, end_date, start_time, end_time, guest_count,
+                  setup_style, status, total_amount, deposit_amount, notes,
+                  contract_id, is_multi_day, proposal_id, proposal_status,
+                  proposal_sent_at, created_at
+                ) VALUES (
+                  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, NOW()
+                ) RETURNING *
+              `, [
+                tenantId, eventName, eventType, customerId, venueId, spaceId,
+                eventDate, endDate, startTime, endTime, guestCount,
+                setupStyle, status, totalAmount, depositAmount, notes,
+                contractId, isMultiDay, proposalId, proposalStatus, proposalSentAt
+              ]);
+
+              createdBookings.push(newBooking.rows[0]);
+            }
+
+            // Update the contract total amount if needed
+            if (updateData.contractData?.totalAmount) {
+              await pool.query(`
+                UPDATE contracts
+                SET total_amount = $3
+                WHERE tenant_id = $1 AND id = $2
+              `, [tenantId, contractId, updateData.contractData.totalAmount]);
+            }
+
+            return res.json({
+              message: 'Contract updated successfully',
+              contractId: contractId,
+              updatedBookings: createdBookings.length,
+              bookings: createdBookings
+            });
+
+          } else {
+            // Simple contract update: update common fields across all bookings
+            const updateFields = [];
+            const updateValues = [];
+            let valueIndex = 1;
+
+            // Add tenant_id and contract_id to WHERE clause values
+            updateValues.push(tenantId, contractId);
+
+            if (updateData.status) {
+              updateFields.push(`status = $${valueIndex + 2}`);
+              updateValues.push(updateData.status);
+              valueIndex++;
+            }
+
+            if (updateData.notes) {
+              updateFields.push(`notes = $${valueIndex + 2}`);
+              updateValues.push(updateData.notes);
+              valueIndex++;
+            }
+
+            if (updateData.eventName) {
+              updateFields.push(`event_name = $${valueIndex + 2}`);
+              updateValues.push(updateData.eventName);
+              valueIndex++;
+            }
+
+            if (updateData.eventType) {
+              updateFields.push(`event_type = $${valueIndex + 2}`);
+              updateValues.push(updateData.eventType);
+              valueIndex++;
+            }
+
+            if (updateData.guestCount) {
+              updateFields.push(`guest_count = $${valueIndex + 2}`);
+              updateValues.push(updateData.guestCount);
+              valueIndex++;
+            }
+
+            if (updateData.setupStyle) {
+              updateFields.push(`setup_style = $${valueIndex + 2}`);
+              updateValues.push(updateData.setupStyle);
+              valueIndex++;
+            }
+
+            if (updateFields.length === 0) {
+              return res.status(400).json({ message: 'No fields to update' });
+            }
+
+            // Update all bookings in the contract
+            const updateQuery = `
+              UPDATE bookings
+              SET ${updateFields.join(', ')}
+              WHERE tenant_id = $1 AND contract_id = $2
+              RETURNING *
+            `;
+
+            const result = await pool.query(updateQuery, updateValues);
+
+            if (result.rows.length === 0) {
+              return res.status(404).json({ message: 'Contract not found' });
+            }
+
+            return res.json({
+              message: 'Contract updated successfully',
+              updatedBookings: result.rows.length,
+              contractId: contractId,
+              bookings: result.rows
+            });
           }
-
-          if (updateData.notes) {
-            updateFields.push(`notes = $${valueIndex + 2}`);
-            updateValues.push(updateData.notes);
-            valueIndex++;
-          }
-
-          if (updateFields.length === 0) {
-            return res.status(400).json({ message: 'No fields to update' });
-          }
-
-          // Update all bookings in the contract
-          const updateQuery = `
-            UPDATE bookings
-            SET ${updateFields.join(', ')}
-            WHERE tenant_id = $1 AND contract_id = $2
-            RETURNING *
-          `;
-
-          const result = await pool.query(updateQuery, updateValues);
-
-          if (result.rows.length === 0) {
-            return res.status(404).json({ message: 'Contract not found' });
-          }
-
-          return res.json({
-            message: 'Contract updated successfully',
-            updatedBookings: result.rows.length,
-            contractId: contractId
-          });
 
         } catch (error) {
           console.error('Contract update error:', error);
-          return res.status(500).json({ message: 'Failed to update contract' });
+          return res.status(500).json({ message: 'Failed to update contract', error: error.message });
         }
       }
     }
