@@ -1,5 +1,6 @@
 const { Pool } = require('pg');
 const jwt = require('jsonwebtoken');
+const { v4: uuidv4 } = require('uuid');
 const { getDatabaseUrl } = require('./db-config.js');
 
 module.exports = async function handler(req, res) {
@@ -122,9 +123,9 @@ module.exports = async function handler(req, res) {
       }
       
       try {
-        // Test events table
-        const events = await pool.query(`SELECT COUNT(*) as count FROM events WHERE tenant_id = $1`, [tenantId]);
-        debug.tables.events = { count: events.rows[0].count, status: 'success' };
+        // Test bookings table (events are stored as bookings)
+        const bookings = await pool.query(`SELECT COUNT(*) as count FROM bookings WHERE tenant_id = $1`, [tenantId]);
+        debug.tables.events = { count: bookings.rows[0].count, status: 'success' };
       } catch (error) {
         debug.tables.events = { error: error.message, status: 'failed' };
       }
@@ -166,24 +167,45 @@ module.exports = async function handler(req, res) {
     // CUSTOMERS
     if (resource === 'customers') {
       if (req.method === 'GET') {
-        const customers = await pool.query(`SELECT * FROM customers 
+        const customers = await pool.query(`SELECT * FROM customers
           WHERE tenant_id = $1
           ORDER BY created_at DESC`, [tenantId]);
         return res.json(customers.rows);
-        
+
       } else if (req.method === 'POST') {
         const { name, email, phone, notes } = req.body;
-        
+
         if (!name || !email) {
           return res.status(400).json({ message: 'Name and email are required' });
         }
-        
+
         const newCustomer = await pool.query(`INSERT INTO customers (
             tenant_id, name, email, phone, notes, created_at
           ) VALUES ($1, $2, $3, $4, $5, NOW())
           RETURNING *`, [tenantId, name, email, phone || null, notes || null]);
-        
+
         return res.status(201).json(newCustomer.rows[0]);
+      }
+    }
+
+    // CUSTOMER ANALYTICS
+    if (resource === 'customer-analytics') {
+      if (req.method === 'GET') {
+        const analytics = await pool.query(`
+          SELECT
+            c.*,
+            COUNT(DISTINCT b.id) as "bookingCount",
+            COALESCE(SUM(b.total_amount), 0) as "totalRevenue",
+            MAX(b.event_date) as "lastBookingDate",
+            COUNT(DISTINCT p.id) as "proposalCount"
+          FROM customers c
+          LEFT JOIN bookings b ON c.id = b.customer_id AND c.tenant_id = b.tenant_id
+          LEFT JOIN proposals p ON c.id = p.customer_id AND c.tenant_id = p.tenant_id
+          WHERE c.tenant_id = $1
+          GROUP BY c.id
+          ORDER BY c.created_at DESC
+        `, [tenantId]);
+        return res.json(analytics.rows);
       }
     }
     
@@ -274,7 +296,18 @@ module.exports = async function handler(req, res) {
     // BOOKINGS
     if (resource === 'bookings') {
       if (req.method === 'GET') {
-        const bookings = await pool.query(`SELECT b.*, 
+        const bookings = await pool.query(`SELECT b.*,
+                 b.event_name as "eventName",
+                 b.event_date as "eventDate",
+                 b.start_time as "startTime",
+                 b.end_time as "endTime",
+                 b.guest_count as "guestCount",
+                 b.total_amount as "totalAmount",
+                 b.customer_id as "customerId",
+                 b.venue_id as "venueId",
+                 b.space_id as "spaceId",
+                 b.package_id as "packageId",
+                 b.selected_services as "selectedServices",
                  c.name as customer_name,
                  v.name as venue_name,
                  s.name as space_name
@@ -284,8 +317,241 @@ module.exports = async function handler(req, res) {
           LEFT JOIN spaces s ON b.space_id = s.id
           WHERE b.tenant_id = $1
           ORDER BY b.event_date DESC`, [tenantId]);
-        
-        return res.json(bookings.rows);
+
+        // Group bookings by contract_id and create contract objects
+        const contracts = new Map();
+        const singleBookings = [];
+
+        bookings.rows.forEach(booking => {
+          if (booking.contract_id) {
+            if (!contracts.has(booking.contract_id)) {
+              // Create a contract object with all expected fields (using first booking's data)
+              contracts.set(booking.contract_id, {
+                id: booking.contract_id,
+                isContract: true,
+                contractInfo: {
+                  id: booking.contract_id,
+                  contractName: `${booking.eventName} (Multi-Date)`
+                },
+                contractEvents: [],
+                eventCount: 0,
+                status: booking.status,
+                customer_name: booking.customer_name,
+                venue_name: booking.venue_name,
+                // Add missing date fields that modals expect
+                eventName: booking.eventName,
+                eventDate: booking.eventDate,
+                startTime: booking.startTime,
+                endTime: booking.endTime,
+                guestCount: booking.guestCount,
+                totalAmount: 0,
+                created_at: booking.created_at,
+                // Add missing ID fields for edit modal
+                customerId: booking.customerId,
+                venueId: booking.venueId,
+                spaceId: booking.spaceId,
+                packageId: booking.packageId,
+                selectedServices: booking.selectedServices,
+                notes: booking.notes
+              });
+            }
+
+            const contract = contracts.get(booking.contract_id);
+            contract.contractEvents.push({
+              ...booking,
+              isPartOfContract: true
+            });
+            contract.eventCount = contract.contractEvents.length;
+            contract.totalAmount = (parseFloat(contract.totalAmount || 0) + parseFloat(booking.totalAmount || 0)).toFixed(2);
+          } else {
+            // Single booking (not part of contract)
+            singleBookings.push({
+              ...booking,
+              isContract: false,
+              isPartOfContract: false
+            });
+          }
+        });
+
+        // Combine contracts and single bookings
+        const result = [...Array.from(contracts.values()), ...singleBookings];
+
+        // Sort by created_at or event_date
+        result.sort((a, b) => {
+          const dateA = new Date(a.contractEvents?.[0]?.eventDate || a.eventDate || a.created_at);
+          const dateB = new Date(b.contractEvents?.[0]?.eventDate || b.eventDate || b.created_at);
+          return dateB - dateA;
+        });
+
+        return res.json(result);
+      }
+
+      if (req.method === 'POST') {
+        // Create new booking/event
+        const {
+          eventName, eventType, customerId, venueId, spaceId,
+          eventDate, endDate, startTime, endTime, guestCount,
+          setupStyle, status = 'inquiry', totalAmount, depositAmount,
+          notes, contractId, isMultiDay
+        } = req.body;
+
+        if (!eventName || !eventDate || !startTime || !endTime) {
+          return res.status(400).json({ message: 'Event name, date, start time, and end time are required' });
+        }
+
+        // Check space availability if spaceId is provided
+        if (spaceId) {
+          // Check for conflicting bookings in the same space, date, and overlapping time
+          const conflictQuery = `
+            SELECT
+              b.id, b.event_name, b.status, b.start_time, b.end_time,
+              c.name as customer_name
+            FROM bookings b
+            LEFT JOIN customers c ON b.customer_id = c.id
+            WHERE b.tenant_id = $1
+              AND b.space_id = $2
+              AND b.event_date::date = $3::date
+              AND b.status != 'cancelled'
+              AND (
+                (b.start_time < $5 AND b.end_time > $4) OR
+                (b.start_time >= $4 AND b.start_time < $5)
+              )
+          `;
+
+          const conflicts = await pool.query(conflictQuery, [
+            tenantId, spaceId, eventDate, startTime, endTime
+          ]);
+
+          if (conflicts.rows.length > 0) {
+            const conflictingBooking = conflicts.rows[0];
+
+            // Define blocking statuses (paid bookings that cannot be overbooked)
+            const blockingStatuses = ['confirmed_deposit_paid', 'confirmed_fully_paid'];
+            const isBlocking = blockingStatuses.includes(conflictingBooking.status);
+
+            const conflictResponse = {
+              message: isBlocking ? 'Space is unavailable - confirmed paid booking exists' : 'Space overlap detected with tentative booking',
+              conflictType: isBlocking ? 'blocking' : 'warning',
+              conflictingBooking: {
+                id: conflictingBooking.id,
+                eventName: conflictingBooking.event_name,
+                status: conflictingBooking.status,
+                startTime: conflictingBooking.start_time,
+                endTime: conflictingBooking.end_time,
+                customerName: conflictingBooking.customer_name
+              }
+            };
+
+            // For blocking conflicts, return 409 to prevent creation
+            // For warnings, we could still allow creation but return conflict info
+            if (isBlocking) {
+              return res.status(409).json(conflictResponse);
+            }
+
+            // For non-blocking conflicts, log the warning but allow creation
+            console.log('⚠️ Non-blocking booking overlap detected:', conflictResponse);
+          }
+        }
+
+        const newBooking = await pool.query(`
+          INSERT INTO bookings (
+            tenant_id, event_name, event_type, customer_id, venue_id, space_id,
+            event_date, end_date, start_time, end_time, guest_count,
+            setup_style, status, total_amount, deposit_amount, notes,
+            contract_id, is_multi_day, created_at
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW()
+          ) RETURNING *
+        `, [
+          tenantId, eventName, eventType, customerId, venueId, spaceId,
+          eventDate, endDate, startTime, endTime, guestCount,
+          setupStyle, status, totalAmount, depositAmount, notes,
+          contractId, isMultiDay
+        ]);
+
+        return res.status(201).json(newBooking.rows[0]);
+      }
+
+      // PATCH booking (update existing booking)
+      if (req.method === 'PATCH' && id) {
+        try {
+          const updateData = req.body;
+
+          // Build dynamic update query based on provided fields
+          const updateFields = [];
+          const updateValues = [];
+          let valueIndex = 1;
+
+          // Add tenant_id and booking id to WHERE clause values
+          updateValues.push(tenantId, id);
+
+          // Handle common booking fields
+          if (updateData.eventName) {
+            updateFields.push(`event_name = $${valueIndex + 2}`);
+            updateValues.push(updateData.eventName);
+            valueIndex++;
+          }
+
+          if (updateData.status) {
+            updateFields.push(`status = $${valueIndex + 2}`);
+            updateValues.push(updateData.status);
+            valueIndex++;
+          }
+
+          if (updateData.guestCount) {
+            updateFields.push(`guest_count = $${valueIndex + 2}`);
+            updateValues.push(updateData.guestCount);
+            valueIndex++;
+          }
+
+          if (updateData.startTime) {
+            updateFields.push(`start_time = $${valueIndex + 2}`);
+            updateValues.push(updateData.startTime);
+            valueIndex++;
+          }
+
+          if (updateData.endTime) {
+            updateFields.push(`end_time = $${valueIndex + 2}`);
+            updateValues.push(updateData.endTime);
+            valueIndex++;
+          }
+
+          if (updateData.notes) {
+            updateFields.push(`notes = $${valueIndex + 2}`);
+            updateValues.push(updateData.notes);
+            valueIndex++;
+          }
+
+          if (updateData.totalAmount) {
+            updateFields.push(`total_amount = $${valueIndex + 2}`);
+            updateValues.push(updateData.totalAmount);
+            valueIndex++;
+          }
+
+          if (updateFields.length === 0) {
+            return res.status(400).json({ message: 'No fields to update' });
+          }
+
+          // Update the booking
+          const updateQuery = `
+            UPDATE bookings
+            SET ${updateFields.join(', ')}
+            WHERE tenant_id = $1 AND id = $2
+            RETURNING *
+          `;
+
+          const result = await pool.query(updateQuery, updateValues);
+
+          if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Booking not found' });
+          }
+
+          return res.json(result.rows[0]);
+
+        } catch (error) {
+          console.error('Booking update error:', error);
+          return res.status(500).json({ message: 'Failed to update booking' });
+        }
       }
     }
     
@@ -586,13 +852,71 @@ module.exports = async function handler(req, res) {
     // COMPANIES
     if (resource === 'companies') {
       if (req.method === 'GET') {
-        const companies = await pool.query(`SELECT * FROM companies 
+        const companies = await pool.query(`SELECT * FROM companies
           WHERE tenant_id = $1
           ORDER BY created_at DESC`, [tenantId]);
         return res.json(companies.rows);
       }
     }
-    
+
+    // LEADS
+    if (resource === 'leads') {
+      if (req.method === 'GET') {
+        const leads = await pool.query(`SELECT * FROM leads
+          WHERE tenant_id = $1
+          ORDER BY created_at DESC`, [tenantId]);
+        return res.json(leads.rows);
+      }
+    }
+
+    // TAGS
+    if (resource === 'tags') {
+      if (req.method === 'GET') {
+        const tags = await pool.query(`SELECT * FROM tags
+          WHERE tenant_id = $1
+          ORDER BY name ASC`, [tenantId]);
+        return res.json(tags.rows);
+      }
+    }
+
+    // CAMPAIGN SOURCES
+    if (resource === 'campaign-sources') {
+      if (req.method === 'GET') {
+        const sources = await pool.query(`SELECT * FROM campaign_sources
+          WHERE tenant_id = $1
+          ORDER BY name ASC`, [tenantId]);
+        return res.json(sources.rows);
+      }
+    }
+
+    // TASKS
+    if (resource === 'tasks') {
+      if (req.method === 'GET') {
+        const tasks = await pool.query(`SELECT * FROM tasks
+          WHERE tenant_id = $1
+          ORDER BY created_at DESC`, [tenantId]);
+        return res.json(tasks.rows);
+      }
+    }
+
+    // COMMUNICATIONS
+    if (resource === 'communications') {
+      if (req.method === 'GET') {
+        if (id) {
+          // Get specific communication
+          const communication = await pool.query(`SELECT * FROM communications
+            WHERE tenant_id = $1 AND id = $2`, [tenantId, id]);
+          return res.json(communication.rows[0] || null);
+        } else {
+          // Get all communications
+          const communications = await pool.query(`SELECT * FROM communications
+            WHERE tenant_id = $1
+            ORDER BY created_at DESC`, [tenantId]);
+          return res.json(communications.rows);
+        }
+      }
+    }
+
     // PAYMENTS
     if (resource === 'payments') {
       if (req.method === 'GET') {
@@ -708,28 +1032,288 @@ module.exports = async function handler(req, res) {
     if (resource === 'events' || resource === 'calendar-events') {
       if (req.method === 'GET') {
         try {
-          // First check if events table exists
-          await pool.query('SELECT 1 FROM events LIMIT 1');
-          
-          const events = await pool.query(`SELECT e.*, 
-                   c.name as customer_name,
-                   v.name as venue_name,
-                   s.name as space_name
-            FROM events e
-            LEFT JOIN customers c ON e.customer_id = c.id AND c.tenant_id = $1
-            LEFT JOIN venues v ON e.venue_id = v.id AND v.tenant_id = $1  
-            LEFT JOIN spaces s ON e.space_id = s.id
-            WHERE e.tenant_id = $1 AND e.is_active = true
-            ORDER BY e.start_date DESC`, [tenantId]);
+          // Query bookings table (events are stored as bookings)
+          const events = await pool.query(`SELECT
+                   b.id,
+                   b.event_name as title,
+                   b.event_name as "eventName",
+                   b.event_date as start,
+                   b.event_date as "eventDate",
+                   b.start_time as "startTime",
+                   b.end_time as "endTime",
+                   b.guest_count as "guestCount",
+                   b.total_amount as "totalAmount",
+                   b.status,
+                   b.contract_id as "contractId",
+                   CASE WHEN b.contract_id IS NOT NULL THEN true ELSE false END as "isPartOfContract",
+                   c.name as "customerName",
+                   v.name as "venueName",
+                   s.name as "spaceName",
+                   -- Add color based on status
+                   CASE
+                     WHEN b.status = 'confirmed' THEN '#22c55e'
+                     WHEN b.status = 'inquiry' THEN '#3b82f6'
+                     WHEN b.status = 'tentative' THEN '#f59e0b'
+                     WHEN b.status = 'cancelled' THEN '#ef4444'
+                     ELSE '#6b7280'
+                   END as color
+            FROM bookings b
+            LEFT JOIN customers c ON b.customer_id = c.id AND c.tenant_id = $1
+            LEFT JOIN venues v ON b.venue_id = v.id AND v.tenant_id = $1
+            LEFT JOIN spaces s ON b.space_id = s.id
+            WHERE b.tenant_id = $1
+            ORDER BY b.event_date DESC`, [tenantId]);
+
+          // For calendar API, return the format the calendar component expects
+          if (resource === 'calendar-events' || req.query.isCalendarApi === 'true') {
+            const mode = req.query.mode || 'events';
+            // Filter out events with invalid dates to prevent calendar crashes
+            const validEvents = events.rows.filter(event =>
+              event.start &&
+              event.start !== null &&
+              !isNaN(new Date(event.start).getTime())
+            );
+
+            return res.json({
+              mode: mode,
+              data: validEvents
+            });
+          }
+
+          // For regular events API, return raw array
           return res.json(events.rows);
         } catch (error) {
           console.error('Events query error:', error);
-          // Return empty array if events table doesn't exist or query fails
+          // Return appropriate empty response based on resource type
+          if (resource === 'calendar-events' || req.query.isCalendarApi === 'true') {
+            const mode = req.query.mode || 'events';
+            return res.json({ mode: mode, data: [] });
+          }
           return res.json([]);
         }
       }
     }
-    
+
+    // CONTRACTS - Handle multi-date event creation
+    if (resource === 'contracts') {
+      if (req.method === 'POST') {
+        const { contractData, bookingsData } = req.body;
+
+        if (!contractData || !bookingsData || !Array.isArray(bookingsData)) {
+          return res.status(400).json({ message: 'Contract data and bookings array are required' });
+        }
+
+        // Generate a unique contract ID
+        const contractId = uuidv4();
+
+        try {
+          // Check availability for all bookings first
+          const conflicts = [];
+
+          for (const bookingData of bookingsData) {
+            const { spaceId, eventDate, startTime, endTime } = bookingData;
+
+            if (spaceId) {
+              const conflictQuery = `
+                SELECT
+                  b.id, b.event_name, b.status, b.start_time, b.end_time,
+                  c.name as customer_name
+                FROM bookings b
+                LEFT JOIN customers c ON b.customer_id = c.id
+                WHERE b.tenant_id = $1
+                  AND b.space_id = $2
+                  AND b.event_date::date = $3::date
+                  AND b.status != 'cancelled'
+                  AND (
+                    (b.start_time < $5 AND b.end_time > $4) OR
+                    (b.start_time >= $4 AND b.start_time < $5)
+                  )
+              `;
+
+              const result = await pool.query(conflictQuery, [
+                tenantId, spaceId, eventDate, startTime, endTime
+              ]);
+
+              if (result.rows.length > 0) {
+                const conflictingBooking = result.rows[0];
+                const blockingStatuses = ['confirmed_deposit_paid', 'confirmed_fully_paid'];
+                const isBlocking = blockingStatuses.includes(conflictingBooking.status);
+
+                if (isBlocking) {
+                  conflicts.push({
+                    date: eventDate,
+                    conflictingBooking: {
+                      id: conflictingBooking.id,
+                      eventName: conflictingBooking.event_name,
+                      status: conflictingBooking.status,
+                      startTime: conflictingBooking.start_time,
+                      endTime: conflictingBooking.end_time,
+                      customerName: conflictingBooking.customer_name
+                    }
+                  });
+                }
+              }
+            }
+          }
+
+          // If there are blocking conflicts, return error
+          if (conflicts.length > 0) {
+            return res.status(409).json({
+              message: 'Contract cannot be created due to confirmed paid booking conflicts',
+              conflictType: 'blocking',
+              conflictingBooking: conflicts[0].conflictingBooking,
+              conflicts: conflicts
+            });
+          }
+
+          // First, create the contract record in the contracts table
+          const customerId = bookingsData[0]?.customerId;
+          if (!customerId) {
+            return res.status(400).json({ message: 'Customer ID is required for contract creation' });
+          }
+
+          // Calculate total amount from all bookings
+          const totalContractAmount = bookingsData.reduce((sum, booking) => {
+            return sum + (parseFloat(booking.totalAmount) || 0);
+          }, 0);
+
+          const contractRecord = await pool.query(`
+            INSERT INTO contracts (
+              id, tenant_id, customer_id, contract_name, status, total_amount, created_at, updated_at
+            ) VALUES (
+              $1, $2, $3, $4, $5, $6, NOW(), NOW()
+            ) RETURNING *
+          `, [
+            contractId,
+            tenantId,
+            customerId,
+            contractData.contractName || `Multi-Date Event Contract`,
+            'inquiry',
+            totalContractAmount
+          ]);
+
+          // Now create all bookings with the same contract ID
+          const createdBookings = [];
+
+          for (const bookingData of bookingsData) {
+            const {
+              eventName, eventType, customerId, venueId, spaceId,
+              eventDate, endDate, startTime, endTime, guestCount,
+              setupStyle, status = 'inquiry', totalAmount, depositAmount,
+              notes, isMultiDay, proposalId, proposalStatus, proposalSentAt
+            } = bookingData;
+
+            const newBooking = await pool.query(`
+              INSERT INTO bookings (
+                tenant_id, event_name, event_type, customer_id, venue_id, space_id,
+                event_date, end_date, start_time, end_time, guest_count,
+                setup_style, status, total_amount, deposit_amount, notes,
+                contract_id, is_multi_day, proposal_id, proposal_status,
+                proposal_sent_at, created_at
+              ) VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, NOW()
+              ) RETURNING *
+            `, [
+              tenantId, eventName, eventType, customerId, venueId, spaceId,
+              eventDate, endDate, startTime, endTime, guestCount,
+              setupStyle, status, totalAmount, depositAmount, notes,
+              contractId, isMultiDay, proposalId, proposalStatus, proposalSentAt
+            ]);
+
+            createdBookings.push(newBooking.rows[0]);
+          }
+
+          return res.status(201).json({
+            message: 'Contract created successfully',
+            contractId: contractId,
+            contract: contractRecord.rows[0],
+            bookings: createdBookings
+          });
+
+        } catch (error) {
+          console.error('Contract creation error:', error);
+          return res.status(500).json({ message: 'Failed to create contract' });
+        }
+      }
+
+      // GET contracts (return grouped bookings by contract_id)
+      if (req.method === 'GET') {
+        try {
+          const contracts = await pool.query(`
+            SELECT DISTINCT contract_id
+            FROM bookings
+            WHERE tenant_id = $1 AND contract_id IS NOT NULL
+          `, [tenantId]);
+
+          return res.json(contracts.rows);
+        } catch (error) {
+          console.error('Contracts query error:', error);
+          return res.json([]);
+        }
+      }
+
+      // PATCH contract (update all bookings in a contract)
+      if (req.method === 'PATCH') {
+        const contractId = req.query.contractId;
+
+        if (!contractId) {
+          return res.status(400).json({ message: 'Contract ID is required' });
+        }
+
+        try {
+          const updateData = req.body;
+
+          // Build dynamic update query based on provided fields
+          const updateFields = [];
+          const updateValues = [];
+          let valueIndex = 1;
+
+          // Add tenant_id and contract_id to WHERE clause values
+          updateValues.push(tenantId, contractId);
+
+          if (updateData.status) {
+            updateFields.push(`status = $${valueIndex + 2}`);
+            updateValues.push(updateData.status);
+            valueIndex++;
+          }
+
+          if (updateData.notes) {
+            updateFields.push(`notes = $${valueIndex + 2}`);
+            updateValues.push(updateData.notes);
+            valueIndex++;
+          }
+
+          if (updateFields.length === 0) {
+            return res.status(400).json({ message: 'No fields to update' });
+          }
+
+          // Update all bookings in the contract
+          const updateQuery = `
+            UPDATE bookings
+            SET ${updateFields.join(', ')}
+            WHERE tenant_id = $1 AND contract_id = $2
+            RETURNING *
+          `;
+
+          const result = await pool.query(updateQuery, updateValues);
+
+          if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Contract not found' });
+          }
+
+          return res.json({
+            message: 'Contract updated successfully',
+            updatedBookings: result.rows.length,
+            contractId: contractId
+          });
+
+        } catch (error) {
+          console.error('Contract update error:', error);
+          return res.status(500).json({ message: 'Failed to update contract' });
+        }
+      }
+    }
+
     return res.status(404).json({ message: 'Resource not found' });
     
   } catch (error) {
