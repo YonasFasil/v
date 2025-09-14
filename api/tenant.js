@@ -665,13 +665,53 @@ module.exports = async function handler(req, res) {
     // COMPANIES
     if (resource === 'companies') {
       if (req.method === 'GET') {
-        const companies = await pool.query(`SELECT * FROM companies 
+        const companies = await pool.query(`SELECT * FROM companies
           WHERE tenant_id = $1
           ORDER BY created_at DESC`, [tenantId]);
         return res.json(companies.rows);
       }
     }
-    
+
+    // LEADS
+    if (resource === 'leads') {
+      if (req.method === 'GET') {
+        const leads = await pool.query(`SELECT * FROM leads
+          WHERE tenant_id = $1
+          ORDER BY created_at DESC`, [tenantId]);
+        return res.json(leads.rows);
+      }
+    }
+
+    // TAGS
+    if (resource === 'tags') {
+      if (req.method === 'GET') {
+        const tags = await pool.query(`SELECT * FROM tags
+          WHERE tenant_id = $1
+          ORDER BY name ASC`, [tenantId]);
+        return res.json(tags.rows);
+      }
+    }
+
+    // CAMPAIGN SOURCES
+    if (resource === 'campaign-sources') {
+      if (req.method === 'GET') {
+        const sources = await pool.query(`SELECT * FROM campaign_sources
+          WHERE tenant_id = $1
+          ORDER BY name ASC`, [tenantId]);
+        return res.json(sources.rows);
+      }
+    }
+
+    // TASKS
+    if (resource === 'tasks') {
+      if (req.method === 'GET') {
+        const tasks = await pool.query(`SELECT * FROM tasks
+          WHERE tenant_id = $1
+          ORDER BY created_at DESC`, [tenantId]);
+        return res.json(tasks.rows);
+      }
+    }
+
     // PAYMENTS
     if (resource === 'payments') {
       if (req.method === 'GET') {
