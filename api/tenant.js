@@ -319,7 +319,7 @@ module.exports = async function handler(req, res) {
         bookings.rows.forEach(booking => {
           if (booking.contract_id) {
             if (!contracts.has(booking.contract_id)) {
-              // Create a contract object
+              // Create a contract object with all expected fields
               contracts.set(booking.contract_id, {
                 id: booking.contract_id,
                 isContract: true,
@@ -332,6 +332,12 @@ module.exports = async function handler(req, res) {
                 status: booking.status,
                 customer_name: booking.customer_name,
                 venue_name: booking.venue_name,
+                // Add missing date fields that modals expect
+                eventName: booking.eventName,
+                eventDate: booking.eventDate,
+                startTime: booking.startTime,
+                endTime: booking.endTime,
+                guestCount: booking.guestCount,
                 totalAmount: 0,
                 created_at: booking.created_at
               });
@@ -912,9 +918,16 @@ module.exports = async function handler(req, res) {
           // For calendar API, return the format the calendar component expects
           if (resource === 'calendar-events') {
             const mode = req.query.mode || 'events';
+            // Filter out events with invalid dates to prevent calendar crashes
+            const validEvents = events.rows.filter(event =>
+              event.start &&
+              event.start !== null &&
+              !isNaN(new Date(event.start).getTime())
+            );
+
             return res.json({
               mode: mode,
-              data: events.rows
+              data: validEvents
             });
           }
 
