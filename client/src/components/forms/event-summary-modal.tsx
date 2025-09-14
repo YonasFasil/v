@@ -656,7 +656,7 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
               )}
               
               {/* Communication History */}
-              {(communications as any[]).length > 0 && (
+              {(communications || []).length > 0 && (
                 <div className="mt-4 p-4 border border-blue-200 rounded-lg bg-blue-50">
                   <h4 className="font-medium mb-3 text-blue-900">Communication History</h4>
                   <div className="space-y-2 max-h-60 overflow-y-auto">

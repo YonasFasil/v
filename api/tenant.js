@@ -937,6 +937,9 @@ module.exports = async function handler(req, res) {
           const communication = await pool.query(`SELECT * FROM communications
             WHERE tenant_id = $1 AND id = $2`, [tenantId, id]);
           return res.json(communication.rows[0] || null);
+        } else if (bookingId) {
+          const communications = await pool.query(`SELECT * FROM communications WHERE tenant_id = $1 AND booking_id = $2 ORDER BY created_at DESC`, [tenantId, bookingId]);
+          return res.json(communications.rows);
         } else {
           // Get all communications
           const communications = await pool.query(`SELECT * FROM communications
