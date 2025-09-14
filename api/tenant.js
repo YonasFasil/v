@@ -122,9 +122,9 @@ module.exports = async function handler(req, res) {
       }
       
       try {
-        // Test events table
-        const events = await pool.query(`SELECT COUNT(*) as count FROM events WHERE tenant_id = $1`, [tenantId]);
-        debug.tables.events = { count: events.rows[0].count, status: 'success' };
+        // Test bookings table (events are stored as bookings)
+        const bookings = await pool.query(`SELECT COUNT(*) as count FROM bookings WHERE tenant_id = $1`, [tenantId]);
+        debug.tables.events = { count: bookings.rows[0].count, status: 'success' };
       } catch (error) {
         debug.tables.events = { error: error.message, status: 'failed' };
       }
@@ -708,23 +708,24 @@ module.exports = async function handler(req, res) {
     if (resource === 'events' || resource === 'calendar-events') {
       if (req.method === 'GET') {
         try {
-          // First check if events table exists
-          await pool.query('SELECT 1 FROM events LIMIT 1');
-          
-          const events = await pool.query(`SELECT e.*, 
+          // Query bookings table (events are stored as bookings)
+          const events = await pool.query(`SELECT b.*,
+                   b.event_name as title,
+                   b.event_date as start_date,
+                   b.guest_count as estimated_guests,
                    c.name as customer_name,
                    v.name as venue_name,
                    s.name as space_name
-            FROM events e
-            LEFT JOIN customers c ON e.customer_id = c.id AND c.tenant_id = $1
-            LEFT JOIN venues v ON e.venue_id = v.id AND v.tenant_id = $1  
-            LEFT JOIN spaces s ON e.space_id = s.id
-            WHERE e.tenant_id = $1 AND e.is_active = true
-            ORDER BY e.start_date DESC`, [tenantId]);
+            FROM bookings b
+            LEFT JOIN customers c ON b.customer_id = c.id AND c.tenant_id = $1
+            LEFT JOIN venues v ON b.venue_id = v.id AND v.tenant_id = $1
+            LEFT JOIN spaces s ON b.space_id = s.id
+            WHERE b.tenant_id = $1
+            ORDER BY b.event_date DESC`, [tenantId]);
           return res.json(events.rows);
         } catch (error) {
           console.error('Events query error:', error);
-          // Return empty array if events table doesn't exist or query fails
+          // Return empty array if bookings table doesn't exist or query fails
           return res.json([]);
         }
       }
