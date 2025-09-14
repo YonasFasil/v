@@ -1,5 +1,6 @@
 const { Pool } = require('pg');
 const jwt = require('jsonwebtoken');
+const { v4: uuidv4 } = require('uuid');
 const { getDatabaseUrl } = require('./db-config.js');
 
 module.exports = async function handler(req, res) {
@@ -1009,7 +1010,6 @@ module.exports = async function handler(req, res) {
         }
 
         // Generate a unique contract ID
-        const { v4: uuidv4 } = require('uuid');
         const contractId = uuidv4();
 
         try {
