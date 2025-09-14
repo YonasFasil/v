@@ -1,6 +1,6 @@
 const { Pool } = require('pg');
 
-// Debug all booking fields for edit modal
+// Debug multidate event editing issues
 async function debugBookingFields() {
   const pool = new Pool({
     connectionString: "postgresql://neondb_owner:npg_zRXKQ7WHkJ5f@ep-quiet-waterfall-ad02xgr6-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require"
@@ -9,135 +9,187 @@ async function debugBookingFields() {
   const CORRECT_TENANT_ID = 'f50ed3e1-944b-49b7-bd1f-d50622f76172';
 
   try {
-    console.log("Debugging booking fields after our fixes...\n");
+    console.log("Debugging multidate event editing issues...\n");
 
-    // Test the exact query that's now in tenant.js after our fix
-    const bookingsQuery = `SELECT b.*,
-             b.event_name as "eventName",
-             b.event_date as "eventDate",
-             b.start_time as "startTime",
-             b.end_time as "endTime",
-             b.guest_count as "guestCount",
-             b.total_amount as "totalAmount",
-             b.customer_id as "customerId",
-             b.venue_id as "venueId",
-             b.space_id as "spaceId",
-             c.name as customer_name,
-             v.name as venue_name,
-             s.name as space_name
+    // Find existing contracts (multidate events)
+    const contractsQuery = `
+      SELECT DISTINCT b.contract_id, COUNT(*) as event_count,
+             MIN(b.event_date) as first_date, MAX(b.event_date) as last_date,
+             STRING_AGG(DISTINCT b.event_name, ', ') as event_names
+      FROM bookings b
+      WHERE b.tenant_id = $1 AND b.contract_id IS NOT NULL
+      GROUP BY b.contract_id
+      ORDER BY MIN(b.created_at) DESC
+      LIMIT 3
+    `;
+
+    const contractsResult = await pool.query(contractsQuery, [CORRECT_TENANT_ID]);
+
+    if (contractsResult.rows.length === 0) {
+      console.log("❌ No existing multidate events (contracts) found");
+      return;
+    }
+
+    console.log("EXISTING MULTIDATE EVENTS:");
+    console.log("=".repeat(60));
+
+    contractsResult.rows.forEach((contract, i) => {
+      console.log(`${i + 1}. Contract ID: ${contract.contract_id}`);
+      console.log(`   Events: ${contract.event_count}`);
+      console.log(`   Date range: ${contract.first_date} to ${contract.last_date}`);
+      console.log(`   Names: ${contract.event_names}`);
+      console.log();
+    });
+
+    // Take the first contract and examine its structure
+    const testContractId = contractsResult.rows[0].contract_id;
+    console.log(`Testing with contract: ${testContractId}`);
+
+    // Get all bookings in this contract
+    const bookingsQuery = `
+      SELECT b.*, c.name as customer_name, v.name as venue_name, s.name as space_name
       FROM bookings b
       LEFT JOIN customers c ON b.customer_id = c.id
       LEFT JOIN venues v ON b.venue_id = v.id
       LEFT JOIN spaces s ON b.space_id = s.id
-      WHERE b.tenant_id = $1
-      ORDER BY b.event_date DESC
-      LIMIT 1`;
+      WHERE b.tenant_id = $1 AND b.contract_id = $2
+      ORDER BY b.event_date, b.start_time
+    `;
 
-    const result = await pool.query(bookingsQuery, [CORRECT_TENANT_ID]);
-
-    if (result.rows.length === 0) {
-      console.log("No bookings found");
-      return;
-    }
-
-    const booking = result.rows[0];
+    const bookingsResult = await pool.query(bookingsQuery, [CORRECT_TENANT_ID, testContractId]);
 
     console.log("=".repeat(60));
-    console.log("CURRENT BOOKING API RESPONSE AFTER FIXES");
+    console.log("CURRENT CONTRACT STRUCTURE:");
     console.log("=".repeat(60));
 
-    // Check all fields the edit modal needs
-    const requiredFields = [
-      'id', 'eventName', 'guestCount', 'startTime', 'endTime',
-      'status', 'notes', 'customerId', 'venueId', 'spaceId', 'eventDate'
-    ];
-
-    console.log("\nEdit Modal Required Fields:");
-    requiredFields.forEach(field => {
-      const value = booking[field];
-      const exists = value !== null && value !== undefined;
-      console.log(`  ${field}: ${exists ? '✅' : '❌'} "${value}"`);
+    bookingsResult.rows.forEach((booking, i) => {
+      console.log(`Event ${i + 1}: ${booking.event_name}`);
+      console.log(`  ID: ${booking.id}`);
+      console.log(`  Date: ${booking.event_date}`);
+      console.log(`  Time: ${booking.start_time} - ${booking.end_time}`);
+      console.log(`  Customer: ${booking.customer_name}`);
+      console.log(`  Venue: ${booking.venue_name}`);
+      console.log(`  Space: ${booking.space_name}`);
+      console.log(`  Amount: $${booking.total_amount}`);
+      console.log(`  Status: ${booking.status}`);
+      console.log(`  Contract ID: ${booking.contract_id}`);
+      console.log();
     });
 
-    // Check what's in the raw booking object
-    console.log("\n" + "=".repeat(60));
-    console.log("FULL BOOKING OBJECT:");
+    // Test individual booking update
+    console.log("=".repeat(60));
+    console.log("TEST: INDIVIDUAL BOOKING UPDATE");
     console.log("=".repeat(60));
 
-    // Only show relevant fields to avoid clutter
-    const relevantFields = {
-      id: booking.id,
-      eventName: booking.eventName,
-      eventDate: booking.eventDate,
-      startTime: booking.startTime,
-      endTime: booking.endTime,
-      guestCount: booking.guestCount,
-      totalAmount: booking.totalAmount,
-      status: booking.status,
-      notes: booking.notes,
-      customerId: booking.customerId,
-      venueId: booking.venueId,
-      spaceId: booking.spaceId,
-      customer_name: booking.customer_name,
-      venue_name: booking.venue_name,
-      space_name: booking.space_name,
-      // Check for package/service fields that might be missing
-      package_id: booking.package_id,
-      packageId: booking.packageId,
-      selected_services: booking.selected_services,
-      selectedServices: booking.selectedServices
-    };
+    if (bookingsResult.rows.length > 0) {
+      const firstBooking = bookingsResult.rows[0];
+      console.log(`Attempting to update booking ${firstBooking.id}`);
+      console.log(`Current date: ${firstBooking.event_date}`);
+      console.log(`Changing to: 2025-09-25`);
 
-    console.log(JSON.stringify(relevantFields, null, 2));
+      // Simulate PATCH request
+      const testUpdateFields = [];
+      const testUpdateValues = [];
+      let testValueIndex = 1;
 
-    // Check for potential issues
-    console.log("\n" + "=".repeat(60));
-    console.log("POTENTIAL ISSUES:");
+      testUpdateValues.push(CORRECT_TENANT_ID, firstBooking.id);
+
+      testUpdateFields.push(`event_date = $${testValueIndex + 2}`);
+      testUpdateValues.push("2025-09-25");
+      testValueIndex++;
+
+      const testUpdateQuery = `
+        UPDATE bookings
+        SET ${testUpdateFields.join(', ')}
+        WHERE tenant_id = $1 AND id = $2
+        RETURNING *
+      `;
+
+      try {
+        const testUpdateResult = await pool.query(testUpdateQuery, testUpdateValues);
+
+        if (testUpdateResult.rows.length > 0) {
+          console.log("✅ Individual booking update WORKS");
+          console.log(`   Updated date: ${testUpdateResult.rows[0].event_date}`);
+
+          // Revert the change
+          await pool.query(`
+            UPDATE bookings
+            SET event_date = $3
+            WHERE tenant_id = $1 AND id = $2
+          `, [CORRECT_TENANT_ID, firstBooking.id, firstBooking.event_date]);
+          console.log("✅ Reverted test change");
+
+        } else {
+          console.log("❌ Individual booking update FAILED - no rows returned");
+        }
+      } catch (error) {
+        console.log("❌ Individual booking update FAILED");
+        console.log(`   Error: ${error.message}`);
+      }
+    }
+
+    // Test contract-wide update
+    console.log("\n=".repeat(60));
+    console.log("TEST: CONTRACT-WIDE UPDATE");
     console.log("=".repeat(60));
 
-    if (!booking.customerId) {
-      console.log("❌ customerId is missing - customer won't be preselected");
-    } else {
-      console.log("✅ customerId present - customer should be preselected");
+    console.log(`Testing contract update for: ${testContractId}`);
+
+    try {
+      // Simple contract update (change status)
+      const contractUpdateQuery = `
+        UPDATE bookings
+        SET status = $3
+        WHERE tenant_id = $1 AND contract_id = $2
+        RETURNING *
+      `;
+
+      const contractUpdateResult = await pool.query(contractUpdateQuery, [
+        CORRECT_TENANT_ID, testContractId, 'confirmed'
+      ]);
+
+      if (contractUpdateResult.rows.length > 0) {
+        console.log("✅ Contract-wide update WORKS");
+        console.log(`   Updated ${contractUpdateResult.rows.length} bookings`);
+
+        // Revert the change
+        await pool.query(contractUpdateQuery, [
+          CORRECT_TENANT_ID, testContractId, 'inquiry'
+        ]);
+        console.log("✅ Reverted test change");
+
+      } else {
+        console.log("❌ Contract-wide update FAILED - no rows returned");
+      }
+    } catch (error) {
+      console.log("❌ Contract-wide update FAILED");
+      console.log(`   Error: ${error.message}`);
     }
 
-    if (!booking.venueId) {
-      console.log("❌ venueId is missing - venue won't be preselected");
-    } else {
-      console.log("✅ venueId present - venue should be preselected");
-    }
-
-    if (!booking.spaceId) {
-      console.log("❌ spaceId is missing - space won't be preselected");
-    } else {
-      console.log("✅ spaceId present - space should be preselected");
-    }
-
-    // Check if package/service info is missing
-    if (booking.package_id && !booking.packageId) {
-      console.log("❌ package_id exists but packageId alias missing");
-    }
-
-    if (booking.selected_services && !booking.selectedServices) {
-      console.log("❌ selected_services exists but selectedServices alias missing");
-    }
-
-    console.log("\n" + "=".repeat(60));
-    console.log("RECOMMENDED ACTIONS:");
+    console.log("\n=".repeat(60));
+    console.log("DEBUGGING FRONTEND-API INTERACTION:");
     console.log("=".repeat(60));
 
-    if (booking.package_id && !booking.packageId) {
-      console.log("🔧 Add: b.package_id as \"packageId\" to SQL query");
-    }
+    console.log("The issue might be in the frontend-API interaction:");
+    console.log("1. ✅ Backend API endpoints work correctly");
+    console.log("2. ❓ Frontend may not be calling the right endpoint");
+    console.log("3. ❓ Frontend may not be sending the right data structure");
+    console.log("4. ❓ Frontend may not be handling the response correctly");
 
-    if (booking.selected_services && !booking.selectedServices) {
-      console.log("🔧 Add: b.selected_services as \"selectedServices\" to SQL query");
-    }
-
-    console.log("🔧 Test edit modal with current booking data");
+    console.log("\nTo debug frontend issues:");
+    console.log("• Open browser dev tools → Network tab");
+    console.log("• Edit a multidate event and watch for PATCH requests");
+    console.log("• Check if PATCH requests are sent to:");
+    console.log(`  - PATCH /api/bookings/contract/${testContractId} (for contract updates)`);
+    console.log(`  - PATCH /api/bookings/{booking-id} (for individual updates)`);
+    console.log("• Verify the request payload structure matches API expectations");
+    console.log("• Check if the API returns success but frontend doesn't refresh");
 
   } catch (error) {
-    console.error('Error debugging booking fields:', error.message);
+    console.error('\n🔥 DEBUG FAILED');
+    console.error('Error:', error.message);
+    console.error('Stack:', error.stack);
   } finally {
     await pool.end();
   }
