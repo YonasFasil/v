@@ -306,6 +306,8 @@ module.exports = async function handler(req, res) {
                  b.customer_id as "customerId",
                  b.venue_id as "venueId",
                  b.space_id as "spaceId",
+                 b.package_id as "packageId",
+                 b.selected_services as "selectedServices",
                  c.name as customer_name,
                  v.name as venue_name,
                  s.name as space_name
@@ -323,7 +325,7 @@ module.exports = async function handler(req, res) {
         bookings.rows.forEach(booking => {
           if (booking.contract_id) {
             if (!contracts.has(booking.contract_id)) {
-              // Create a contract object with all expected fields
+              // Create a contract object with all expected fields (using first booking's data)
               contracts.set(booking.contract_id, {
                 id: booking.contract_id,
                 isContract: true,
@@ -343,7 +345,14 @@ module.exports = async function handler(req, res) {
                 endTime: booking.endTime,
                 guestCount: booking.guestCount,
                 totalAmount: 0,
-                created_at: booking.created_at
+                created_at: booking.created_at,
+                // Add missing ID fields for edit modal
+                customerId: booking.customerId,
+                venueId: booking.venueId,
+                spaceId: booking.spaceId,
+                packageId: booking.packageId,
+                selectedServices: booking.selectedServices,
+                notes: booking.notes
               });
             }
 
