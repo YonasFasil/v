@@ -916,7 +916,7 @@ module.exports = async function handler(req, res) {
             ORDER BY b.event_date DESC`, [tenantId]);
 
           // For calendar API, return the format the calendar component expects
-          if (resource === 'calendar-events') {
+          if (resource === 'calendar-events' || req.query.isCalendarApi === 'true') {
             const mode = req.query.mode || 'events';
             // Filter out events with invalid dates to prevent calendar crashes
             const validEvents = events.rows.filter(event =>
@@ -936,7 +936,7 @@ module.exports = async function handler(req, res) {
         } catch (error) {
           console.error('Events query error:', error);
           // Return appropriate empty response based on resource type
-          if (resource === 'calendar-events') {
+          if (resource === 'calendar-events' || req.query.isCalendarApi === 'true') {
             const mode = req.query.mode || 'events';
             return res.json({ mode: mode, data: [] });
           }
