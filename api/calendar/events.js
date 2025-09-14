@@ -44,7 +44,7 @@ module.exports = async function handler(req, res) {
 
     // Event booking is now a default feature, so no API restriction needed
     // Calendar view restrictions will be handled in the frontend UI
-    req.query = { ...req.query, resource: req.query?.mode === 'events' ? 'events' : 'calendar-events' };
+    req.query = { ...req.query, resource: req.query?.mode === 'events' ? 'events' : 'calendar-events', isCalendarApi: 'true' };
     
     const tenantHandler = require('../tenant.js');
     return tenantHandler(req, res);

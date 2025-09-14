@@ -64,9 +64,9 @@ module.exports = async function handler(req, res) {
     } else if (req.method === 'GET' && action === 'users' && tenantId) {
       // Get tenant users
       const result = await pool.query(`
-        SELECT id, username, name, email, role, permissions, 
-               is_active, last_login, created_at
-        FROM users 
+        SELECT id, username, name, email, role, permissions,
+               is_active, last_login_at as last_login, created_at
+        FROM users
         WHERE tenant_id = $1
         ORDER BY created_at DESC
       `, [tenantId]);
