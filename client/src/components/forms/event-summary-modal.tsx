@@ -183,7 +183,7 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
   const selectedSpaceData = booking.spaceData || selectedVenueData?.spaces?.find((s: any) => s.id === booking.spaceId);
   const selectedPackageData = (packages as any[]).find((p: any) => p.id === booking.packageId);
   const selectedCustomerData = booking.customerData || (customers as any[]).find((c: any) => c.id === booking.customerId);
-  const selectedServicesData = (services as any[]).filter((s: any) => booking.serviceIds?.includes(s.id));
+  const selectedServicesData = (services as any[]).filter((s: any) => booking.selectedServices?.includes(s.id));
 
 
 
