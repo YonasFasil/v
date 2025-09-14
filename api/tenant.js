@@ -471,6 +471,88 @@ module.exports = async function handler(req, res) {
 
         return res.status(201).json(newBooking.rows[0]);
       }
+
+      // PATCH booking (update existing booking)
+      if (req.method === 'PATCH' && id) {
+        try {
+          const updateData = req.body;
+
+          // Build dynamic update query based on provided fields
+          const updateFields = [];
+          const updateValues = [];
+          let valueIndex = 1;
+
+          // Add tenant_id and booking id to WHERE clause values
+          updateValues.push(tenantId, id);
+
+          // Handle common booking fields
+          if (updateData.eventName) {
+            updateFields.push(`event_name = $${valueIndex + 2}`);
+            updateValues.push(updateData.eventName);
+            valueIndex++;
+          }
+
+          if (updateData.status) {
+            updateFields.push(`status = $${valueIndex + 2}`);
+            updateValues.push(updateData.status);
+            valueIndex++;
+          }
+
+          if (updateData.guestCount) {
+            updateFields.push(`guest_count = $${valueIndex + 2}`);
+            updateValues.push(updateData.guestCount);
+            valueIndex++;
+          }
+
+          if (updateData.startTime) {
+            updateFields.push(`start_time = $${valueIndex + 2}`);
+            updateValues.push(updateData.startTime);
+            valueIndex++;
+          }
+
+          if (updateData.endTime) {
+            updateFields.push(`end_time = $${valueIndex + 2}`);
+            updateValues.push(updateData.endTime);
+            valueIndex++;
+          }
+
+          if (updateData.notes) {
+            updateFields.push(`notes = $${valueIndex + 2}`);
+            updateValues.push(updateData.notes);
+            valueIndex++;
+          }
+
+          if (updateData.totalAmount) {
+            updateFields.push(`total_amount = $${valueIndex + 2}`);
+            updateValues.push(updateData.totalAmount);
+            valueIndex++;
+          }
+
+          if (updateFields.length === 0) {
+            return res.status(400).json({ message: 'No fields to update' });
+          }
+
+          // Update the booking
+          const updateQuery = `
+            UPDATE bookings
+            SET ${updateFields.join(', ')}
+            WHERE tenant_id = $1 AND id = $2
+            RETURNING *
+          `;
+
+          const result = await pool.query(updateQuery, updateValues);
+
+          if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Booking not found' });
+          }
+
+          return res.json(result.rows[0]);
+
+        } catch (error) {
+          console.error('Booking update error:', error);
+          return res.status(500).json({ message: 'Failed to update booking' });
+        }
+      }
     }
     
     // PACKAGES
@@ -1140,6 +1222,67 @@ module.exports = async function handler(req, res) {
         } catch (error) {
           console.error('Contracts query error:', error);
           return res.json([]);
+        }
+      }
+
+      // PATCH contract (update all bookings in a contract)
+      if (req.method === 'PATCH') {
+        const contractId = req.query.contractId;
+
+        if (!contractId) {
+          return res.status(400).json({ message: 'Contract ID is required' });
+        }
+
+        try {
+          const updateData = req.body;
+
+          // Build dynamic update query based on provided fields
+          const updateFields = [];
+          const updateValues = [];
+          let valueIndex = 1;
+
+          // Add tenant_id and contract_id to WHERE clause values
+          updateValues.push(tenantId, contractId);
+
+          if (updateData.status) {
+            updateFields.push(`status = $${valueIndex + 2}`);
+            updateValues.push(updateData.status);
+            valueIndex++;
+          }
+
+          if (updateData.notes) {
+            updateFields.push(`notes = $${valueIndex + 2}`);
+            updateValues.push(updateData.notes);
+            valueIndex++;
+          }
+
+          if (updateFields.length === 0) {
+            return res.status(400).json({ message: 'No fields to update' });
+          }
+
+          // Update all bookings in the contract
+          const updateQuery = `
+            UPDATE bookings
+            SET ${updateFields.join(', ')}
+            WHERE tenant_id = $1 AND contract_id = $2
+            RETURNING *
+          `;
+
+          const result = await pool.query(updateQuery, updateValues);
+
+          if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Contract not found' });
+          }
+
+          return res.json({
+            message: 'Contract updated successfully',
+            updatedBookings: result.rows.length,
+            contractId: contractId
+          });
+
+        } catch (error) {
+          console.error('Contract update error:', error);
+          return res.status(500).json({ message: 'Failed to update contract' });
         }
       }
     }
