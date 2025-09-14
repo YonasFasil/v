@@ -303,6 +303,9 @@ module.exports = async function handler(req, res) {
                  b.end_time as "endTime",
                  b.guest_count as "guestCount",
                  b.total_amount as "totalAmount",
+                 b.customer_id as "customerId",
+                 b.venue_id as "venueId",
+                 b.space_id as "spaceId",
                  c.name as customer_name,
                  v.name as venue_name,
                  s.name as space_name
