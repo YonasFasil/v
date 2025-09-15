@@ -134,7 +134,7 @@ export default function VenueDetail() {
                 <a className="hover:text-gray-900 transition-colors">Sign In</a>
               </Link>
               <Link href="/customer/signup">
-                <a className="bg-gray-900 text-white px-5 py-2 rounded-full hover:bg-gray-800 transition-colors">
+                <a className="bg-purple-600 text-white px-5 py-2 rounded-full hover:bg-purple-700 transition-colors">
                   Get Started
                 </a>
               </Link>

@@ -70,15 +70,14 @@ export default function PublicVenues() {
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-gray-200/80">
         <div className="max-w-screen-xl mx-auto px-6">
           <div className="flex justify-between items-center py-4">
-            <Link href="/">
-              <a className="text-xl font-bold text-gray-900 tracking-tight">VenuinePro</a>
+            <a className="text-xl font-bold text-gray-900 tracking-tight">Venuine</a>
             </Link>
             <div className="flex items-center space-x-6 text-sm font-medium text-gray-700">
               <Link href="/customer/login">
                 <a className="hover:text-gray-900 transition-colors">Sign In</a>
               </Link>
               <Link href="/customer/signup">
-                <a className="bg-gray-900 text-white px-5 py-2 rounded-full hover:bg-gray-800 transition-colors">
+                <a className="bg-purple-600 text-white px-5 py-2 rounded-full hover:bg-purple-700 transition-colors">
                   Get Started
                 </a>
               </Link>
@@ -90,7 +89,7 @@ export default function PublicVenues() {
       {/* Main Content */}
       <main className="max-w-screen-xl mx-auto px-6 py-16 md:py-24">
         {/* Hero Section */}
-        <div className="text-center max-w-4xl mx-auto">
+        <div className="text-center max-w-4xl mx-auto bg-gradient-to-r from-purple-50 via-white to-purple-50 bg-[length:200%_200%] animate-background-pan py-20 rounded-3xl">
           <h1 className="text-5xl md:text-7xl font-bold text-gray-900 tracking-tighter">
             Spaces that inspire.
           </h1>
