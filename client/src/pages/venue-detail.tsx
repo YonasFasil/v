@@ -2,37 +2,21 @@ import { useState } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Separator } from "@/components/ui/separator";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 import {
-  ArrowLeft,
-  MapPin,
-  Users,
-  Calendar,
-  Star,
-  DollarSign,
-  Wifi,
-  Car,
-  Coffee,
-  Music,
-  Camera,
-  Utensils,
-  Send,
-  Heart,
-  Share,
-  Clock,
-  Building,
-  Phone,
-  Mail
+  ArrowLeft, MapPin, Users, Star, Wifi, Car, Coffee, Music, Utensils, Check, Send
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+// Mock data for gallery, as it's not in the API response
+const mockGallery = [
+  "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?q=80&w=2071&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?q=80&w=2070&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=2232&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?q=80&w=2070&auto=format&fit=crop",
+];
 
 interface Venue {
   id: string;
@@ -40,172 +24,79 @@ interface Venue {
   description: string;
   amenities: string[];
   image_url: string;
-  tenant_id: string;
   tenant_name: string;
-  tenant_slug: string;
-  primary_color: string;
+  city: string;
+  state: string;
   spaces: Space[];
-  packages: Package[];
-  services: Service[];
 }
 
 interface Space {
   id: string;
   name: string;
-  description: string;
   capacity: number;
-  amenities: string[];
-  image_url: string;
-  base_price: number;
-  hourly_rate: number;
 }
 
-interface Package {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  features: string[];
-}
-
-interface Service {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  category: string;
-}
+const AmenityIcon = ({ amenity }: { amenity: string }) => {
+  const lowerAmenity = amenity.toLowerCase();
+  if (lowerAmenity.includes('wifi')) return <Wifi className="w-5 h-5" />;
+  if (lowerAmenity.includes('parking')) return <Car className="w-5 h-5" />;
+  if (lowerAmenity.includes('catering')) return <Utensils className="w-5 h-5" />;
+  if (lowerAmenity.includes('coffee')) return <Coffee className="w-5 h-5" />;
+  if (lowerAmenity.includes('sound') || lowerAmenity.includes('audio')) return <Music className="w-5 h-5" />;
+  return <Check className="w-5 h-5" />;
+};
 
 export default function VenueDetail() {
   const params = useParams();
   const venueId = params.id;
   const { toast } = useToast();
-
-  const [inquiryData, setInquiryData] = useState({
-    eventName: "",
-    eventType: "corporate",
-    eventDate: "",
-    startTime: "",
-    endTime: "",
-    guestCount: "",
-    isMultiDay: false,
-    endDate: "",
-    spaceId: "",
-    setupStyle: "",
-    message: "",
-    specialRequests: "",
-    budgetRange: "",
-    cateringNeeded: false,
-    avEquipmentNeeded: false,
-    decorationsNeeded: false,
-    // Guest contact info
-    contactName: "",
-    contactEmail: "",
-    contactPhone: "",
-    contactCompany: ""
-  });
-
-  const [showInquiryForm, setShowInquiryForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch venue details
   const { data: venue, isLoading, error } = useQuery<Venue>({
     queryKey: [`/api/public/venues?venueId=${venueId}`],
     queryFn: () => apiRequest(`/api/public/venues?venueId=${venueId}`),
-    enabled: !!venueId
+    enabled: !!venueId,
   });
 
   const handleInquirySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!inquiryData.eventName || !inquiryData.eventDate || !inquiryData.guestCount || !inquiryData.contactName || !inquiryData.contactEmail) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setIsSubmitting(true);
+    // Basic form data from the event
+    const formData = new FormData(e.target as HTMLFormElement);
+    const inquiryData = Object.fromEntries(formData.entries());
 
     try {
       await apiRequest("/api/public/inquiries", {
         method: "POST",
-        body: JSON.stringify({
-          venueId,
-          ...inquiryData,
-          guestCount: parseInt(inquiryData.guestCount)
-        })
+        body: JSON.stringify({ venueId, ...inquiryData }),
       });
-
       toast({
         title: "Inquiry Sent!",
-        description: "Your inquiry has been submitted successfully. The venue team will contact you soon."
+        description: "The venue will be in touch with you shortly.",
       });
-
-      // Reset form
-      setInquiryData({
-        eventName: "",
-        eventType: "corporate",
-        eventDate: "",
-        startTime: "",
-        endTime: "",
-        guestCount: "",
-        isMultiDay: false,
-        endDate: "",
-        spaceId: "",
-        setupStyle: "",
-        message: "",
-        specialRequests: "",
-        budgetRange: "",
-        cateringNeeded: false,
-        avEquipmentNeeded: false,
-        decorationsNeeded: false,
-        contactName: "",
-        contactEmail: "",
-        contactPhone: "",
-        contactCompany: ""
-      });
-      setShowInquiryForm(false);
-
-    } catch (error: any) {
+    } catch (err) {
       toast({
-        title: "Error",
-        description: error.message || "Failed to submit inquiry",
-        variant: "destructive"
+        title: "Submission Failed",
+        description: "There was an error sending your inquiry. Please try again.",
+        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const getAmenityIcon = (amenity: string) => {
-    const amenityLower = amenity.toLowerCase();
-    if (amenityLower.includes('wifi') || amenityLower.includes('internet')) return <Wifi className="w-4 h-4" />;
-    if (amenityLower.includes('parking')) return <Car className="w-4 h-4" />;
-    if (amenityLower.includes('coffee') || amenityLower.includes('catering')) return <Coffee className="w-4 h-4" />;
-    if (amenityLower.includes('sound') || amenityLower.includes('audio') || amenityLower.includes('music')) return <Music className="w-4 h-4" />;
-    if (amenityLower.includes('photo') || amenityLower.includes('camera')) return <Camera className="w-4 h-4" />;
-    if (amenityLower.includes('kitchen') || amenityLower.includes('food')) return <Utensils className="w-4 h-4" />;
-    return <Star className="w-4 h-4" />;
-  };
-
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="animate-pulse">
-            <div className="h-64 bg-gray-300 rounded-lg mb-8"></div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 space-y-6">
-                <div className="h-8 bg-gray-300 rounded w-3/4"></div>
-                <div className="h-4 bg-gray-300 rounded"></div>
-                <div className="h-4 bg-gray-300 rounded w-2/3"></div>
-              </div>
-              <div className="space-y-4">
-                <div className="h-64 bg-gray-300 rounded"></div>
-              </div>
+      <div className="min-h-screen bg-white animate-pulse">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="h-12 bg-gray-200 rounded-full w-1/4 mb-12"></div>
+          <div className="grid grid-cols-2 gap-4 h-[500px]">
+            <div className="col-span-1 bg-gray-200 rounded-xl"></div>
+            <div className="col-span-1 grid grid-cols-2 gap-4">
+              <div className="bg-gray-200 rounded-xl"></div>
+              <div className="bg-gray-200 rounded-xl"></div>
+              <div className="bg-gray-200 rounded-xl"></div>
+              <div className="bg-gray-200 rounded-xl"></div>
             </div>
           </div>
         </div>
@@ -215,18 +106,15 @@ export default function VenueDetail() {
 
   if (error || !venue) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <MapPin className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+      <div className="min-h-screen bg-white flex items-center justify-center text-center">
+        <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Venue Not Found</h1>
-          <p className="text-gray-600 mb-6">The venue you're looking for doesn't exist or is no longer available.</p>
+          <p className="text-gray-600 mb-6">This venue may no longer be available.</p>
           <Link href="/explore/venues">
-            <a>
-              <Button>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Venues
-              </Button>
-            </a>
+            <Button>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Venues
+            </Button>
           </Link>
         </div>
       </div>
@@ -234,415 +122,113 @@ export default function VenueDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white font-sans">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-gray-200">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              <Link href="/explore/venues">
-                <a className="flex items-center text-gray-600 hover:text-gray-900">
-                  <ArrowLeft className="w-5 h-5 mr-2" />
-                  Back to Venues
-                </a>
-              </Link>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm">
-                <Heart className="w-4 h-4 mr-2" />
-                Save
-              </Button>
-              <Button variant="ghost" size="sm">
-                <Share className="w-4 h-4 mr-2" />
-                Share
-              </Button>
+            <Link href="/explore/venues">
+              <a className="flex items-center text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Venues
+              </a>
+            </Link>
+            <div className="flex items-center space-x-4 text-sm font-medium text-gray-600">
               <Link href="/customer/login">
-                <a>
-                  <Button size="sm">Login</Button>
+                <a className="hover:text-gray-900 transition-colors">Login</a>
+              </Link>
+              <Link href="/customer/signup">
+                <a className="bg-gray-900 text-white px-4 py-2 rounded-full hover:bg-gray-700 transition-colors">
+                  Sign Up
                 </a>
               </Link>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Hero Image */}
-      <div className="relative h-64 md:h-96">
-        {venue.image_url ? (
-          <img
-            src={venue.image_url}
-            alt={venue.name}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 flex items-center justify-center">
-            <Building className="w-24 h-24 text-blue-500" />
-          </div>
-        )}
-        <div className="absolute inset-0 bg-black bg-opacity-20"></div>
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-8">
-          <div className="max-w-7xl mx-auto">
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">{venue.name}</h1>
-            <p className="text-xl text-white opacity-90">{venue.tenant_name}</p>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Title */}
+        <div className="mb-8">
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 tracking-tight">{venue.name}</h1>
+          <div className="flex items-center space-x-4 mt-2 text-gray-600">
+            <div className="flex items-center">
+              <Star className="w-4 h-4 text-yellow-500 mr-1" />
+              <span className="font-medium">4.9</span>
+              <span className="text-gray-500 ml-1">(120 reviews)</span>
+            </div>
+            <span>•</span>
+            <div className="flex items-center">
+              <MapPin className="w-4 h-4 mr-1" />
+              <span>{venue.city}, {venue.state}</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Description */}
-            <Card>
-              <CardHeader>
-                <CardTitle>About This Venue</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-700 leading-relaxed">
-                  {venue.description || "Welcome to our beautiful venue, perfect for hosting memorable events. Our team is dedicated to making your special occasion unforgettable."}
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Amenities */}
-            {venue.amenities && venue.amenities.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Amenities</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {venue.amenities.map((amenity, idx) => (
-                      <div key={idx} className="flex items-center space-x-3">
-                        {getAmenityIcon(amenity)}
-                        <span className="text-gray-700">{amenity}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Spaces */}
-            {venue.spaces && venue.spaces.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Available Spaces</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {venue.spaces.map((space) => (
-                      <Card key={space.id} className="border">
-                        <CardHeader>
-                          <CardTitle className="text-lg">{space.name}</CardTitle>
-                          <div className="flex items-center space-x-4 text-sm text-gray-600">
-                            <div className="flex items-center">
-                              <Users className="w-4 h-4 mr-1" />
-                              Up to {space.capacity} guests
-                            </div>
-                            {space.base_price > 0 && (
-                              <div className="flex items-center">
-                                <DollarSign className="w-4 h-4 mr-1" />
-                                From ${space.base_price}
-                              </div>
-                            )}
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-gray-700 mb-4">{space.description}</p>
-                          {space.amenities && space.amenities.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                              {space.amenities.slice(0, 3).map((amenity, idx) => (
-                                <Badge key={idx} variant="secondary" className="text-xs">
-                                  {amenity}
-                                </Badge>
-                              ))}
-                              {space.amenities.length > 3 && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{space.amenities.length - 3} more
-                                </Badge>
-                              )}
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Packages */}
-            {venue.packages && venue.packages.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Event Packages</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {venue.packages.map((pkg) => (
-                      <Card key={pkg.id} className="border">
-                        <CardHeader>
-                          <CardTitle className="text-lg flex justify-between items-center">
-                            {pkg.name}
-                            <span className="text-2xl font-bold text-blue-600">
-                              ${pkg.price}
-                            </span>
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-gray-700 mb-4">{pkg.description}</p>
-                          {pkg.features && pkg.features.length > 0 && (
-                            <ul className="space-y-2">
-                              {pkg.features.map((feature, idx) => (
-                                <li key={idx} className="flex items-center text-sm text-gray-600">
-                                  <Star className="w-3 h-3 mr-2 text-green-500" />
-                                  {feature}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+        {/* Image Gallery */}
+        <div className="grid grid-cols-2 grid-rows-2 gap-2 h-[500px] rounded-2xl overflow-hidden">
+          <div className="col-span-1 row-span-2">
+            <img src={venue.image_url || mockGallery[0]} alt={venue.name} className="w-full h-full object-cover" />
           </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Inquiry Form */}
-            <Card className="sticky top-4">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Calendar className="w-5 h-5 mr-2" />
-                  Request Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {!showInquiryForm ? (
-                  <div className="space-y-4">
-                    <p className="text-gray-600">
-                      Interested in hosting your event here? Send an inquiry to get pricing and availability.
-                    </p>
-                    <Button
-                      onClick={() => setShowInquiryForm(true)}
-                      className="w-full"
-                      size="lg"
-                    >
-                      <Send className="w-4 h-4 mr-2" />
-                      Send Inquiry
-                    </Button>
-                  </div>
-                ) : (
-                  <form onSubmit={handleInquirySubmit} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="col-span-2">
-                        <Label htmlFor="eventName">Event Name *</Label>
-                        <Input
-                          id="eventName"
-                          value={inquiryData.eventName}
-                          onChange={(e) => setInquiryData(prev => ({ ...prev, eventName: e.target.value }))}
-                          placeholder="Wedding Reception"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="eventType">Event Type</Label>
-                        <Select
-                          value={inquiryData.eventType}
-                          onValueChange={(value) => setInquiryData(prev => ({ ...prev, eventType: value }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="wedding">Wedding</SelectItem>
-                            <SelectItem value="corporate">Corporate Event</SelectItem>
-                            <SelectItem value="birthday">Birthday Party</SelectItem>
-                            <SelectItem value="anniversary">Anniversary</SelectItem>
-                            <SelectItem value="conference">Conference</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="guestCount">Guest Count *</Label>
-                        <Input
-                          id="guestCount"
-                          type="number"
-                          value={inquiryData.guestCount}
-                          onChange={(e) => setInquiryData(prev => ({ ...prev, guestCount: e.target.value }))}
-                          placeholder="50"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="eventDate">Event Date *</Label>
-                        <Input
-                          id="eventDate"
-                          type="date"
-                          value={inquiryData.eventDate}
-                          onChange={(e) => setInquiryData(prev => ({ ...prev, eventDate: e.target.value }))}
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="startTime">Start Time</Label>
-                        <Input
-                          id="startTime"
-                          type="time"
-                          value={inquiryData.startTime}
-                          onChange={(e) => setInquiryData(prev => ({ ...prev, startTime: e.target.value }))}
-                        />
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    <div className="space-y-4">
-                      <h4 className="font-medium">Contact Information</h4>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="col-span-2">
-                          <Label htmlFor="contactName">Your Name *</Label>
-                          <Input
-                            id="contactName"
-                            value={inquiryData.contactName}
-                            onChange={(e) => setInquiryData(prev => ({ ...prev, contactName: e.target.value }))}
-                            placeholder="John Smith"
-                            required
-                          />
-                        </div>
-
-                        <div className="col-span-2">
-                          <Label htmlFor="contactEmail">Email *</Label>
-                          <Input
-                            id="contactEmail"
-                            type="email"
-                            value={inquiryData.contactEmail}
-                            onChange={(e) => setInquiryData(prev => ({ ...prev, contactEmail: e.target.value }))}
-                            placeholder="john@example.com"
-                            required
-                          />
-                        </div>
-
-                        <div>
-                          <Label htmlFor="contactPhone">Phone</Label>
-                          <Input
-                            id="contactPhone"
-                            type="tel"
-                            value={inquiryData.contactPhone}
-                            onChange={(e) => setInquiryData(prev => ({ ...prev, contactPhone: e.target.value }))}
-                            placeholder="(555) 123-4567"
-                          />
-                        </div>
-
-                        <div>
-                          <Label htmlFor="contactCompany">Company</Label>
-                          <Input
-                            id="contactCompany"
-                            value={inquiryData.contactCompany}
-                            onChange={(e) => setInquiryData(prev => ({ ...prev, contactCompany: e.target.value }))}
-                            placeholder="Acme Corp"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="message">Message</Label>
-                      <Textarea
-                        id="message"
-                        value={inquiryData.message}
-                        onChange={(e) => setInquiryData(prev => ({ ...prev, message: e.target.value }))}
-                        placeholder="Tell us about your event..."
-                        rows={3}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="catering"
-                          checked={inquiryData.cateringNeeded}
-                          onCheckedChange={(checked) => setInquiryData(prev => ({ ...prev, cateringNeeded: checked as boolean }))}
-                        />
-                        <Label htmlFor="catering" className="text-sm">Catering needed</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="av"
-                          checked={inquiryData.avEquipmentNeeded}
-                          onCheckedChange={(checked) => setInquiryData(prev => ({ ...prev, avEquipmentNeeded: checked as boolean }))}
-                        />
-                        <Label htmlFor="av" className="text-sm">A/V equipment needed</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="decorations"
-                          checked={inquiryData.decorationsNeeded}
-                          onCheckedChange={(checked) => setInquiryData(prev => ({ ...prev, decorationsNeeded: checked as boolean }))}
-                        />
-                        <Label htmlFor="decorations" className="text-sm">Decorations needed</Label>
-                      </div>
-                    </div>
-
-                    <div className="flex space-x-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setShowInquiryForm(false)}
-                        className="flex-1"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className="flex-1"
-                      >
-                        {isSubmitting ? "Sending..." : "Send Inquiry"}
-                      </Button>
-                    </div>
-                  </form>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Contact Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Contact Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <Building className="w-5 h-5 text-gray-400" />
-                  <span>{venue.tenant_name}</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <MapPin className="w-5 h-5 text-gray-400" />
-                  <span>View on map</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Phone className="w-5 h-5 text-gray-400" />
-                  <span>Contact for phone number</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Mail className="w-5 h-5 text-gray-400" />
-                  <span>Send inquiry for email</span>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="col-span-1">
+            <img src={mockGallery[1]} alt="Venue detail" className="w-full h-full object-cover" />
+          </div>
+          <div className="col-span-1">
+            <img src={mockGallery[2]} alt="Venue detail" className="w-full h-full object-cover" />
           </div>
         </div>
-      </div>
+
+        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-x-16 mt-16">
+          <div className="lg:col-span-2">
+            <div className="pb-8 border-b border-gray-200">
+              <h2 className="text-2xl font-semibold text-gray-900">Hosted by {venue.tenant_name}</h2>
+              <div className="flex items-center space-x-4 mt-2 text-gray-600">
+                {venue.spaces.slice(0, 3).map(space => (
+                  <span key={space.id}>{space.capacity} guests</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="py-8 border-b border-gray-200">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">About this space</h3>
+              <p className="text-gray-700 leading-relaxed">{venue.description}</p>
+            </div>
+
+            <div className="py-8">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">What this place offers</h3>
+              <div className="grid grid-cols-2 gap-4">
+                {venue.amenities.map((amenity, i) => (
+                  <div key={i} className="flex items-center space-x-3">
+                    <AmenityIcon amenity={amenity} />
+                    <span className="text-gray-700">{amenity}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Sticky Booking Card */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-24">
+              <form onSubmit={handleInquirySubmit} className="border border-gray-200 rounded-xl shadow-lg p-6">
+                <h3 className="text-2xl font-semibold text-gray-900 mb-4">Request to book</h3>
+                <div className="space-y-4">
+                  <input type="text" name="contactName" placeholder="Full Name" required className="w-full p-3 border border-gray-300 rounded-lg" />
+                  <input type="email" name="contactEmail" placeholder="Email Address" required className="w-full p-3 border border-gray-300 rounded-lg" />
+                  <input type="tel" name="contactPhone" placeholder="Phone Number" className="w-full p-3 border border-gray-300 rounded-lg" />
+                  <input type="date" name="eventDate" required className="w-full p-3 border border-gray-300 rounded-lg text-gray-500" />
+                  <input type="number" name="guestCount" placeholder="Number of Guests" required className="w-full p-3 border border-gray-300 rounded-lg" />
+                  <textarea name="message" placeholder="Tell us about your event..." rows={3} className="w-full p-3 border border-gray-300 rounded-lg"></textarea>
+                </div>
+                <Button type="submit" disabled={isSubmitting} className="w-full mt-6 bg-gray-900 text-white py-3 rounded-lg hover:bg-gray-700 transition-colors">
+                  {isSubmitting ? "Sending..." : "Send Inquiry"}
+                </Button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
