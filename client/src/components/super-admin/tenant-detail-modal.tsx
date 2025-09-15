@@ -390,15 +390,7 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
     });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'paid': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'overdue': return 'bg-red-100 text-red-800';
-      case 'cancelled': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+  
 
   const handleAddUser = () => {
     if (!newUserData.username || !newUserData.name || !newUserData.email || !newUserData.password) {
@@ -460,20 +452,34 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
     ).join(' ');
   };
 
-  const getTenantStatusColor = (status: string) => {
+  
+
+  
+
+  const getStatusVariant = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'suspended': return 'bg-yellow-100 text-yellow-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'paid': return 'success';
+      case 'pending': return 'warning';
+      case 'overdue': return 'danger';
+      case 'cancelled': return 'secondary';
+      default: return 'secondary';
     }
   };
 
-  const getRoleColor = (role: string) => {
+  const getTenantStatusVariant = (status: string) => {
+    switch (status) {
+      case 'active': return 'success';
+      case 'suspended': return 'warning';
+      case 'cancelled': return 'danger';
+      default: return 'secondary';
+    }
+  };
+
+  const getRoleVariant = (role: string) => {
     switch (role) {
-      case 'tenant_admin': return 'bg-purple-100 text-purple-800';
-      case 'tenant_user': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'tenant_admin': return 'purple';
+      case 'tenant_user': return 'info';
+      default: return 'secondary';
     }
   };
 
@@ -551,7 +557,7 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
                   </div>
                   <div className="flex justify-between">
                     <span>Status:</span>
-                    <Badge className={getTenantStatusColor(editData.status)}>
+                    <Badge variant={getTenantStatusVariant(editData.status)}>
                       {editData.status}
                     </Badge>
                   </div>
@@ -740,7 +746,7 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
                           </div>
                         </div>
                         <div className="flex items-center space-x-4">
-                          <Badge className={getRoleColor(user.role)}>
+                          <Badge variant={getRoleVariant(user.role)}>
                             {user.role === 'tenant_admin' ? (
                               <>
                                 <Crown className="w-3 h-3 mr-1" />
@@ -1158,7 +1164,7 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
                         </div>
                       </div>
                       <div className="flex items-center space-x-4">
-                        <Badge className={getStatusColor(billing.status)}>
+                        <Badge variant={getStatusVariant(billing.status)}>
                           {billing.status}
                         </Badge>
                         {billing.due_date && (
