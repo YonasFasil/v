@@ -4,9 +4,25 @@ import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import {
-  ArrowLeft, MapPin, Users, Star, Wifi, Car, Coffee, Music, Utensils, Check, Send
+  ArrowLeft, MapPin, Star, Wifi, Car, Coffee, Music, Utensils, Check, Users
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+// --- DUMMY DATA ---
+const dummyReviews = [
+  { name: "Alice Johnson", rating: 5, comment: "Absolutely stunning venue! The staff was incredibly helpful and our event was a massive success. Highly recommend!" },
+  { name: "Robert Smith", rating: 4, comment: "Great location and beautiful space. We had a minor issue with the sound system, but it was resolved quickly. Would book again." },
+  { name: "Emily Davis", rating: 5, comment: "Perfect for our corporate off-site. The amenities were top-notch and the space was very inspiring." },
+];
+
+const dummyAmenities = ["High-Speed WiFi", "Free On-site Parking", "Gourmet Catering Options", "Sonos Sound System", "4K Projector", "Coffee and Tea Station"];
+
+const getPlaceholderImage = (id: string, index: number) => {
+  const imageKeywords = ["event-space", "modern-office", "wedding-hall", "conference-center", "art-gallery", "rooftop-lounge"];
+  const keyword = imageKeywords[index % imageKeywords.length];
+  return `https://source.unsplash.com/random/1600x900/?${keyword}&sig=${id}-${index}`;
+};
+// --- END DUMMY DATA ---
 
 interface Venue {
   id: string;
@@ -75,7 +91,7 @@ export default function VenueDetail() {
   };
 
   if (isLoading) {
-    return <div className="min-h-screen bg-white"></div>; // Simple loading state
+    return <div className="min-h-screen bg-white"></div>;
   }
 
   if (error || !venue) {
@@ -95,7 +111,11 @@ export default function VenueDetail() {
     );
   }
 
-  const galleryImages = Array.isArray(venue.image_urls) && venue.image_urls.length > 0 ? venue.image_urls : [];
+  const galleryImages = Array.isArray(venue.image_urls) && venue.image_urls.length > 0 
+    ? venue.image_urls 
+    : [getPlaceholderImage(venue.id, 0), getPlaceholderImage(venue.id, 1), getPlaceholderImage(venue.id, 2), getPlaceholderImage(venue.id, 3), getPlaceholderImage(venue.id, 4)];
+
+  const amenities = Array.isArray(venue.amenities) && venue.amenities.length > 0 ? venue.amenities : dummyAmenities;
 
   return (
     <div className="min-h-screen bg-white font-sans antialiased">
@@ -136,57 +156,76 @@ export default function VenueDetail() {
         </div>
 
         {/* Image Gallery */}
-        {galleryImages.length > 0 && (
-          <div className="mt-12 grid grid-cols-4 grid-rows-2 gap-2 h-[60vh] rounded-2xl overflow-hidden">
-            <div className="col-span-2 row-span-2">
-              <img src={galleryImages[0]} alt={venue.name} className="w-full h-full object-cover" />
-            </div>
-            <div className="col-span-1 row-span-1">
-              <img src={galleryImages[1] || galleryImages[0]} alt="Venue detail" className="w-full h-full object-cover" />
-            </div>
-            <div className="col-span-1 row-span-1">
-              <img src={galleryImages[2] || galleryImages[0]} alt="Venue detail" className="w-full h-full object-cover" />
-            </div>
-            <div className="col-span-1 row-span-1">
-              <img src={galleryImages[3] || galleryImages[0]} alt="Venue detail" className="w-full h-full object-cover" />
-            </div>
-            <div className="col-span-1 row-span-1">
-              <img src={galleryImages[4] || galleryImages[0]} alt="Venue detail" className="w-full h-full object-cover" />
-            </div>
+        <div className="mt-12 grid grid-cols-4 grid-rows-2 gap-2 h-[60vh] rounded-2xl overflow-hidden">
+          <div className="col-span-2 row-span-2">
+            <img src={galleryImages[0]} alt={venue.name} className="w-full h-full object-cover" />
           </div>
-        )}
+          <div className="col-span-1 row-span-1">
+            <img src={galleryImages[1]} alt="Venue detail" className="w-full h-full object-cover" />
+          </div>
+          <div className="col-span-1 row-span-1">
+            <img src={galleryImages[2]} alt="Venue detail" className="w-full h-full object-cover" />
+          </div>
+          <div className="col-span-1 row-span-1">
+            <img src={galleryImages[3]} alt="Venue detail" className="w-full h-full object-cover" />
+          </div>
+          <div className="col-span-1 row-span-1">
+            <img src={galleryImages[4]} alt="Venue detail" className="w-full h-full object-cover" />
+          </div>
+        </div>
 
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-x-24 mt-16">
           <div className="lg:col-span-2">
             <div className="pb-8 border-b border-gray-200/80">
-              <h2 className="text-2xl font-semibold text-gray-900 tracking-tight">Hosted by {venue.tenant_name}</h2>
+              <h2 className="text-3xl font-semibold text-gray-900 tracking-tight">Hosted by {venue.tenant_name}</h2>
               {venue.spaces && venue.spaces.length > 0 && (
-                <div className="flex items-center space-x-6 mt-2 text-gray-600">
+                <div className="flex items-center space-x-6 mt-3 text-gray-600">
                   {venue.spaces.map(space => (
-                    <span key={space.id}>{space.capacity} guests</span>
+                    <div key={space.id} className="flex items-center">
+                      <Users className="w-4 h-4 mr-2" />
+                      <span>{space.capacity} guests</span>
+                    </div>
                   ))}
                 </div>
               )}
             </div>
 
             <div className="py-8 border-b border-gray-200/80">
-              <p className="text-gray-700 leading-relaxed">{venue.description}</p>
+              <p className="text-gray-700 leading-relaxed text-lg">
+                {venue.description || "This modern and versatile space is perfect for a wide range of events, from corporate meetings to elegant weddings. With state-of-the-art facilities and a dedicated team, we are committed to making your event a memorable one."}
+              </p>
             </div>
 
-            {venue.amenities && venue.amenities.length > 0 && (
-              <div className="py-8">
-                <h3 className="text-2xl font-semibold text-gray-900 tracking-tight mb-6">What this place offers</h3>
-                <div className="grid grid-cols-2 gap-y-4 gap-x-8">
-                  {venue.amenities.map((amenity, i) => (
-                    <div key={i} className="flex items-center space-x-4">
-                      <AmenityIcon amenity={amenity} />
-                      <span className="text-gray-700">{amenity}</span>
-                    </div>
-                  ))}
-                </div>
+            <div className="py-8 border-b border-gray-200/80">
+              <h3 className="text-2xl font-semibold text-gray-900 tracking-tight mb-6">What this place offers</h3>
+              <div className="grid grid-cols-2 gap-y-4 gap-x-8">
+                {amenities.map((amenity, i) => (
+                  <div key={i} className="flex items-center space-x-4">
+                    <AmenityIcon amenity={amenity} />
+                    <span className="text-gray-700">{amenity}</span>
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
+
+            <div className="py-8">
+              <h3 className="text-2xl font-semibold text-gray-900 tracking-tight mb-6">Reviews</h3>
+              <div className="space-y-6">
+                {dummyReviews.map((review, i) => (
+                  <div key={i}>
+                    <div className="flex items-center mb-2">
+                      <div className="flex items-center">
+                        {[...Array(review.rating)].map((_, j) => <Star key={j} className="w-5 h-5 text-yellow-500 fill-current" />)}
+                        {[...Array(5 - review.rating)].map((_, j) => <Star key={j} className="w-5 h-5 text-gray-300 fill-current" />)}
+                      </div>
+                    </div>
+                    <p className="text-gray-700">"{review.comment}"</p>
+                    <p className="text-sm text-gray-500 mt-2">- {review.name}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Sticky Inquiry Card */}

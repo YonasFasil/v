@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Input } from "@/components/ui/input";
-import { Search, MapPin, ArrowRight } from "lucide-react";
+import { Search, MapPin } from "lucide-react";
 import { Link } from "wouter";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 
@@ -12,11 +12,20 @@ interface Venue {
   city: string;
   state: string;
   image_url: string;
+  description: string; // Added for more detail
 }
 
-const PlaceholderImage = () => (
-  <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-    <MapPin className="w-10 h-10 text-gray-300" />
+// Helper to get a variety of high-quality placeholder images
+const getPlaceholderImage = (id: string) => {
+  const imageKeywords = ["event-space", "modern-office", "wedding-hall", "conference-center", "art-gallery", "rooftop-lounge"];
+  // Simple hash to pick a keyword based on the venue ID
+  const index = id.charCodeAt(0) % imageKeywords.length;
+  return `https://source.unsplash.com/random/800x600/?${imageKeywords[index]}&sig=${id}`;
+};
+
+const PlaceholderImage = ({ id }: { id: string }) => (
+  <div className="w-full h-full bg-gray-100">
+    <img src={getPlaceholderImage(id)} alt="Placeholder" className="w-full h-full object-cover" />
   </div>
 );
 
@@ -25,19 +34,18 @@ const VenueCard = ({ venue }: { venue: Venue }) => (
     <a className="block group">
       <div className="w-full bg-white rounded-2xl overflow-hidden border border-gray-200/80 hover:shadow-2xl hover:shadow-gray-200/40 transition-all duration-500 ease-in-out">
         <AspectRatio ratio={16 / 10}>
-          {venue.image_url ? (
-            <img
-              src={venue.image_url}
-              alt={venue.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-in-out"
-            />
-          ) : (
-            <PlaceholderImage />
-          )}
+          <img
+            src={venue.image_url || getPlaceholderImage(venue.id)}
+            alt={venue.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-in-out"
+          />
         </AspectRatio>
         <div className="p-6">
           <h3 className="font-semibold text-lg text-gray-900">{venue.name}</h3>
           <p className="text-sm text-gray-500 mt-1">{venue.city}, {venue.state}</p>
+          <p className="text-sm text-gray-600 mt-3 line-clamp-2">
+            {venue.description || "A stunning space perfect for any occasion, from corporate events to private celebrations."}
+          </p>
         </div>
       </div>
     </a>
