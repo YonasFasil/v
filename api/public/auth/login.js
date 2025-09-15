@@ -42,7 +42,7 @@ module.exports = async function handler(req, res) {
     // Find customer by email
     const result = await pool.query(`
       SELECT id, first_name, last_name, email, phone, password_hash,
-             email_verified, status, created_at, last_login_at
+             is_verified, is_active, created_at, last_login_at
       FROM public_customers
       WHERE email = $1
     `, [email.toLowerCase().trim()]);
@@ -56,7 +56,7 @@ module.exports = async function handler(req, res) {
     const customer = result.rows[0];
 
     // Check if account is active
-    if (customer.status !== 'active') {
+    if (!customer.is_active) {
       return res.status(401).json({
         message: 'Account is not active. Please contact support.'
       });
@@ -95,8 +95,8 @@ module.exports = async function handler(req, res) {
       lastName: customer.last_name,
       email: customer.email,
       phone: customer.phone,
-      emailVerified: customer.email_verified,
-      status: customer.status,
+      isVerified: customer.is_verified,
+      isActive: customer.is_active,
       createdAt: customer.created_at,
       lastLoginAt: new Date()
     };

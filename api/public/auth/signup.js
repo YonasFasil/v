@@ -74,17 +74,17 @@ module.exports = async function handler(req, res) {
     const result = await pool.query(`
       INSERT INTO public_customers (
         first_name, last_name, email, phone, password_hash,
-        email_verified, status, created_at
+        is_verified, is_active, created_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-      RETURNING id, first_name, last_name, email, phone, email_verified, status, created_at
+      RETURNING id, first_name, last_name, email, phone, is_verified, is_active, created_at
     `, [
       firstName.trim(),
       lastName.trim(),
       email.toLowerCase().trim(),
       phone.trim(),
       hashedPassword,
-      false, // email_verified
-      'active' // status
+      false, // is_verified (not email_verified)
+      true   // is_active (not status)
     ]);
 
     const customer = result.rows[0];
@@ -108,8 +108,8 @@ module.exports = async function handler(req, res) {
       lastName: customer.last_name,
       email: customer.email,
       phone: customer.phone,
-      emailVerified: customer.email_verified,
-      status: customer.status,
+      isVerified: customer.is_verified,
+      isActive: customer.is_active,
       createdAt: customer.created_at
     };
 
