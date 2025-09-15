@@ -168,13 +168,13 @@ export default function VenueDetail() {
         {/* Image Gallery */}
         <div className="grid grid-cols-2 grid-rows-2 gap-2 h-[500px] rounded-2xl overflow-hidden">
           <div className="col-span-1 row-span-2">
-            <img src={venue.image_url || mockGallery[0]} alt={venue.name} className="w-full h-full object-cover" />
+            <img src={venue.image_urls?.[0] || venue.image_url || mockGallery[0]} alt={venue.name} className="w-full h-full object-cover" />
           </div>
           <div className="col-span-1">
-            <img src={mockGallery[1]} alt="Venue detail" className="w-full h-full object-cover" />
+            <img src={venue.image_urls?.[1] || mockGallery[1]} alt="Venue detail" className="w-full h-full object-cover" />
           </div>
           <div className="col-span-1">
-            <img src={mockGallery[2]} alt="Venue detail" className="w-full h-full object-cover" />
+            <img src={venue.image_urls?.[2] || mockGallery[2]} alt="Venue detail" className="w-full h-full object-cover" />
           </div>
         </div>
 
@@ -198,7 +198,7 @@ export default function VenueDetail() {
             <div className="py-8">
               <h3 className="text-xl font-semibold text-gray-900 mb-4">What this place offers</h3>
               <div className="grid grid-cols-2 gap-4">
-                {venue.amenities.map((amenity, i) => (
+                {venue.amenities && venue.amenities.map((amenity, i) => (
                   <div key={i} className="flex items-center space-x-3">
                     <AmenityIcon amenity={amenity} />
                     <span className="text-gray-700">{amenity}</span>
