@@ -69,8 +69,8 @@ export default function Events() {
       };
 
       setSelectedBooking(individualEvent);
-      // Skip EventSummaryModal and go directly to edit mode for calendar clicks
-      setShowEditModal(true);
+      // Open summary modal first for calendar clicks (changed from direct edit)
+      // setShowEditModal(true); // Removed - summary modal will open instead
       return;
     }
 

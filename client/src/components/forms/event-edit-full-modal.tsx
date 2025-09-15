@@ -186,8 +186,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
           setTaxFeeOverrides(booking.taxFeeOverrides);
         }
 
-        // For editing, start at step 3 (final details) since everything is pre-configured
-        setCurrentStep(3);
+        // Start at step 1 (calendar) for editing from summary modal
+        setCurrentStep(1);
       } else if (booking.isContract && booking.contractEvents) {
         // Handle full contract editing with multiple events
         setEventName(booking.contractInfo?.contractName || booking.eventName || "Event Contract");
@@ -217,8 +217,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
           setTaxFeeOverrides(booking.contractEvents[0].taxFeeOverrides);
         }
 
-        // For multi-date editing, start at step 3 (final details)
-        setCurrentStep(3);
+        // Start at step 1 (calendar) for editing from summary modal
+        setCurrentStep(1);
       } else {
         // Handle single event
         setEventName(booking.eventName || "");
@@ -262,8 +262,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
           setTaxFeeOverrides(booking.taxFeeOverrides);
         }
 
-        // For single event editing, start at step 3 (final details)
-        setCurrentStep(3);
+        // Start at step 1 (calendar) for editing from summary modal
+        setCurrentStep(1);
       }
     }
   }, [booking, open]);
