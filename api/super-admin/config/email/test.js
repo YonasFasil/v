@@ -1,6 +1,13 @@
 const { Pool } = require('pg');
-const nodemailer = require('nodemailer');
 const { getDatabaseUrl } = require('../../../db-config.js');
+
+// Import with error handling
+let nodemailer;
+try {
+  nodemailer = require('nodemailer');
+} catch (importError) {
+  console.error('Nodemailer import error:', importError);
+}
 
 module.exports = async function handler(req, res) {
   // Set CORS headers
@@ -19,9 +26,21 @@ module.exports = async function handler(req, res) {
   let pool;
 
   try {
+    // Check if nodemailer is available
+    if (!nodemailer) {
+      return res.status(500).json({
+        success: false,
+        message: 'Email service not available',
+        error: 'Nodemailer module not loaded'
+      });
+    }
+
     const databaseUrl = getDatabaseUrl();
     if (!databaseUrl) {
-      return res.status(500).json({ message: 'Database not configured' });
+      return res.status(500).json({
+        success: false,
+        message: 'Database not configured'
+      });
     }
 
     pool = new Pool({
@@ -40,6 +59,7 @@ module.exports = async function handler(req, res) {
 
       if (result.rows.length === 0) {
         return res.status(400).json({
+          success: false,
           message: 'Email configuration not found. Please configure email settings first.'
         });
       }
@@ -47,12 +67,15 @@ module.exports = async function handler(req, res) {
       emailConfig = JSON.parse(result.rows[0].setting_value);
     } catch (err) {
       return res.status(400).json({
-        message: 'Email configuration not found. Please configure email settings first.'
+        success: false,
+        message: 'Email configuration not found. Please configure email settings first.',
+        error: err.message
       });
     }
 
     if (!emailConfig.enabled) {
       return res.status(400).json({
+        success: false,
         message: 'Email service is not enabled. Please enable it in settings.'
       });
     }
