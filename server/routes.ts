@@ -355,6 +355,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/dashboard', enforceRLSTenantIsolation, tenantContextMiddleware);
   app.use('/api/companies', enforceRLSTenantIsolation, tenantContextMiddleware);
   app.use('/api/contracts', enforceRLSTenantIsolation, tenantContextMiddleware);
+  app.use('/api/upload', tenantContextMiddleware);
 
   // Helper function to get tenant ID from authenticated user
   const getTenantIdFromAuth = async (req: any): Promise<string | null> => {
@@ -522,8 +523,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
     } catch (error: any) {
-      console.error("Error fetching tenant features:", error);
-      res.status(500).json({ message: "Failed to fetch tenant features" });
+      console.error("Error fetching tenant features:", error.message, error.stack);
+      res.status(500).json({ message: "Failed to fetch tenant features", error: error.message });
     }
   });
 
