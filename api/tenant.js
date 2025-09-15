@@ -594,6 +594,32 @@ module.exports = async function handler(req, res) {
           return res.status(500).json({ message: 'Failed to update booking' });
         }
       }
+
+      // DELETE booking (for single-to-multidate conversion)
+      if (req.method === 'DELETE' && id) {
+        try {
+          console.log('🗑️ DELETING INDIVIDUAL BOOKING:', id);
+
+          const deleteQuery = `
+            DELETE FROM bookings
+            WHERE tenant_id = $1 AND id = $2
+            RETURNING *
+          `;
+
+          const result = await pool.query(deleteQuery, [tenantId, id]);
+
+          if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Booking not found' });
+          }
+
+          console.log('✅ Successfully deleted booking:', id);
+          return res.json({ message: 'Booking deleted successfully', deletedBooking: result.rows[0] });
+
+        } catch (error) {
+          console.error('Booking deletion error:', error);
+          return res.status(500).json({ message: 'Failed to delete booking' });
+        }
+      }
     }
     
     // PACKAGES
