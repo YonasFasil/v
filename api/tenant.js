@@ -239,9 +239,9 @@ module.exports = async function handler(req, res) {
               'customerSince', c.created_at
             ) as analytics
           FROM customers c
-          LEFT JOIN bookings b ON c.id = b.customer_id AND c.tenant_id = b.tenant_id
+          LEFT JOIN bookings b ON c.id = b.customer_id
           WHERE c.tenant_id = $1
-          GROUP BY c.id, c.name, c.email, c.phone, c.company_id, c.status, c.notes, c.created_at
+          GROUP BY c.id
           ORDER BY c.created_at DESC
         `, [tenantId]);
         return res.json(analytics.rows);
