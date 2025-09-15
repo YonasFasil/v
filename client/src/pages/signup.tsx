@@ -1,379 +1,117 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  CheckCircle, 
-  ArrowRight, 
-  Building,
-  Users,
-  Calendar,
-  Star,
-  Shield,
-  Zap
-} from "lucide-react";
-import { type SubscriptionPackage, type InsertTenant } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
+import { ArrowRight } from "lucide-react";
 
-interface SignupFormData {
-  // Organization details
-  organizationName: string;
-  
-  // Admin user details
-  fullName: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-  
-  // Selected package
-  packageId: string;
-  
-  // Agreement
-  agreeToTerms: boolean;
-}
-
-export default function Signup() {
+export default function SignUpPage() {
   const { toast } = useToast();
-  const [step, setStep] = useState(1);
-  const [selectedPackage, setSelectedPackage] = useState<string>("");
-  const [formData, setFormData] = useState<SignupFormData>({
-    organizationName: "",
-    fullName: "",
+  const [formData, setFormData] = useState({
+    name: "",
     email: "",
     password: "",
-    confirmPassword: "",
-    packageId: "",
-    agreeToTerms: false,
+    companyName: ""
   });
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch available packages
-  const { data: packages = [] } = useQuery<SubscriptionPackage[]>({
-    queryKey: ["/api/public/packages"],
-    select: (data) => data?.filter(pkg => pkg.isActive) || []
-  });
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
 
-  const signupMutation = useMutation({
-    mutationFn: (data: SignupFormData) =>
-      apiRequest("/api/public/signup", {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
-    onSuccess: (response) => {
-      toast({ title: "Account created successfully! Welcome aboard!" });
-      // Redirect to tenant dashboard or login
-      window.location.href = `/dashboard`;
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Signup failed", 
-        description: error.message, 
-        variant: "destructive" 
+    try {
+      await apiRequest("POST", "/api/signup", formData);
+      toast({
+        title: "Account Created!",
+        description: "You can now log in with your new account.",
       });
-    },
-  });
-
-  const validateStep = (currentStep: number) => {
-    switch (currentStep) {
-      case 1:
-        return selectedPackage !== "";
-      case 2:
-        return formData.organizationName;
-      case 3:
-        return formData.fullName && formData.email && formData.password && 
-               formData.password === formData.confirmPassword && formData.agreeToTerms;
-      default:
-        return false;
+      // Redirect to login page after a short delay
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 2000);
+    } catch (error: any) {
+      toast({
+        title: "Sign Up Failed",
+        description: error.message || "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleNext = () => {
-    if (validateStep(step)) {
-      if (step === 1) {
-        setFormData(prev => ({ ...prev, packageId: selectedPackage }));
-      }
-      setStep(step + 1);
-    } else {
-      toast({ title: "Please complete all required fields", variant: "destructive" });
-    }
-  };
-
-  const handleSubmit = () => {
-    if (validateStep(3)) {
-      signupMutation.mutate(formData);
-    }
-  };
-
-  const getPackageIcon = (packageName: string) => {
-    switch (packageName.toLowerCase()) {
-      case 'starter': return <Zap className="w-8 h-8 text-blue-600" />;
-      case 'professional': return <Building className="w-8 h-8 text-purple-600" />;
-      case 'enterprise': return <Shield className="w-8 h-8 text-green-600" />;
-      default: return <Star className="w-8 h-8 text-gray-600" />;
-    }
-  };
-
-  const parseFeatures = (features: any): string[] => {
-    if (Array.isArray(features)) return features;
-    if (typeof features === 'string') {
-      try {
-        return JSON.parse(features);
-      } catch {
-        return [];
-      }
-    }
-    return [];
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-lg border border-gray-200">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Start Your Venue Management Journey
-          </h1>
-          <p className="text-xl text-gray-600">
-            Choose your plan and create your account in minutes
-          </p>
+          <h1 className="text-4xl font-bold text-gray-900">Create Your Account</h1>
+          <p className="text-gray-600 mt-2">Start managing your venue with VenuinePro.</p>
         </div>
-
-        {/* Progress Indicator */}
-        <div className="flex justify-center mb-8">
-          <div className="flex items-center space-x-4">
-            {[1, 2, 3].map((stepNumber) => (
-              <div key={stepNumber} className="flex items-center">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  step >= stepNumber 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-200 text-gray-600'
-                }`}>
-                  {step > stepNumber ? <CheckCircle className="w-5 h-5" /> : stepNumber}
-                </div>
-                {stepNumber < 3 && (
-                  <div className={`w-12 h-1 mx-2 ${
-                    step > stepNumber ? 'bg-blue-600' : 'bg-gray-200'
-                  }`} />
-                )}
-              </div>
-            ))}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <Label htmlFor="companyName">Company Name</Label>
+            <Input
+              id="companyName"
+              name="companyName"
+              type="text"
+              required
+              onChange={handleChange}
+              className="mt-1"
+            />
           </div>
-        </div>
-
-        <div className="max-w-4xl mx-auto">
-          {/* Step 1: Package Selection */}
-          {step === 1 && (
-            <div className="space-y-6">
-              <div className="text-center">
-                <h2 className="text-2xl font-bold mb-2">Choose Your Plan</h2>
-                <p className="text-gray-600">Select the perfect package for your venue business</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {packages.map((pkg) => (
-                  <Card 
-                    key={pkg.id} 
-                    className={`cursor-pointer transition-all ${
-                      selectedPackage === pkg.id 
-                        ? 'border-blue-500 ring-2 ring-blue-200' 
-                        : 'hover:border-gray-300'
-                    }`}
-                    onClick={() => setSelectedPackage(pkg.id)}
-                  >
-                    <CardHeader className="text-center">
-                      <div className="flex justify-center mb-4">
-                        {getPackageIcon(pkg.name)}
-                      </div>
-                      <CardTitle className="text-xl">{pkg.name}</CardTitle>
-                      <div className="text-3xl font-bold">
-                        ${pkg.price}
-                        <span className="text-sm font-normal text-gray-600">
-                          /{pkg.billingInterval}
-                        </span>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="flex items-center text-sm">
-                          <Building className="w-4 h-4 mr-2 text-gray-500" />
-                          {pkg.maxVenues} venue{pkg.maxVenues !== 1 ? 's' : ''}
-                        </div>
-                        <div className="flex items-center text-sm">
-                          <Users className="w-4 h-4 mr-2 text-gray-500" />
-                          {pkg.maxUsers} team member{pkg.maxUsers !== 1 ? 's' : ''}
-                        </div>
-                        <div className="flex items-center text-sm">
-                          <Calendar className="w-4 h-4 mr-2 text-gray-500" />
-                          {pkg.maxBookingsPerMonth} bookings/month
-                        </div>
-                        
-                        {parseFeatures(pkg.features).length > 0 && (
-                          <div className="pt-3 border-t">
-                            <div className="text-sm font-medium mb-2">Features:</div>
-                            <div className="space-y-1">
-                              {parseFeatures(pkg.features).slice(0, 3).map((feature) => (
-                                <div key={feature} className="flex items-center text-xs text-gray-600">
-                                  <CheckCircle className="w-3 h-3 mr-1 text-green-500" />
-                                  {feature.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {selectedPackage === pkg.id && (
-                        <div className="mt-4 p-2 bg-blue-50 rounded text-center">
-                          <CheckCircle className="w-5 h-5 text-blue-600 mx-auto" />
-                          <div className="text-sm text-blue-600 font-medium">Selected</div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
-              <div className="flex justify-center">
-                <Button 
-                  onClick={handleNext} 
-                  disabled={!selectedPackage}
-                  size="lg"
-                  className="px-8"
-                >
-                  Continue
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 2: Organization Details */}
-          {step === 2 && (
-            <Card className="max-w-lg mx-auto">
-              <CardHeader>
-                <CardTitle>Organization Details</CardTitle>
-                <p className="text-gray-600">Tell us about your venue business</p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="organizationName">Organization Name *</Label>
-                  <Input
-                    id="organizationName"
-                    value={formData.organizationName}
-                    onChange={(e) => setFormData(prev => ({ ...prev, organizationName: e.target.value }))}
-                    placeholder="Your Venue Company"
-                    required
-                  />
-                </div>
-
-
-                <div className="flex gap-2 pt-4">
-                  <Button variant="outline" onClick={() => setStep(1)}>
-                    Back
-                  </Button>
-                  <Button onClick={handleNext} className="flex-1">
-                    Continue
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Step 3: Account Creation */}
-          {step === 3 && (
-            <Card className="max-w-lg mx-auto">
-              <CardHeader>
-                <CardTitle>Create Your Account</CardTitle>
-                <p className="text-gray-600">Set up your admin credentials</p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="fullName">Full Name *</Label>
-                  <Input
-                    id="fullName"
-                    value={formData.fullName}
-                    onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
-                    placeholder="John Doe"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="email">Email Address *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="john@yourcompany.com"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="password">Password *</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                    placeholder="••••••••"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="confirmPassword">Confirm Password *</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    value={formData.confirmPassword}
-                    onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                    placeholder="••••••••"
-                    required
-                  />
-                  {formData.password !== formData.confirmPassword && formData.confirmPassword && (
-                    <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
-                  )}
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="agreeToTerms"
-                    checked={formData.agreeToTerms}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, agreeToTerms: !!checked }))}
-                  />
-                  <Label htmlFor="agreeToTerms" className="text-sm">
-                    I agree to the <a href="/terms" className="text-blue-600 hover:underline">Terms of Service</a> and{" "}
-                    <a href="/privacy" className="text-blue-600 hover:underline">Privacy Policy</a> *
-                  </Label>
-                </div>
-
-                <div className="flex gap-2 pt-4">
-                  <Button variant="outline" onClick={() => setStep(2)}>
-                    Back
-                  </Button>
-                  <Button 
-                    onClick={handleSubmit} 
-                    className="flex-1"
-                    disabled={signupMutation.isPending}
-                  >
-                    {signupMutation.isPending ? "Creating Account..." : "Create Account"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="text-center mt-12 text-gray-600">
-          <p>Already have an account? <a href="/login" className="text-blue-600 hover:underline">Sign in</a></p>
+          <div>
+            <Label htmlFor="name">Full Name</Label>
+            <Input
+              id="name"
+              name="name"
+              type="text"
+              required
+              onChange={handleChange}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="email">Email Address</Label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              required
+              onChange={handleChange}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              required
+              onChange={handleChange}
+              className="mt-1"
+            />
+          </div>
+          <Button type="submit" size="lg" className="w-full text-lg" disabled={isLoading}>
+            {isLoading ? "Creating Account..." : "Sign Up"}
+            <ArrowRight className="w-5 h-5 ml-2" />
+          </Button>
+        </form>
+        <div className="mt-6 text-center">
+          <p className="text-gray-600">
+            Already have an account?{" "}
+            <a href="/login" className="text-blue-600 hover:underline font-medium">
+              Log in
+            </a>
+          </p>
         </div>
       </div>
     </div>

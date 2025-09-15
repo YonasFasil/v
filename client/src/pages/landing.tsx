@@ -16,7 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 
 // New Animated Background Component
-const FinancialBackground = () => {
+const FuturisticBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -26,55 +26,34 @@ const FinancialBackground = () => {
     const ctx = canvas.getContext('2d');
     let width = canvas.width = window.innerWidth;
     let height = canvas.height = window.innerHeight;
-    let icons: Icon[] = [];
+    let elements: (Line | Circle)[] = [];
 
-    const iconSvgs = [
-      // Simple Bar Chart
-      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>`,
-      // Simple Line Graph
-      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 16 10 8 8 12 2 12"></polyline></svg>`,
-      // Simple Calendar Icon
-      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`,
-      // Simple Dollar Sign
-      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>`
-    ];
-
-    const iconImages = iconSvgs.map(svgString => {
-      const img = new Image();
-      img.src = `data:image/svg+xml;base64,${btoa(svgString)}`;
-      return img;
-    });
-
-    class Icon {
+    class Line {
       x: number;
       y: number;
-      vx: number;
-      vy: number;
-      size: number;
-      image: HTMLImageElement;
+      length: number;
+      speed: number;
       angle: number;
-      rotationSpeed: number;
+      width: number;
+      color: string;
 
       constructor() {
-        this.size = Math.random() * 20 + 20;
         this.x = Math.random() * width;
         this.y = Math.random() * height;
-        this.vx = (Math.random() - 0.5) * 0.3;
-        this.vy = (Math.random() - 0.5) * 0.3;
-        this.image = iconImages[Math.floor(Math.random() * iconImages.length)];
+        this.length = Math.random() * 200 + 50;
+        this.speed = Math.random() * 0.3 + 0.1;
         this.angle = Math.random() * Math.PI * 2;
-        this.rotationSpeed = (Math.random() - 0.5) * 0.01;
+        this.width = Math.random() * 1.5 + 0.5;
+        this.color = `rgba(0, 122, 255, ${Math.random() * 0.1 + 0.05})`;
       }
 
       update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.angle += this.rotationSpeed;
-
-        if (this.x < -this.size) this.x = width + this.size;
-        if (this.x > width + this.size) this.x = -this.size;
-        if (this.y < -this.size) this.y = height + this.size;
-        if (this.y > height + this.size) this.y = -this.size;
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed;
+        if (this.x < 0 || this.x > width || this.y < 0 || this.y > height) {
+          this.x = Math.random() * width;
+          this.y = Math.random() * height;
+        }
       }
 
       draw() {
@@ -82,26 +61,66 @@ const FinancialBackground = () => {
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.rotate(this.angle);
-        ctx.globalAlpha = 0.1;
-        ctx.drawImage(this.image, -this.size / 2, -this.size / 2, this.size, this.size);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(this.length, 0);
+        ctx.lineWidth = this.width;
+        ctx.strokeStyle = this.color;
+        ctx.stroke();
         ctx.restore();
       }
     }
 
+    class Circle {
+      x: number;
+      y: number;
+      radius: number;
+      speed: number;
+      angle: number;
+      color: string;
+
+      constructor() {
+        this.x = Math.random() * width;
+        this.y = Math.random() * height;
+        this.radius = Math.random() * 3 + 1;
+        this.speed = Math.random() * 0.2 + 0.1;
+        this.angle = Math.random() * Math.PI * 2;
+        this.color = `rgba(0, 122, 255, ${Math.random() * 0.1 + 0.1})`;
+      }
+
+      update() {
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed;
+        if (this.x < 0 || this.x > width || this.y < 0 || this.y > height) {
+          this.x = Math.random() * width;
+          this.y = Math.random() * height;
+        }
+      }
+
+      draw() {
+        if (!ctx) return;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+      }
+    }
+
     function init() {
-      icons = [];
-      const numberOfIcons = Math.floor((width * height) / 40000);
-      for (let i = 0; i < numberOfIcons; i++) {
-        icons.push(new Icon());
+      elements = [];
+      const numberOfElements = Math.floor(width / 30);
+      for (let i = 0; i < numberOfElements; i++) {
+        elements.push(new Line());
+        elements.push(new Circle());
       }
     }
 
     function animate() {
       if (!ctx) return;
       ctx.clearRect(0, 0, width, height);
-      icons.forEach(icon => {
-        icon.update();
-        icon.draw();
+      elements.forEach(el => {
+        el.update();
+        el.draw();
       });
       requestAnimationFrame(animate);
     }
@@ -114,17 +133,7 @@ const FinancialBackground = () => {
 
     window.addEventListener('resize', handleResize);
     init();
-    
-    // Ensure images are loaded before starting animation
-    let loadedCount = 0;
-    iconImages.forEach(img => {
-      img.onload = () => {
-        loadedCount++;
-        if (loadedCount === iconImages.length) {
-          animate();
-        }
-      };
-    });
+    animate();
 
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -176,21 +185,23 @@ export default function LandingPage() {
 
   return (
     <div className="bg-white text-gray-800 font-sans">
-      <FinancialBackground />
+      <FuturisticBackground />
       <div className="relative z-10">
         <header className={cn("fixed top-0 left-0 right-0 z-50 transition-all duration-300", isScrolled ? 'bg-white/80 backdrop-blur-sm shadow-md' : 'bg-transparent')}>
           <div className="container mx-auto px-6 py-4 flex justify-between items-center">
             <h1 className="text-3xl font-bold text-gray-900">VenuinePro</h1>
             <nav className="hidden md:flex items-center space-x-8">
               <a href="#features" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">Features</a>
-              <a href="#how-it-works" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">Process</a>
-              <a href="#pricing" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">Pricing</a>
+              <a href="#process" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">Process</a>
+              <a href="/pricing" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">Pricing</a>
             </nav>
             <div className="flex items-center space-x-4">
               <Button asChild variant="ghost" size="lg" className="hidden md:flex text-lg">
-                <a href="/tenant-login">Login</a>
+                <a href="/login">Login</a>
               </Button>
-              <Button size="lg" className="hidden md:flex bg-blue-600 hover:bg-blue-700 text-white text-lg">Get Started</Button>
+              <Button asChild size="lg" className="hidden md:flex bg-blue-600 hover:bg-blue-700 text-white text-lg">
+                <a href="/signup">Get Started</a>
+              </Button>
             </div>
           </div>
         </header>
@@ -205,9 +216,11 @@ export default function LandingPage() {
                 VenuinePro is the all-in-one platform that unifies your bookings, clients, and financials, empowering you to grow your business with unprecedented efficiency and insight.
               </p>
               <div className="flex justify-center items-center space-x-4">
-                <Button size="lg" className="text-lg px-8 py-6 bg-blue-600 hover:bg-blue-700 text-white">
-                  Start Your Free Trial
-                  <ArrowRight className="w-5 h-5 ml-2" />
+                <Button asChild size="lg" className="text-lg px-8 py-6 bg-blue-600 hover:bg-blue-700 text-white">
+                  <a href="/signup">
+                    Get Started
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </a>
                 </Button>
                 <Button size="lg" variant="outline" className="text-lg px-8 py-6">
                   Request a Demo
@@ -235,7 +248,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="how-it-works" className="py-24">
+        <section id="process" className="py-24">
           <div className="container mx-auto px-6">
             <div className="text-center mb-16">
               <h3 className="text-4xl md:text-5xl font-bold text-gray-900">Effortless from Day One</h3>
@@ -280,10 +293,12 @@ export default function LandingPage() {
           <div className="container mx-auto px-6">
             <div className="text-center max-w-4xl mx-auto">
               <h3 className="text-4xl md:text-5xl font-bold text-gray-900">Join the Venues of Tomorrow.</h3>
-              <p className="text-lg text-gray-600 mt-6 mb-10">Step into the future of event management. VenuinePro gives you the tools, insights, and automation to not just compete, but to lead the market. Start your free trial and experience the difference.</p>
-              <Button size="lg" className="text-lg px-8 py-6 bg-blue-600 hover:bg-blue-700 text-white">
-                Claim Your Free Trial
-                <ArrowRight className="w-5 h-5 ml-2" />
+              <p className="text-lg text-gray-600 mt-6 mb-10">Step into the future of event management. VenuinePro gives you the tools, insights, and automation to not just compete, but to lead the market. Get started and experience the difference.</p>
+              <Button asChild size="lg" className="text-lg px-8 py-6 bg-blue-600 hover:bg-blue-700 text-white">
+                <a href="/signup">
+                  Sign Up Now
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </a>
               </Button>
             </div>
           </div>
@@ -300,7 +315,7 @@ export default function LandingPage() {
                 <h4 className="text-lg font-semibold mb-4 text-gray-900">Product</h4>
                 <ul className="space-y-2">
                   <li><a href="#features" className="text-gray-600 hover:text-gray-900">Features</a></li>
-                  <li><a href="#pricing" className="text-gray-600 hover:text-gray-900">Pricing</a></li>
+                  <li><a href="/pricing" className="text-gray-600 hover:text-gray-900">Pricing</a></li>
                   <li><a href="#" className="text-gray-600 hover:text-gray-900">Book a Demo</a></li>
                 </ul>
               </div>
