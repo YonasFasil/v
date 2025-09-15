@@ -2,13 +2,13 @@ const { put } = require("@vercel/blob");
 const { nanoid } = require("nanoid");
 
 // Configure for Pages API Routes (not App Router)
-export const config = {
+const config = {
   api: {
     bodyParser: false,
   },
 };
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -60,4 +60,6 @@ export default async function handler(req, res) {
       stack: error.stack
     });
   }
-}
+};
+
+module.exports.config = config;

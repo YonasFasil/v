@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -103,6 +103,12 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl p-0 max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogTitle className="sr-only">
+          {venue?.id ? 'Edit Venue' : 'Create New Venue'}
+        </DialogTitle>
+        <DialogDescription className="sr-only">
+          {venue?.id ? 'Edit venue details, description, address, and upload images.' : 'Create a new venue by adding details, description, address, and uploading images.'}
+        </DialogDescription>
         <div className="border-b p-6 flex items-center gap-3">
           <Edit className="h-5 w-5 text-blue-600" />
           <h2 className="text-xl font-semibold">
