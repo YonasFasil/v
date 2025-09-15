@@ -614,31 +614,50 @@ app.use("/api/upload", uploadRouter);
       }
       
       // Validate required fields and provide defaults
-      const { name, description, capacity, pricePerHour, amenities, isActive } = req.body;
+      const { name, description, capacity, pricePerHour, amenities, isActive, image_url, image_urls } = req.body;
       
       if (!name) {
         return res.status(400).json({ message: "Venue name is required" });
       }
       
-      // Create venue data with validated fields
-      // Note: Capacity is optional for venues (venue = hotel, spaces = halls with capacity)
       const venueData = {
         name: name.trim(),
         description: description || '',
-        capacity: capacity && capacity > 0 ? parseInt(capacity) : null, // Optional field
+        capacity: capacity && capacity > 0 ? parseInt(capacity) : null,
         pricePerHour: pricePerHour ? parseFloat(pricePerHour) : null,
         amenities: Array.isArray(amenities) ? amenities : [],
-        isActive: isActive !== false, // Default to true
-        tenantId: user.tenantId
+        isActive: isActive !== false,
+        tenantId: user.tenantId,
+        image_url: image_url || "",
+        image_urls: image_urls || [],
       };
       
-      console.log('🏗️ Attempting to create venue via API:', { name: venueData.name, tenantId: venueData.tenantId });
       const venue = await storage.createVenue(venueData);
-      console.log('✅ Venue created successfully via API');
       res.status(201).json(venue);
     } catch (error) {
-      console.error('[VENUE] Failed to create venue:', error);
       res.status(500).json({ message: "Failed to create venue", error: error.message });
+    }
+  });
+
+  app.patch("/api/venues/:id", async (req, res) => {
+    try {
+      const tenantId = await getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const existingVenue = await storage.getVenue(req.params.id);
+      if (!existingVenue || existingVenue.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Venue not found" });
+      }
+      
+      const venue = await storage.updateVenue(req.params.id, req.body);
+      if (!venue) {
+        return res.status(404).json({ message: "Venue not found" });
+      }
+      res.json(venue);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update venue" });
     }
   });
 
@@ -9150,16 +9169,17 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     }
   });
 
+  const httpServer = createServer(app);
+
   // Seed default subscription packages if none exist
   await seedDefaultPackages();
-  
+
   // Seed default event packages if none exist
   await seedDefaultEventPackages();
-  
+
   // Seed default services if none exist
   await seedDefaultServices();
 
-  const httpServer = createServer(app);
   return httpServer;
 }
 

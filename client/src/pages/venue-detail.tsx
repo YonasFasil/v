@@ -10,13 +10,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-// Mock data for gallery, as it's not in the API response
-const mockGallery = [
-  "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?q=80&w=2071&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?q=80&w=2070&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=2232&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?q=80&w=2070&auto=format&fit=crop",
-];
+
 
 interface Venue {
   id: string;
@@ -166,17 +160,23 @@ export default function VenueDetail() {
         </div>
 
         {/* Image Gallery */}
-        <div className="grid grid-cols-2 grid-rows-2 gap-2 h-[500px] rounded-2xl overflow-hidden">
-          <div className="col-span-1 row-span-2">
-            <img src={venue.image_urls?.[0] || venue.image_url || mockGallery[0]} alt={venue.name} className="w-full h-full object-cover" />
+        {venue.image_urls && venue.image_urls.length > 0 && (
+          <div className="grid grid-cols-2 grid-rows-2 gap-2 h-[500px] rounded-2xl overflow-hidden">
+            <div className="col-span-1 row-span-2">
+              <img src={venue.image_urls[0]} alt={venue.name} className="w-full h-full object-cover" />
+            </div>
+            {venue.image_urls[1] && (
+              <div className="col-span-1">
+                <img src={venue.image_urls[1]} alt="Venue detail" className="w-full h-full object-cover" />
+              </div>
+            )}
+            {venue.image_urls[2] && (
+              <div className="col-span-1">
+                <img src={venue.image_urls[2]} alt="Venue detail" className="w-full h-full object-cover" />
+              </div>
+            )}
           </div>
-          <div className="col-span-1">
-            <img src={venue.image_urls?.[1] || mockGallery[1]} alt="Venue detail" className="w-full h-full object-cover" />
-          </div>
-          <div className="col-span-1">
-            <img src={venue.image_urls?.[2] || mockGallery[2]} alt="Venue detail" className="w-full h-full object-cover" />
-          </div>
-        </div>
+        )}
 
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-x-16 mt-16">
