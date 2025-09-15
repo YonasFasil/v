@@ -689,7 +689,7 @@ module.exports = async function handler(req, res) {
         
         return res.status(201).json(newPackage.rows[0]);
         
-      } else if (req.method === 'PUT' && id) {
+      } else if (req.method === 'PATCH' && id) {
         const { 
           name, description, category, price, pricingModel,
           includedServiceIds, enabledTaxIds, enabledFeeIds 
@@ -761,7 +761,7 @@ module.exports = async function handler(req, res) {
         
         return res.status(201).json(newService.rows[0]);
         
-      } else if (req.method === 'PUT' && id) {
+      } else if (req.method === 'PATCH' && id) {
         const { 
           name, description, category, price, pricingModel,
           enabledTaxIds, enabledFeeIds 
