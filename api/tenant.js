@@ -534,8 +534,8 @@ module.exports = async function handler(req, res) {
             return res.status(400).json({ message: 'No fields to update' });
           }
 
-          // Always update the updated_at timestamp
-          updateFields.push('updated_at = NOW()');
+          // Note: updated_at column doesn't exist in bookings table
+          // Using created_at instead for tracking purposes
 
           // Update the booking
           const updateQuery = `
