@@ -70,7 +70,8 @@ export default function PublicVenues() {
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-gray-200/80">
         <div className="max-w-screen-xl mx-auto px-6">
           <div className="flex justify-between items-center py-4">
-            <a className="text-xl font-bold text-gray-900 tracking-tight">Venuine</a>
+            <Link href="/">
+              <a className="text-xl font-bold text-gray-900 tracking-tight">Venuine</a>
             </Link>
             <div className="flex items-center space-x-6 text-sm font-medium text-gray-700">
               <Link href="/customer/login">
