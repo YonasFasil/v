@@ -127,9 +127,6 @@ const attachmentUpload = multer({
 // All upload configurations completed
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  
-  const uploadRouter = require("../api/upload");
-app.use("/api/upload", uploadRouter);
 
   // Health check endpoint - simplified
   app.get("/api/health", (req, res) => {
