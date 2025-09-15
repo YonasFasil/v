@@ -983,26 +983,25 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
       const firstDate = selectedDates[0];
       const bookingData = {
         eventName,
-        eventType: "corporate",
+        eventType: selectedPackageData?.name || "Custom Event",
         eventDate: firstDate.date,
         startTime: convertTimeToHours(firstDate.startTime),
         endTime: convertTimeToHours(firstDate.endTime),
         guestCount: firstDate.guestCount || 1,
-        status: ((submitType as string) === 'proposal' ? 'pending' : eventStatus) as string,
+        status: (submitType === 'proposal' ? 'pending' : eventStatus) as string,
         customerId: selectedCustomer,
         venueId: selectedVenue,
         spaceId: firstDate.spaceId,
         setupStyle: firstDate.setupStyle || null,
         packageId: firstDate.packageId || null,
-        selectedServices: firstDate.selectedServices?.length ? firstDate.selectedServices : null,
-        pricingModel: selectedPackageData?.pricingModel || "fixed",
+        selectedServices: firstDate.selectedServices || [],
         itemQuantities: firstDate.itemQuantities || {},
-        pricingOverrides: firstDate.pricingOverrides || null,
-        serviceTaxOverrides: firstDate.serviceTaxOverrides || null,
+        pricingOverrides: firstDate.pricingOverrides || {},
+        serviceTaxOverrides: firstDate.serviceTaxOverrides || {},
         totalAmount: totalPrice.toString(),
         notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${firstDate.selectedServices?.length || 0} selected`,
-        proposalStatus: ((submitType as string) === 'proposal' ? 'sent' : 'none') as string,
-        proposalSentAt: ((submitType as string) === 'proposal' ? new Date().toISOString() : null) as string | null
+        proposalStatus: (submitType === 'proposal' ? 'sent' : 'none') as string,
+        proposalSentAt: (submitType === 'proposal' ? new Date().toISOString() : null) as string | null
       };
 
       createBooking.mutate(bookingData, {

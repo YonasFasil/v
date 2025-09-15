@@ -392,7 +392,8 @@ module.exports = async function handler(req, res) {
           eventName, eventType, customerId, venueId, spaceId,
           eventDate, endDate, startTime, endTime, guestCount,
           setupStyle, status = 'inquiry', totalAmount, depositAmount,
-          notes, contractId, isMultiDay
+          notes, contractId, isMultiDay, packageId, selectedServices,
+          itemQuantities, pricingOverrides, serviceTaxOverrides
         } = req.body;
 
         if (!eventName || !eventDate || !startTime || !endTime) {
@@ -458,15 +459,17 @@ module.exports = async function handler(req, res) {
             tenant_id, event_name, event_type, customer_id, venue_id, space_id,
             event_date, end_date, start_time, end_time, guest_count,
             setup_style, status, total_amount, deposit_amount, notes,
-            contract_id, is_multi_day, created_at
+            contract_id, is_multi_day, package_id, selected_services,
+            item_quantities, pricing_overrides, service_tax_overrides, created_at
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW()
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, NOW()
           ) RETURNING *
         `, [
           tenantId, eventName, eventType, customerId, venueId, spaceId,
           eventDate, endDate, startTime, endTime, guestCount,
           setupStyle, status, totalAmount, depositAmount, notes,
-          contractId, isMultiDay
+          contractId, isMultiDay, packageId, selectedServices,
+          itemQuantities, pricingOverrides, serviceTaxOverrides
         ]);
 
         return res.status(201).json(newBooking.rows[0]);
