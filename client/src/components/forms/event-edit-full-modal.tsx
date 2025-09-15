@@ -535,19 +535,10 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
           console.log('🔄 Converting single day event to multidate contract');
 
           // Create new contract
-          const response = await apiRequest(
-            `/api/contracts`,
-            {
-              method: "POST",
-              body: JSON.stringify(contractData),
-              headers: { "Content-Type": "application/json" }
-            }
-          );
+          const response = await apiRequest("POST", "/api/contracts", contractData);
 
           // Delete original single day booking
-          await apiRequest(`/api/bookings/${booking.id}`, {
-            method: "DELETE"
-          });
+          await apiRequest("DELETE", `/api/bookings/${booking.id}`);
 
           return response;
         } else {
