@@ -4,6 +4,13 @@ const { v4: uuidv4 } = require('uuid');
 const { getDatabaseUrl } = require('./db-config.js');
 
 module.exports = async function handler(req, res) {
+  // DEBUGGING: Log ALL API calls to tenant handler
+  console.log(`\n🌐 TENANT API: ${req.method} ${req.url}`);
+  console.log(`   Resource: ${req.query?.resource || 'unknown'}`);
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log(`   Body keys: ${Object.keys(req.body)}`);
+  }
+
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
