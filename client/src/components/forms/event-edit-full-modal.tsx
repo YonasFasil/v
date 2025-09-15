@@ -485,20 +485,25 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
     mutationFn: async (bookingData: any) => {
       // Only use contract endpoints for editing complete contracts
       // Individual events (even if part of contract) should use individual booking endpoints
-      
+
       // Check if this event should be forced to individual editing (from calendar clicks)
       const editAsIndividual = booking?._editAsIndividual;
 
-      const isEditingFullContract = !editAsIndividual && booking?.isContract && booking?.contractInfo?.id && (
-        (booking?.contractEvents?.length > 1) ||
-        (booking?.eventCount > 1) ||
-        (booking?.contractInfo?.eventDates?.length > 1)
+      // Check if converting single day to multidate
+      const isConvertingToMultidate = !booking?.isContract && selectedDates.length > 1;
+
+      const isEditingFullContract = !editAsIndividual && (
+        (booking?.isContract && booking?.contractInfo?.id && (
+          (booking?.contractEvents?.length > 1) ||
+          (booking?.eventCount > 1) ||
+          (booking?.contractInfo?.eventDates?.length > 1)
+        )) ||
+        isConvertingToMultidate
       );
       
       
       if (isEditingFullContract) {
-        // For full contract updates, we need to send all booking data
-        const contractUpdateData = {
+        const contractData = {
           contractData: {
             contractName: eventName,
             status: eventStatus,
@@ -525,15 +530,38 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
           }))
         };
 
-        const response = await apiRequest(
-          `/api/contracts?id=${booking.contractInfo.id}`,
-          {
-            method: "PATCH",
-            body: JSON.stringify(contractUpdateData),
-            headers: { "Content-Type": "application/json" }
-          }
-        );
-        return response;
+        if (isConvertingToMultidate) {
+          // Converting single day to multidate - create new contract and delete original booking
+          console.log('🔄 Converting single day event to multidate contract');
+
+          // Create new contract
+          const response = await apiRequest(
+            `/api/contracts`,
+            {
+              method: "POST",
+              body: JSON.stringify(contractData),
+              headers: { "Content-Type": "application/json" }
+            }
+          );
+
+          // Delete original single day booking
+          await apiRequest(`/api/bookings/${booking.id}`, {
+            method: "DELETE"
+          });
+
+          return response;
+        } else {
+          // Updating existing contract
+          const response = await apiRequest(
+            `/api/contracts?id=${booking.contractInfo.id}`,
+            {
+              method: "PATCH",
+              body: JSON.stringify(contractData),
+              headers: { "Content-Type": "application/json" }
+            }
+          );
+          return response;
+        }
       }
       
       // For single events (even if they have contract info), use regular booking endpoint
