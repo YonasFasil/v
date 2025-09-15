@@ -131,8 +131,8 @@ export default function CustomerSignup() {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <Link href="/">
-            <a className="text-3xl font-bold text-blue-600">VenuinePro</a>
+          <Link href="/" className="text-3xl font-bold text-blue-600">
+            VenuinePro
           </Link>
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
@@ -284,20 +284,16 @@ export default function CustomerSignup() {
               </div>
 
               <div className="mt-6 text-center">
-                <Link href="/customer/login">
-                  <a className="font-medium text-blue-600 hover:text-blue-500">
-                    Sign in to your account
-                  </a>
+                <Link href="/customer/login" className="font-medium text-blue-600 hover:text-blue-500">
+                  Sign in to your account
                 </Link>
               </div>
             </div>
 
             <div className="mt-6 text-center">
-              <Link href="/explore/venues">
-                <a className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Continue browsing venues
-                </a>
+              <Link href="/explore/venues" className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Continue browsing venues
               </Link>
             </div>
           </CardContent>
