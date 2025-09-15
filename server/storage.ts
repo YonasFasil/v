@@ -726,11 +726,12 @@ export class DbStorage implements IStorage {
     const context = await getCurrentTenantContext();
     
     if (context.role === 'super_admin') {
-      return isNotNull(table.tenantId); // Super admin sees all tenant data
+      return isNotNull(table.tenantId);
     } else if (context.tenantId) {
       return eq(table.tenantId, context.tenantId);
     } else {
-      throw new Error('No tenant context available');
+      // Return a condition that will never be true
+      return eq(table.tenantId, randomUUID());
     }
   }
 
