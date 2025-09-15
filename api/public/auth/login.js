@@ -1,7 +1,14 @@
 const { Pool } = require('pg');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const { getDatabaseUrl } = require('../../db-config.js');
+
+// Import with error handling
+let bcrypt, jwt;
+try {
+  bcrypt = require('bcryptjs');
+  jwt = require('jsonwebtoken');
+} catch (importError) {
+  console.error('Import error:', importError);
+}
 
 module.exports = async function handler(req, res) {
   // Set CORS headers
@@ -20,6 +27,14 @@ module.exports = async function handler(req, res) {
   let pool;
 
   try {
+    // Check if required modules are available
+    if (!bcrypt || !jwt) {
+      return res.status(500).json({
+        message: 'Server dependencies not available',
+        error: 'bcrypt or jwt module not loaded'
+      });
+    }
+
     const databaseUrl = getDatabaseUrl();
     if (!databaseUrl) {
       return res.status(500).json({ message: 'Database not configured' });
