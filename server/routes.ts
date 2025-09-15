@@ -1113,6 +1113,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Customers - with tenant filtering
   app.get("/api/customers", async (req, res) => {
+    try {
+      const tenantId = await getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const customers = await storage.getCustomers();
+      res.json(customers);
+    } catch (error: any) {
+      console.error("Error fetching customers:", error);
+      res.status(500).json({ message: "Failed to fetch customers" });
+    }
+  });
 
   app.patch("/api/customers/:id", async (req, res) => {
     try {
