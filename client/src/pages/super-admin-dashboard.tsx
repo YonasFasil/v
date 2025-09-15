@@ -256,7 +256,7 @@ export default function SuperAdminDashboard() {
                             day: 'numeric',
                             hour: '2-digit',
                             minute: '2-digit'
-                          }) : `N/A (Debug: ${JSON.stringify(Object.keys(tenant))})`}</div>
+                          }) : `N/A`}</div>
                         </div>
                       </div>
                     </div>

@@ -1016,42 +1016,44 @@ module.exports = async function handler(req, res) {
     // SETTINGS
     if (resource === 'settings') {
       if (req.method === 'GET') {
-        const settings = await pool.query(`SELECT * FROM settings
-          WHERE tenant_id = $1
-          ORDER BY key ASC`, [tenantId]);
+        if (userRole !== 'super_admin') {
+          const settings = await pool.query(`SELECT * FROM settings
+            WHERE tenant_id = $1
+            ORDER BY key ASC`, [tenantId]);
 
-        // Helper function to reconstruct nested objects from dot notation
-        const unflattenObject = (obj) => {
-          const result = {};
-          for (const [key, value] of Object.entries(obj)) {
-            const keys = key.split('.');
-            let current = result;
-            for (let i = 0; i < keys.length - 1; i++) {
-              if (!(keys[i] in current)) {
-                current[keys[i]] = {};
+          // Helper function to reconstruct nested objects from dot notation
+          const unflattenObject = (obj) => {
+            const result = {};
+            for (const [key, value] of Object.entries(obj)) {
+              const keys = key.split('.');
+              let current = result;
+              for (let i = 0; i < keys.length - 1; i++) {
+                if (!(keys[i] in current)) {
+                  current[keys[i]] = {};
+                }
+                current = current[keys[i]];
               }
-              current = current[keys[i]];
+              // Try to parse JSON values, fallback to original value
+              try {
+                current[keys[keys.length - 1]] = JSON.parse(value);
+              } catch {
+                current[keys[keys.length - 1]] = value;
+              }
             }
-            // Try to parse JSON values, fallback to original value
-            try {
-              current[keys[keys.length - 1]] = JSON.parse(value);
-            } catch {
-              current[keys[keys.length - 1]] = value;
-            }
-          }
-          return result;
-        };
+            return result;
+          };
 
-        // Convert to flat key-value object first
-        const flatSettings = {};
-        settings.rows.forEach(setting => {
-          flatSettings[setting.key] = setting.value;
-        });
+          // Convert to flat key-value object first
+          const flatSettings = {};
+          settings.rows.forEach(setting => {
+            flatSettings[setting.key] = setting.value;
+          });
 
-        // Convert to nested object structure
-        const nestedSettings = unflattenObject(flatSettings);
+          // Convert to nested object structure
+          const nestedSettings = unflattenObject(flatSettings);
 
-        return res.json(nestedSettings);
+          return res.json(nestedSettings);
+        }
         
       } else if (req.method === 'POST' || req.method === 'PUT') {
         const updates = req.body;
