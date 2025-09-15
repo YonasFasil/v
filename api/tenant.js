@@ -696,13 +696,18 @@ module.exports = async function handler(req, res) {
         } = req.body;
         
         const updatedPackage = await pool.query(`UPDATE packages 
-          SET name = $1, description = $2, category = $3, price = $4, 
-              pricing_model = $5, included_service_ids = $6, 
-              enabled_tax_ids = $7, enabled_fee_ids = $8
+          SET name = COALESCE($1, name), 
+              description = COALESCE($2, description), 
+              category = COALESCE($3, category), 
+              price = COALESCE($4, price), 
+              pricing_model = COALESCE($5, pricing_model), 
+              included_service_ids = COALESCE($6, included_service_ids), 
+              enabled_tax_ids = COALESCE($7, enabled_tax_ids), 
+              enabled_fee_ids = COALESCE($8, enabled_fee_ids)
           WHERE tenant_id = $9 AND id = $10
           RETURNING *`, [
             name, description, category, price, pricingModel,
-            includedServiceIds || [], enabledTaxIds || [], enabledFeeIds || [],
+            includedServiceIds, enabledTaxIds, enabledFeeIds,
             tenantId, id
           ]);
         
@@ -768,12 +773,17 @@ module.exports = async function handler(req, res) {
         } = req.body;
         
         const updatedService = await pool.query(`UPDATE services 
-          SET name = $1, description = $2, category = $3, price = $4, 
-              pricing_model = $5, enabled_tax_ids = $6, enabled_fee_ids = $7
+          SET name = COALESCE($1, name), 
+              description = COALESCE($2, description), 
+              category = COALESCE($3, category), 
+              price = COALESCE($4, price), 
+              pricing_model = COALESCE($5, pricing_model), 
+              enabled_tax_ids = COALESCE($6, enabled_tax_ids), 
+              enabled_fee_ids = COALESCE($7, enabled_fee_ids)
           WHERE tenant_id = $8 AND id = $9
           RETURNING *`, [
             name, description, category, price, pricingModel,
-            enabledTaxIds || [], enabledFeeIds || [],
+            enabledTaxIds, enabledFeeIds,
             tenantId, id
           ]);
         
