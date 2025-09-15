@@ -184,7 +184,7 @@ export default function VenueDetail() {
             <div className="pb-8 border-b border-gray-200">
               <h2 className="text-2xl font-semibold text-gray-900">Hosted by {venue.tenant_name}</h2>
               <div className="flex items-center space-x-4 mt-2 text-gray-600">
-                {venue.spaces.slice(0, 3).map(space => (
+                {venue.spaces && venue.spaces.slice(0, 3).map(space => (
                   <span key={space.id}>{space.capacity} guests</span>
                 ))}
               </div>
