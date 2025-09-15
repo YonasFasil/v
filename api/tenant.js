@@ -658,14 +658,37 @@ module.exports = async function handler(req, res) {
     if (resource === 'packages') {
       if (req.method === 'GET') {
         if (id) {
-          const pkg = await pool.query(`SELECT * FROM packages 
+          const pkg = await pool.query(`SELECT * FROM packages
             WHERE tenant_id = $1 AND id = $2`, [tenantId, id]);
-          return res.json(pkg.rows[0] || null);
+          if (pkg.rows.length === 0) {
+            return res.json(null);
+          }
+          // Convert snake_case to camelCase for frontend
+          const packageData = {
+            ...pkg.rows[0],
+            includedServiceIds: pkg.rows[0].included_service_ids,
+            enabledTaxIds: pkg.rows[0].enabled_tax_ids,
+            enabledFeeIds: pkg.rows[0].enabled_fee_ids,
+            pricingModel: pkg.rows[0].pricing_model,
+            createdAt: pkg.rows[0].created_at
+          };
+          return res.json(packageData);
         }
-        const packages = await pool.query(`SELECT * FROM packages 
+        const packages = await pool.query(`SELECT * FROM packages
           WHERE tenant_id = $1 AND is_active = true
           ORDER BY created_at DESC`, [tenantId]);
-        return res.json(packages.rows);
+
+        // Convert snake_case to camelCase for frontend
+        const formattedPackages = packages.rows.map(pkg => ({
+          ...pkg,
+          includedServiceIds: pkg.included_service_ids,
+          enabledTaxIds: pkg.enabled_tax_ids,
+          enabledFeeIds: pkg.enabled_fee_ids,
+          pricingModel: pkg.pricing_model,
+          createdAt: pkg.created_at
+        }));
+
+        return res.json(formattedPackages);
         
       } else if (req.method === 'POST') {
         const { 
@@ -687,7 +710,17 @@ module.exports = async function handler(req, res) {
             includedServiceIds || [], enabledTaxIds || [], enabledFeeIds || []
           ]);
         
-        return res.status(201).json(newPackage.rows[0]);
+        // Convert snake_case to camelCase for frontend
+        const formattedPackage = {
+          ...newPackage.rows[0],
+          includedServiceIds: newPackage.rows[0].included_service_ids,
+          enabledTaxIds: newPackage.rows[0].enabled_tax_ids,
+          enabledFeeIds: newPackage.rows[0].enabled_fee_ids,
+          pricingModel: newPackage.rows[0].pricing_model,
+          createdAt: newPackage.rows[0].created_at
+        };
+
+        return res.status(201).json(formattedPackage);
         
       } else if (req.method === 'PATCH' && id) {
         const updates = req.body;
@@ -731,7 +764,17 @@ module.exports = async function handler(req, res) {
           return res.status(404).json({ message: 'Package not found' });
         }
         
-        return res.json(updatedPackage.rows[0]);
+        // Convert snake_case to camelCase for frontend
+        const formattedPackage = {
+          ...updatedPackage.rows[0],
+          includedServiceIds: updatedPackage.rows[0].included_service_ids,
+          enabledTaxIds: updatedPackage.rows[0].enabled_tax_ids,
+          enabledFeeIds: updatedPackage.rows[0].enabled_fee_ids,
+          pricingModel: updatedPackage.rows[0].pricing_model,
+          createdAt: updatedPackage.rows[0].created_at
+        };
+
+        return res.json(formattedPackage);
         
       } else if (req.method === 'DELETE' && id) {
         const deletedPackage = await pool.query(`UPDATE packages 
@@ -751,14 +794,35 @@ module.exports = async function handler(req, res) {
     if (resource === 'services') {
       if (req.method === 'GET') {
         if (id) {
-          const service = await pool.query(`SELECT * FROM services 
+          const service = await pool.query(`SELECT * FROM services
             WHERE tenant_id = $1 AND id = $2`, [tenantId, id]);
-          return res.json(service.rows[0] || null);
+          if (service.rows.length === 0) {
+            return res.json(null);
+          }
+          // Convert snake_case to camelCase for frontend
+          const serviceData = {
+            ...service.rows[0],
+            enabledTaxIds: service.rows[0].enabled_tax_ids,
+            enabledFeeIds: service.rows[0].enabled_fee_ids,
+            pricingModel: service.rows[0].pricing_model,
+            createdAt: service.rows[0].created_at
+          };
+          return res.json(serviceData);
         }
-        const services = await pool.query(`SELECT * FROM services 
+        const services = await pool.query(`SELECT * FROM services
           WHERE tenant_id = $1 AND is_active = true
           ORDER BY created_at DESC`, [tenantId]);
-        return res.json(services.rows);
+
+        // Convert snake_case to camelCase for frontend
+        const formattedServices = services.rows.map(service => ({
+          ...service,
+          enabledTaxIds: service.enabled_tax_ids,
+          enabledFeeIds: service.enabled_fee_ids,
+          pricingModel: service.pricing_model,
+          createdAt: service.created_at
+        }));
+
+        return res.json(formattedServices);
         
       } else if (req.method === 'POST') {
         const { 
@@ -780,7 +844,16 @@ module.exports = async function handler(req, res) {
             enabledTaxIds || [], enabledFeeIds || []
           ]);
         
-        return res.status(201).json(newService.rows[0]);
+        // Convert snake_case to camelCase for frontend
+        const formattedService = {
+          ...newService.rows[0],
+          enabledTaxIds: newService.rows[0].enabled_tax_ids,
+          enabledFeeIds: newService.rows[0].enabled_fee_ids,
+          pricingModel: newService.rows[0].pricing_model,
+          createdAt: newService.rows[0].created_at
+        };
+
+        return res.status(201).json(formattedService);
         
       } else if (req.method === 'PATCH' && id) {
         const updates = req.body;
@@ -823,7 +896,16 @@ module.exports = async function handler(req, res) {
           return res.status(404).json({ message: 'Service not found' });
         }
         
-        return res.json(updatedService.rows[0]);
+        // Convert snake_case to camelCase for frontend
+        const formattedService = {
+          ...updatedService.rows[0],
+          enabledTaxIds: updatedService.rows[0].enabled_tax_ids,
+          enabledFeeIds: updatedService.rows[0].enabled_fee_ids,
+          pricingModel: updatedService.rows[0].pricing_model,
+          createdAt: updatedService.rows[0].created_at
+        };
+
+        return res.json(formattedService);
         
       } else if (req.method === 'DELETE' && id) {
         const deletedService = await pool.query(`UPDATE services 
