@@ -644,7 +644,7 @@ export default function Customers() {
     
     const matchesStatus = statusFilter === "all" || customer.status === statusFilter;
     
-    const matchesValue = valueFilter === "all" || customer.analytics.lifetimeValueCategory === valueFilter;
+    const matchesValue = valueFilter === "all" || (customer.analytics && customer.analytics.lifetimeValueCategory === valueFilter);
     
     return matchesSearch && matchesStatus && matchesValue;
   });
