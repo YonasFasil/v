@@ -35,6 +35,9 @@ const PaymentSuccess = lazy(() => import("@/pages/payment-success"));
 const SuperAdminDashboard = lazy(() => import("@/pages/super-admin-dashboard"));
 const Users = lazy(() => import("@/pages/users"));
 const UpgradePackage = lazy(() => import("@/pages/upgrade-package"));
+
+// Public pages (no authentication required)
+const PublicVenues = lazy(() => import("@/pages/public-venues"));
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { FullyProtectedRoute } from "@/components/auth/FullyProtectedRoute";
 
@@ -81,6 +84,14 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+
+      {/* Public routes - no authentication required */}
+      <Route path="/explore/venues">
+        <Suspense fallback={<PageLoader />}>
+          <PublicVenues />
+        </Suspense>
+      </Route>
+
       <Route path="/dashboard">
         <LazyProtectedRoute>
           <Dashboard />

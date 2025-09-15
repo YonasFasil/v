@@ -183,6 +183,9 @@ export default function Landing() {
               <a href="#features" className="text-gray-700 hover:text-gray-900 transition-colors font-medium">Features</a>
               <a href="#pricing" className="text-gray-700 hover:text-gray-900 transition-colors font-medium">Pricing</a>
               <a href="#testimonials" className="text-gray-700 hover:text-gray-900 transition-colors font-medium">Reviews</a>
+              <Button variant="outline" size="sm" asChild>
+                <a href="/explore/venues">Browse Venues</a>
+              </Button>
               <Button variant="ghost" size="sm" asChild>
                 <a href="/super-admin/login">Admin</a>
               </Button>
@@ -211,6 +214,9 @@ export default function Landing() {
               <a href="#features" className="block text-gray-700 hover:text-gray-900 font-medium">Features</a>
               <a href="#pricing" className="block text-gray-700 hover:text-gray-900 font-medium">Pricing</a>
               <a href="#testimonials" className="block text-gray-700 hover:text-gray-900 font-medium">Reviews</a>
+              <Button variant="outline" className="w-full" asChild>
+                <a href="/explore/venues">Browse Venues</a>
+              </Button>
               <a href="/super-admin/login" className="block text-gray-700 hover:text-gray-900 font-medium">Admin</a>
               <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white" asChild>
                 <a href="/signup">Get Started</a>
