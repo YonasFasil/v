@@ -690,26 +690,42 @@ module.exports = async function handler(req, res) {
         return res.status(201).json(newPackage.rows[0]);
         
       } else if (req.method === 'PATCH' && id) {
-        const { 
-          name, description, category, price, pricingModel,
-          includedServiceIds, enabledTaxIds, enabledFeeIds 
-        } = req.body;
-        
-        const updatedPackage = await pool.query(`UPDATE packages 
-          SET name = COALESCE($1, name), 
-              description = COALESCE($2, description), 
-              category = COALESCE($3, category), 
-              price = COALESCE($4, price), 
-              pricing_model = COALESCE($5, pricing_model), 
-              included_service_ids = COALESCE($6, included_service_ids), 
-              enabled_tax_ids = COALESCE($7, enabled_tax_ids), 
-              enabled_fee_ids = COALESCE($8, enabled_fee_ids)
-          WHERE tenant_id = $9 AND id = $10
-          RETURNING *`, [
-            name, description, category, price, pricingModel,
-            includedServiceIds, enabledTaxIds, enabledFeeIds,
-            tenantId, id
-          ]);
+        const updates = req.body;
+        const updateFields = [];
+        const updateValues = [];
+        let valueIndex = 1;
+
+        const fieldMappings = {
+            name: 'name',
+            description: 'description',
+            category: 'category',
+            price: 'price',
+            pricingModel: 'pricing_model',
+            includedServiceIds: 'included_service_ids',
+            enabledTaxIds: 'enabled_tax_ids',
+            enabledFeeIds: 'enabled_fee_ids'
+        };
+
+        for (const [key, value] of Object.entries(updates)) {
+            if (fieldMappings[key]) {
+                updateFields.push(`${fieldMappings[key]} = ${valueIndex}`);
+                updateValues.push(value);
+                valueIndex++;
+            }
+        }
+
+        if (updateFields.length === 0) {
+            return res.status(400).json({ message: 'No fields to update' });
+        }
+
+        updateValues.push(tenantId, id);
+
+        const updateQuery = `UPDATE packages
+          SET ${updateFields.join(', ')}
+          WHERE tenant_id = ${valueIndex} AND id = ${valueIndex + 1}
+          RETURNING *`;
+
+        const updatedPackage = await pool.query(updateQuery, updateValues);
         
         if (updatedPackage.rows.length === 0) {
           return res.status(404).json({ message: 'Package not found' });
@@ -767,25 +783,41 @@ module.exports = async function handler(req, res) {
         return res.status(201).json(newService.rows[0]);
         
       } else if (req.method === 'PATCH' && id) {
-        const { 
-          name, description, category, price, pricingModel,
-          enabledTaxIds, enabledFeeIds 
-        } = req.body;
-        
-        const updatedService = await pool.query(`UPDATE services 
-          SET name = COALESCE($1, name), 
-              description = COALESCE($2, description), 
-              category = COALESCE($3, category), 
-              price = COALESCE($4, price), 
-              pricing_model = COALESCE($5, pricing_model), 
-              enabled_tax_ids = COALESCE($6, enabled_tax_ids), 
-              enabled_fee_ids = COALESCE($7, enabled_fee_ids)
-          WHERE tenant_id = $8 AND id = $9
-          RETURNING *`, [
-            name, description, category, price, pricingModel,
-            enabledTaxIds, enabledFeeIds,
-            tenantId, id
-          ]);
+        const updates = req.body;
+        const updateFields = [];
+        const updateValues = [];
+        let valueIndex = 1;
+
+        const fieldMappings = {
+            name: 'name',
+            description: 'description',
+            category: 'category',
+            price: 'price',
+            pricingModel: 'pricing_model',
+            enabledTaxIds: 'enabled_tax_ids',
+            enabledFeeIds: 'enabled_fee_ids'
+        };
+
+        for (const [key, value] of Object.entries(updates)) {
+            if (fieldMappings[key]) {
+                updateFields.push(`${fieldMappings[key]} = ${valueIndex}`);
+                updateValues.push(value);
+                valueIndex++;
+            }
+        }
+
+        if (updateFields.length === 0) {
+            return res.status(400).json({ message: 'No fields to update' });
+        }
+
+        updateValues.push(tenantId, id);
+
+        const updateQuery = `UPDATE services
+          SET ${updateFields.join(', ')}
+          WHERE tenant_id = ${valueIndex} AND id = ${valueIndex + 1}
+          RETURNING *`;
+
+        const updatedService = await pool.query(updateQuery, updateValues);
         
         if (updatedService.rows.length === 0) {
           return res.status(404).json({ message: 'Service not found' });
