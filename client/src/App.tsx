@@ -38,6 +38,7 @@ const UpgradePackage = lazy(() => import("@/pages/upgrade-package"));
 
 // Public pages (no authentication required)
 const PublicVenues = lazy(() => import("@/pages/public-venues"));
+const VenueDetail = lazy(() => import("@/pages/venue-detail"));
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { FullyProtectedRoute } from "@/components/auth/FullyProtectedRoute";
 
@@ -89,6 +90,12 @@ function Router() {
       <Route path="/explore/venues">
         <Suspense fallback={<PageLoader />}>
           <PublicVenues />
+        </Suspense>
+      </Route>
+
+      <Route path="/explore/venues/:id">
+        <Suspense fallback={<PageLoader />}>
+          <VenueDetail />
         </Suspense>
       </Route>
 
