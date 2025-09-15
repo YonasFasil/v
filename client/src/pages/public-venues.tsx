@@ -12,20 +12,15 @@ interface Venue {
   city: string;
   state: string;
   image_url: string;
-  description: string; // Added for more detail
+  description: string;
 }
 
-// Helper to get a variety of high-quality placeholder images
-const getPlaceholderImage = (id: string) => {
-  const imageKeywords = ["event-space", "modern-office", "wedding-hall", "conference-center", "art-gallery", "rooftop-lounge"];
-  // Simple hash to pick a keyword based on the venue ID
-  const index = id.charCodeAt(0) % imageKeywords.length;
-  return `https://source.unsplash.com/random/800x600/?${imageKeywords[index]}&sig=${id}`;
-};
-
-const PlaceholderImage = ({ id }: { id: string }) => (
-  <div className="w-full h-full bg-gray-100">
-    <img src={getPlaceholderImage(id)} alt="Placeholder" className="w-full h-full object-cover" />
+// New, reliable SVG placeholder component
+const PlaceholderImage = () => (
+  <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+    <svg className="w-12 h-12 text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+    </svg>
   </div>
 );
 
@@ -34,11 +29,15 @@ const VenueCard = ({ venue }: { venue: Venue }) => (
     <a className="block group">
       <div className="w-full bg-white rounded-2xl overflow-hidden border border-gray-200/80 hover:shadow-2xl hover:shadow-gray-200/40 transition-all duration-500 ease-in-out">
         <AspectRatio ratio={16 / 10}>
-          <img
-            src={venue.image_url || getPlaceholderImage(venue.id)}
-            alt={venue.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-in-out"
-          />
+          {venue.image_url ? (
+            <img
+              src={venue.image_url}
+              alt={venue.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-in-out"
+            />
+          ) : (
+            <PlaceholderImage />
+          )}
         </AspectRatio>
         <div className="p-6">
           <h3 className="font-semibold text-lg text-gray-900">{venue.name}</h3>

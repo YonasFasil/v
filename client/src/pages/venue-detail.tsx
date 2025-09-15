@@ -16,12 +16,6 @@ const dummyReviews = [
 ];
 
 const dummyAmenities = ["High-Speed WiFi", "Free On-site Parking", "Gourmet Catering Options", "Sonos Sound System", "4K Projector", "Coffee and Tea Station"];
-
-const getPlaceholderImage = (id: string, index: number) => {
-  const imageKeywords = ["event-space", "modern-office", "wedding-hall", "conference-center", "art-gallery", "rooftop-lounge"];
-  const keyword = imageKeywords[index % imageKeywords.length];
-  return `https://source.unsplash.com/random/1600x900/?${keyword}&sig=${id}-${index}`;
-};
 // --- END DUMMY DATA ---
 
 interface Venue {
@@ -51,6 +45,14 @@ const AmenityIcon = ({ amenity }: { amenity: string }) => {
   if (lowerAmenity.includes('sound') || lowerAmenity.includes('audio')) return <Music className="w-5 h-5 text-gray-600" />;
   return <Check className="w-5 h-5 text-gray-600" />;
 };
+
+const PlaceholderImage = () => (
+    <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+      <svg className="w-16 h-16 text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+      </svg>
+    </div>
+);
 
 export default function VenueDetail() {
   const params = useParams();
@@ -111,10 +113,7 @@ export default function VenueDetail() {
     );
   }
 
-  const galleryImages = Array.isArray(venue.image_urls) && venue.image_urls.length > 0 
-    ? venue.image_urls 
-    : [getPlaceholderImage(venue.id, 0), getPlaceholderImage(venue.id, 1), getPlaceholderImage(venue.id, 2), getPlaceholderImage(venue.id, 3), getPlaceholderImage(venue.id, 4)];
-
+  const galleryImages = Array.isArray(venue.image_urls) && venue.image_urls.length > 0 ? venue.image_urls : [];
   const amenities = Array.isArray(venue.amenities) && venue.amenities.length > 0 ? venue.amenities : dummyAmenities;
 
   return (
@@ -158,19 +157,19 @@ export default function VenueDetail() {
         {/* Image Gallery */}
         <div className="mt-12 grid grid-cols-4 grid-rows-2 gap-2 h-[60vh] rounded-2xl overflow-hidden">
           <div className="col-span-2 row-span-2">
-            <img src={galleryImages[0]} alt={venue.name} className="w-full h-full object-cover" />
+            {galleryImages[0] ? <img src={galleryImages[0]} alt={venue.name} className="w-full h-full object-cover" /> : <PlaceholderImage />}
           </div>
           <div className="col-span-1 row-span-1">
-            <img src={galleryImages[1]} alt="Venue detail" className="w-full h-full object-cover" />
+            {galleryImages[1] ? <img src={galleryImages[1]} alt="Venue detail" className="w-full h-full object-cover" /> : <PlaceholderImage />}
           </div>
           <div className="col-span-1 row-span-1">
-            <img src={galleryImages[2]} alt="Venue detail" className="w-full h-full object-cover" />
+            {galleryImages[2] ? <img src={galleryImages[2]} alt="Venue detail" className="w-full h-full object-cover" /> : <PlaceholderImage />}
           </div>
           <div className="col-span-1 row-span-1">
-            <img src={galleryImages[3]} alt="Venue detail" className="w-full h-full object-cover" />
+            {galleryImages[3] ? <img src={galleryImages[3]} alt="Venue detail" className="w-full h-full object-cover" /> : <PlaceholderImage />}
           </div>
           <div className="col-span-1 row-span-1">
-            <img src={galleryImages[4]} alt="Venue detail" className="w-full h-full object-cover" />
+            {galleryImages[4] ? <img src={galleryImages[4]} alt="Venue detail" className="w-full h-full object-cover" /> : <PlaceholderImage />}
           </div>
         </div>
 
@@ -239,7 +238,7 @@ export default function VenueDetail() {
                   <input type="date" name="eventDate" required className="w-full px-4 py-3 border border-gray-300 rounded-xl text-gray-500 focus:ring-2 focus:ring-gray-900 focus:border-gray-900" />
                   <input type="number" name="guestCount" placeholder="Number of Guests" required className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-gray-900" />
                 </div>
-                <Button type="submit" disabled={isSubmitting} className="w-full mt-6 bg-gray-900 text-white py-3 rounded-xl hover:bg-gray-800 transition-colors text-base font-medium">
+                <Button type="submit" disabled={isSubmitting} className="w-full mt-6 bg-purple-600 text-white py-3 rounded-xl hover:bg-purple-700 transition-colors text-base font-medium">
                   {isSubmitting ? "Sending..." : "Inquire Now"}
                 </Button>
               </form>
