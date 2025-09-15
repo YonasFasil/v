@@ -140,7 +140,7 @@ module.exports = async function handler(req, res) {
       // Get venue spaces
       const spacesResult = await pool.query(`
         SELECT id, name, description, capacity, amenities, image_url,
-               base_price, hourly_rate, is_active
+               price_per_hour, is_active
         FROM spaces
         WHERE venue_id = $1 AND is_active = true
         ORDER BY name
@@ -148,7 +148,7 @@ module.exports = async function handler(req, res) {
 
       // Get venue packages
       const packagesResult = await pool.query(`
-        SELECT id, name, description, price, features, is_active
+        SELECT id, name, description, price, category, included_service_ids, is_active
         FROM packages
         WHERE tenant_id = $1 AND is_active = true
         ORDER BY price
