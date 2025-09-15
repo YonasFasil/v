@@ -483,6 +483,12 @@ module.exports = async function handler(req, res) {
         try {
           const updateData = req.body;
 
+          // DEBUGGING: Log when individual booking PATCH is called
+          console.log('🔍 INDIVIDUAL BOOKING PATCH called');
+          console.log('   Booking ID:', id);
+          console.log('   Update data:', JSON.stringify(updateData, null, 2));
+          console.log('   ⚠️  This should NOT be called for multidate events!');
+
           // Build dynamic update query based on provided fields
           const updateFields = [];
           const updateValues = [];
@@ -1258,6 +1264,13 @@ module.exports = async function handler(req, res) {
       if (req.method === 'PATCH') {
         const contractId = req.query.contractId;
 
+        // DEBUGGING: Log when contract PATCH is called
+        console.log('🎯 CONTRACT PATCH called - This is CORRECT for multidate events!');
+        console.log('   Contract ID:', contractId);
+        console.log('   Request URL:', req.url);
+        console.log('   Request body keys:', Object.keys(req.body));
+        console.log('   Full update data:', JSON.stringify(req.body, null, 2));
+
         if (!contractId) {
           return res.status(400).json({ message: 'Contract ID is required' });
         }
@@ -1268,7 +1281,9 @@ module.exports = async function handler(req, res) {
           // Handle different types of contract updates
           if (updateData.bookingsData && Array.isArray(updateData.bookingsData)) {
             // Complex multidate event update: replace all bookings in the contract
-            console.log('Performing complex multidate event update for contract:', contractId);
+            console.log('🔄 COMPLEX CONTRACT UPDATE: Performing multidate event update for contract:', contractId);
+            console.log('   Number of bookings to create:', updateData.bookingsData.length);
+            console.log('   Bookings data preview:', updateData.bookingsData.map(b => `${b.eventName} on ${b.eventDate}`));
 
             // First, delete existing bookings in the contract
             await pool.query(`
@@ -1324,6 +1339,9 @@ module.exports = async function handler(req, res) {
 
           } else {
             // Simple contract update: update common fields across all bookings
+            console.log('📝 SIMPLE CONTRACT UPDATE: Updating common fields across all bookings');
+            console.log('   Update data:', JSON.stringify(updateData, null, 2));
+
             const updateFields = [];
             const updateValues = [];
             let valueIndex = 1;
