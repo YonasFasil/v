@@ -30,8 +30,9 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
       setName(venue.name || "");
       setDescription(venue.description || "");
       setAddress(venue.address || "");
-      // Ensure image_urls is always an array
-      setImageUrls(Array.isArray(venue.image_urls) ? venue.image_urls : (venue.image_url ? [venue.image_url] : []));
+      // Handle multiple possible image field formats
+      const existingImages = venue.images || venue.image_urls || (venue.image_url ? [venue.image_url] : []);
+      setImageUrls(Array.isArray(existingImages) ? existingImages : []);
     }
   }, [venue, open]);
 
@@ -74,9 +75,9 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
 
   const updateVenue = useMutation({
     mutationFn: async (data: any) => {
-      const payload = { ...data, image_urls: imageUrls, image_url: imageUrls[0] || "" };
+      const payload = { ...data, images: imageUrls };
       if (venue?.id) {
-        return await apiRequest("PATCH", `/api/venues/${venue.id}`, payload);
+        return await apiRequest("PUT", `/api/venues/${venue.id}`, payload);
       } else {
         return await apiRequest("POST", "/api/venues", payload);
       }
