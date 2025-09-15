@@ -1,13 +1,6 @@
 const { put } = require("@vercel/blob");
 const { nanoid } = require("nanoid");
 
-// Configure for Pages API Routes (not App Router)
-const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
 module.exports = async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -40,13 +33,13 @@ module.exports = async function handler(req, res) {
 
     console.log("Filename:", filename);
 
-    // Use Vercel's recommended approach for Pages API Routes
-    // Pass the request directly to put() function
+    // Use Vercel's recommended approach with explicit token
     const blobFilename = `venues/${nanoid()}-${filename}`;
     console.log("Uploading to blob:", blobFilename);
 
     const blob = await put(blobFilename, req, {
       access: 'public',
+      token: process.env.BLOB_READ_WRITE_TOKEN
     });
 
     console.log("Upload successful:", blob.url);
@@ -61,5 +54,3 @@ module.exports = async function handler(req, res) {
     });
   }
 };
-
-module.exports.config = config;
