@@ -1,14 +1,15 @@
-const multer = require("multer");
 const { put } = require("@vercel/blob");
 const { nanoid } = require("nanoid");
-
-const upload = multer({ storage: multer.memoryStorage() });
 
 module.exports = async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  console.log("=== Upload API Debug ===");
+  console.log("Method:", req.method);
+  console.log("Headers:", req.headers);
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -18,58 +19,101 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Handle file upload with multer
-  return new Promise((resolve, reject) => {
-    upload.single("file")(req, res, async (err) => {
-      if (err) {
-        console.error("Multer error:", err);
-        return res.status(400).json({ error: "File upload failed", details: err.message });
-      }
-      console.log("=== Upload API Debug ===");
-      console.log("BLOB_READ_WRITE_TOKEN exists:", !!process.env.BLOB_READ_WRITE_TOKEN);
-      console.log("BLOB_READ_WRITE_TOKEN length:", process.env.BLOB_READ_WRITE_TOKEN?.length || 0);
-      console.log("File received:", !!req.file);
+  try {
+    console.log("BLOB_READ_WRITE_TOKEN exists:", !!process.env.BLOB_READ_WRITE_TOKEN);
+    console.log("BLOB_READ_WRITE_TOKEN length:", process.env.BLOB_READ_WRITE_TOKEN?.length || 0);
 
-      if (!req.file) {
-        return res.status(400).json({ error: "No file uploaded." });
-      }
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      console.error("BLOB_READ_WRITE_TOKEN not found in environment");
+      return res.status(500).json({ error: "Blob storage not configured" });
+    }
 
-      console.log("File details:", {
-        name: req.file.originalname,
-        size: req.file.size,
-        mimetype: req.file.mimetype
+    // Parse multipart form data manually
+    const contentType = req.headers['content-type'];
+    console.log("Content-Type:", contentType);
+
+    if (!contentType || !contentType.includes('multipart/form-data')) {
+      return res.status(400).json({ error: "Content-Type must be multipart/form-data" });
+    }
+
+    // Get the raw body
+    let body = '';
+    req.setEncoding('binary');
+
+    return new Promise((resolve) => {
+      req.on('data', (chunk) => {
+        body += chunk;
       });
 
-      if (!process.env.BLOB_READ_WRITE_TOKEN) {
-        console.error("BLOB_READ_WRITE_TOKEN not found in environment");
-        return res.status(500).json({ error: "Blob storage not configured" });
-      }
+      req.on('end', async () => {
+        try {
+          console.log("Body length:", body.length);
 
-      try {
-        const filename = `venues/${nanoid()}-${req.file.originalname}`;
-        console.log("Attempting to upload:", filename);
+          // Extract boundary from content-type
+          const boundary = contentType.split('boundary=')[1];
+          if (!boundary) {
+            return res.status(400).json({ error: "No boundary found in multipart data" });
+          }
 
-        const blob = await put(filename, req.file.buffer, {
-          access: "public",
-          token: process.env.BLOB_READ_WRITE_TOKEN
-        });
+          console.log("Boundary:", boundary);
 
-        console.log("Upload successful:", blob.url);
-        res.status(200).json(blob);
-        resolve();
-      } catch (error) {
-        console.error("Error uploading to Vercel Blob:", error);
-        console.error("Error details:", {
-          message: error.message,
-          stack: error.stack,
-          code: error.code
-        });
-        res.status(500).json({
-          error: "Failed to upload file.",
-          details: error.message
-        });
-        resolve();
-      }
+          // Split by boundary and find the file part
+          const parts = body.split('--' + boundary);
+          let fileBuffer = null;
+          let filename = '';
+
+          for (const part of parts) {
+            if (part.includes('Content-Disposition: form-data') && part.includes('filename=')) {
+              // Extract filename
+              const filenameMatch = part.match(/filename="([^"]+)"/);
+              if (filenameMatch) {
+                filename = filenameMatch[1];
+              }
+
+              // Extract file content (after double newline)
+              const contentStart = part.indexOf('\r\n\r\n');
+              if (contentStart !== -1) {
+                const fileContent = part.substring(contentStart + 4);
+                fileBuffer = Buffer.from(fileContent, 'binary');
+                console.log("File extracted:", filename, "Size:", fileBuffer.length);
+                break;
+              }
+            }
+          }
+
+          if (!fileBuffer || !filename) {
+            return res.status(400).json({ error: "No file found in upload" });
+          }
+
+          // Upload to Vercel Blob
+          const blobFilename = `venues/${nanoid()}-${filename}`;
+          console.log("Attempting to upload:", blobFilename);
+
+          const blob = await put(blobFilename, fileBuffer, {
+            access: "public",
+            token: process.env.BLOB_READ_WRITE_TOKEN
+          });
+
+          console.log("Upload successful:", blob.url);
+          res.status(200).json(blob);
+          resolve();
+
+        } catch (error) {
+          console.error("Error processing upload:", error);
+          res.status(500).json({
+            error: "Failed to process upload.",
+            details: error.message
+          });
+          resolve();
+        }
+      });
     });
-  });
+
+  } catch (error) {
+    console.error("Upload API error:", error);
+    return res.status(500).json({
+      error: "Upload failed",
+      details: error.message
+    });
+  }
 };
