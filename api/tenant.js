@@ -200,16 +200,48 @@ module.exports = async function handler(req, res) {
       if (req.method === 'GET') {
         const analytics = await pool.query(`
           SELECT
-            c.*,
-            COUNT(DISTINCT b.id) as "bookingCount",
-            COALESCE(SUM(b.total_amount), 0) as "totalRevenue",
-            MAX(b.event_date) as "lastBookingDate",
-            COUNT(DISTINCT p.id) as "proposalCount"
+            c.id,
+            c.name,
+            c.email,
+            c.phone,
+            c.company_id as "companyId",
+            c.status,
+            c.notes,
+            json_build_object(
+              'totalRevenue', COALESCE(SUM(CASE WHEN b.status IN ('confirmed', 'completed') THEN b.total_amount ELSE 0 END), 0),
+              'lifetimeValue', COALESCE(SUM(CASE WHEN b.status IN ('confirmed', 'completed') THEN b.total_amount ELSE 0 END), 0),
+              'lifetimeValueCategory',
+                CASE
+                  WHEN COALESCE(SUM(CASE WHEN b.status IN ('confirmed', 'completed') THEN b.total_amount ELSE 0 END), 0) >= 10000 THEN 'Platinum'
+                  WHEN COALESCE(SUM(CASE WHEN b.status IN ('confirmed', 'completed') THEN b.total_amount ELSE 0 END), 0) >= 5000 THEN 'Gold'
+                  WHEN COALESCE(SUM(CASE WHEN b.status IN ('confirmed', 'completed') THEN b.total_amount ELSE 0 END), 0) >= 1000 THEN 'Silver'
+                  ELSE 'Bronze'
+                END,
+              'bookingsCount', COUNT(DISTINCT b.id),
+              'confirmedBookings', COUNT(DISTINCT CASE WHEN b.status = 'confirmed' THEN b.id END),
+              'completedBookings', COUNT(DISTINCT CASE WHEN b.status = 'completed' THEN b.id END),
+              'pendingBookings', COUNT(DISTINCT CASE WHEN b.status = 'inquiry' THEN b.id END),
+              'cancelledBookings', COUNT(DISTINCT CASE WHEN b.status = 'cancelled' THEN b.id END),
+              'averageBookingValue',
+                CASE
+                  WHEN COUNT(DISTINCT CASE WHEN b.status IN ('confirmed', 'completed') THEN b.id END) > 0
+                  THEN COALESCE(SUM(CASE WHEN b.status IN ('confirmed', 'completed') THEN b.total_amount ELSE 0 END), 0) / COUNT(DISTINCT CASE WHEN b.status IN ('confirmed', 'completed') THEN b.id END)
+                  ELSE 0
+                END,
+              'lastEventDate', MAX(b.event_date),
+              'lastEventName', (
+                SELECT b2.event_name
+                FROM bookings b2
+                WHERE b2.customer_id = c.id AND b2.tenant_id = c.tenant_id
+                ORDER BY b2.event_date DESC
+                LIMIT 1
+              ),
+              'customerSince', c.created_at
+            ) as analytics
           FROM customers c
           LEFT JOIN bookings b ON c.id = b.customer_id AND c.tenant_id = b.tenant_id
-          LEFT JOIN proposals p ON c.id = p.customer_id AND c.tenant_id = p.tenant_id
           WHERE c.tenant_id = $1
-          GROUP BY c.id
+          GROUP BY c.id, c.name, c.email, c.phone, c.company_id, c.status, c.notes, c.created_at
           ORDER BY c.created_at DESC
         `, [tenantId]);
         return res.json(analytics.rows);
@@ -850,31 +882,72 @@ module.exports = async function handler(req, res) {
     // SETTINGS
     if (resource === 'settings') {
       if (req.method === 'GET') {
-        const settings = await pool.query(`SELECT * FROM settings 
+        const settings = await pool.query(`SELECT * FROM settings
           WHERE tenant_id = $1
           ORDER BY key ASC`, [tenantId]);
-        
-        // Convert to key-value object
-        const settingsObj = {};
+
+        // Helper function to reconstruct nested objects from dot notation
+        const unflattenObject = (obj) => {
+          const result = {};
+          for (const [key, value] of Object.entries(obj)) {
+            const keys = key.split('.');
+            let current = result;
+            for (let i = 0; i < keys.length - 1; i++) {
+              if (!(keys[i] in current)) {
+                current[keys[i]] = {};
+              }
+              current = current[keys[i]];
+            }
+            // Try to parse JSON values, fallback to original value
+            try {
+              current[keys[keys.length - 1]] = JSON.parse(value);
+            } catch {
+              current[keys[keys.length - 1]] = value;
+            }
+          }
+          return result;
+        };
+
+        // Convert to flat key-value object first
+        const flatSettings = {};
         settings.rows.forEach(setting => {
-          settingsObj[setting.key] = setting.value;
+          flatSettings[setting.key] = setting.value;
         });
-        
-        return res.json(settingsObj);
+
+        // Convert to nested object structure
+        const nestedSettings = unflattenObject(flatSettings);
+
+        return res.json(nestedSettings);
         
       } else if (req.method === 'POST' || req.method === 'PUT') {
         const updates = req.body;
-        
+
+        // Helper function to flatten nested objects
+        const flattenObject = (obj, prefix = '') => {
+          const flattened = {};
+          for (const [key, value] of Object.entries(obj)) {
+            const newKey = prefix ? `${prefix}.${key}` : key;
+            if (value && typeof value === 'object' && !Array.isArray(value)) {
+              Object.assign(flattened, flattenObject(value, newKey));
+            } else {
+              flattened[newKey] = typeof value === 'object' ? JSON.stringify(value) : value;
+            }
+          }
+          return flattened;
+        };
+
+        const flattenedUpdates = flattenObject(updates);
+
         // Update or insert each setting
-        for (const [key, value] of Object.entries(updates)) {
+        for (const [key, value] of Object.entries(flattenedUpdates)) {
           await pool.query(`
             INSERT INTO settings (tenant_id, key, value, created_at, updated_at)
             VALUES ($1, $2, $3, NOW(), NOW())
-            ON CONFLICT (tenant_id, key) 
+            ON CONFLICT (tenant_id, key)
             DO UPDATE SET value = $3, updated_at = NOW()
           `, [tenantId, key, value]);
         }
-        
+
         return res.json({ message: 'Settings updated successfully' });
       }
     }
