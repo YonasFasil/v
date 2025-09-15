@@ -308,6 +308,9 @@ module.exports = async function handler(req, res) {
                  b.space_id as "spaceId",
                  b.package_id as "packageId",
                  b.selected_services as "selectedServices",
+                 b.item_quantities as "itemQuantities",
+                 b.pricing_overrides as "pricingOverrides",
+                 b.service_tax_overrides as "serviceTaxOverrides",
                  c.name as customer_name,
                  v.name as venue_name,
                  s.name as space_name
