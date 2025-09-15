@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useQuery } from "@tanstack/react-query";
 import { Wrench, Sparkles } from "lucide-react";
 
 interface Props {
@@ -27,8 +28,12 @@ export function CreateServiceModal({ open, onOpenChange, initialData }: Props) {
     unit: "per hour",
     isActive: true,
     seasonalDemand: "",
-    bookingRate: ""
+    bookingRate: "",
+    enabledTaxIds: [] as string[],
+    enabledFeeIds: [] as string[]
   });
+
+  const { data: taxSettings = [] } = useQuery({ queryKey: ["/api/tax-settings"] });
 
   useEffect(() => {
     if (initialData) {
@@ -40,7 +45,9 @@ export function CreateServiceModal({ open, onOpenChange, initialData }: Props) {
         unit: initialData.unit || "per hour",
         isActive: initialData.isActive !== false,
         seasonalDemand: initialData.seasonalDemand?.toString() || "",
-        bookingRate: initialData.bookingRate?.toString() || ""
+        bookingRate: initialData.bookingRate?.toString() || "",
+        enabledTaxIds: initialData.enabledTaxIds || [],
+        enabledFeeIds: initialData.enabledFeeIds || []
       });
     }
   }, [initialData]);
@@ -64,7 +71,9 @@ export function CreateServiceModal({ open, onOpenChange, initialData }: Props) {
         category: formData.category,
         price: parseFloat(formData.basePrice),
         unit: formData.unit,
-        isActive: formData.isActive
+        isActive: formData.isActive,
+        enabledTaxIds: formData.enabledTaxIds,
+        enabledFeeIds: formData.enabledFeeIds
       });
 
       await queryClient.invalidateQueries({ queryKey: ["/api/services"] });
@@ -94,7 +103,9 @@ export function CreateServiceModal({ open, onOpenChange, initialData }: Props) {
       unit: "per hour",
       isActive: true,
       seasonalDemand: "",
-      bookingRate: ""
+      bookingRate: "",
+      enabledTaxIds: [],
+      enabledFeeIds: []
     });
   };
 
@@ -189,6 +200,54 @@ export function CreateServiceModal({ open, onOpenChange, initialData }: Props) {
               rows={3}
             />
           </div>
+
+          {/* Tax and Fee Selection */}
+          {(taxSettings as any[])?.length > 0 && (
+            <div className="space-y-4">
+              <div>
+                <Label className="text-base font-medium">Apply Taxes & Fees</Label>
+                <p className="text-sm text-slate-600 mb-3">Select which taxes and fees apply to this service by default</p>
+              </div>
+              
+              <div className="grid grid-cols-1 gap-3">
+                {(taxSettings as any[]).map((setting: any) => (
+                  <label key={setting.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
+                    <Checkbox 
+                      checked={
+                        setting.type === 'tax' 
+                          ? formData.enabledTaxIds.includes(setting.id)
+                          : formData.enabledFeeIds.includes(setting.id)
+                      }
+                      onCheckedChange={(checked) => {
+                        if (setting.type === 'tax') {
+                          setFormData(prev => ({
+                            ...prev,
+                            enabledTaxIds: checked 
+                              ? [...prev.enabledTaxIds, setting.id]
+                              : prev.enabledTaxIds.filter(id => id !== setting.id)
+                          }));
+                        } else {
+                          setFormData(prev => ({
+                            ...prev,
+                            enabledFeeIds: checked 
+                              ? [...prev.enabledFeeIds, setting.id]
+                              : prev.enabledFeeIds.filter(id => id !== setting.id)
+                          }));
+                        }
+                      }}
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">{setting.name}</div>
+                      <div className="text-xs text-slate-600">
+                        {setting.type === 'tax' ? 'Tax' : 'Fee'} • {setting.value}%
+                        {setting.calculation === 'fixed' && ' (Fixed)'}
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* AI Analytics Data (if provided) */}
           {initialData?.seasonalDemand && (

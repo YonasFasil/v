@@ -706,14 +706,6 @@ module.exports = async function handler(req, res) {
             enabledFeeIds: 'enabled_fee_ids'
         };
 
-        for (const [key, value] of Object.entries(updates)) {
-            if (fieldMappings[key]) {
-                updateFields.push(`${fieldMappings[key]} = ${valueIndex}`);
-                updateValues.push(value);
-                valueIndex++;
-            }
-        }
-
         if (updateFields.length === 0) {
             return res.status(400).json({ message: 'No fields to update' });
         }
@@ -797,14 +789,6 @@ module.exports = async function handler(req, res) {
             enabledTaxIds: 'enabled_tax_ids',
             enabledFeeIds: 'enabled_fee_ids'
         };
-
-        for (const [key, value] of Object.entries(updates)) {
-            if (fieldMappings[key]) {
-                updateFields.push(`${fieldMappings[key]} = ${valueIndex}`);
-                updateValues.push(value);
-                valueIndex++;
-            }
-        }
 
         if (updateFields.length === 0) {
             return res.status(400).json({ message: 'No fields to update' });
