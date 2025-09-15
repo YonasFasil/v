@@ -27,11 +27,17 @@ module.exports = async function handler(req, res) {
     if (req.method === 'GET') {
       // Get all subscription packages
       const result = await pool.query(`
-        SELECT * FROM subscription_packages 
+        SELECT * FROM subscription_packages
         ORDER BY created_at DESC
       `);
-      
-      res.json(result.rows);
+
+      // Ensure features are parsed as arrays
+      const packages = result.rows.map(pkg => ({
+        ...pkg,
+        features: typeof pkg.features === 'string' ? JSON.parse(pkg.features || '[]') : (pkg.features || [])
+      }));
+
+      res.json(packages);
       
     } else if (req.method === 'POST') {
       // Create new subscription package
