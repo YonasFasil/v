@@ -657,6 +657,11 @@ module.exports = async function handler(req, res) {
     // PACKAGES
     if (resource === 'packages') {
       if (req.method === 'GET') {
+        if (id) {
+          const pkg = await pool.query(`SELECT * FROM packages 
+            WHERE tenant_id = $1 AND id = $2`, [tenantId, id]);
+          return res.json(pkg.rows[0] || null);
+        }
         const packages = await pool.query(`SELECT * FROM packages 
           WHERE tenant_id = $1 AND is_active = true
           ORDER BY created_at DESC`, [tenantId]);
@@ -724,6 +729,11 @@ module.exports = async function handler(req, res) {
     // SERVICES
     if (resource === 'services') {
       if (req.method === 'GET') {
+        if (id) {
+          const service = await pool.query(`SELECT * FROM services 
+            WHERE tenant_id = $1 AND id = $2`, [tenantId, id]);
+          return res.json(service.rows[0] || null);
+        }
         const services = await pool.query(`SELECT * FROM services 
           WHERE tenant_id = $1 AND is_active = true
           ORDER BY created_at DESC`, [tenantId]);
