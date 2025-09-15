@@ -1346,13 +1346,60 @@ module.exports = async function handler(req, res) {
       // PATCH contract (supports complex multidate event editing)
       if (req.method === 'PATCH') {
         const contractId = req.query.contractId;
+        const action = req.query.action;
 
         // DEBUGGING: Log when contract PATCH is called
         console.log('🎯 CONTRACT PATCH called - This is CORRECT for multidate events!');
         console.log('   Contract ID:', contractId);
+        console.log('   Action:', action);
         console.log('   Request URL:', req.url);
         console.log('   Request body keys:', Object.keys(req.body));
         console.log('   Full update data:', JSON.stringify(req.body, null, 2));
+
+        // Handle status updates specifically
+        if (action === 'status') {
+          console.log('📊 CONTRACT STATUS UPDATE requested');
+
+          if (!contractId) {
+            return res.status(400).json({ message: 'Contract ID is required for status update' });
+          }
+
+          try {
+            const { status } = req.body;
+
+            if (!status) {
+              return res.status(400).json({ message: 'Status is required' });
+            }
+
+            // Update status for all bookings in the contract
+            const updateQuery = `
+              UPDATE bookings
+              SET status = $3
+              WHERE tenant_id = $1 AND contract_id = $2
+              RETURNING *
+            `;
+
+            const result = await pool.query(updateQuery, [tenantId, contractId, status]);
+
+            if (result.rows.length === 0) {
+              return res.status(404).json({ message: 'Contract not found' });
+            }
+
+            console.log(`✅ Updated ${result.rows.length} bookings to status: ${status}`);
+
+            return res.json({
+              message: 'Contract status updated successfully',
+              contractId: contractId,
+              updatedBookings: result.rows.length,
+              newStatus: status,
+              bookings: result.rows
+            });
+
+          } catch (error) {
+            console.error('Contract status update error:', error);
+            return res.status(500).json({ message: 'Failed to update contract status' });
+          }
+        }
 
         if (!contractId) {
           return res.status(400).json({ message: 'Contract ID is required' });

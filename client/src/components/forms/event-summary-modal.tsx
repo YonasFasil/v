@@ -243,7 +243,7 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
                 <Badge className="bg-purple-100 text-purple-800">Contract</Badge>
                 <div>
                   <h3 className="font-semibold text-purple-900">
-                    {booking.contractInfo?.contractName || "Multi-Date Event Contract"}
+                    {booking.contractInfo?.contractName || booking.eventName || "Event Contract"}
                   </h3>
                   <p className="text-sm text-purple-700">
                     {booking.eventCount} events • Total: ${parseFloat(booking.totalAmount || '0').toLocaleString()}

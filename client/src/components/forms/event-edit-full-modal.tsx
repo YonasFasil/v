@@ -190,7 +190,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
         setCurrentStep(3);
       } else if (booking.isContract && booking.contractEvents) {
         // Handle full contract editing with multiple events
-        setEventName(booking.contractInfo?.contractName || "Multi-Date Contract");
+        setEventName(booking.contractInfo?.contractName || booking.eventName || "Event Contract");
         setEventStatus(booking.status || "inquiry");
         setSelectedVenue(booking.venueId || "");
         setSelectedCustomer(booking.customerId || "");
@@ -1198,7 +1198,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                           Contract
                         </Badge>
                         <h3 className="font-semibold text-purple-900">
-                          {booking.contractInfo.contractName || "Multi-Date Contract"}
+                          {booking.contractInfo.contractName || booking.eventName || "Event Contract"}
                         </h3>
                       </div>
                       <div className="text-sm text-purple-700 space-y-1">
