@@ -538,7 +538,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
           const response = await apiRequest("POST", "/api/contracts", contractData);
 
           // Delete original single day booking
-          await apiRequest("DELETE", `/api/bookings/${booking.id}`);
+          await apiRequest("DELETE", `/api/bookings?id=${booking.id}`);
 
           return response;
         } else {
@@ -599,7 +599,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
         throw new Error("Contract events must be deleted through contract management");
       }
       
-      const response = await apiRequest("DELETE", `/api/bookings/${booking.id}`);
+      const response = await apiRequest("DELETE", `/api/bookings?id=${booking.id}`);
       return response;
     },
     onSuccess: () => {
