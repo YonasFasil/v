@@ -1,7 +1,14 @@
 const { put } = require("@vercel/blob");
 const { nanoid } = require("nanoid");
 
-module.exports = async function handler(req, res) {
+// Configure Vercel's body parser to handle raw requests
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+export default async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -9,7 +16,7 @@ module.exports = async function handler(req, res) {
 
   console.log("=== Upload API Debug ===");
   console.log("Method:", req.method);
-  console.log("Headers:", req.headers);
+  console.log("Content-Type:", req.headers['content-type']);
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -21,43 +28,36 @@ module.exports = async function handler(req, res) {
 
   try {
     console.log("BLOB_READ_WRITE_TOKEN exists:", !!process.env.BLOB_READ_WRITE_TOKEN);
-    console.log("BLOB_READ_WRITE_TOKEN length:", process.env.BLOB_READ_WRITE_TOKEN?.length || 0);
 
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
       console.error("BLOB_READ_WRITE_TOKEN not found in environment");
       return res.status(500).json({ error: "Blob storage not configured" });
     }
 
-    // Parse multipart form data manually
-    const contentType = req.headers['content-type'];
-    console.log("Content-Type:", contentType);
-
-    if (!contentType || !contentType.includes('multipart/form-data')) {
-      return res.status(400).json({ error: "Content-Type must be multipart/form-data" });
-    }
-
-    // Get the raw body
-    let body = '';
-    req.setEncoding('binary');
+    // Collect the request body
+    const chunks = [];
 
     return new Promise((resolve) => {
       req.on('data', (chunk) => {
-        body += chunk;
+        chunks.push(chunk);
       });
 
       req.on('end', async () => {
         try {
+          const buffer = Buffer.concat(chunks);
+          const body = buffer.toString('binary');
+
           console.log("Body length:", body.length);
 
           // Extract boundary from content-type
-          const boundary = contentType.split('boundary=')[1];
+          const contentType = req.headers['content-type'];
+          const boundary = contentType?.split('boundary=')[1];
+
           if (!boundary) {
             return res.status(400).json({ error: "No boundary found in multipart data" });
           }
 
-          console.log("Boundary:", boundary);
-
-          // Split by boundary and find the file part
+          // Parse multipart data
           const parts = body.split('--' + boundary);
           let fileBuffer = null;
           let filename = '';
@@ -70,10 +70,10 @@ module.exports = async function handler(req, res) {
                 filename = filenameMatch[1];
               }
 
-              // Extract file content (after double newline)
-              const contentStart = part.indexOf('\r\n\r\n');
-              if (contentStart !== -1) {
-                const fileContent = part.substring(contentStart + 4);
+              // Find the start of file content (after headers)
+              const headerEnd = part.indexOf('\r\n\r\n');
+              if (headerEnd !== -1) {
+                const fileContent = part.substring(headerEnd + 4, part.length - 2); // Remove trailing \r\n
                 fileBuffer = Buffer.from(fileContent, 'binary');
                 console.log("File extracted:", filename, "Size:", fileBuffer.length);
                 break;
@@ -87,11 +87,10 @@ module.exports = async function handler(req, res) {
 
           // Upload to Vercel Blob
           const blobFilename = `venues/${nanoid()}-${filename}`;
-          console.log("Attempting to upload:", blobFilename);
+          console.log("Uploading to blob:", blobFilename);
 
           const blob = await put(blobFilename, fileBuffer, {
             access: "public",
-            token: process.env.BLOB_READ_WRITE_TOKEN
           });
 
           console.log("Upload successful:", blob.url);
@@ -102,10 +101,20 @@ module.exports = async function handler(req, res) {
           console.error("Error processing upload:", error);
           res.status(500).json({
             error: "Failed to process upload.",
-            details: error.message
+            details: error.message,
+            stack: error.stack
           });
           resolve();
         }
+      });
+
+      req.on('error', (error) => {
+        console.error("Request error:", error);
+        res.status(500).json({
+          error: "Request error",
+          details: error.message
+        });
+        resolve();
       });
     });
 
@@ -113,7 +122,8 @@ module.exports = async function handler(req, res) {
     console.error("Upload API error:", error);
     return res.status(500).json({
       error: "Upload failed",
-      details: error.message
+      details: error.message,
+      stack: error.stack
     });
   }
-};
+}
