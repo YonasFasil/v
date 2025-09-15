@@ -44,29 +44,33 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
     const uploadedUrls: string[] = [];
 
     for (const file of Array.from(files)) {
-      const formData = new FormData();
-      formData.append("file", file);
-
       try {
-        const response = await fetch("/api/upload", {
+        // Use Vercel's recommended approach: filename as query param, file as body
+        const response = await fetch(`/api/upload?filename=${encodeURIComponent(file.name)}`, {
           method: "POST",
-          body: formData,
+          body: file, // Send file directly as body, not FormData
         });
 
         if (!response.ok) {
-          throw new Error(`Upload failed for ${file.name}`);
+          const errorText = await response.text();
+          console.error("Upload failed:", errorText);
+          throw new Error(`Upload failed for ${file.name}: ${response.status}`);
         }
 
         const blob = await response.json();
         uploadedUrls.push(blob.url);
+        console.log("Upload successful:", blob.url);
       } catch (error) {
+        console.error("Upload error:", error);
         toast({ title: "Upload failed", description: `Could not upload ${file.name}.`, variant: "destructive" });
       }
     }
 
-    setImageUrls(prev => [...prev, ...uploadedUrls]);
+    if (uploadedUrls.length > 0) {
+      setImageUrls(prev => [...prev, ...uploadedUrls]);
+      toast({ title: `${uploadedUrls.length} image(s) uploaded successfully!` });
+    }
     setUploading(false);
-    toast({ title: "Images uploaded successfully!" });
   };
   
   const handleRemoveImage = (urlToRemove: string) => {
