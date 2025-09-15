@@ -17,7 +17,7 @@ export async function getTenantFeatures(tenantId: string): Promise<string[]> {
   const packageFeatures = Array.isArray(subscriptionPackage.features) ? subscriptionPackage.features : [];
 
   if (packageFeatures.includes('everything')) {
-    return [...DEFAULT_FEATURES, ...Object.keys(AVAILABLE_FEATURES)];
+    return [...new Set([...DEFAULT_FEATURES, ...Object.keys(AVAILABLE_FEATURES)])];
   }
 
   const validPackageFeatures = packageFeatures.filter(feature => 
