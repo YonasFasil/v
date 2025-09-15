@@ -1284,6 +1284,10 @@ module.exports = async function handler(req, res) {
             console.log('🔄 COMPLEX CONTRACT UPDATE: Performing multidate event update for contract:', contractId);
             console.log('   Number of bookings to create:', updateData.bookingsData.length);
             console.log('   Bookings data preview:', updateData.bookingsData.map(b => `${b.eventName} on ${b.eventDate}`));
+            console.log('   Package/Service data check:');
+            updateData.bookingsData.forEach((booking, i) => {
+              console.log(`     Booking ${i + 1}: packageId=${booking.packageId}, selectedServices=${JSON.stringify(booking.selectedServices)}`);
+            });
 
             // First, delete existing bookings in the contract
             await pool.query(`
@@ -1298,7 +1302,8 @@ module.exports = async function handler(req, res) {
                 eventName, eventType, customerId, venueId, spaceId,
                 eventDate, endDate, startTime, endTime, guestCount,
                 setupStyle, status = 'inquiry', totalAmount, depositAmount,
-                notes, isMultiDay, proposalId, proposalStatus, proposalSentAt
+                notes, isMultiDay, proposalId, proposalStatus, proposalSentAt,
+                packageId, selectedServices, itemQuantities, pricingOverrides, serviceTaxOverrides
               } = bookingData;
 
               const newBooking = await pool.query(`
@@ -1307,15 +1312,17 @@ module.exports = async function handler(req, res) {
                   event_date, end_date, start_time, end_time, guest_count,
                   setup_style, status, total_amount, deposit_amount, notes,
                   contract_id, is_multi_day, proposal_id, proposal_status,
-                  proposal_sent_at, created_at
+                  proposal_sent_at, package_id, selected_services, item_quantities,
+                  pricing_overrides, service_tax_overrides, created_at
                 ) VALUES (
-                  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, NOW()
+                  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, NOW()
                 ) RETURNING *
               `, [
                 tenantId, eventName, eventType, customerId, venueId, spaceId,
                 eventDate, endDate, startTime, endTime, guestCount,
                 setupStyle, status, totalAmount, depositAmount, notes,
-                contractId, isMultiDay, proposalId, proposalStatus, proposalSentAt
+                contractId, isMultiDay, proposalId, proposalStatus, proposalSentAt,
+                packageId, selectedServices, itemQuantities, pricingOverrides, serviceTaxOverrides
               ]);
 
               createdBookings.push(newBooking.rows[0]);
