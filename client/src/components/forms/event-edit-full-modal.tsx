@@ -526,7 +526,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
         };
 
         const response = await apiRequest(
-          `/api/contracts?contractId=${booking.contractInfo.id}`,
+          `/api/contracts?id=${booking.contractInfo.id}`,
           {
             method: "PATCH",
             body: JSON.stringify(contractUpdateData),
@@ -537,7 +537,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
       }
       
       // For single events (even if they have contract info), use regular booking endpoint
-      const response = await apiRequest(`/api/bookings/${booking.id}`, {
+      const response = await apiRequest(`/api/bookings?id=${booking.id}`, {
         method: "PATCH",
         body: JSON.stringify(bookingData),
         headers: { "Content-Type": "application/json" }
