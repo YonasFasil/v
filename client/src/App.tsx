@@ -42,6 +42,7 @@ const VenueDetail = lazy(() => import("@/pages/venue-detail"));
 const CustomerSignup = lazy(() => import("@/pages/customer-signup"));
 const CustomerLogin = lazy(() => import("@/pages/customer-login"));
 const CustomerDashboard = lazy(() => import("@/pages/customer-dashboard"));
+const CustomerVerifyEmail = lazy(() => import("@/pages/customer-verify-email"));
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { FullyProtectedRoute } from "@/components/auth/FullyProtectedRoute";
 
@@ -117,6 +118,12 @@ function Router() {
       <Route path="/customer/dashboard">
         <Suspense fallback={<PageLoader />}>
           <CustomerDashboard />
+        </Suspense>
+      </Route>
+
+      <Route path="/customer/verify-email">
+        <Suspense fallback={<PageLoader />}>
+          <CustomerVerifyEmail />
         </Suspense>
       </Route>
 

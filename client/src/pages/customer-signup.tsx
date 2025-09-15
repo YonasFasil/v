@@ -49,11 +49,14 @@ export default function CustomerSignup() {
     onSuccess: (data) => {
       toast({
         title: "Account created successfully!",
-        description: "Please check your email to verify your account."
+        description: data.message || "Please check your email to verify your account."
       });
 
-      // Store customer data if login tokens are provided
-      if (data.customer && data.token) {
+      // With email verification, don't auto-login - redirect to login with message
+      if (data.requiresVerification) {
+        setLocation("/customer/login?message=verification-required");
+      } else if (data.customer && data.token) {
+        // Fallback for if verification is disabled
         localStorage.setItem("customer_token", data.token);
         localStorage.setItem("customer_data", JSON.stringify(data.customer));
         setLocation("/customer/dashboard");

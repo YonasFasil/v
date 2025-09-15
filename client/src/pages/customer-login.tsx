@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Link, useLocation } from "wouter";
 import { Eye, EyeOff, Mail, Lock, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +19,11 @@ export default function CustomerLogin() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
+  const [urlParams, setUrlParams] = useState<URLSearchParams | null>(null);
+
+  useEffect(() => {
+    setUrlParams(new URLSearchParams(window.location.search));
+  }, []);
 
   const [formData, setFormData] = useState<LoginFormData>({
     email: "",
@@ -120,6 +126,15 @@ export default function CustomerLogin() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {urlParams?.get('message') === 'verification-required' && (
+              <Alert className="mb-6 border-blue-200 bg-blue-50">
+                <Mail className="w-4 h-4 text-blue-600" />
+                <AlertDescription className="text-blue-800">
+                  Account created successfully! Please check your email and click the verification link before logging in.
+                </AlertDescription>
+              </Alert>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <Label htmlFor="email">Email Address</Label>

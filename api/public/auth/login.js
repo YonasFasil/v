@@ -77,6 +77,14 @@ module.exports = async function handler(req, res) {
       });
     }
 
+    // Check if email is verified
+    if (!customer.is_verified) {
+      return res.status(401).json({
+        message: 'Please verify your email address before logging in. Check your email for the verification link.',
+        requiresVerification: true
+      });
+    }
+
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, customer.password_hash);
     if (!isPasswordValid) {
