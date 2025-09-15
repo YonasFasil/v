@@ -95,7 +95,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       <div className="hidden lg:block">
         <Sidebar collapsed={sidebarCollapsed} />
       </div>
