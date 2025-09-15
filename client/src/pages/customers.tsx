@@ -79,8 +79,6 @@ export default function Customers() {
     queryKey: ["/api/customers/analytics"],
   });
 
-  console.log('API Response:', customerAnalytics);
-
   // Fetch companies
   const { data: companies = [], isLoading: companiesLoading } = useQuery<Company[]>({
     queryKey: ["/api/companies"],
@@ -650,8 +648,6 @@ export default function Customers() {
     
     return matchesSearch && matchesStatus && matchesValue;
   });
-
-  console.log('Filtered Customers:', filteredCustomers);
 
   // Filter companies
   const filteredCompanies = companies.filter(company => {
