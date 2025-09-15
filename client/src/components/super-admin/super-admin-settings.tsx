@@ -22,14 +22,13 @@ interface SuperAdminConfig {
     publishableKey: string;
     webhookSecret: string;
   };
-  email: {
-    smtpHost: string;
-    smtpPort: number;
-    smtpUser: string;
-    smtpPass: string;
-    fromName: string;
-    fromEmail: string;
-  };
+}
+
+interface EmailConfig {
+  provider: string;
+  email: string;
+  password: string;
+  enabled: boolean;
 }
 
 export default function SuperAdminSettings() {
@@ -45,15 +44,19 @@ export default function SuperAdminSettings() {
         secretKey: "",
         publishableKey: "",
         webhookSecret: ""
-      },
-      email: {
-        smtpHost: "",
-        smtpPort: 587,
-        smtpUser: "",
-        smtpPass: "",
-        fromName: "Venuine Support",
-        fromEmail: ""
       }
+    }
+  });
+
+  // Fetch email configuration separately
+  const { data: emailConfig, isLoading: emailLoading } = useQuery<EmailConfig>({
+    queryKey: ["/api/super-admin/config/email"],
+    queryFn: () => apiRequest("/api/super-admin/config/email"),
+    initialData: {
+      provider: "gmail",
+      email: "",
+      password: "",
+      enabled: false
     }
   });
 
@@ -61,16 +64,20 @@ export default function SuperAdminSettings() {
   const updateConfigMutation = useMutation({
     mutationFn: async (data: { type: 'stripe' | 'email', config: any }) => {
       return apiRequest(`/api/super-admin/config/${data.type}`, {
-        method: "PUT",
+        method: data.type === 'email' ? 'POST' : 'PUT',
         body: JSON.stringify(data.config),
       });
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       toast({
         title: "Configuration Updated",
         description: "Settings have been saved successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/super-admin/config"] });
+      if (variables.type === 'email') {
+        queryClient.invalidateQueries({ queryKey: ["/api/super-admin/config/email"] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/super-admin/config"] });
+      }
     },
     onError: (error: any) => {
       toast({
@@ -118,16 +125,14 @@ export default function SuperAdminSettings() {
   const handleEmailSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const emailConfig = {
-      smtpHost: formData.get("smtpHost") as string,
-      smtpPort: parseInt(formData.get("smtpPort") as string),
-      smtpUser: formData.get("smtpUser") as string,
-      smtpPass: formData.get("smtpPass") as string,
-      fromName: formData.get("fromName") as string,
-      fromEmail: formData.get("fromEmail") as string,
+    const emailConfigData = {
+      provider: "gmail",
+      email: formData.get("email") as string,
+      password: formData.get("password") as string,
+      enabled: formData.get("enabled") === "on",
     };
-    
-    updateConfigMutation.mutate({ type: 'email', config: emailConfig });
+
+    updateConfigMutation.mutate({ type: 'email', config: emailConfigData });
   };
 
   if (isLoading) {
@@ -228,106 +233,97 @@ export default function SuperAdminSettings() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Mail className="w-5 h-5" />
-                Email Configuration
+                Gmail Email Configuration
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                Configure SMTP settings for tenant communications and user verification
+                Configure Gmail SMTP for customer verification emails and notifications
               </p>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleEmailSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="smtpHost">SMTP Host</Label>
-                    <Input
-                      id="smtpHost"
-                      name="smtpHost"
-                      placeholder="smtp.gmail.com"
-                      defaultValue={config?.email?.smtpHost}
-                    />
+              {emailLoading ? (
+                <div>Loading email configuration...</div>
+              ) : (
+                <form onSubmit={handleEmailSubmit} className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="enabled"
+                        name="enabled"
+                        defaultChecked={emailConfig?.enabled}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <Label htmlFor="enabled" className="text-sm font-medium">
+                        Enable Email Service
+                      </Label>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Gmail Email Address</Label>
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        placeholder="your-email@gmail.com"
+                        defaultValue={emailConfig?.email}
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        This will be used as the "from" address for all emails
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Gmail App Password</Label>
+                      <Input
+                        id="password"
+                        name="password"
+                        type="password"
+                        placeholder={emailConfig?.password ? "••••••••" : "Enter Gmail app password"}
+                        defaultValue=""
+                      />
+                      <div className="text-xs text-muted-foreground space-y-1">
+                        <p>• You must use a Gmail App Password, not your regular password</p>
+                        <p>• Go to Google Account → Security → 2-Step Verification → App passwords</p>
+                        <p>• Generate a new app password and paste it here</p>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="smtpPort">SMTP Port</Label>
-                    <Input
-                      id="smtpPort"
-                      name="smtpPort"
-                      type="number"
-                      placeholder="587"
-                      defaultValue={config?.email?.smtpPort}
-                    />
-                  </div>
-                </div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="submit"
+                      disabled={updateConfigMutation.isPending}
+                      className="flex-1"
+                    >
+                      <Save className="w-4 h-4 mr-2" />
+                      {updateConfigMutation.isPending ? "Saving..." : "Save Gmail Configuration"}
+                    </Button>
 
-                <div className="space-y-2">
-                  <Label htmlFor="smtpUser">SMTP Username</Label>
-                  <Input
-                    id="smtpUser"
-                    name="smtpUser"
-                    type="email"
-                    placeholder="your-email@gmail.com"
-                    defaultValue={config?.email?.smtpUser}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="smtpPass">SMTP Password</Label>
-                  <Input
-                    id="smtpPass"
-                    name="smtpPass"
-                    type="password"
-                    placeholder="App password or SMTP password"
-                    defaultValue={config?.email?.smtpPass}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    For Gmail, use an App Password rather than your regular password
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="fromName">From Name</Label>
-                    <Input
-                      id="fromName"
-                      name="fromName"
-                      placeholder="Venuine Support"
-                      defaultValue={config?.email?.fromName}
-                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => testEmailMutation.mutate()}
+                      disabled={testEmailMutation.isPending || !emailConfig?.enabled}
+                    >
+                      <TestTube className="w-4 h-4 mr-2" />
+                      {testEmailMutation.isPending ? "Testing..." : "Test Email"}
+                    </Button>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="fromEmail">From Email</Label>
-                    <Input
-                      id="fromEmail"
-                      name="fromEmail"
-                      type="email"
-                      placeholder="support@venuine.com"
-                      defaultValue={config?.email?.fromEmail}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button 
-                    type="submit" 
-                    disabled={updateConfigMutation.isPending}
-                    className="flex-1"
-                  >
-                    <Save className="w-4 h-4 mr-2" />
-                    {updateConfigMutation.isPending ? "Saving..." : "Save Email Configuration"}
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => testEmailMutation.mutate()}
-                    disabled={testEmailMutation.isPending}
-                  >
-                    <TestTube className="w-4 h-4 mr-2" />
-                    {testEmailMutation.isPending ? "Testing..." : "Test Email"}
-                  </Button>
-                </div>
-              </form>
+                  {emailConfig?.enabled && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                      <div className="flex items-center gap-2 text-green-800">
+                        <Check className="w-4 h-4" />
+                        <span className="text-sm font-medium">Email service is enabled</span>
+                      </div>
+                      <p className="text-xs text-green-700 mt-1">
+                        Customer verification emails will be sent automatically
+                      </p>
+                    </div>
+                  )}
+                </form>
+              )}
             </CardContent>
           </Card>
 
