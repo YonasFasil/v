@@ -39,6 +39,8 @@ const UpgradePackage = lazy(() => import("@/pages/upgrade-package"));
 // Public pages (no authentication required)
 const PublicVenues = lazy(() => import("@/pages/public-venues"));
 const VenueDetail = lazy(() => import("@/pages/venue-detail"));
+const CustomerSignup = lazy(() => import("@/pages/customer-signup"));
+const CustomerLogin = lazy(() => import("@/pages/customer-login"));
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { FullyProtectedRoute } from "@/components/auth/FullyProtectedRoute";
 
@@ -96,6 +98,18 @@ function Router() {
       <Route path="/explore/venues/:id">
         <Suspense fallback={<PageLoader />}>
           <VenueDetail />
+        </Suspense>
+      </Route>
+
+      <Route path="/customer/signup">
+        <Suspense fallback={<PageLoader />}>
+          <CustomerSignup />
+        </Suspense>
+      </Route>
+
+      <Route path="/customer/login">
+        <Suspense fallback={<PageLoader />}>
+          <CustomerLogin />
         </Suspense>
       </Route>
 
