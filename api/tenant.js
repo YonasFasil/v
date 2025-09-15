@@ -542,7 +542,7 @@ module.exports = async function handler(req, res) {
                 }
               }
 
-              updateFields.push(`${fieldMappings[key]} = $${valueIndex + 3}`);
+              updateFields.push(`${fieldMappings[key]} = $${valueIndex + 2}`);
               updateValues.push(value);
               valueIndex++;
             }
