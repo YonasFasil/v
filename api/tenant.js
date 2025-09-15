@@ -524,8 +524,26 @@ module.exports = async function handler(req, res) {
 
           for (const key in updateData) {
             if (fieldMappings[key] && updateData[key] !== undefined) {
-              updateFields.push(`${fieldMappings[key]} = ${valueIndex + 2}`);
-              updateValues.push(updateData[key]);
+              let value = updateData[key];
+
+              // Handle UUID fields - convert empty strings to null
+              if (['packageId', 'customerId', 'venueId', 'spaceId'].includes(key)) {
+                value = value && value.trim() !== '' ? value : null;
+              }
+
+              // Handle JSON fields - convert empty objects/arrays to null
+              if (['selectedServices', 'itemQuantities', 'pricingOverrides', 'serviceTaxOverrides'].includes(key)) {
+                if (Array.isArray(value)) {
+                  value = value.length > 0 ? value : null;
+                } else if (typeof value === 'object' && value !== null) {
+                  value = Object.keys(value).length > 0 ? value : null;
+                } else if (typeof value === 'string' && value.trim() === '') {
+                  value = null;
+                }
+              }
+
+              updateFields.push(`${fieldMappings[key]} = $${valueIndex + 3}`);
+              updateValues.push(value);
               valueIndex++;
             }
           }
@@ -1223,6 +1241,13 @@ module.exports = async function handler(req, res) {
               packageId, selectedServices, itemQuantities, pricingOverrides, serviceTaxOverrides
             } = bookingData;
 
+            // Handle UUID fields - convert empty strings to null
+            const safePackageId = packageId && packageId.trim() !== '' ? packageId : null;
+            const safeSelectedServices = selectedServices && selectedServices.length > 0 ? selectedServices : null;
+            const safeItemQuantities = itemQuantities && Object.keys(itemQuantities).length > 0 ? itemQuantities : null;
+            const safePricingOverrides = pricingOverrides && Object.keys(pricingOverrides).length > 0 ? pricingOverrides : null;
+            const safeServiceTaxOverrides = serviceTaxOverrides && Object.keys(serviceTaxOverrides).length > 0 ? serviceTaxOverrides : null;
+
             const newBooking = await pool.query(`
               INSERT INTO bookings (
                 tenant_id, event_name, event_type, customer_id, venue_id, space_id,
@@ -1239,7 +1264,7 @@ module.exports = async function handler(req, res) {
               eventDate, endDate, startTime, endTime, guestCount,
               setupStyle, status, totalAmount, depositAmount, notes,
               contractId, isMultiDay, proposalId, proposalStatus, proposalSentAt,
-              packageId, selectedServices, itemQuantities, pricingOverrides, serviceTaxOverrides
+              safePackageId, safeSelectedServices, safeItemQuantities, safePricingOverrides, safeServiceTaxOverrides
             ]);
 
             createdBookings.push(newBooking.rows[0]);
@@ -1320,6 +1345,13 @@ module.exports = async function handler(req, res) {
                 packageId, selectedServices, itemQuantities, pricingOverrides, serviceTaxOverrides
               } = bookingData;
 
+              // Handle UUID fields - convert empty strings to null
+              const safePackageId = packageId && packageId.trim() !== '' ? packageId : null;
+              const safeSelectedServices = selectedServices && selectedServices.length > 0 ? selectedServices : null;
+              const safeItemQuantities = itemQuantities && Object.keys(itemQuantities).length > 0 ? itemQuantities : null;
+              const safePricingOverrides = pricingOverrides && Object.keys(pricingOverrides).length > 0 ? pricingOverrides : null;
+              const safeServiceTaxOverrides = serviceTaxOverrides && Object.keys(serviceTaxOverrides).length > 0 ? serviceTaxOverrides : null;
+
               const newBooking = await pool.query(`
                 INSERT INTO bookings (
                   tenant_id, event_name, event_type, customer_id, venue_id, space_id,
@@ -1336,7 +1368,7 @@ module.exports = async function handler(req, res) {
                 eventDate, endDate, startTime, endTime, guestCount,
                 setupStyle, status, totalAmount, depositAmount, notes,
                 contractId, isMultiDay, proposalId, proposalStatus, proposalSentAt,
-                packageId, selectedServices, itemQuantities, pricingOverrides, serviceTaxOverrides
+                safePackageId, safeSelectedServices, safeItemQuantities, safePricingOverrides, safeServiceTaxOverrides
               ]);
 
               createdBookings.push(newBooking.rows[0]);
