@@ -79,7 +79,8 @@ export default function SuperAdminSettings() {
         queryClient.invalidateQueries({ queryKey: ["/api/super-admin/config"] });
       }
     },
-    onError: (error: any) => {
+    onError: (error: any, variables) => {
+      console.error('Configuration update error:', error, 'Variables:', variables);
       toast({
         title: "Error",
         description: error.message || "Failed to update configuration.",
@@ -132,6 +133,26 @@ export default function SuperAdminSettings() {
       enabled: formData.get("enabled") === "on",
     };
 
+    // Validate required fields
+    if (!emailConfigData.email) {
+      toast({
+        title: "Validation Error",
+        description: "Email address is required",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (emailConfigData.enabled && !emailConfigData.password) {
+      toast({
+        title: "Validation Error",
+        description: "App password is required when email service is enabled",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    console.log('Submitting email config:', emailConfigData);
     updateConfigMutation.mutate({ type: 'email', config: emailConfigData });
   };
 

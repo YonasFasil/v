@@ -61,6 +61,12 @@ module.exports = async function handler(req, res) {
 
     } else if (req.method === 'POST' || req.method === 'PUT') {
       // Save email configuration
+      console.log('Email config save request:', {
+        method: req.method,
+        body: req.body,
+        headers: req.headers
+      });
+
       const { provider, email, password, enabled } = req.body;
 
       // Validate required fields
