@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { 
   ChevronRight, 
@@ -8,102 +8,102 @@ import {
   FileText, 
   Bot, 
   BarChart2,
-  ShieldCheck,
-  Zap,
-  ArrowRight
+  ArrowRight,
+  TrendingUp,
+  Briefcase,
+  ClipboardCheck
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-// Animated background component
-const AnimatedBackground = () => {
+// New Animated Background Component
+const FinancialBackground = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
   useEffect(() => {
-    const canvas = document.getElementById('animated-bg') as HTMLCanvasElement;
+    const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
     let width = canvas.width = window.innerWidth;
     let height = canvas.height = window.innerHeight;
-    let particles: Particle[] = [];
+    let icons: Icon[] = [];
 
-    class Particle {
+    const iconSvgs = [
+      // Simple Bar Chart
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>`,
+      // Simple Line Graph
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 16 10 8 8 12 2 12"></polyline></svg>`,
+      // Simple Calendar Icon
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`,
+      // Simple Dollar Sign
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>`
+    ];
+
+    const iconImages = iconSvgs.map(svgString => {
+      const img = new Image();
+      img.src = `data:image/svg+xml;base64,${btoa(svgString)}`;
+      return img;
+    });
+
+    class Icon {
       x: number;
       y: number;
-      directionX: number;
-      directionY: number;
+      vx: number;
+      vy: number;
       size: number;
-      color: string;
+      image: HTMLImageElement;
+      angle: number;
+      rotationSpeed: number;
 
-      constructor(x: number, y: number, directionX: number, directionY: number, size: number, color: string) {
-        this.x = x;
-        this.y = y;
-        this.directionX = directionX;
-        this.directionY = directionY;
-        this.size = size;
-        this.color = color;
+      constructor() {
+        this.size = Math.random() * 20 + 20;
+        this.x = Math.random() * width;
+        this.y = Math.random() * height;
+        this.vx = (Math.random() - 0.5) * 0.3;
+        this.vy = (Math.random() - 0.5) * 0.3;
+        this.image = iconImages[Math.floor(Math.random() * iconImages.length)];
+        this.angle = Math.random() * Math.PI * 2;
+        this.rotationSpeed = (Math.random() - 0.5) * 0.01;
+      }
+
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.angle += this.rotationSpeed;
+
+        if (this.x < -this.size) this.x = width + this.size;
+        if (this.x > width + this.size) this.x = -this.size;
+        if (this.y < -this.size) this.y = height + this.size;
+        if (this.y > height + this.size) this.y = -this.size;
       }
 
       draw() {
         if (!ctx) return;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false);
-        ctx.fillStyle = this.color;
-        ctx.fill();
-      }
-
-      update() {
-        if (this.x > width || this.x < 0) {
-          this.directionX = -this.directionX;
-        }
-        if (this.y > height || this.y < 0) {
-          this.directionY = -this.directionY;
-        }
-        this.x += this.directionX;
-        this.y += this.directionY;
-        this.draw();
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.globalAlpha = 0.1;
+        ctx.drawImage(this.image, -this.size / 2, -this.size / 2, this.size, this.size);
+        ctx.restore();
       }
     }
 
     function init() {
-      particles = [];
-      const numberOfParticles = (width * height) / 9000;
-      for (let i = 0; i < numberOfParticles; i++) {
-        const size = Math.random() * 1.5 + 1;
-        const x = Math.random() * (width - size * 2) + size;
-        const y = Math.random() * (height - size * 2) + size;
-        const directionX = (Math.random() * 0.4) - 0.2;
-        const directionY = (Math.random() * 0.4) - 0.2;
-        const color = 'rgba(255, 255, 255, 0.1)';
-        particles.push(new Particle(x, y, directionX, directionY, size, color));
+      icons = [];
+      const numberOfIcons = Math.floor((width * height) / 40000);
+      for (let i = 0; i < numberOfIcons; i++) {
+        icons.push(new Icon());
       }
     }
 
     function animate() {
       if (!ctx) return;
-      requestAnimationFrame(animate);
       ctx.clearRect(0, 0, width, height);
-      for (let i = 0; i < particles.length; i++) {
-        particles[i].update();
-      }
-      connect();
-    }
-
-    function connect() {
-      if (!ctx) return;
-      let opacityValue = 1;
-      for (let a = 0; a < particles.length; a++) {
-        for (let b = a; b < particles.length; b++) {
-          const distance = ((particles[a].x - particles[b].x) * (particles[a].x - particles[b].x))
-            + ((particles[a].y - particles[b].y) * (particles[a].y - particles[b].y));
-          if (distance < (width / 7) * (height / 7)) {
-            opacityValue = 1 - (distance / 20000);
-            ctx.strokeStyle = `rgba(255, 255, 255, ${opacityValue * 0.1})`;
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(particles[a].x, particles[a].y);
-            ctx.lineTo(particles[b].x, particles[b].y);
-            ctx.stroke();
-          }
-        }
-      }
+      icons.forEach(icon => {
+        icon.update();
+        icon.draw();
+      });
+      requestAnimationFrame(animate);
     }
 
     function handleResize() {
@@ -114,91 +114,102 @@ const AnimatedBackground = () => {
 
     window.addEventListener('resize', handleResize);
     init();
-    animate();
+    
+    // Ensure images are loaded before starting animation
+    let loadedCount = 0;
+    iconImages.forEach(img => {
+      img.onload = () => {
+        loadedCount++;
+        if (loadedCount === iconImages.length) {
+          animate();
+        }
+      };
+    });
 
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  return <canvas id="animated-bg" className="fixed top-0 left-0 w-full h-full z-0"></canvas>;
+  return <canvas ref={canvasRef} className="fixed top-0 left-0 w-full h-full z-0"></canvas>;
 };
 
 export default function LandingPage() {
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
+    const handleScroll = () => setIsScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   const features = [
     {
-      icon: <Calendar className="w-8 h-8 text-blue-400" />,
-      title: "Intuitive Event Calendar",
-      description: "Visualize your entire event schedule with a powerful, drag-and-drop calendar. See bookings, availability, and conflicts at a glance, and manage your schedule with ease."
+      icon: <Calendar className="w-8 h-8 text-blue-600" />,
+      title: "Effortless Event Scheduling",
+      description: "Our intuitive, drag-and-drop calendar is the command center for your venue. Visualize your entire schedule, identify open slots, and resolve conflicts before they happen. Manage everything from single-day meetings to complex multi-day weddings with ease."
     },
     {
-      icon: <Users className="w-8 h-8 text-green-400" />,
-      title: "Advanced CRM",
-      description: "Build lasting relationships with your clients. Track every interaction, from initial inquiry to post-event follow-up. Detailed analytics provide insights into customer behavior and lifetime value."
+      icon: <Users className="w-8 h-8 text-green-600" />,
+      title: "Intelligent Customer Management",
+      description: "Transform client data into lasting relationships. Our integrated CRM provides a 360-degree view of every customer, tracking communications, booking history, and preferences to help you deliver exceptional, personalized service that drives repeat business."
     },
     {
-      icon: <Package className="w-8 h-8 text-purple-400" />,
-      title: "Packages & Services",
-      description: "Craft the perfect offerings for your clients. Create customizable event packages and a la carte services with granular control over pricing, taxes, and fees."
+      icon: <Package className="w-8 h-8 text-purple-600" />,
+      title: "Dynamic Packages & Services",
+      description: "Design and sell the perfect event experiences. Create tiered packages, offer a la carte services, and manage pricing with unparalleled flexibility. Our system handles complex tax and fee calculations, so you can focus on creating value for your clients."
     },
     {
-      icon: <FileText className="w-8 h-8 text-orange-400" />,
-      title: "Proposals & Contracts",
-      description: "Go from proposal to signed contract in record time. Generate professional, branded proposals, track their status in real-time, and convert them to bookings with a single click."
+      icon: <FileText className="w-8 h-8 text-orange-600" />,
+      title: "Streamlined Proposals & Contracts",
+      description: "Accelerate your sales cycle. Generate stunning, professional proposals in minutes, complete with digital signatures. Seamlessly convert signed proposals into detailed contracts and bookings, eliminating manual data entry and errors."
     },
     {
-      icon: <Bot className="w-8 h-8 text-pink-400" />,
-      title: "AI-Powered Assistance",
-      description: "Work smarter, not harder. Leverage the power of AI to create bookings with voice commands, get smart scheduling suggestions, and receive intelligent insights into your business."
+      icon: <Bot className="w-8 h-8 text-pink-600" />,
+      title: "AI-Powered Efficiency",
+      description: "Welcome to the future of venue management. Use natural voice commands to create bookings, get smart scheduling recommendations, and receive AI-driven insights to optimize your operations and pricing strategies."
     },
     {
-      icon: <BarChart2 className="w-8 h-8 text-yellow-400" />,
-      title: "Insightful Analytics",
-      description: "Unlock the stories your data is telling. Our comprehensive analytics dashboard helps you track revenue, monitor venue utilization, and identify trends to grow your business."
+      icon: <BarChart2 className="w-8 h-8 text-yellow-600" />,
+      title: "Actionable Business Analytics",
+      description: "Make decisions with confidence. Our analytics dashboard provides a real-time view of your key performance indicators. Track revenue, occupancy rates, and booking trends to identify growth opportunities and maximize profitability."
     }
   ];
 
   return (
-    <div className="bg-gray-900 text-white">
-      <AnimatedBackground />
+    <div className="bg-white text-gray-800 font-sans">
+      <FinancialBackground />
       <div className="relative z-10">
-        {/* Header */}
-        <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-gray-900/80 backdrop-blur-sm shadow-lg' : 'bg-transparent'}`}>
+        <header className={cn("fixed top-0 left-0 right-0 z-50 transition-all duration-300", isScrolled ? 'bg-white/80 backdrop-blur-sm shadow-md' : 'bg-transparent')}>
           <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-            <h1 className="text-2xl font-bold">VenuinePro</h1>
+            <h1 className="text-3xl font-bold text-gray-900">VenuinePro</h1>
             <nav className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-gray-300 hover:text-white transition-colors">Features</a>
-              <a href="#how-it-works" className="text-gray-300 hover:text-white transition-colors">How It Works</a>
-              <a href="#pricing" className="text-gray-300 hover:text-white transition-colors">Pricing</a>
+              <a href="#features" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">Features</a>
+              <a href="#how-it-works" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">Process</a>
+              <a href="#pricing" className="text-gray-600 hover:text-blue-600 transition-colors font-medium">Pricing</a>
             </nav>
-            <Button size="lg" className="hidden md:flex bg-blue-500 hover:bg-blue-600 text-white">Get Started</Button>
+            <div className="flex items-center space-x-4">
+              <Button asChild variant="ghost" size="lg" className="hidden md:flex text-lg">
+                <a href="/tenant-login">Login</a>
+              </Button>
+              <Button size="lg" className="hidden md:flex bg-blue-600 hover:bg-blue-700 text-white text-lg">Get Started</Button>
+            </div>
           </div>
         </header>
 
-        {/* Hero Section */}
-        <section className="min-h-screen flex items-center">
+        <section className="min-h-screen flex items-center pt-20">
           <div className="container mx-auto px-6 text-center">
             <div className="max-w-4xl mx-auto">
-              <h2 className="text-5xl md:text-7xl font-bold leading-tight mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-                The Future of Venue Management is Here.
+              <h2 className="text-5xl md:text-7xl font-bold text-gray-900 leading-tight mb-6">
+                The Operating System for Your Venue.
               </h2>
-              <p className="text-lg md:text-xl text-gray-300 mb-10">
-                VenuinePro is the all-in-one platform that streamlines your venue's operations, from booking and scheduling to customer management and analytics.
+              <p className="text-lg md:text-xl text-gray-600 mb-10">
+                VenuinePro is the all-in-one platform that unifies your bookings, clients, and financials, empowering you to grow your business with unprecedented efficiency and insight.
               </p>
               <div className="flex justify-center items-center space-x-4">
-                <Button size="lg" className="text-lg px-8 py-6 bg-blue-500 hover:bg-blue-600 text-white">
-                  Get Started for Free
-                  <ChevronRight className="w-5 h-5 ml-2" />
+                <Button size="lg" className="text-lg px-8 py-6 bg-blue-600 hover:bg-blue-700 text-white">
+                  Start Your Free Trial
+                  <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
-                <Button size="lg" variant="outline" className="text-lg px-8 py-6 text-white border-white hover:bg-white hover:text-gray-900">
+                <Button size="lg" variant="outline" className="text-lg px-8 py-6">
                   Request a Demo
                 </Button>
               </div>
@@ -206,122 +217,110 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Features Section */}
-        <section id="features" className="py-20">
+        <section id="features" className="py-24 bg-gray-50">
           <div className="container mx-auto px-6">
             <div className="text-center mb-16">
-              <h3 className="text-4xl md:text-5xl font-bold">Everything You Need, All in One Place.</h3>
-              <p className="text-lg text-gray-400 mt-4">VenuinePro is packed with powerful features to help you run your venue more efficiently.</p>
+              <h3 className="text-4xl md:text-5xl font-bold text-gray-900">A Smarter Way to Work</h3>
+              <p className="text-lg text-gray-600 mt-4 max-w-3xl mx-auto">VenuinePro is engineered to solve the unique challenges of venue management, replacing complexity with clarity and manual tasks with intelligent automation.</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
               {features.map((feature, index) => (
-                <div key={index} className="bg-gray-800 p-8 rounded-lg transform hover:scale-105 transition-transform duration-300">
-                  <div className="flex items-center mb-4">
-                    {feature.icon}
-                    <h4 className="text-2xl font-semibold ml-4">{feature.title}</h4>
-                  </div>
-                  <p className="text-gray-400">{feature.description}</p>
+                <div key={index} className="bg-white p-8 rounded-xl shadow-lg border border-gray-100">
+                  <div className="mb-5">{feature.icon}</div>
+                  <h4 className="text-2xl font-semibold text-gray-900 mb-3">{feature.title}</h4>
+                  <p className="text-gray-600 leading-relaxed">{feature.description}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* How It Works Section */}
-        <section id="how-it-works" className="py-20">
+        <section id="how-it-works" className="py-24">
           <div className="container mx-auto px-6">
             <div className="text-center mb-16">
-              <h3 className="text-4xl md:text-5xl font-bold">Get Started in Minutes.</h3>
-              <p className="text-lg text-gray-400 mt-4">Our intuitive platform makes it easy to get up and running.</p>
+              <h3 className="text-4xl md:text-5xl font-bold text-gray-900">Effortless from Day One</h3>
+              <p className="text-lg text-gray-600 mt-4">Our streamlined process gets you from setup to success in record time.</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-center">
-              <div className="border border-gray-700 p-8 rounded-lg">
-                <div className="text-5xl font-bold text-blue-400 mb-4">1</div>
-                <h4 className="text-2xl font-semibold mb-2">Set Up Your Venue</h4>
-                <p className="text-gray-400">Add your venues, spaces, and services. Our guided setup will have you ready to go in no time.</p>
-              </div>
-              <div className="border border-gray-700 p-8 rounded-lg">
-                <div className="text-5xl font-bold text-blue-400 mb-4">2</div>
-                <h4 className="text-2xl font-semibold mb-2">Create Your First Booking</h4>
-                <p className="text-gray-400">Use our intuitive calendar or AI-powered voice booking to schedule your first event.</p>
-              </div>
-              <div className="border border-gray-700 p-8 rounded-lg">
-                <div className="text-5xl font-bold text-blue-400 mb-4">3</div>
-                <h4 className="text-2xl font-semibold mb-2">Grow Your Business</h4>
-                <p className="text-gray-400">Leverage our powerful analytics and CRM tools to increase bookings and revenue.</p>
+            <div className="relative">
+              <div className="hidden md:block absolute top-1/2 left-0 w-full h-0.5 bg-gray-200"></div>
+              <div className="relative grid grid-cols-1 md:grid-cols-3 gap-12">
+                <div className="text-center">
+                  <div className="relative bg-white">
+                    <div className="mx-auto bg-blue-100 rounded-full w-16 h-16 flex items-center justify-center text-2xl font-bold text-blue-600 border-4 border-white">
+                      <Briefcase className="w-8 h-8" />
+                    </div>
+                  </div>
+                  <h4 className="text-2xl font-semibold text-gray-900 mt-6 mb-2">Configure Your Space</h4>
+                  <p className="text-gray-600">Define your venues, services, and packages. Our intuitive interface makes setup a breeze.</p>
+                </div>
+                <div className="text-center">
+                  <div className="relative bg-white">
+                    <div className="mx-auto bg-blue-100 rounded-full w-16 h-16 flex items-center justify-center text-2xl font-bold text-blue-600 border-4 border-white">
+                      <ClipboardCheck className="w-8 h-8" />
+                    </div>
+                  </div>
+                  <h4 className="text-2xl font-semibold text-gray-900 mt-6 mb-2">Automate Your Bookings</h4>
+                  <p className="text-gray-600">Streamline your workflow from inquiry to invoice, automating proposals, contracts, and payments.</p>
+                </div>
+                <div className="text-center">
+                  <div className="relative bg-white">
+                    <div className="mx-auto bg-blue-100 rounded-full w-16 h-16 flex items-center justify-center text-2xl font-bold text-blue-600 border-4 border-white">
+                      <TrendingUp className="w-8 h-8" />
+                    </div>
+                  </div>
+                  <h4 className="text-2xl font-semibold text-gray-900 mt-6 mb-2">Maximize Your Revenue</h4>
+                  <p className="text-gray-600">Utilize powerful analytics to optimize pricing, identify trends, and grow your business.</p>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Testimonials Section */}
-        <section className="py-20">
+        <section className="py-24 bg-gray-50">
           <div className="container mx-auto px-6">
-            <div className="text-center mb-16">
-              <h3 className="text-4xl md:text-5xl font-bold">Loved by Venue Managers Everywhere.</h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              <div className="bg-gray-800 p-8 rounded-lg">
-                <p className="text-gray-400 mb-6">"VenuinePro has transformed how we manage our bookings. It's so intuitive and has saved us countless hours."</p>
-                <div className="font-semibold">- Sarah L., Event Coordinator</div>
-              </div>
-              <div className="bg-gray-800 p-8 rounded-lg">
-                <p className="text-gray-400 mb-6">"The AI features are a game-changer. I can create bookings with just my voice, which is incredible."</p>
-                <div className="font-semibold">- Michael B., Venue Owner</div>
-              </div>
-              <div className="bg-gray-800 p-8 rounded-lg">
-                <p className="text-gray-400 mb-6">"The analytics are incredibly detailed and have helped us identify new revenue opportunities."</p>
-                <div className="font-semibold">- Emily C., Operations Manager</div>
-              </div>
+            <div className="text-center max-w-4xl mx-auto">
+              <h3 className="text-4xl md:text-5xl font-bold text-gray-900">Join the Venues of Tomorrow.</h3>
+              <p className="text-lg text-gray-600 mt-6 mb-10">Step into the future of event management. VenuinePro gives you the tools, insights, and automation to not just compete, but to lead the market. Start your free trial and experience the difference.</p>
+              <Button size="lg" className="text-lg px-8 py-6 bg-blue-600 hover:bg-blue-700 text-white">
+                Claim Your Free Trial
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
             </div>
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="py-20 bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-          <div className="container mx-auto px-6 text-center">
-            <h3 className="text-4xl md:text-5xl font-bold mb-6">Ready to Take Control of Your Venue?</h3>
-            <p className="text-lg md:text-xl mb-10">Join hundreds of satisfied venue managers and start your free trial today.</p>
-            <Button size="lg" variant="secondary" className="text-lg px-8 py-6 bg-white text-blue-600 hover:bg-gray-200">
-              Sign Up Now
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
-          </div>
-        </section>
-
-        {/* Footer */}
-        <footer className="bg-gray-900 text-white py-12">
-          <div className="container mx-auto px-6">
+        <footer className="bg-white border-t border-gray-200">
+          <div className="container mx-auto px-6 py-12">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
               <div>
-                <h4 className="text-lg font-semibold mb-4">VenuinePro</h4>
-                <p className="text-gray-400">The complete solution for modern venue management.</p>
+                <h4 className="text-lg font-semibold mb-4 text-gray-900">VenuinePro</h4>
+                <p className="text-gray-600">The complete solution for modern venue management.</p>
               </div>
               <div>
-                <h4 className="text-lg font-semibold mb-4">Product</h4>
+                <h4 className="text-lg font-semibold mb-4 text-gray-900">Product</h4>
                 <ul className="space-y-2">
-                  <li><a href="#features" className="text-gray-400 hover:text-white">Features</a></li>
-                  <li><a href="#pricing" className="text-gray-400 hover:text-white">Pricing</a></li>
-                  <li><a href="#" className="text-gray-400 hover:text-white">Book a Demo</a></li>
+                  <li><a href="#features" className="text-gray-600 hover:text-gray-900">Features</a></li>
+                  <li><a href="#pricing" className="text-gray-600 hover:text-gray-900">Pricing</a></li>
+                  <li><a href="#" className="text-gray-600 hover:text-gray-900">Book a Demo</a></li>
                 </ul>
               </div>
               <div>
-                <h4 className="text-lg font-semibold mb-4">Company</h4>
+                <h4 className="text-lg font-semibold mb-4 text-gray-900">Company</h4>
                 <ul className="space-y-2">
-                  <li><a href="#" className="text-gray-400 hover:text-white">About Us</a></li>
-                  <li><a href="#" className="text-gray-400 hover:text-white">Careers</a></li>
-                  <li><a href="#" className="text-gray-400 hover:text-white">Contact</a></li>
+                  <li><a href="#" className="text-gray-600 hover:text-gray-900">About Us</a></li>
+                  <li><a href="#" className="text-gray-600 hover:text-gray-900">Careers</a></li>
+                  <li><a href="#" className="text-gray-600 hover:text-gray-900">Contact</a></li>
                 </ul>
               </div>
               <div>
-                <h4 className="text-lg font-semibold mb-4">Legal</h4>
+                <h4 className="text-lg font-semibold mb-4 text-gray-900">Legal</h4>
                 <ul className="space-y-2">
-                  <li><a href="#" className="text-gray-400 hover:text-white">Privacy Policy</a></li>
-                  <li><a href="#" className="text-gray-400 hover:text-white">Terms of Service</a></li>
+                  <li><a href="#" className="text-gray-600 hover:text-gray-900">Privacy Policy</a></li>
+                  <li><a href="#" className="text-gray-600 hover:text-gray-900">Terms of Service</a></li>
                 </ul>
               </div>
             </div>
-            <div className="mt-8 border-t border-gray-700 pt-8 text-center text-gray-500">
+            <div className="mt-8 border-t border-gray-200 pt-8 text-center text-gray-500">
               &copy; {new Date().getFullYear()} VenuinePro. All rights reserved.
             </div>
           </div>
