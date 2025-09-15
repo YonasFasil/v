@@ -486,8 +486,19 @@ module.exports = async function handler(req, res) {
           // DEBUGGING: Log when individual booking PATCH is called
           console.log('🔍 INDIVIDUAL BOOKING PATCH called');
           console.log('   Booking ID:', id);
-          console.log('   Update data:', JSON.stringify(updateData, null, 2));
+          console.log('   Update data keys:', Object.keys(updateData));
           console.log('   ⚠️  This should NOT be called for multidate events!');
+
+          // Check if this is actually a single-to-multidate conversion
+          if (updateData.bookingsData && Array.isArray(updateData.bookingsData)) {
+            console.log('   🚨 PROBLEM: Individual booking PATCH received bookingsData array!');
+            console.log('   🚨 This should be a CONTRACT POST, not individual PATCH!');
+            console.log('   🚨 Frontend is calling wrong endpoint for single-to-multidate conversion');
+            return res.status(400).json({
+              message: 'Single to multidate conversion should use contract endpoint',
+              hint: 'Use POST /api/contracts instead of PATCH /api/bookings/{id}'
+            });
+          }
 
           // Build dynamic update query based on provided fields
           const updateFields = [];
