@@ -497,11 +497,42 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
       
       
       if (isEditingFullContract) {
-        const response = await apiRequest(`/api/bookings/contract/${booking.contractInfo.id}`, {
-          method: "PATCH",
-          body: JSON.stringify(bookingData),
-          headers: { "Content-Type": "application/json" }
-        });
+        // For full contract updates, we need to send all booking data
+        const contractUpdateData = {
+          contractData: {
+            contractName: eventName,
+            status: eventStatus,
+            totalAmount: totalPrice.toString(),
+          },
+          bookingsData: selectedDates.map(date => ({
+            eventName,
+            eventType: packages.find((p: any) => p.id === date.packageId)?.name || "Custom Event",
+            customerId: selectedCustomer,
+            venueId: selectedVenue,
+            spaceId: date.spaceId,
+            eventDate: date.date,
+            startTime: date.startTime,
+            endTime: date.endTime,
+            guestCount: date.guestCount,
+            status: eventStatus,
+            totalAmount: "0", // Will be recalculated on backend if needed
+            notes: "", // Add notes field if available
+            packageId: date.packageId,
+            selectedServices: date.selectedServices,
+            itemQuantities: date.itemQuantities,
+            pricingOverrides: date.pricingOverrides,
+            serviceTaxOverrides: date.serviceTaxOverrides,
+          }))
+        };
+
+        const response = await apiRequest(
+          `/api/contracts?contractId=${booking.contractInfo.id}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify(contractUpdateData),
+            headers: { "Content-Type": "application/json" }
+          }
+        );
         return response;
       }
       

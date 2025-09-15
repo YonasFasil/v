@@ -485,82 +485,45 @@ module.exports = async function handler(req, res) {
           // Add tenant_id and booking id to WHERE clause values
           updateValues.push(tenantId, id);
 
-          // Handle common booking fields
-          if (updateData.eventName) {
-            updateFields.push(`event_name = $${valueIndex + 2}`);
-            updateValues.push(updateData.eventName);
-            valueIndex++;
-          }
+          // Define a mapping from camelCase to snake_case for database columns
+          const fieldMappings = {
+            eventName: 'event_name',
+            status: 'status',
+            guestCount: 'guest_count',
+            startTime: 'start_time',
+            endTime: 'end_time',
+            notes: 'notes',
+            totalAmount: 'total_amount',
+            eventDate: 'event_date',
+            endDate: 'end_date',
+            eventType: 'event_type',
+            setupStyle: 'setup_style',
+            depositAmount: 'deposit_amount',
+            depositPaid: 'deposit_paid',
+            customerId: 'customer_id',
+            venueId: 'venue_id',
+            spaceId: 'space_id',
+            packageId: 'package_id',
+            selectedServices: 'selected_services',
+            itemQuantities: 'item_quantities',
+            pricingOverrides: 'pricing_overrides',
+            serviceTaxOverrides: 'service_tax_overrides'
+          };
 
-          if (updateData.status) {
-            updateFields.push(`status = $${valueIndex + 2}`);
-            updateValues.push(updateData.status);
-            valueIndex++;
-          }
-
-          if (updateData.guestCount) {
-            updateFields.push(`guest_count = $${valueIndex + 2}`);
-            updateValues.push(updateData.guestCount);
-            valueIndex++;
-          }
-
-          if (updateData.startTime) {
-            updateFields.push(`start_time = $${valueIndex + 2}`);
-            updateValues.push(updateData.startTime);
-            valueIndex++;
-          }
-
-          if (updateData.endTime) {
-            updateFields.push(`end_time = $${valueIndex + 2}`);
-            updateValues.push(updateData.endTime);
-            valueIndex++;
-          }
-
-          if (updateData.notes) {
-            updateFields.push(`notes = $${valueIndex + 2}`);
-            updateValues.push(updateData.notes);
-            valueIndex++;
-          }
-
-          if (updateData.totalAmount) {
-            updateFields.push(`total_amount = $${valueIndex + 2}`);
-            updateValues.push(updateData.totalAmount);
-            valueIndex++;
-          }
-
-          if (updateData.eventDate) {
-            updateFields.push(`event_date = $${valueIndex + 2}`);
-            updateValues.push(updateData.eventDate);
-            valueIndex++;
-          }
-
-          if (updateData.endDate) {
-            updateFields.push(`end_date = $${valueIndex + 2}`);
-            updateValues.push(updateData.endDate);
-            valueIndex++;
-          }
-
-          if (updateData.eventType) {
-            updateFields.push(`event_type = $${valueIndex + 2}`);
-            updateValues.push(updateData.eventType);
-            valueIndex++;
-          }
-
-          if (updateData.setupStyle) {
-            updateFields.push(`setup_style = $${valueIndex + 2}`);
-            updateValues.push(updateData.setupStyle);
-            valueIndex++;
-          }
-
-          if (updateData.depositAmount) {
-            updateFields.push(`deposit_amount = $${valueIndex + 2}`);
-            updateValues.push(updateData.depositAmount);
-            valueIndex++;
+          for (const key in updateData) {
+            if (fieldMappings[key] && updateData[key] !== undefined) {
+              updateFields.push(`${fieldMappings[key]} = ${valueIndex + 2}`);
+              updateValues.push(updateData[key]);
+              valueIndex++;
+            }
           }
 
           if (updateFields.length === 0) {
             return res.status(400).json({ message: 'No fields to update' });
           }
+
+          // Always update the updated_at timestamp
+          updateFields.push('updated_at = NOW()');
 
           // Update the booking
           const updateQuery = `
