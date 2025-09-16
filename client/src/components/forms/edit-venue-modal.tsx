@@ -98,7 +98,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
   });
 
   const handleSave = () => {
-    updateVenue.mutate({ name, description, address });
+    updateVenue.mutate({ name, description, address, images });
   };
 
   return (
