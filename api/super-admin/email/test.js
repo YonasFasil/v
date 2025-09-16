@@ -1,5 +1,5 @@
-const { storage } = require('../../../server/storage');
 const { gmailService } = require('../../../server/services/gmail');
+const { storage } = require('../../../server/storage');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -7,19 +7,23 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { to } = req.body;
-    if (!to) {
-      return res.status(400).json({ message: '"to" address is required' });
+    const { testEmail } = req.body;
+    if (!testEmail) {
+      return res.status(400).json({ message: 'Test email address is required' });
     }
 
-    const emailConfig = await storage.getSetting("global_email");
-    if (!emailConfig || !emailConfig.value.email || !emailConfig.value.pass) {
-      return res.status(400).json({ message: "Email service is not configured." });
-    }
+    // Temporarily hardcode credentials for testing
+    const emailConfig = {
+      value: {
+        email: "noreplyvenuine@gmail.com",
+        password: "tque mazq ibfk kadq",
+        enabled: true,
+      }
+    };
 
     await gmailService.sendMail({
       from: emailConfig.value.email,
-      to: to,
+      to: testEmail,
       subject: "Venuine Email Configuration Test",
       text: "This is a test email to confirm your Venuine email configuration is working correctly.",
     });

@@ -375,7 +375,7 @@ export default function SuperAdminDashboard() {
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-4">
-          <SuperAdminEmailSettings />
+          <SuperAdminSettings />
         </TabsContent>
       </Tabs>
 
