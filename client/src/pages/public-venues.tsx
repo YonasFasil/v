@@ -11,32 +11,39 @@ interface Venue {
   name: string;
   city: string;
   state: string;
-  image_url: string;
+  imageUrl: string; // Note: API might send imageUrl (singular) for the primary image
   description: string;
 }
 
-const placeholderImages = [
-  "https://d38vbdphfqlqtrad.public.blob.vercel-storage.com/test/Bella%2BCollina%2BWedding%2BPhotos%2B-%2BOrlando%2BFlorida%2BWedding%2BVenue-%2BFlorida%2BWedding%2BPhotographer-%2BMichelle%2BGonzalez%2BPhotography-107.webp",
-  "https://d38vbdphfqlqtrad.public.blob.vercel-storage.com/test/ault-park-pavilion-outdoor-wedding.webp",
-  "https://d38vbdphfqlqtrad.public.blob.vercel-storage.com/test/istockphoto-175559502-612x612.jpg",
-  "https://d38vbdphfqlqtrad.public.blob.vercel-storage.com/test/istockphoto-471906412-612x612.jpg",
-  "https://d38vbdphfqlqtrad.public.blob.vercel-storage.com/test/miami-wedding-photographer-jessica-vilchez-5251-scaled.jpg"
-];
+const PlaceholderImage = () => (
+  <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+    <svg className="w-12 h-12 text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+    </svg>
+  </div>
+);
 
-const VenueCard = ({ venue, index }: { venue: Venue; index: number }) => (
+const VenueCard = ({ venue }: { venue: Venue }) => (
   <Link href={`/explore/venues/${venue.id}`}>
     <a className="block group">
       <div className="w-full bg-white rounded-2xl overflow-hidden border border-gray-200/80 hover:shadow-2xl hover:shadow-gray-200/40 transition-all duration-500 ease-in-out">
         <AspectRatio ratio={16 / 10}>
-          <img
-            src={venue.image_url || placeholderImages[index % placeholderImages.length]}
-            alt={venue.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-in-out"
-          />
+          {venue.imageUrl ? (
+            <img
+              src={venue.imageUrl}
+              alt={venue.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-in-out"
+            />
+          ) : (
+            <PlaceholderImage />
+          )}
         </AspectRatio>
-        <div className="p-6 text-center">
+        <div className="p-6">
           <h3 className="font-semibold text-lg text-gray-900">{venue.name}</h3>
           <p className="text-sm text-gray-500 mt-1">{venue.city}, {venue.state}</p>
+          <p className="text-sm text-gray-600 mt-3 line-clamp-2">
+            {venue.description || "A stunning space perfect for any occasion, from corporate events to private celebrations."}
+          </p>
         </div>
       </div>
     </a>
@@ -105,8 +112,8 @@ export default function PublicVenues() {
             </div>
           ) : venues.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {venues.map((venue, index) => (
-                <VenueCard key={venue.id} venue={venue} index={index} />
+              {venues.map((venue) => (
+                <VenueCard key={venue.id} venue={venue} />
               ))}
             </div>
           ) : (

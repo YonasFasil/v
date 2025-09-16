@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,7 +30,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
       setName(venue.name || "");
       setDescription(venue.description || "");
       setAddress(venue.address || "");
-      setImageUrls(Array.isArray(venue.image_urls) ? venue.image_urls : (venue.image_url ? [venue.image_url] : []));
+      setImageUrls(Array.isArray(venue.imageUrls) ? venue.imageUrls : (venue.imageUrl ? [venue.imageUrl] : []));
     }
   }, [venue, open]);
 
@@ -40,18 +40,26 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
 
     setUploading(true);
     const uploadedUrls: string[] = [];
+    const validFiles = Array.from(files).filter(file => {
+      if (!['image/png', 'image/jpeg'].includes(file.type)) {
+        toast({ title: "Invalid File Type", description: `${file.name} is not a PNG or JPG.`, variant: "destructive" });
+        return false;
+      }
+      if (file.size > 2 * 1024 * 1024) { // 2MB
+        toast({ title: "File Too Large", description: `${file.name} is larger than 2MB.`, variant: "destructive" });
+        return false;
+      }
+      return true;
+    });
 
-    for (const file of Array.from(files)) {
+    for (const file of validFiles) {
       try {
         const response = await fetch(`/api/upload?filename=${file.name}`, {
           method: 'POST',
           body: file,
         });
 
-        if (!response.ok) {
-          throw new Error(`Upload failed for ${file.name}`);
-        }
-
+        if (!response.ok) throw new Error(`Upload failed for ${file.name}`);
         const newBlob = await response.json();
         uploadedUrls.push(newBlob.url);
       } catch (error) {
@@ -61,7 +69,9 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
 
     setImageUrls(prev => [...prev, ...uploadedUrls]);
     setUploading(false);
-    toast({ title: "Images uploaded successfully!" });
+    if (uploadedUrls.length > 0) {
+      toast({ title: "Images uploaded successfully!" });
+    }
   };
   
   const handleRemoveImage = (urlToRemove: string) => {
@@ -70,7 +80,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
 
   const updateVenue = useMutation({
     mutationFn: async (data: any) => {
-      const payload = { ...data, image_urls: imageUrls, image_url: imageUrls[0] || "" };
+      const payload = { ...data, imageUrls: imageUrls, imageUrl: imageUrls[0] || "" };
       if (venue?.id) {
         return await apiRequest("PATCH", `/api/venues/${venue.id}`, payload);
       } else {
@@ -95,7 +105,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl p-0 max-h-[90vh] overflow-hidden flex flex-col">
         <div className="border-b p-6 flex items-center gap-3">
-          <Edit className="h-5 w-5 text-blue-600" />
+          <Edit className="h-5 w-5 text-purple-600" />
           <h2 className="text-xl font-semibold">
             {venue?.id ? 'Edit Venue' : 'Create New Venue'}
           </h2>
@@ -142,7 +152,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
                 </div>
               ))}
               <div
-                className="w-full h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-center cursor-pointer hover:border-blue-500 transition-colors"
+                className="w-full h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-center cursor-pointer hover:border-purple-500 transition-colors"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <input
@@ -150,7 +160,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
                   ref={fileInputRef}
                   onChange={handleFileChange}
                   className="hidden"
-                  accept="image/*"
+                  accept="image/png, image/jpeg"
                   multiple
                 />
                 {uploading ? (
@@ -169,7 +179,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
         <div className="border-t p-6 flex justify-end bg-gray-50">
           <div className="flex gap-3">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={updateVenue.isPending || !name.trim()}>
+            <Button onClick={handleSave} disabled={updateVenue.isPending || !name.trim()} className="bg-purple-600 hover:bg-purple-700">
               <Save className="h-4 w-4 mr-2" />
               {updateVenue.isPending ? 'Saving...' : 'Save Changes'}
             </Button>
