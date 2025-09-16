@@ -12,10 +12,14 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ message: 'Test email address is required' });
     }
 
-    const emailConfig = await storage.getSetting("email");
-    if (!emailConfig || !emailConfig.value.enabled) {
-      return res.status(400).json({ message: "Email service is not enabled" });
-    }
+    // Temporarily hardcode credentials for testing
+    const emailConfig = {
+      value: {
+        email: "noreplyvenuine@gmail.com",
+        password: "tque mazq ibfk kadq",
+        enabled: true,
+      }
+    };
 
     await gmailService.sendMail({
       from: emailConfig.value.email,
