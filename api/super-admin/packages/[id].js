@@ -94,10 +94,11 @@ module.exports = async function handler(req, res) {
     
   } catch (error) {
     console.error('Package operation error:', error);
-    res.status(500).json({ 
-      message: 'Internal server error', 
-      error: error.message 
-    } finally {
+    res.status(500).json({
+      message: 'Internal server error',
+      error: error.message
+    });
+  } finally {
 
     
     if (pool) {
