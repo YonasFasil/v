@@ -44,11 +44,6 @@ const placeholderImages = [
   "https://d38vbdphfqlqtrad.public.blob.vercel-storage.com/test/miami-wedding-photographer-jessica-vilchez-5251-scaled.jpg"
 ];
 
-const getPlaceholderImage = (id: string, index: number) => {
-  const i = (id.charCodeAt(0) + index) % placeholderImages.length;
-  return placeholderImages[i];
-};
-
 const AmenityIcon = ({ amenity }: { amenity: string }) => {
   const lowerAmenity = amenity.toLowerCase();
   if (lowerAmenity.includes('wifi')) return <Wifi className="w-5 h-5 text-gray-600" />;
@@ -120,7 +115,7 @@ export default function VenueDetail() {
 
   const galleryImages = Array.isArray(venue.image_urls) && venue.image_urls.length > 0 
     ? venue.image_urls 
-    : (venue.id ? [getPlaceholderImage(venue.id, 0), getPlaceholderImage(venue.id, 1), getPlaceholderImage(venue.id, 2), getPlaceholderImage(venue.id, 3), getPlaceholderImage(venue.id, 4)] : []);
+    : placeholderImages;
 
   const amenities = Array.isArray(venue.amenities) && venue.amenities.length > 0 ? venue.amenities : dummyAmenities;
 

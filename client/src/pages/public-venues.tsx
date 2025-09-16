@@ -23,18 +23,13 @@ const placeholderImages = [
   "https://d38vbdphfqlqtrad.public.blob.vercel-storage.com/test/miami-wedding-photographer-jessica-vilchez-5251-scaled.jpg"
 ];
 
-const getPlaceholderImage = (id: string) => {
-  const index = id.charCodeAt(0) % placeholderImages.length;
-  return placeholderImages[index];
-};
-
-const VenueCard = ({ venue }: { venue: Venue }) => (
+const VenueCard = ({ venue, index }: { venue: Venue; index: number }) => (
   <Link href={`/explore/venues/${venue.id}`}>
     <a className="block group">
       <div className="w-full bg-white rounded-2xl overflow-hidden border border-gray-200/80 hover:shadow-2xl hover:shadow-gray-200/40 transition-all duration-500 ease-in-out">
         <AspectRatio ratio={16 / 10}>
           <img
-            src={venue.image_url || getPlaceholderImage(venue.id)}
+            src={venue.image_url || placeholderImages[index % placeholderImages.length]}
             alt={venue.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-in-out"
           />
@@ -113,8 +108,8 @@ export default function PublicVenues() {
             </div>
           ) : venues.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {venues.map((venue) => (
-                <VenueCard key={venue.id} venue={venue} />
+              {venues.map((venue, index) => (
+                <VenueCard key={venue.id} venue={venue} index={index} />
               ))}
             </div>
           ) : (
