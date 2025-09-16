@@ -27,6 +27,7 @@ interface Venue {
   tenant_name: string;
   city: string;
   state: string;
+  address: string; // Assuming address is available
   spaces: Space[];
 }
 
@@ -118,6 +119,7 @@ export default function VenueDetail() {
     : placeholderImages;
 
   const amenities = Array.isArray(venue.amenities) && venue.amenities.length > 0 ? venue.amenities : dummyAmenities;
+  const mapSrc = `https://maps.google.com/maps?q=${encodeURIComponent(venue.address || `${venue.city}, ${venue.state}`)}&output=embed`;
 
   return (
     <div className="min-h-screen bg-white font-sans antialiased">
@@ -146,19 +148,8 @@ export default function VenueDetail() {
       </header>
 
       <main className="max-w-screen-xl mx-auto px-6 py-16">
-        {/* Title */}
-        <div className="max-w-4xl">
-          <h1 className="text-5xl md:text-7xl font-bold text-gray-900 tracking-tighter">{venue.name}</h1>
-          <div className="flex items-center space-x-6 mt-4 text-gray-600">
-            <div className="flex items-center">
-              <MapPin className="w-4 h-4 mr-2" />
-              <span>{venue.city}, {venue.state}</span>
-            </div>
-          </div>
-        </div>
-
         {/* Image Gallery */}
-        <div className="mt-12 grid grid-cols-4 grid-rows-2 gap-2 h-[60vh] rounded-2xl overflow-hidden">
+        <div className="grid grid-cols-4 grid-rows-2 gap-2 h-[60vh] rounded-2xl overflow-hidden">
           <div className="col-span-2 row-span-2">
             <img src={galleryImages[0]} alt={venue.name} className="w-full h-full object-cover" />
           </div>
@@ -176,8 +167,17 @@ export default function VenueDetail() {
           </div>
         </div>
 
+        {/* Title and Address */}
+        <div className="max-w-4xl mt-12">
+          <h1 className="text-5xl md:text-7xl font-bold text-gray-900 tracking-tighter">{venue.name}</h1>
+          <div className="flex items-center mt-4 text-gray-600">
+            <MapPin className="w-5 h-5 mr-2" />
+            <span>{venue.address || `${venue.city}, ${venue.state}`}</span>
+          </div>
+        </div>
+
         {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-x-24 mt-16">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-x-24 mt-12">
           <div className="lg:col-span-2">
             <div className="pb-8 border-b border-gray-200/80">
               <h2 className="text-3xl font-semibold text-gray-900 tracking-tight">Hosted by {venue.tenant_name}</h2>
@@ -208,6 +208,21 @@ export default function VenueDetail() {
                     <span className="text-gray-700">{amenity}</span>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div className="py-8 border-b border-gray-200/80">
+              <h3 className="text-2xl font-semibold text-gray-900 tracking-tight mb-6">Location</h3>
+              <div className="aspect-w-16 aspect-h-9 rounded-2xl overflow-hidden">
+                <iframe
+                  src={mapSrc}
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  allowFullScreen={false}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                ></iframe>
               </div>
             </div>
 
