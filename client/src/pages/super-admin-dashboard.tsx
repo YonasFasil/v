@@ -26,7 +26,7 @@ import { type Tenant, type SubscriptionPackage } from "@shared/schema";
 import { PackageManagementModal } from "@/components/super-admin/package-management-modal";
 import { TenantManagementModal } from "@/components/super-admin/tenant-management-modal";
 import { TenantDetailModal } from "@/components/super-admin/tenant-detail-modal";
-import SuperAdminEmailSettings from "@/components/super-admin/super-admin-email-settings";
+import SuperAdminSettings from "@/components/super-admin/super-admin-settings";
 
 export default function SuperAdminDashboard() {
   const { toast } = useToast();
