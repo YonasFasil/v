@@ -43,6 +43,7 @@ export function PackageManagementModal({ open, onOpenChange, package: editPackag
     price: "0",
     billingInterval: "monthly",
     maxVenues: 1,
+    maxSpaces: 5,
     maxUsers: 3,
     features: [],
     isActive: true,
@@ -58,6 +59,7 @@ export function PackageManagementModal({ open, onOpenChange, package: editPackag
         price: editPackage.price || "0",
         billingInterval: editPackage.billingInterval || "monthly",
         maxVenues: editPackage.maxVenues || 1,
+        maxSpaces: editPackage.maxSpaces || 5,
         maxUsers: editPackage.maxUsers || 3,
         features: editPackage.features || [],
         isActive: editPackage.isActive ?? true,
@@ -70,9 +72,10 @@ export function PackageManagementModal({ open, onOpenChange, package: editPackag
         description: "",
         price: "0",
         billingInterval: "monthly",
-            maxVenues: 1,
+        maxVenues: 1,
+        maxSpaces: 5,
         maxUsers: 3,
-            features: [],
+        features: [],
         isActive: true,
         sortOrder: 0,
       });
@@ -227,7 +230,7 @@ export function PackageManagementModal({ open, onOpenChange, package: editPackag
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Package Limits</h3>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="maxVenues">Max Venues</Label>
                 <Input
@@ -236,6 +239,17 @@ export function PackageManagementModal({ open, onOpenChange, package: editPackag
                   value={formData.maxVenues}
                   onChange={(e) => setFormData(prev => ({ ...prev, maxVenues: parseInt(e.target.value) }))}
                   placeholder="1"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="maxSpaces">Max Spaces</Label>
+                <Input
+                  id="maxSpaces"
+                  type="number"
+                  value={formData.maxSpaces}
+                  onChange={(e) => setFormData(prev => ({ ...prev, maxSpaces: parseInt(e.target.value) }))}
+                  placeholder="5"
                 />
               </div>
 
