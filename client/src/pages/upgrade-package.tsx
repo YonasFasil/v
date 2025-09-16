@@ -108,11 +108,18 @@ export default function UpgradePackage() {
           }
         }
 
-        const featuresRes = await fetch(`/api/tenant-features${tenantId ? `?tenantId=${tenantId}` : ''}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
+        const [featuresRes, packagesRes] = await Promise.all([
+          fetch(`/api/tenant-features${tenantId ? `?tenantId=${tenantId}` : ''}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }),
+          fetch('/api/subscription-packages', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          })
+        ]);
 
         const featuresData = await featuresRes.json();
 
