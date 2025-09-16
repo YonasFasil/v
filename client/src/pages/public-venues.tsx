@@ -34,12 +34,9 @@ const VenueCard = ({ venue, index }: { venue: Venue; index: number }) => (
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-in-out"
           />
         </AspectRatio>
-        <div className="p-6">
+        <div className="p-6 text-center">
           <h3 className="font-semibold text-lg text-gray-900">{venue.name}</h3>
           <p className="text-sm text-gray-500 mt-1">{venue.city}, {venue.state}</p>
-          <p className="text-sm text-gray-600 mt-3 line-clamp-2">
-            {venue.description || "A stunning space perfect for any occasion, from corporate events to private celebrations."}
-          </p>
         </div>
       </div>
     </a>
