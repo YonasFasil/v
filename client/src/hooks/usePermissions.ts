@@ -30,6 +30,12 @@ interface TenantFeaturesResponse {
     name: string;
     price: number;
     features: string[];
+    limits: {
+      maxVenues: number;
+      maxSpaces: number;
+      maxUsers: number;
+      maxBookingsPerMonth: number;
+    };
   };
   features: {
     all: Feature[];
@@ -45,6 +51,7 @@ interface TenantFeaturesResponse {
       percentage: number;
     };
   };
+  sidebarPermissions: string[];
 }
 
 export function usePermissions() {
@@ -163,25 +170,17 @@ export function usePermissions() {
 
       // Update permissions based on available features (only for tenant_admin)
       if (user?.role === 'tenant_admin') {
-        const basePermissions = ['dashboard', 'venues', 'bookings', 'customers', 'payments', 'settings', 'users'];
-        let featureBasedPermissions = [...basePermissions];
+        // Use the sidebar permissions directly from the API
+        const sidebarPermissions = tenantFeaturesData.sidebarPermissions || [];
 
-        // Map features to additional permissions
-        const enabledFeatureIds = tenantFeaturesData.features.enabled.map((f: Feature) => f.id);
+        // Add admin permissions that are always available
+        const adminPermissions = ['settings', 'users'];
+        const finalPermissions = [...new Set([...sidebarPermissions, ...adminPermissions])];
 
-        console.log('[PERMISSIONS] Enabled feature IDs:', enabledFeatureIds);
+        console.log('[PERMISSIONS] Sidebar permissions from API:', sidebarPermissions);
+        console.log('[PERMISSIONS] Final permissions:', finalPermissions);
 
-        if (enabledFeatureIds.includes('proposal_system')) {
-          featureBasedPermissions.push('proposals');
-        }
-        if (enabledFeatureIds.includes('task_management')) {
-          featureBasedPermissions.push('tasks');
-        }
-        // voice_booking and ai_analytics don't need separate permissions
-        // they're handled by the existing 'settings' or 'bookings' permissions
-
-        console.log('[PERMISSIONS] Feature-based permissions:', featureBasedPermissions);
-        setPermissions(featureBasedPermissions);
+        setPermissions(finalPermissions);
       }
     } else if (featuresError) {
       console.error('[PERMISSIONS] Error fetching features:', featuresError);
