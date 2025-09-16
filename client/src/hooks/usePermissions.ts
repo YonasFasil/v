@@ -8,6 +8,7 @@ interface User {
   name?: string;
   role: string;
   permissions?: string[];
+  tenantId?: string;
 }
 
 interface Feature {
@@ -72,7 +73,8 @@ export function usePermissions() {
           email: payload.email,
           name: payload.name || payload.email?.split('@')[0] || 'User',
           role: payload.role,
-          permissions: payload.permissions || []
+          permissions: payload.permissions || [],
+          tenantId: payload.tenant_id || payload.tenantId
         };
         setUser(userData);
 
@@ -149,9 +151,9 @@ export function usePermissions() {
 
   // Use React Query to fetch tenant features with caching
   const { data: tenantFeaturesData, isLoading: isFeaturesLoading, error: featuresError } = useQuery<TenantFeaturesResponse>({
-    queryKey: ['/api/tenant-features', user?.id], // Include user ID to force cache invalidation
-    queryFn: () => apiRequest('/api/tenant-features'),
-    enabled: !!(user && user.role !== 'super_admin'),
+    queryKey: ['/api/tenant-features', user?.tenantId], // Include tenant ID for proper cache key
+    queryFn: () => apiRequest(`/api/tenant-features?tenantId=${user?.tenantId}`),
+    enabled: !!(user && user.role !== 'super_admin' && user.tenantId),
     staleTime: 0, // No cache for debugging - always refetch
     gcTime: 0, // No cache time
     refetchOnWindowFocus: true, // Enable refetch for debugging
