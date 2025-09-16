@@ -23,7 +23,7 @@ interface Venue {
   name: string;
   description: string;
   amenities: string[];
-  imageUrls: string[]; // Note: API sends imageUrls (plural)
+  images: string[];
   tenant_name: string;
   city: string;
   state: string;
@@ -114,7 +114,7 @@ export default function VenueDetail() {
     );
   }
 
-  const galleryImages = Array.isArray(venue.imageUrls) && venue.imageUrls.length > 0 ? venue.imageUrls : [];
+  const galleryImages = Array.isArray(venue.images) && venue.images.length > 0 ? venue.images : [];
   const amenities = Array.isArray(venue.amenities) && venue.amenities.length > 0 ? venue.amenities : dummyAmenities;
   const mapSrc = `https://maps.google.com/maps?q=${encodeURIComponent(venue.address || `${venue.city}, ${venue.state}`)}&output=embed`;
 

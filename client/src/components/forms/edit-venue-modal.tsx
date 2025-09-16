@@ -21,7 +21,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [address, setAddress] = useState("");
-  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -30,7 +30,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
       setName(venue.name || "");
       setDescription(venue.description || "");
       setAddress(venue.address || "");
-      setImageUrls(Array.isArray(venue.imageUrls) ? venue.imageUrls : []);
+      setImages(Array.isArray(venue.images) ? venue.images : []);
     }
   }, [venue, open]);
 
@@ -67,7 +67,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
       }
     }
 
-    setImageUrls(prev => [...prev, ...uploadedUrls]);
+    setImages(prev => [...prev, ...uploadedUrls]);
     setUploading(false);
     if (uploadedUrls.length > 0) {
       toast({ title: "Images uploaded successfully!" });
@@ -75,12 +75,12 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
   };
   
   const handleRemoveImage = (urlToRemove: string) => {
-    setImageUrls(prev => prev.filter(url => url !== urlToRemove));
+    setImages(prev => prev.filter(url => url !== urlToRemove));
   };
 
   const updateVenue = useMutation({
     mutationFn: async (data: any) => {
-      const payload = { ...data, imageUrls: imageUrls, imageUrl: imageUrls[0] || "" };
+      const payload = { ...data, images: images };
       if (venue?.id) {
         return await apiRequest("PATCH", `/api/venues/${venue.id}`, payload);
       } else {
@@ -98,13 +98,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
   });
 
   const handleSave = () => {
-    updateVenue.mutate({
-      name,
-      description,
-      address,
-      imageUrls,
-      imageUrl: imageUrls[0] || "",
-    });
+    updateVenue.mutate({ name, description, address });
   };
 
   return (
@@ -146,7 +140,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
           <div>
             <Label>Venue Images</Label>
             <div className="mt-1 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
-              {imageUrls.map(url => (
+              {images.map(url => (
                 <div key={url} className="relative group">
                   <img src={url} alt="Venue" className="w-full h-24 object-cover rounded-md" />
                   <button

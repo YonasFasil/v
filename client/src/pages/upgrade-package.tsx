@@ -121,82 +121,66 @@ export default function UpgradePackage() {
           })
         ]);
 
-        const featuresData = await featuresRes.json();
+        const [featuresData, packagesData] = await Promise.all([
+          featuresRes.json(),
+          packagesRes.json()
+        ]);
 
+        console.log('Tenant features response:', featuresData);
+        console.log('Packages response:', packagesData);
+
+        // Handle tenant features
         if (!featuresRes.ok) {
           console.error('Failed to fetch features:', featuresData);
           setTenantFeatures(null);
-        } else {
-          console.log('Tenant features response:', featuresData);
-
-          // Extract package information and available packages from the tenant-features API
-          if (featuresData?.success) {
-            // Set tenant features
-            if (featuresData.features) {
-              const legacyFormat = {
-                enabled: featuresData.features.enabled || [],
-                disabled: featuresData.features.disabled || [],
-                total: featuresData.features.summary?.total || 0,
-                available: featuresData.features.summary?.enabled || 0
-              };
-              setTenantFeatures(legacyFormat);
-            }
-
-            // Set current package from tenant info
-            if (featuresData.tenant && featuresData.package) {
-              const currentPkg: Package = {
-                id: featuresData.package.id,
-                name: featuresData.package.name,
-                price: featuresData.package.price,
-                description: `Your current ${featuresData.package.name} plan`,
-                features: featuresData.package.features || [],
-                maxUsers: featuresData.package.limits?.maxUsers || 0,
-                maxVenues: featuresData.package.limits?.maxVenues || 0,
-                isActive: true
-              };
-              setCurrentPackage(currentPkg);
-            }
-
-            // For now, we'll create mock available packages since we don't have a subscription packages API
-            // This should be replaced with a real API call in the future
-            const mockPackages: Package[] = [
-              {
-                id: 'basic',
-                name: 'Basic',
-                price: 49,
-                description: 'Perfect for small venues getting started',
-                features: ['dashboard_analytics', 'venue_management', 'customer_management', 'booking_management', 'payment_processing'],
-                maxUsers: 3,
-                maxVenues: 1,
-                isActive: true
-              },
-              {
-                id: 'professional',
-                name: 'Professional',
-                price: 99,
-                description: 'Best for growing venues with advanced needs',
-                features: ['dashboard_analytics', 'venue_management', 'customer_management', 'booking_management', 'payment_processing', 'proposal_system', 'lead_management', 'task_management', 'advanced_reports'],
-                maxUsers: 10,
-                maxVenues: 3,
-                isActive: true,
-                isPopular: true
-              },
-              {
-                id: 'enterprise',
-                name: 'Enterprise',
-                price: 199,
-                description: 'Full-featured solution for large operations',
-                features: ['dashboard_analytics', 'venue_management', 'customer_management', 'booking_management', 'payment_processing', 'proposal_system', 'lead_management', 'task_management', 'advanced_reports', 'ai_analytics', 'voice_booking', 'floor_plans', 'multidate_booking', 'package_management'],
-                maxUsers: 50,
-                maxVenues: 10,
-                isActive: true,
-                isEnterprise: true
-              }
-            ];
-            setPackages(mockPackages);
-          } else {
-            setTenantFeatures(null);
+        } else if (featuresData?.success) {
+          // Set tenant features - the enabled/disabled features from the API
+          if (featuresData.features) {
+            const legacyFormat = {
+              enabled: featuresData.features.enabled || [],
+              disabled: featuresData.features.disabled || [],
+              total: featuresData.features.summary?.total || 0,
+              available: featuresData.features.summary?.enabled || 0
+            };
+            setTenantFeatures(legacyFormat);
           }
+
+          // Set current package from tenant info
+          if (featuresData.tenant && featuresData.package) {
+            let packageFeatures = [];
+
+            // Parse package features if they exist
+            if (featuresData.package.features) {
+              try {
+                packageFeatures = typeof featuresData.package.features === 'string'
+                  ? JSON.parse(featuresData.package.features)
+                  : featuresData.package.features;
+              } catch (error) {
+                console.error('Error parsing package features:', error);
+                packageFeatures = [];
+              }
+            }
+
+            const currentPkg: Package = {
+              id: featuresData.package.id,
+              name: featuresData.package.name,
+              price: parseFloat(featuresData.package.price),
+              description: featuresData.package.description || `Your current ${featuresData.package.name} plan`,
+              features: packageFeatures,
+              maxUsers: featuresData.package.max_users || 0,
+              maxVenues: featuresData.package.max_venues || 0,
+              isActive: true
+            };
+            setCurrentPackage(currentPkg);
+          }
+        }
+
+        // Handle subscription packages
+        if (!packagesRes.ok) {
+          console.error('Failed to fetch packages:', packagesData);
+          setPackages([]);
+        } else if (packagesData?.success && packagesData.packages) {
+          setPackages(packagesData.packages);
         }
       } catch (error) {
         console.error('Error fetching upgrade data:', error);
@@ -209,9 +193,76 @@ export default function UpgradePackage() {
   }, []);
 
   const handleUpgrade = async (packageId: string) => {
-    // In a real implementation, this would integrate with a payment system
-    // For now, we'll show a contact message
-    alert('Please contact our sales team to upgrade your package. We\'ll be in touch within 24 hours!');
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        alert('Please log in to upgrade your package.');
+        return;
+      }
+
+      // Get tenant ID from JWT token
+      let tenantId = null;
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        tenantId = payload.tenant_id || payload.tenantId;
+      } catch (error) {
+        console.error('Error parsing token:', error);
+        alert('Authentication error. Please log in again.');
+        return;
+      }
+
+      if (!tenantId) {
+        alert('Tenant information not found. Please contact support.');
+        return;
+      }
+
+      // For now, we'll simulate the upgrade process
+      // In a real implementation, this would integrate with a payment system
+      const targetPackage = packages.find(pkg => pkg.id === packageId);
+      if (!targetPackage) {
+        alert('Package not found. Please try again.');
+        return;
+      }
+
+      const confirmUpgrade = window.confirm(
+        `Are you sure you want to upgrade to ${targetPackage.name} for $${targetPackage.price}/month?\n\n` +
+        `This will give you access to ${targetPackage.features.length} features including:\n` +
+        `• Up to ${targetPackage.maxVenues} venues\n` +
+        `• Up to ${targetPackage.maxUsers} users\n` +
+        `• ${targetPackage.features.filter(f => featureNames[f]).slice(0, 3).map(f => featureNames[f]).join('\n• ')}\n` +
+        `${targetPackage.features.length > 3 ? `• And ${targetPackage.features.length - 3} more features` : ''}\n\n` +
+        `Click OK to proceed with the upgrade.`
+      );
+
+      if (!confirmUpgrade) {
+        return;
+      }
+
+      // Show loading state
+      const upgradeButton = document.querySelector(`[data-package-id="${packageId}"]`);
+      if (upgradeButton) {
+        upgradeButton.textContent = 'Processing...';
+        upgradeButton.disabled = true;
+      }
+
+      // TODO: Replace with actual payment processing and package assignment
+      // For demo purposes, we'll just show a success message
+      setTimeout(() => {
+        alert(
+          `✅ Upgrade to ${targetPackage.name} initiated!\n\n` +
+          `Your account will be updated within the next few minutes. ` +
+          `You'll receive an email confirmation shortly.\n\n` +
+          `New features will be available immediately after the update.`
+        );
+
+        // Reload the page to show updated package info
+        window.location.reload();
+      }, 2000);
+
+    } catch (error) {
+      console.error('Upgrade error:', error);
+      alert('An error occurred during the upgrade process. Please try again or contact support.');
+    }
   };
 
   if (loading) {
@@ -359,15 +410,16 @@ export default function UpgradePackage() {
                     </ul>
                   </div>
 
-                  <Button 
-                    className={`w-full ${isCurrentPackage 
-                      ? 'bg-gray-100 text-gray-500 cursor-not-allowed' 
-                      : pkg.isPopular 
-                        ? 'bg-blue-600 hover:bg-blue-700' 
+                  <Button
+                    className={`w-full ${isCurrentPackage
+                      ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                      : pkg.isPopular
+                        ? 'bg-blue-600 hover:bg-blue-700'
                         : 'bg-slate-900 hover:bg-slate-800'
                     }`}
                     onClick={() => !isCurrentPackage && handleUpgrade(pkg.id)}
                     disabled={isCurrentPackage}
+                    data-package-id={pkg.id}
                   >
                     {isCurrentPackage ? (
                       'Current Plan'

@@ -29,8 +29,7 @@ export const venues = pgTable("venues", {
   name: text("name").notNull(),
   description: text("description"),
   amenities: text("amenities").array(),
-  imageUrl: text("image_url"),
-  imageUrls: text("image_urls").array(),
+  images: jsonb("images"),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -57,8 +56,7 @@ export const spaces = pgTable("spaces", {
   capacity: integer("capacity").notNull(),
   pricePerHour: decimal("price_per_hour", { precision: 10, scale: 2 }),
   amenities: text("amenities").array(),
-  imageUrl: text("image_url"),
-  imageUrls: text("image_urls").array(),
+  images: jsonb("images"),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });

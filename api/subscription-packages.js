@@ -1,6 +1,11 @@
-const pool = require('./db-config.js');
+const { Pool } = require('pg');
+const { getDatabaseUrl } = require('./db-config.js');
 
 module.exports = async function handler(req, res) {
+  const pool = new Pool({
+    connectionString: getDatabaseUrl()
+  });
+
   try {
     console.log('📦 Subscription packages API called');
 
@@ -70,5 +75,7 @@ module.exports = async function handler(req, res) {
       error: 'Failed to fetch subscription packages',
       details: error.message
     });
+  } finally {
+    await pool.end();
   }
 };
