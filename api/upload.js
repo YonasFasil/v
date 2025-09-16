@@ -11,6 +11,7 @@ module.exports = async (request, response) => {
   try {
     const blob = await put(filename, request, {
       access: 'public',
+      addRandomSuffix: true, // This is the definitive fix
     });
 
     return response.status(200).json(blob);
