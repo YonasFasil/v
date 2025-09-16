@@ -29,13 +29,14 @@ const navigationItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, permission: "dashboard" },
   { name: "Events & Bookings", href: "/events", icon: Calendar, permission: "bookings" },  // No feature required - it's default now
   { name: "Customers", href: "/customers", icon: Users, permission: "customers" },
-  { name: "Leads", href: "/leads", icon: UserPlus, permission: "customers", feature: "leads_management" },
+  { name: "Leads", href: "/leads", icon: UserPlus, permission: "leads", feature: "lead_management" },
   { name: "Proposals", href: "/proposals", icon: FileText, permission: "proposals", feature: "proposal_system" },
   { name: "Payments", href: "/payments", icon: CreditCard, permission: "payments" },
   { name: "Tasks & Team", href: "/tasks", icon: CheckSquare, permission: "tasks", feature: "task_management" },
   { name: "Venues", href: "/venues", icon: MapPin, permission: "venues" },
   { name: "Setup Styles", href: "/setup-styles", icon: Grid3X3, permission: "venues", feature: "floor_plans" },
-  { name: "Packages & Services", href: "/packages", icon: Package, permission: "venues" },
+  { name: "Services", href: "/services", icon: Package, permission: "services" },
+  { name: "Packages & Services", href: "/packages", icon: Package, permission: "packages", feature: "package_management" },
 ];
 
 const aiFeatures = [
@@ -44,7 +45,7 @@ const aiFeatures = [
 ];
 
 const analyticsItems = [
-  { name: "Reports & Analytics", href: "/reports", icon: BarChart3, permission: "settings", feature: "advanced_reports" },
+  { name: "Reports & Analytics", href: "/reports", icon: BarChart3, permission: "reports", feature: "advanced_reports" },
   { name: "Settings", href: "/settings", icon: Settings, permission: "settings" },
 ];
 
