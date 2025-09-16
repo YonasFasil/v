@@ -14,6 +14,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useFormattedCurrency } from "@/lib/currency";
+import { usePermissions } from "@/hooks/usePermissions";
 import { type EventStatus, getStatusConfig } from "@shared/status-utils";
 
 interface Props {
@@ -48,6 +49,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { formatAmount } = useFormattedCurrency();
+  const { hasFeature } = usePermissions();
   
   // Step management
   const [currentStep, setCurrentStep] = useState(1);
@@ -774,6 +776,20 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
         toast({
           title: "❌ Cannot Select Past Date",
           description: "Past dates cannot be selected for new events. Please choose today or a future date.",
+          variant: "destructive",
+          duration: 5000
+        });
+        return;
+      }
+
+      // Check if multidate booking feature is available
+      const hasMultidateFeature = hasFeature('multidate_booking');
+      console.log('🔒 Multidate feature available:', hasMultidateFeature);
+
+      if (selectedDates.length >= 1 && !hasMultidateFeature) {
+        toast({
+          title: "❌ Multiple Dates Not Available",
+          description: "Multi-date booking is not available with your current package. Please upgrade to unlock this feature.",
           variant: "destructive",
           duration: 5000
         });
