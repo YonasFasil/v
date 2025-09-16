@@ -36,10 +36,17 @@ interface Space {
   capacity: number;
 }
 
+const placeholderImages = [
+  "https://d38vbdphfqlqtrad.public.blob.vercel-storage.com/test/Bella%2BCollina%2BWedding%2BPhotos%2B-%2BOrlando%2BFlorida%2BWedding%2BVenue-%2BFlorida%2BWedding%2BPhotographer-%2BMichelle%2BGonzalez%2BPhotography-107.webp",
+  "https://d38vbdphfqlqtrad.public.blob.vercel-storage.com/test/ault-park-pavilion-outdoor-wedding.webp",
+  "https://d38vbdphfqlqtrad.public.blob.vercel-storage.com/test/istockphoto-175559502-612x612.jpg",
+  "https://d38vbdphfqlqtrad.public.blob.vercel-storage.com/test/istockphoto-471906412-612x612.jpg",
+  "https://d38vbdphfqlqtrad.public.blob.vercel-storage.com/test/miami-wedding-photographer-jessica-vilchez-5251-scaled.jpg"
+];
+
 const getPlaceholderImage = (id: string, index: number) => {
-  const imageKeywords = ["event-space", "modern-office", "wedding-hall", "conference-center", "art-gallery", "rooftop-lounge"];
-  const keyword = imageKeywords[index % imageKeywords.length];
-  return `https://source.unsplash.com/seeded/${id}-${index}/1600x900/?${keyword}`;
+  const i = (id.charCodeAt(0) + index) % placeholderImages.length;
+  return placeholderImages[i];
 };
 
 const AmenityIcon = ({ amenity }: { amenity: string }) => {
