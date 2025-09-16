@@ -120,7 +120,7 @@ export default function VenueDetail() {
 
   const galleryImages = Array.isArray(venue.image_urls) && venue.image_urls.length > 0 
     ? venue.image_urls 
-    : [getPlaceholderImage(venue.id, 0), getPlaceholderImage(venue.id, 1), getPlaceholderImage(venue.id, 2), getPlaceholderImage(venue.id, 3), getPlaceholderImage(venue.id, 4)];
+    : (venue.id ? [getPlaceholderImage(venue.id, 0), getPlaceholderImage(venue.id, 1), getPlaceholderImage(venue.id, 2), getPlaceholderImage(venue.id, 3), getPlaceholderImage(venue.id, 4)] : []);
 
   const amenities = Array.isArray(venue.amenities) && venue.amenities.length > 0 ? venue.amenities : dummyAmenities;
 
