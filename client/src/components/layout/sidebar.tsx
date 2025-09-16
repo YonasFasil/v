@@ -27,9 +27,7 @@ import {
 
 const navigationItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, permission: "dashboard" },
-  { name: "Calendar View", href: "/calendar", icon: Calendar, permission: "calendar", feature: "calendar_view" },
   { name: "Events & Bookings", href: "/events", icon: Calendar, permission: "bookings" },
-  { name: "Multi-date Bookings", href: "/multidate-bookings", icon: Calendar, permission: "multidate-booking", feature: "multidate_booking" },
   { name: "Customers", href: "/customers", icon: Users, permission: "customers" },
   { name: "Leads", href: "/leads", icon: UserPlus, permission: "leads", feature: "lead_management" },
   { name: "Proposals", href: "/proposals", icon: FileText, permission: "proposals", feature: "proposal_system" },
@@ -37,7 +35,6 @@ const navigationItems = [
   { name: "Tasks & Team", href: "/tasks", icon: CheckSquare, permission: "tasks", feature: "task_management" },
   { name: "Venues", href: "/venues", icon: MapPin, permission: "venues" },
   { name: "Setup Styles", href: "/setup-styles", icon: Grid3X3, permission: "floor-plans", feature: "floor_plans" },
-  { name: "Services", href: "/services", icon: Package, permission: "services" },
   { name: "Packages & Services", href: "/packages", icon: Package, permission: "packages", feature: "package_management" },
 ];
 
