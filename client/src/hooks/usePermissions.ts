@@ -10,17 +10,47 @@ interface User {
   permissions?: string[];
 }
 
-interface TenantFeatures {
-  enabled: Array<{id: string, name: string, enabled: boolean}>;
-  disabled: Array<{id: string, name: string, enabled: boolean}>;
-  total: number;
-  available: number;
+interface Feature {
+  id: string;
+  name: string;
+  description: string;
+  category: 'core' | 'premium';
+  enabled: boolean;
+}
+
+interface TenantFeaturesResponse {
+  success: boolean;
+  tenant: {
+    id: string;
+    name: string;
+    subscriptionPackageId: string;
+  };
+  package: {
+    id: string;
+    name: string;
+    price: number;
+    features: string[];
+  };
+  features: {
+    all: Feature[];
+    byCategory: {
+      core: Feature[];
+      premium: Feature[];
+    };
+    enabled: Feature[];
+    disabled: Feature[];
+    summary: {
+      enabled: number;
+      total: number;
+      percentage: number;
+    };
+  };
 }
 
 export function usePermissions() {
   const [user, setUser] = useState<User | null>(null);
   const [permissions, setPermissions] = useState<string[]>([]);
-  const [tenantFeatures, setTenantFeatures] = useState<TenantFeatures | null>(null);
+  const [tenantFeatures, setTenantFeatures] = useState<Feature[] | null>(null);
 
   useEffect(() => {
     console.log('[PERMISSIONS] usePermissions hook starting...');
@@ -38,13 +68,13 @@ export function usePermissions() {
           permissions: payload.permissions || []
         };
         setUser(userData);
-        
+
         console.log('[PERMISSIONS] User data from token:', userData);
         console.log('[PERMISSIONS] Raw permissions from token:', userData.permissions);
-        
+
         // Set permissions based on role and explicit permissions
         let rawPermissions = userData.permissions || [];
-        
+
         // Map detailed permissions to simple sidebar permissions
         const detailedToSimpleMap: Record<string, string[]> = {
           'view_dashboard': ['dashboard'],
@@ -73,10 +103,10 @@ export function usePermissions() {
           'payments': ['payments'],
           'settings': ['settings']
         };
-        
+
         // Convert detailed permissions to simple permissions for sidebar
         let userPermissions: string[] = [];
-        
+
         if (userData.role === 'super_admin') {
           userPermissions = ['dashboard', 'users', 'venues', 'bookings', 'customers', 'proposals', 'tasks', 'payments', 'settings'];
         }
@@ -94,9 +124,9 @@ export function usePermissions() {
           });
           userPermissions = Array.from(simplePermissionsSet);
         }
-        
+
         console.log('[PERMISSIONS] Final permissions assigned:', userPermissions);
-        
+
         setPermissions(userPermissions);
       } catch (error) {
         console.error('Error decoding token:', error);
@@ -111,7 +141,7 @@ export function usePermissions() {
   }, []);
 
   // Use React Query to fetch tenant features with caching
-  const { data: tenantFeaturesData, isLoading: isFeaturesLoading } = useQuery({
+  const { data: tenantFeaturesData, isLoading: isFeaturesLoading, error: featuresError } = useQuery<TenantFeaturesResponse>({
     queryKey: ['/api/tenant-features'],
     queryFn: () => apiRequest('/api/tenant-features'),
     enabled: !!(user && user.role !== 'super_admin'),
@@ -123,8 +153,13 @@ export function usePermissions() {
 
   // Update tenant features and permissions when data changes
   useEffect(() => {
-    if (tenantFeaturesData?.features) {
-      setTenantFeatures(tenantFeaturesData.features);
+    console.log('[PERMISSIONS] Features data received:', tenantFeaturesData);
+
+    if (tenantFeaturesData?.success && tenantFeaturesData.features) {
+      const allFeatures = tenantFeaturesData.features.all;
+      setTenantFeatures(allFeatures);
+
+      console.log('[PERMISSIONS] Setting tenant features:', allFeatures);
 
       // Update permissions based on available features (only for tenant_admin)
       if (user?.role === 'tenant_admin') {
@@ -132,8 +167,10 @@ export function usePermissions() {
         let featureBasedPermissions = [...basePermissions];
 
         // Map features to additional permissions
-        const enabledFeatureIds = tenantFeaturesData.features.enabled.map((f: any) => f.id);
-        
+        const enabledFeatureIds = tenantFeaturesData.features.enabled.map((f: Feature) => f.id);
+
+        console.log('[PERMISSIONS] Enabled feature IDs:', enabledFeatureIds);
+
         if (enabledFeatureIds.includes('proposal_system')) {
           featureBasedPermissions.push('proposals');
         }
@@ -142,12 +179,14 @@ export function usePermissions() {
         }
         // voice_booking and ai_analytics don't need separate permissions
         // they're handled by the existing 'settings' or 'bookings' permissions
-        
+
         console.log('[PERMISSIONS] Feature-based permissions:', featureBasedPermissions);
         setPermissions(featureBasedPermissions);
       }
+    } else if (featuresError) {
+      console.error('[PERMISSIONS] Error fetching features:', featuresError);
     }
-  }, [tenantFeaturesData, user]);
+  }, [tenantFeaturesData, user, featuresError]);
 
   const hasPermission = (permission: string): boolean => {
     return permissions.includes(permission);
@@ -155,7 +194,7 @@ export function usePermissions() {
 
   const hasFeature = (featureId: string): boolean => {
     if (!tenantFeatures) return false;
-    return tenantFeatures.enabled.some(f => f.id === featureId);
+    return tenantFeatures.some(f => f.id === featureId && f.enabled);
   };
 
   const hasAnyPermission = (permissionList: string[]): boolean => {
@@ -174,17 +213,38 @@ export function usePermissions() {
     return hasPermission(`view_${resource}`) || hasPermission(`manage_${resource}`);
   };
 
+  const getEnabledFeatures = (): Feature[] => {
+    return tenantFeatures?.filter(f => f.enabled) || [];
+  };
+
+  const getDisabledFeatures = (): Feature[] => {
+    return tenantFeatures?.filter(f => !f.enabled) || [];
+  };
+
+  const getCoreFeatures = (): Feature[] => {
+    return tenantFeatures?.filter(f => f.category === 'core') || [];
+  };
+
+  const getPremiumFeatures = (): Feature[] => {
+    return tenantFeatures?.filter(f => f.category === 'premium') || [];
+  };
+
   return {
     user,
     permissions,
     tenantFeatures,
     loading: isFeaturesLoading && user && user.role !== 'super_admin',
+    error: featuresError,
     hasPermission,
     hasFeature,
     hasAnyPermission,
     hasAllPermissions,
     canManage,
     canView,
+    getEnabledFeatures,
+    getDisabledFeatures,
+    getCoreFeatures,
+    getPremiumFeatures,
     isAdmin: user?.role === 'tenant_admin' || user?.role === 'super_admin',
     isSuperAdmin: user?.role === 'super_admin',
     isTenantAdmin: user?.role === 'tenant_admin',

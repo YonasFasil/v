@@ -111,7 +111,18 @@ export default function UpgradePackage() {
           console.error('Failed to fetch features:', featuresData);
           setTenantFeatures(null);
         } else {
-          setTenantFeatures(featuresData?.features || null);
+          // Convert new API format to legacy format for compatibility
+          if (featuresData?.success && featuresData.features) {
+            const legacyFormat = {
+              enabled: featuresData.features.enabled || [],
+              disabled: featuresData.features.disabled || [],
+              total: featuresData.features.summary?.total || 0,
+              available: featuresData.features.summary?.enabled || 0
+            };
+            setTenantFeatures(legacyFormat);
+          } else {
+            setTenantFeatures(null);
+          }
         }
 
         // Find current package
