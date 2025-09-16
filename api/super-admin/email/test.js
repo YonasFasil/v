@@ -1,7 +1,7 @@
-import { gmailService } from "../../services/gmail";
-import { storage } from "../../storage";
+const { gmailService } = require('../../../server/services/gmail');
+const { storage } = require('../../../server/storage');
 
-export default async function handler(req: any, res: any) {
+module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
@@ -29,8 +29,8 @@ export default async function handler(req: any, res: any) {
     });
 
     res.status(200).json({ message: "Test email sent successfully" });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Test email error:", error);
     res.status(500).json({ message: "Failed to send test email", error: error.message });
   }
-}
+};
