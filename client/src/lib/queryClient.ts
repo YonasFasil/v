@@ -114,14 +114,14 @@ export const queryClient = new QueryClient({
 // Utility function to clear tenant-specific cache when switching tenants
 export function clearTenantCache() {
   console.log("🔥 CLEARING TENANT CACHE - Removing all cached data to prevent cross-tenant contamination");
-  
+
   // Clear all queries to prevent cross-tenant data contamination
   queryClient.clear();
-  
+
   // Also clear any specific tenant-related queries including analytics
   const tenantQueries = [
     '/api/bookings',
-    '/api/customers', 
+    '/api/customers',
     '/api/customers/analytics', // Critical: Clear customer analytics cache
     '/api/companies',
     '/api/venues',
@@ -138,13 +138,31 @@ export function clearTenantCache() {
     '/api/dashboard/metrics',
     '/api/reports',
     '/api/users',
-    '/api/calendar/events' // Add calendar endpoints to tenant cache clearing
+    '/api/calendar/events', // Add calendar endpoints to tenant cache clearing
+    '/api/tenant-features' // Critical: Clear tenant features cache after package upgrades
   ];
-  
+
   tenantQueries.forEach(queryKey => {
     queryClient.removeQueries({ queryKey: [queryKey] });
     queryClient.invalidateQueries({ queryKey: [queryKey] });
   });
-  
+
   console.log("✅ Tenant cache cleared successfully");
+}
+
+// Utility function to invalidate tenant features after package upgrade
+export function invalidateTenantFeatures(tenantId?: string) {
+  console.log("🔄 INVALIDATING TENANT FEATURES - Clearing features cache after package upgrade");
+
+  // Clear tenant features cache specifically
+  queryClient.removeQueries({ queryKey: ['/api/tenant-features'] });
+  queryClient.invalidateQueries({ queryKey: ['/api/tenant-features'] });
+
+  // If tenant ID is provided, also clear tenant-specific queries
+  if (tenantId) {
+    queryClient.removeQueries({ queryKey: ['/api/tenant-features', tenantId] });
+    queryClient.invalidateQueries({ queryKey: ['/api/tenant-features', tenantId] });
+  }
+
+  console.log("✅ Tenant features cache invalidated successfully");
 }

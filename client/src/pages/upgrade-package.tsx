@@ -4,6 +4,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { invalidateTenantFeatures } from '@/lib/queryClient';
 import {
   Check,
   Zap,
@@ -216,8 +217,6 @@ export default function UpgradePackage() {
         return;
       }
 
-      // For now, we'll simulate the upgrade process
-      // In a real implementation, this would integrate with a payment system
       const targetPackage = packages.find(pkg => pkg.id === packageId);
       if (!targetPackage) {
         alert('Package not found. Please try again.');
@@ -239,25 +238,59 @@ export default function UpgradePackage() {
       }
 
       // Show loading state
-      const upgradeButton = document.querySelector(`[data-package-id="${packageId}"]`);
+      const upgradeButton = document.querySelector(`[data-package-id="${packageId}"]`) as HTMLButtonElement;
+      const originalText = upgradeButton?.textContent;
       if (upgradeButton) {
         upgradeButton.textContent = 'Processing...';
         upgradeButton.disabled = true;
       }
 
-      // TODO: Replace with actual payment processing and package assignment
-      // For demo purposes, we'll just show a success message
-      setTimeout(() => {
+      try {
+        // Call the actual upgrade API
+        const upgradeResponse = await fetch('/api/upgrade-package', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            packageId: packageId,
+            tenantId: tenantId
+          })
+        });
+
+        const upgradeResult = await upgradeResponse.json();
+
+        if (!upgradeResponse.ok || !upgradeResult.success) {
+          throw new Error(upgradeResult.error || 'Upgrade failed');
+        }
+
+        // Show success message
         alert(
-          `✅ Upgrade to ${targetPackage.name} initiated!\n\n` +
-          `Your account will be updated within the next few minutes. ` +
-          `You'll receive an email confirmation shortly.\n\n` +
-          `New features will be available immediately after the update.`
+          `✅ Successfully upgraded to ${upgradeResult.package.name}!\n\n` +
+          `Your account has been updated immediately. ` +
+          `You now have access to all features in your new package.\n\n` +
+          `The page will refresh to show your updated features.`
         );
 
-        // Reload the page to show updated package info
-        window.location.reload();
-      }, 2000);
+        // Invalidate tenant features cache before reloading to ensure fresh data
+        invalidateTenantFeatures(tenantId);
+
+        // Small delay to allow cache invalidation to complete, then reload
+        setTimeout(() => {
+          window.location.reload();
+        }, 100);
+
+      } catch (upgradeError) {
+        console.error('Upgrade API error:', upgradeError);
+        alert(`❌ Upgrade failed: ${upgradeError.message}\n\nPlease try again or contact support if the problem persists.`);
+
+        // Reset button state
+        if (upgradeButton) {
+          upgradeButton.textContent = originalText || 'Upgrade Now';
+          upgradeButton.disabled = false;
+        }
+      }
 
     } catch (error) {
       console.error('Upgrade error:', error);
