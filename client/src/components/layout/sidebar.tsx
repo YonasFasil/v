@@ -129,7 +129,8 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
             const Icon = item.icon;
             const active = isActive(item.href);
 
-            // Dynamic name for packages/services based on package_management feature
+            // Dynamic name for services based on package_management feature
+            // Service management is always available, but package management is a feature
             let displayName = item.name;
             if (item.name === "Services" && item.href === "/packages") {
               displayName = hasFeature('package_management') ? "Packages & Services" : "Services";
