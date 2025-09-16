@@ -11,7 +11,7 @@ import {
   Mail, 
   CreditCard, 
   Save, 
-  Send,
+  TestTube,
   Check,
   AlertCircle
 } from "lucide-react";
@@ -34,7 +34,7 @@ interface EmailConfig {
 export default function SuperAdminSettings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("email");
+  const [activeTab, setActiveTab] = useState("stripe");
 
   // Fetch current configuration
   const { data: config, isLoading } = useQuery<SuperAdminConfig>({
@@ -64,7 +64,7 @@ export default function SuperAdminSettings() {
   const updateConfigMutation = useMutation({
     mutationFn: async (data: { type: 'stripe' | 'email', config: any }) => {
       return apiRequest(`/api/super-admin/config/${data.type}`, {
-        method: 'POST',
+        method: data.type === 'email' ? 'POST' : 'PUT',
         body: JSON.stringify(data.config),
       });
     },
@@ -79,7 +79,8 @@ export default function SuperAdminSettings() {
         queryClient.invalidateQueries({ queryKey: ["/api/super-admin/config"] });
       }
     },
-    onError: (error: any) => {
+    onError: (error: any, variables) => {
+      console.error('Configuration update error:', error, 'Variables:', variables);
       toast({
         title: "Error",
         description: error.message || "Failed to update configuration.",
@@ -90,10 +91,9 @@ export default function SuperAdminSettings() {
 
   // Test email configuration mutation
   const testEmailMutation = useMutation({
-    mutationFn: async (testEmail: string) => {
-      return apiRequest("/api/super-admin/email/test", {
+    mutationFn: async () => {
+      return apiRequest("/api/super-admin/config/email/test", {
         method: "POST",
-        body: JSON.stringify({ testEmail }),
       });
     },
     onSuccess: () => {
@@ -111,6 +111,18 @@ export default function SuperAdminSettings() {
     },
   });
 
+  const handleStripeSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const stripeConfig = {
+      secretKey: formData.get("secretKey") as string,
+      publishableKey: formData.get("publishableKey") as string,
+      webhookSecret: formData.get("webhookSecret") as string,
+    };
+    
+    updateConfigMutation.mutate({ type: 'stripe', config: stripeConfig });
+  };
+
   const handleEmailSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -121,14 +133,27 @@ export default function SuperAdminSettings() {
       enabled: formData.get("enabled") === "on",
     };
 
-    updateConfigMutation.mutate({ type: 'email', config: emailConfigData });
-  };
-  
-  const handleTestEmail = () => {
-    const testEmail = prompt("Enter the email address to send a test email to:");
-    if (testEmail) {
-      testEmailMutation.mutate(testEmail);
+    // Validate required fields
+    if (!emailConfigData.email) {
+      toast({
+        title: "Validation Error",
+        description: "Email address is required",
+        variant: "destructive"
+      });
+      return;
     }
+
+    if (emailConfigData.enabled && !emailConfigData.password) {
+      toast({
+        title: "Validation Error",
+        description: "App password is required when email service is enabled",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    console.log('Submitting email config:', emailConfigData);
+    updateConfigMutation.mutate({ type: 'email', config: emailConfigData });
   };
 
   if (isLoading) {
@@ -154,6 +179,76 @@ export default function SuperAdminSettings() {
           </TabsTrigger>
         </TabsList>
 
+        <TabsContent value="stripe" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="w-5 h-5" />
+                Stripe Configuration
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Configure Stripe for tenant subscription billing and payments
+              </p>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleStripeSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="secretKey">Secret Key</Label>
+                  <Input
+                    id="secretKey"
+                    name="secretKey"
+                    type="password"
+                    placeholder="sk_live_..."
+                    defaultValue={config?.stripe?.secretKey}
+                    className="font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Your Stripe secret key (starts with sk_live_ or sk_test_)
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="publishableKey">Publishable Key</Label>
+                  <Input
+                    id="publishableKey"
+                    name="publishableKey"
+                    placeholder="pk_live_..."
+                    defaultValue={config?.stripe?.publishableKey}
+                    className="font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Your Stripe publishable key (starts with pk_live_ or pk_test_)
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="webhookSecret">Webhook Secret</Label>
+                  <Input
+                    id="webhookSecret"
+                    name="webhookSecret"
+                    type="password"
+                    placeholder="whsec_..."
+                    defaultValue={config?.stripe?.webhookSecret}
+                    className="font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Your Stripe webhook endpoint secret for secure webhook verification
+                  </p>
+                </div>
+
+                <Button 
+                  type="submit" 
+                  disabled={updateConfigMutation.isPending}
+                  className="w-full"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  {updateConfigMutation.isPending ? "Saving..." : "Save Stripe Configuration"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="email" className="space-y-4">
           <Card>
             <CardHeader>
@@ -177,7 +272,7 @@ export default function SuperAdminSettings() {
                         id="enabled"
                         name="enabled"
                         defaultChecked={emailConfig?.enabled}
-                        className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       />
                       <Label htmlFor="enabled" className="text-sm font-medium">
                         Enable Email Service
@@ -194,6 +289,9 @@ export default function SuperAdminSettings() {
                         defaultValue={emailConfig?.email}
                         required
                       />
+                      <p className="text-xs text-muted-foreground">
+                        This will be used as the "from" address for all emails
+                      </p>
                     </div>
 
                     <div className="space-y-2">
@@ -205,6 +303,11 @@ export default function SuperAdminSettings() {
                         placeholder={emailConfig?.password ? "••••••••" : "Enter Gmail app password"}
                         defaultValue=""
                       />
+                      <div className="text-xs text-muted-foreground space-y-1">
+                        <p>• You must use a Gmail App Password, not your regular password</p>
+                        <p>• Go to Google Account → Security → 2-Step Verification → App passwords</p>
+                        <p>• Generate a new app password and paste it here</p>
+                      </div>
                     </div>
                   </div>
 
@@ -212,24 +315,64 @@ export default function SuperAdminSettings() {
                     <Button
                       type="submit"
                       disabled={updateConfigMutation.isPending}
-                      className="flex-1 bg-purple-600 hover:bg-purple-700"
+                      className="flex-1"
                     >
                       <Save className="w-4 h-4 mr-2" />
-                      {updateConfigMutation.isPending ? "Saving..." : "Save Configuration"}
+                      {updateConfigMutation.isPending ? "Saving..." : "Save Gmail Configuration"}
                     </Button>
 
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={handleTestEmail}
+                      onClick={() => testEmailMutation.mutate()}
                       disabled={testEmailMutation.isPending || !emailConfig?.enabled}
                     >
-                      <Send className="w-4 h-4 mr-2" />
-                      {testEmailMutation.isPending ? "Sending..." : "Send Test Email"}
+                      <TestTube className="w-4 h-4 mr-2" />
+                      {testEmailMutation.isPending ? "Testing..." : "Test Email"}
                     </Button>
                   </div>
+
+                  {emailConfig?.enabled && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                      <div className="flex items-center gap-2 text-green-800">
+                        <Check className="w-4 h-4" />
+                        <span className="text-sm font-medium">Email service is enabled</span>
+                      </div>
+                      <p className="text-xs text-green-700 mt-1">
+                        Customer verification emails will be sent automatically
+                      </p>
+                    </div>
+                  )}
                 </form>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Email Usage Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 text-sm">
+                <div className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-green-600 mt-0.5" />
+                  <div>
+                    <strong>Customer Communication:</strong> All tenant customer emails will use this configuration
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="w-4 h-4 text-green-600 mt-0.5" />
+                  <div>
+                    <strong>User Verification:</strong> New user sign-up verification emails will be sent from this address
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5" />
+                  <div>
+                    <strong>Global Configuration:</strong> This email configuration will be used across all tenants for system-level communications
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
