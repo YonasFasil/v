@@ -20,16 +20,17 @@ interface Props {
 }
 
 const AVAILABLE_FEATURES = [
-  // Advanced Features (Professional+)
-  { id: "calendar_view", name: "Calendar View", description: "Visual calendar interface for event management", category: "advanced" },
-  { id: "proposal_system", name: "Proposal System", description: "Generate and send event proposals to customers", category: "advanced" },
-  { id: "leads_management", name: "Lead Management", description: "Advanced lead tracking and conversion tools", category: "advanced" },
-  { id: "ai_analytics", name: "AI Analytics", description: "Smart insights and predictive analytics", category: "advanced" },
-  { id: "voice_booking", name: "Voice Booking", description: "Create bookings using voice commands", category: "advanced" },
-  { id: "floor_plans", name: "Floor Plans", description: "Interactive floor plan designer and setup templates", category: "advanced" },
-  { id: "advanced_reports", name: "Advanced Reports", description: "Detailed revenue and performance reports", category: "advanced" },
-  { id: "task_management", name: "Task Management", description: "Team collaboration and task tracking", category: "advanced" },
-  { id: "custom_fields", name: "Custom Fields", description: "Create custom booking and customer fields", category: "advanced" },
+  // Premium Features (matches tenant-features.js API)
+  { id: "calendar_view", name: "Calendar View", description: "Visual calendar interface for event management", category: "premium" },
+  { id: "proposal_system", name: "Proposal System", description: "Generate and send event proposals to customers", category: "premium" },
+  { id: "lead_management", name: "Lead Management", description: "Advanced lead tracking and conversion tools", category: "premium" },
+  { id: "ai_analytics", name: "AI Analytics", description: "Smart insights and predictive analytics", category: "premium" },
+  { id: "voice_booking", name: "Voice Booking", description: "Create bookings using voice commands", category: "premium" },
+  { id: "floor_plans", name: "Floor Plans", description: "Interactive floor plan designer and setup templates", category: "premium" },
+  { id: "advanced_reports", name: "Advanced Reports", description: "Detailed revenue and performance reports", category: "premium" },
+  { id: "task_management", name: "Task Management", description: "Team collaboration and task tracking", category: "premium" },
+  { id: "multidate_booking", name: "Multi-date Booking", description: "Book events across multiple dates", category: "premium" },
+  { id: "package_management", name: "Package Management", description: "Create and manage service packages", category: "premium" },
 ];
 
 export function PackageManagementModal({ open, onOpenChange, package: editPackage }: Props) {
@@ -257,13 +258,14 @@ export function PackageManagementModal({ open, onOpenChange, package: editPackag
             
             {/* Default Features Info */}
             <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-              <h4 className="font-medium text-green-700 mb-2">Default Features (Included in All Plans)</h4>
+              <h4 className="font-medium text-green-700 mb-2">Core Features (Included in All Plans)</h4>
               <div className="text-sm text-green-600 space-y-1">
-                <div>• Dashboard & Analytics - Core metrics and insights</div>
+                <div>• Dashboard Analytics - View venue performance metrics and insights</div>
                 <div>• Venue Management - Create and manage venue spaces</div>
-                <div>• Customer Management - Manage customer profiles</div>
-                <div>• Payment Processing - Accept payments and transactions</div>
-                <div>• Event Booking - Create and manage events (table view)</div>
+                <div>• Customer Management - Manage customer information and history</div>
+                <div>• Event Booking - Book and manage events</div>
+                <div>• Payment Processing - Process payments and invoices</div>
+                <div>• Service Management - Manage services and packages</div>
               </div>
             </div>
 
@@ -271,7 +273,7 @@ export function PackageManagementModal({ open, onOpenChange, package: editPackag
             <div>
               <h4 className="font-medium text-blue-700 mb-2">Optional Features</h4>
               <div className="grid grid-cols-1 gap-2">
-                {AVAILABLE_FEATURES.filter(f => f.category === 'advanced').map((feature) => (
+                {AVAILABLE_FEATURES.filter(f => f.category === 'premium').map((feature) => (
                   <div
                     key={feature.id}
                     className={`p-3 border rounded-lg cursor-pointer transition-colors ${
