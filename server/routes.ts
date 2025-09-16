@@ -302,11 +302,7 @@ async function seedDefaultServices() {
   }
 }
 
-import uploadRouter from "./routes/upload";
-
 export async function registerRoutes(app: Express): Promise<Server> {
-  
-  app.use("/api/upload", uploadRouter);
 
   // Health check endpoint - simplified
   app.get("/api/health", (req, res) => {
