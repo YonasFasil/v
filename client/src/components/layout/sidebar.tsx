@@ -128,11 +128,17 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
           }).map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
-            
+
+            // Dynamic name for packages/services based on package_management feature
+            let displayName = item.name;
+            if (item.name === "Services" && item.href === "/packages") {
+              displayName = hasFeature('package_management') ? "Packages & Services" : "Services";
+            }
+
             return (
               <Link key={item.name} href={item.href}>
                 <div
-                  className={`${collapsed ? 
+                  className={`${collapsed ?
                     'flex items-center justify-center w-10 h-10 mx-auto rounded-lg text-sm font-medium transition-colors cursor-pointer' :
                     'flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer'
                   } ${
@@ -140,10 +146,10 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
                       ? "bg-blue-600 text-white"
                       : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                   }`}
-                  title={collapsed ? item.name : undefined}
+                  title={collapsed ? displayName : undefined}
                 >
                   <Icon className={collapsed ? "w-5 h-5" : "w-5 h-5 mr-3"} />
-                  {!collapsed && item.name}
+                  {!collapsed && displayName}
                 </div>
               </Link>
             );
