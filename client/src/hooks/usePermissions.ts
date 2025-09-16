@@ -97,6 +97,8 @@ export function usePermissions() {
           'view_payments': ['payments'],
           'manage_proposals': ['proposals'],
           'view_proposals': ['proposals'],
+          'manage_packages': ['packages'],
+          'view_packages': ['packages'],
           'manage_settings': ['settings', 'users'],
           'view_reports': ['settings'],
           'manage_leads': ['customers'],
@@ -110,6 +112,7 @@ export function usePermissions() {
           'proposals': ['proposals'],
           'tasks': ['tasks'],
           'payments': ['payments'],
+          'packages': ['packages'],
           'settings': ['settings']
         };
 
@@ -117,12 +120,12 @@ export function usePermissions() {
         let userPermissions: string[] = [];
 
         if (userData.role === 'super_admin') {
-          userPermissions = ['dashboard', 'users', 'venues', 'bookings', 'customers', 'proposals', 'tasks', 'payments', 'settings'];
+          userPermissions = ['dashboard', 'users', 'venues', 'bookings', 'customers', 'proposals', 'tasks', 'payments', 'settings', 'packages'];
         }
         else if (userData.role === 'tenant_admin') {
           // For tenant_admin, grant permissions based on package features
           // Start with base permissions that are always available
-          userPermissions = ['dashboard', 'venues', 'bookings', 'customers', 'payments', 'settings', 'users'];
+          userPermissions = ['dashboard', 'venues', 'bookings', 'customers', 'payments', 'settings', 'users', 'packages'];
         }
         else {
           // For regular users, map their detailed permissions to simple ones
