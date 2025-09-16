@@ -149,13 +149,13 @@ export function usePermissions() {
 
   // Use React Query to fetch tenant features with caching
   const { data: tenantFeaturesData, isLoading: isFeaturesLoading, error: featuresError } = useQuery<TenantFeaturesResponse>({
-    queryKey: ['/api/tenant-features'],
+    queryKey: ['/api/tenant-features', user?.id], // Include user ID to force cache invalidation
     queryFn: () => apiRequest('/api/tenant-features'),
     enabled: !!(user && user.role !== 'super_admin'),
-    staleTime: 5 * 60 * 1000, // 5 minutes - features don't change often
-    gcTime: 10 * 60 * 1000, // 10 minutes cache time
-    refetchOnWindowFocus: false, // Don't refetch on window focus - reduces API calls
-    refetchOnMount: false, // Don't refetch on component mount if we have cached data
+    staleTime: 0, // No cache for debugging - always refetch
+    gcTime: 0, // No cache time
+    refetchOnWindowFocus: true, // Enable refetch for debugging
+    refetchOnMount: true, // Enable refetch for debugging
   });
 
   // Update tenant features and permissions when data changes
@@ -177,10 +177,19 @@ export function usePermissions() {
         const adminPermissions = ['settings', 'users'];
         const finalPermissions = [...new Set([...sidebarPermissions, ...adminPermissions])];
 
+        console.log('[PERMISSIONS] API Response Success:', tenantFeaturesData.success);
         console.log('[PERMISSIONS] Sidebar permissions from API:', sidebarPermissions);
-        console.log('[PERMISSIONS] Final permissions:', finalPermissions);
+        console.log('[PERMISSIONS] Admin permissions:', adminPermissions);
+        console.log('[PERMISSIONS] Final merged permissions:', finalPermissions);
+        console.log('[PERMISSIONS] Features enabled:', tenantFeaturesData.features?.summary?.enabled);
 
         setPermissions(finalPermissions);
+      }
+      // Also update permissions for regular tenant_user role
+      else if (user?.role === 'tenant_user') {
+        const sidebarPermissions = tenantFeaturesData.sidebarPermissions || [];
+        console.log('[PERMISSIONS] Tenant user - sidebar permissions from API:', sidebarPermissions);
+        setPermissions(sidebarPermissions);
       }
     } else if (featuresError) {
       console.error('[PERMISSIONS] Error fetching features:', featuresError);

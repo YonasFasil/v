@@ -27,21 +27,23 @@ import {
 
 const navigationItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, permission: "dashboard" },
-  { name: "Events & Bookings", href: "/events", icon: Calendar, permission: "bookings" },  // No feature required - it's default now
+  { name: "Calendar View", href: "/calendar", icon: Calendar, permission: "calendar", feature: "calendar_view" },
+  { name: "Events & Bookings", href: "/events", icon: Calendar, permission: "bookings" },
+  { name: "Multi-date Bookings", href: "/multidate-bookings", icon: Calendar, permission: "multidate-booking", feature: "multidate_booking" },
   { name: "Customers", href: "/customers", icon: Users, permission: "customers" },
   { name: "Leads", href: "/leads", icon: UserPlus, permission: "leads", feature: "lead_management" },
   { name: "Proposals", href: "/proposals", icon: FileText, permission: "proposals", feature: "proposal_system" },
   { name: "Payments", href: "/payments", icon: CreditCard, permission: "payments" },
   { name: "Tasks & Team", href: "/tasks", icon: CheckSquare, permission: "tasks", feature: "task_management" },
   { name: "Venues", href: "/venues", icon: MapPin, permission: "venues" },
-  { name: "Setup Styles", href: "/setup-styles", icon: Grid3X3, permission: "venues", feature: "floor_plans" },
+  { name: "Setup Styles", href: "/setup-styles", icon: Grid3X3, permission: "floor-plans", feature: "floor_plans" },
   { name: "Services", href: "/services", icon: Package, permission: "services" },
   { name: "Packages & Services", href: "/packages", icon: Package, permission: "packages", feature: "package_management" },
 ];
 
 const aiFeatures = [
-  { name: "AI Analytics & Reports", href: "/ai-analytics", icon: BarChart3, permission: "settings", feature: "ai_analytics" },
-  { name: "Voice Booking", href: "/voice-booking", icon: Mic, permission: "bookings", feature: "voice_booking" },
+  { name: "AI Analytics & Reports", href: "/ai-analytics", icon: BarChart3, permission: "ai-analytics", feature: "ai_analytics" },
+  { name: "Voice Booking", href: "/voice-booking", icon: Mic, permission: "voice-booking", feature: "voice_booking" },
 ];
 
 const analyticsItems = [
@@ -118,7 +120,15 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
       <nav className="flex-1 px-4 py-4 space-y-1 sidebar-scroll overflow-y-auto">
         {/* Main Navigation */}
         <div className="space-y-1">
-          {navigationItems.filter(item => hasPermission(item.permission) && (!item.feature || hasFeature(item.feature))).map((item) => {
+          {navigationItems.filter(item => {
+            const hasPerms = hasPermission(item.permission);
+            const hasFeatureReq = !item.feature || hasFeature(item.feature);
+            const shouldShow = hasPerms && hasFeatureReq;
+
+            console.log(`[SIDEBAR] ${item.name}: permission(${item.permission})=${hasPerms}, feature(${item.feature || 'none'})=${hasFeatureReq}, show=${shouldShow}`);
+
+            return shouldShow;
+          }).map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
             
