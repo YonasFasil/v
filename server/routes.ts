@@ -435,6 +435,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/super-admin/config/email", requireSuperAdmin, async (req, res) => {
+    try {
+      const { email, password, enabled } = req.body;
+      await storage.updateSetting("email", { provider: "gmail", email, password, enabled });
+      res.json({ message: "Email configuration saved successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to save email configuration" });
+    }
+  });
+
+  app.get("/api/super-admin/config/email", requireSuperAdmin, async (req, res) => {
+    try {
+      const emailConfig = await storage.getSetting("email");
+      res.json(emailConfig?.value || {});
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get email configuration" });
+    }
+  });
+
+  app.post("/api/super-admin/config/email/test", requireSuperAdmin, async (req, res) => {
+    try {
+      const emailConfig = await storage.getSetting("email");
+      if (!emailConfig || !emailConfig.value.enabled) {
+        return res.status(400).json({ message: "Email service is not enabled" });
+      }
+      
+      const emailService = new EmailService(emailConfig.value);
+      await emailService.sendMail({
+        to: emailConfig.value.email,
+        subject: "Test Email from Venuine",
+        text: "This is a test email to confirm your email configuration is working correctly.",
+      });
+      
+      res.json({ message: "Test email sent successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to send test email" });
+    }
+  });
+
   // ============================================================================
   // TENANT USER MANAGEMENT ROUTES
   // ============================================================================
