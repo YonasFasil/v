@@ -86,13 +86,14 @@ const FEATURE_DESCRIPTIONS = {
   // Optional features (package-dependent)
   calendar_view: "Visual calendar interface for event management",
   proposal_system: "Generate and send event proposals to customers",
-  leads_management: "Advanced lead tracking and conversion tools",
+  lead_management: "Advanced lead tracking and conversion tools",
   ai_analytics: "Smart insights and predictive analytics",
   voice_booking: "Create bookings using voice commands",
   floor_plans: "Interactive floor plan designer and setup templates",
   advanced_reports: "Detailed revenue and performance reports",
   task_management: "Team collaboration and task tracking",
-  custom_fields: "Create custom booking and customer fields"
+  multidate_booking: "Book events across multiple dates",
+  package_management: "Create and manage service packages"
 };
 
 // Get permissions based on tenant's package features
@@ -121,13 +122,14 @@ const getAvailablePermissions = (packageFeatures: string[]) => {
   const featurePermissions: {[key: string]: string[]} = {
     calendar_view: ["calendar_view_access", "calendar_navigation"],
     proposal_system: ["proposal_view", "proposal_create", "proposal_edit", "proposal_delete"],
-    leads_management: ["lead_view", "lead_create", "lead_edit", "lead_delete"],
+    lead_management: ["lead_view", "lead_create", "lead_edit", "lead_delete"],
     ai_analytics: ["ai_analytics_view", "ai_insights_access"],
     voice_booking: ["voice_booking_access"],
     floor_plans: ["floor_plan_view", "floor_plan_edit"],
     advanced_reports: ["report_view", "report_export", "advanced_report_access"],
     task_management: ["task_view", "task_create", "task_edit", "task_delete"],
-    custom_fields: ["custom_field_create", "custom_field_edit"]
+    multidate_booking: ["multidate_booking_create", "multidate_booking_manage"],
+    package_management: ["package_view", "package_create", "package_edit", "package_delete"]
   };
   
   let availablePermissions = [...basePermissions];
@@ -656,7 +658,7 @@ export function TenantDetailModal({ tenant, open, onOpenChange }: Props) {
                       <div>
                         <h5 className="text-sm font-medium text-blue-700 mb-2">Package Features</h5>
                         <div className="grid grid-cols-1 gap-2">
-                          {['calendar_view', 'proposal_system', 'leads_management', 'ai_analytics', 'voice_booking', 'floor_plans', 'advanced_reports', 'task_management', 'custom_fields'].map((featureId) => {
+                          {['calendar_view', 'proposal_system', 'lead_management', 'ai_analytics', 'voice_booking', 'floor_plans', 'advanced_reports', 'task_management', 'multidate_booking', 'package_management'].map((featureId) => {
                             const isIncluded = packageFeatures.includes(featureId);
                             return (
                               <div
