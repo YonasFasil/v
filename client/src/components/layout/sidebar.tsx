@@ -35,7 +35,7 @@ const navigationItems = [
   { name: "Tasks & Team", href: "/tasks", icon: CheckSquare, permission: "tasks", feature: "task_management" },
   { name: "Venues", href: "/venues", icon: MapPin, permission: "venues" },
   { name: "Setup Styles", href: "/setup-styles", icon: Grid3X3, permission: "floor-plans", feature: "floor_plans" },
-  { name: "Packages & Services", href: "/packages", icon: Package, permission: "packages", feature: "package_management" },
+  { name: "Services", href: "/packages", icon: Package, permission: "packages" },
 ];
 
 const aiFeatures = [

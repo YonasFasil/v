@@ -937,7 +937,8 @@ export default function Packages() {
         
         <main className="flex-1 overflow-y-auto p-6 space-y-8">
           {/* Event Packages Section */}
-          <div>
+          {hasPackageManagement && (
+            <div>
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
                 <Package className="w-5 h-5 text-blue-600" />
@@ -1132,8 +1133,9 @@ export default function Packages() {
               </div>
             )}
           </div>
+          )}
 
-          <Separator />
+          {hasPackageManagement && <Separator />}
 
           {/* Service Categories Section */}
           <div>
@@ -1448,11 +1450,13 @@ export default function Packages() {
       </div>
       
       {/* Import Modals */}
-      <ImportMenuModal 
-        open={showImportPackages}
-        onOpenChange={setShowImportPackages}
-        type="packages"
-      />
+      {hasPackageManagement && (
+        <ImportMenuModal
+          open={showImportPackages}
+          onOpenChange={setShowImportPackages}
+          type="packages"
+        />
+      )}
       
       <ImportMenuModal 
         open={showImportServices}

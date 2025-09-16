@@ -4,11 +4,11 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Check, 
-  Zap, 
-  Star, 
-  Crown, 
+import {
+  Check,
+  Zap,
+  Star,
+  Crown,
   ArrowRight,
   Calendar,
   Users,
@@ -17,7 +17,8 @@ import {
   Mic,
   Building2,
   Settings,
-  CheckSquare
+  CheckSquare,
+  CreditCard
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 
@@ -42,27 +43,39 @@ interface TenantFeatures {
 }
 
 const featureIcons: Record<string, any> = {
-  event_booking: Calendar,
+  dashboard_analytics: BarChart3,
+  venue_management: Building2,
+  customer_management: Users,
+  booking_management: Calendar,
+  payment_processing: CreditCard,
   proposal_system: FileText,
-  leads_management: Users,
+  lead_management: Users,
   ai_analytics: BarChart3,
   voice_booking: Mic,
   floor_plans: Building2,
   advanced_reports: BarChart3,
   task_management: CheckSquare,
-  custom_fields: Settings
+  multidate_booking: Calendar,
+  package_management: Settings,
+  service_management: Settings
 };
 
 const featureNames: Record<string, string> = {
-  event_booking: 'Event Booking & Calendar',
+  dashboard_analytics: 'Dashboard Analytics',
+  venue_management: 'Venue Management',
+  customer_management: 'Customer Management',
+  booking_management: 'Booking Management',
+  payment_processing: 'Payment Processing',
   proposal_system: 'Proposal System',
-  leads_management: 'Advanced Lead Management',
+  lead_management: 'Lead Management',
   ai_analytics: 'AI Analytics & Insights',
   voice_booking: 'Voice Booking Assistant',
   floor_plans: 'Interactive Floor Plans',
   advanced_reports: 'Advanced Reporting',
   task_management: 'Task & Team Management',
-  custom_fields: 'Custom Fields & Forms'
+  multidate_booking: 'Multi-date Booking',
+  package_management: 'Package Management',
+  service_management: 'Service Management'
 };
 
 export default function UpgradePackage() {
@@ -83,53 +96,100 @@ export default function UpgradePackage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [packagesRes, featuresRes] = await Promise.all([
-          fetch('/api/packages', {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-            }
-          }),
-          fetch('/api/tenant-features', {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-            }
-          })
-        ]);
-
-        const packagesData = await packagesRes.json();
-        const featuresData = await featuresRes.json();
-
-        // Handle API errors
-        if (!packagesRes.ok) {
-          console.error('Failed to fetch packages:', packagesData);
-          setPackages([]);
-        } else {
-          setPackages(Array.isArray(packagesData) ? packagesData : []);
+        // Get tenant ID from JWT token
+        const token = localStorage.getItem('auth_token');
+        let tenantId = null;
+        if (token) {
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            tenantId = payload.tenant_id || payload.tenantId;
+          } catch (error) {
+            console.error('Error parsing token:', error);
+          }
         }
+
+        const featuresRes = await fetch(`/api/tenant-features${tenantId ? `?tenantId=${tenantId}` : ''}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        const featuresData = await featuresRes.json();
 
         if (!featuresRes.ok) {
           console.error('Failed to fetch features:', featuresData);
           setTenantFeatures(null);
         } else {
-          // Convert new API format to legacy format for compatibility
-          if (featuresData?.success && featuresData.features) {
-            const legacyFormat = {
-              enabled: featuresData.features.enabled || [],
-              disabled: featuresData.features.disabled || [],
-              total: featuresData.features.summary?.total || 0,
-              available: featuresData.features.summary?.enabled || 0
-            };
-            setTenantFeatures(legacyFormat);
+          console.log('Tenant features response:', featuresData);
+
+          // Extract package information and available packages from the tenant-features API
+          if (featuresData?.success) {
+            // Set tenant features
+            if (featuresData.features) {
+              const legacyFormat = {
+                enabled: featuresData.features.enabled || [],
+                disabled: featuresData.features.disabled || [],
+                total: featuresData.features.summary?.total || 0,
+                available: featuresData.features.summary?.enabled || 0
+              };
+              setTenantFeatures(legacyFormat);
+            }
+
+            // Set current package from tenant info
+            if (featuresData.tenant && featuresData.package) {
+              const currentPkg: Package = {
+                id: featuresData.package.id,
+                name: featuresData.package.name,
+                price: featuresData.package.price,
+                description: `Your current ${featuresData.package.name} plan`,
+                features: featuresData.package.features || [],
+                maxUsers: featuresData.package.limits?.maxUsers || 0,
+                maxVenues: featuresData.package.limits?.maxVenues || 0,
+                isActive: true
+              };
+              setCurrentPackage(currentPkg);
+            }
+
+            // For now, we'll create mock available packages since we don't have a subscription packages API
+            // This should be replaced with a real API call in the future
+            const mockPackages: Package[] = [
+              {
+                id: 'basic',
+                name: 'Basic',
+                price: 49,
+                description: 'Perfect for small venues getting started',
+                features: ['dashboard_analytics', 'venue_management', 'customer_management', 'booking_management', 'payment_processing'],
+                maxUsers: 3,
+                maxVenues: 1,
+                isActive: true
+              },
+              {
+                id: 'professional',
+                name: 'Professional',
+                price: 99,
+                description: 'Best for growing venues with advanced needs',
+                features: ['dashboard_analytics', 'venue_management', 'customer_management', 'booking_management', 'payment_processing', 'proposal_system', 'lead_management', 'task_management', 'advanced_reports'],
+                maxUsers: 10,
+                maxVenues: 3,
+                isActive: true,
+                isPopular: true
+              },
+              {
+                id: 'enterprise',
+                name: 'Enterprise',
+                price: 199,
+                description: 'Full-featured solution for large operations',
+                features: ['dashboard_analytics', 'venue_management', 'customer_management', 'booking_management', 'payment_processing', 'proposal_system', 'lead_management', 'task_management', 'advanced_reports', 'ai_analytics', 'voice_booking', 'floor_plans', 'multidate_booking', 'package_management'],
+                maxUsers: 50,
+                maxVenues: 10,
+                isActive: true,
+                isEnterprise: true
+              }
+            ];
+            setPackages(mockPackages);
           } else {
             setTenantFeatures(null);
           }
-        }
-
-        // Find current package
-        if (featuresRes.ok && featuresData?.tenant && packagesRes.ok && Array.isArray(packagesData)) {
-          const tenantPackageId = featuresData.tenant?.subscriptionPackageId || featuresData.tenant?.subscription_package_id;
-          const current = packagesData.find((pkg: Package) => pkg.id === tenantPackageId);
-          setCurrentPackage(current || null);
         }
       } catch (error) {
         console.error('Error fetching upgrade data:', error);
