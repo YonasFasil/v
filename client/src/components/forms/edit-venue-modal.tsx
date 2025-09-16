@@ -30,7 +30,7 @@ export function EditVenueModal({ open, onOpenChange, venue }: Props) {
       setName(venue.name || "");
       setDescription(venue.description || "");
       setAddress(venue.address || "");
-      setImageUrls(Array.isArray(venue.imageUrls) ? venue.imageUrls : (venue.imageUrl ? [venue.imageUrl] : []));
+      setImageUrls(Array.isArray(venue.imageUrls) ? venue.imageUrls : []);
     }
   }, [venue, open]);
 
