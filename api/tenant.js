@@ -281,7 +281,7 @@ module.exports = async function handler(req, res) {
             $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
           ) RETURNING *`, [
             tenantId, name, description || null, address || null,
-            amenities || [], images || [], isActive !== false
+            amenities || [], JSON.stringify(images || []), isActive !== false
           ]);
         
         return res.status(201).json(newVenue.rows[0]);
@@ -296,7 +296,7 @@ module.exports = async function handler(req, res) {
               images = $5, is_active = $6, updated_at = NOW()
           WHERE tenant_id = $7 AND id = $8
           RETURNING *`, [
-            name, description, address, amenities || [], images || [],
+            name, description, address, amenities || [], JSON.stringify(images || []),
             isActive !== false, tenantId, id
           ]);
         
