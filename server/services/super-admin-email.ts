@@ -183,3 +183,38 @@ export async function sendCustomerCommunicationEmail(data: {
     from: `${fromName} <${config.fromEmail}>`,
   });
 }
+
+export async function sendSuperAdminTestEmail(recipientEmail: string): Promise<boolean> {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #3b82f6;">Email Configuration Test</h2>
+      <p>This is a test email to verify that your VenuinePro email configuration is working correctly.</p>
+      <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="margin: 0 0 10px 0; color: #374151;">Configuration Details:</h3>
+        <ul style="margin: 0; padding-left: 20px;">
+          <li><strong>Provider:</strong> Gmail</li>
+          <li><strong>Test Date:</strong> ${new Date().toLocaleString()}</li>
+        </ul>
+      </div>
+      <p>If you received this email, your email configuration is working properly.</p>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+      <p style="color: #6b7280; font-size: 14px;">
+        This email was sent from VenuinePro Super Admin panel as a configuration test.
+      </p>
+    </div>
+  `;
+
+  const text = `
+    VenuinePro Email Configuration Test
+    This is a test email to verify that your VenuinePro email configuration is working correctly.
+    If you received this email, your email configuration is working properly.
+    This email was sent from VenuinePro Super Admin panel as a configuration test.
+  `;
+
+  return await sendSuperAdminEmail({
+    to: recipientEmail,
+    subject: 'VenuinePro Email Configuration Test',
+    html,
+    text,
+  });
+}

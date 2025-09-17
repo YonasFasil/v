@@ -10,7 +10,7 @@ import { requireSuperAdmin, authenticateSuperAdmin, hashPassword, comparePasswor
 import { requireAuth, ALL_PERMISSIONS } from "./permissions";
 import { stripeService } from "./services/stripe";
 import { notificationEmailService } from "./services/notification-email";
-import { sendCustomerCommunicationEmail, sendUserVerificationEmail } from "./services/super-admin-email";
+import { sendCustomerCommunicationEmail, sendUserVerificationEmail, sendSuperAdminTestEmail } from "./services/super-admin-email";
 import { resolveTenant, requireTenant, filterByTenant, type TenantRequest } from "./middleware/tenant";
 import { addFeatureAccess, requireFeature, getFeaturesForTenant, requireWithinLimits, getTenantFeatures, AVAILABLE_FEATURES, type FeatureRequest } from "./middleware/feature-access";
 import { setTenantContext, getTenantIdFromAuth } from "./db/tenant-context";
@@ -8786,143 +8786,20 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
 
   app.post("/api/super-admin/config/email/test", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
     try {
-      // Check if nodemailer is available
-      let nodemailer;
-      try {
-        nodemailer = require('nodemailer');
-      } catch (importError) {
-        return res.status(500).json({
-          success: false,
-          message: 'Email service not available',
-          error: 'Nodemailer module not loaded'
-        });
-      }
-
-      // Get current email configuration
       const emailConfig = await storage.getSetting('email_config');
-
-      if (!emailConfig?.value) {
-        return res.status(400).json({
-          success: false,
-          message: 'Email configuration not found. Please configure email settings first.'
-        });
+      if (!emailConfig?.value?.email) {
+        return res.status(400).json({ message: "Email not configured" });
       }
 
-      const config = emailConfig.value;
+      const success = await sendSuperAdminTestEmail(emailConfig.value.email);
 
-      if (!config.enabled) {
-        return res.status(400).json({
-          success: false,
-          message: 'Email service is not enabled. Please enable it in settings.'
-        });
-      }
-
-      // Get test email from request body or use the configured email
-      const { testEmail } = req.body || {};
-      const recipientEmail = testEmail || config.email;
-
-      // Create transporter based on configuration
-      let transporter;
-
-      if (config.provider === 'gmail') {
-        transporter = nodemailer.createTransport({
-          host: 'smtp.gmail.com',
-          port: 587,
-          secure: false,
-          auth: {
-            user: config.email,
-            pass: config.password
-          }
-        });
+      if (success) {
+        res.json({ success: true, message: "Test email sent successfully!" });
       } else {
-        return res.status(400).json({
-          success: false,
-          message: 'Unsupported email provider. Currently only Gmail is supported.'
-        });
+        res.status(500).json({ success: false, message: "Failed to send test email" });
       }
-
-      // Test email content
-      const mailOptions = {
-        from: `"VenuinePro System" <${config.email}>`,
-        to: recipientEmail,
-        subject: 'VenuinePro Email Configuration Test',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #3b82f6;">Email Configuration Test</h2>
-            <p>This is a test email to verify that your VenuinePro email configuration is working correctly.</p>
-
-            <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="margin: 0 0 10px 0; color: #374151;">Configuration Details:</h3>
-              <ul style="margin: 0; padding-left: 20px;">
-                <li><strong>Provider:</strong> ${config.provider}</li>
-                <li><strong>From Email:</strong> ${config.email}</li>
-                <li><strong>Test Date:</strong> ${new Date().toLocaleString()}</li>
-              </ul>
-            </div>
-
-            <p>If you received this email, your email configuration is working properly and you can now:</p>
-            <ul>
-              <li>Send customer verification emails</li>
-              <li>Send booking confirmation emails</li>
-              <li>Send system notifications</li>
-            </ul>
-
-            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-            <p style="color: #6b7280; font-size: 14px;">
-              This email was sent from VenuinePro Super Admin panel as a configuration test.
-            </p>
-          </div>
-        `,
-        text: `
-VenuinePro Email Configuration Test
-
-This is a test email to verify that your VenuinePro email configuration is working correctly.
-
-Configuration Details:
-- Provider: ${config.provider}
-- From Email: ${config.email}
-- Test Date: ${new Date().toLocaleString()}
-
-If you received this email, your email configuration is working properly and you can now send customer verification emails, booking confirmations, and system notifications.
-
-This email was sent from VenuinePro Super Admin panel as a configuration test.
-        `
-      };
-
-      // Send test email
-      const info = await transporter.sendMail(mailOptions);
-
-      return res.json({
-        success: true,
-        message: `Test email sent successfully to ${recipientEmail}`,
-        details: {
-          messageId: info.messageId,
-          recipient: recipientEmail,
-          provider: config.provider,
-          sentAt: new Date().toISOString()
-        }
-      });
-
     } catch (error: any) {
-      console.error('Email test error:', error);
-
-      // Provide specific error messages for common issues
-      let errorMessage = 'Failed to send test email';
-
-      if (error.code === 'EAUTH') {
-        errorMessage = 'Authentication failed. Please check your email and app password.';
-      } else if (error.code === 'ECONNECTION') {
-        errorMessage = 'Connection failed. Please check your internet connection.';
-      } else if (error.message.includes('Invalid login')) {
-        errorMessage = 'Invalid login credentials. Please verify your email and app password.';
-      }
-
-      return res.status(500).json({
-        success: false,
-        message: errorMessage,
-        error: error.message,
-        code: error.code
-      });
+      res.status(500).json({ message: "Failed to send test email", error: error.message });
     }
   });
 
