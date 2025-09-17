@@ -143,7 +143,7 @@ function Router() {
         </LazyProtectedRoute>
       </Route>
       <Route path="/leads">
-        <LazyFeatureProtectedRoute requiredFeature="leads_management" featureName="Lead Management">
+        <LazyFeatureProtectedRoute requiredFeature="lead_management" featureName="Lead Management">
           <Leads />
         </LazyFeatureProtectedRoute>
       </Route>

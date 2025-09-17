@@ -1224,7 +1224,7 @@ module.exports = async function handler(req, res) {
           const AVAILABLE_FEATURES = {
             calendar_view: { name: "Calendar View", description: "Visual calendar interface for event management" },
             proposal_system: { name: "Proposal System", description: "Generate and send event proposals to customers" },
-            leads_management: { name: "Lead Management", description: "Advanced lead tracking and conversion tools" },
+            lead_management: { name: "Lead Management", description: "Advanced lead tracking and conversion tools" },
             ai_analytics: { name: "AI Analytics", description: "Smart insights and predictive analytics" },
             voice_booking: { name: "Voice Booking", description: "Create bookings using voice commands" },
             floor_plans: { name: "Floor Plans", description: "Interactive floor plan designer and setup templates" },
