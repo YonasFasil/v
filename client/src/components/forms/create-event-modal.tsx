@@ -15,6 +15,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useFormattedCurrency } from "@/lib/currency";
+import { usePermissions } from "@/hooks/usePermissions";
 import { VoiceBookingPanel } from "../voice/voice-booking-panel";
 import { ProposalCreationModal } from "../proposals/proposal-creation-modal";
 import { ProposalEmailModal } from "../proposals/proposal-email-modal";
@@ -55,6 +56,7 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
   const queryClient = useQueryClient();
   const { formatAmount } = useFormattedCurrency();
   const { formatEventDate, formatEventTime, createEventDateTime, timezoneId } = useEventTime();
+  const { hasFeature } = usePermissions();
   
   // Step management
   const [currentStep, setCurrentStep] = useState(1);
@@ -548,6 +550,22 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
       }
     } else {
       console.log('➕ Adding new date');
+
+      // Check if multidate booking feature is available
+      const hasMultidateFeature = hasFeature('multidate_booking');
+      console.log('🔒 Multidate feature available:', hasMultidateFeature);
+
+      if (selectedDates.length >= 1 && !hasMultidateFeature) {
+        console.log('❌ Multidate booking not available, blocking additional date selection');
+        toast({
+          title: "Multi-date booking not available",
+          description: "Your current package doesn't include multi-date booking. Please upgrade to select multiple dates.",
+          variant: "destructive",
+          duration: 5000
+        });
+        return;
+      }
+
       const defaultSpace = selectedVenueData?.spaces?.[0];
       setSelectedDates(prev => {
         const newDates = [...prev, {
@@ -983,26 +1001,25 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
       const firstDate = selectedDates[0];
       const bookingData = {
         eventName,
-        eventType: "corporate",
+        eventType: selectedPackageData?.name || "Custom Event",
         eventDate: firstDate.date,
         startTime: convertTimeToHours(firstDate.startTime),
         endTime: convertTimeToHours(firstDate.endTime),
         guestCount: firstDate.guestCount || 1,
-        status: ((submitType as string) === 'proposal' ? 'pending' : eventStatus) as string,
+        status: (submitType === 'proposal' ? 'pending' : eventStatus) as string,
         customerId: selectedCustomer,
         venueId: selectedVenue,
         spaceId: firstDate.spaceId,
         setupStyle: firstDate.setupStyle || null,
         packageId: firstDate.packageId || null,
-        selectedServices: firstDate.selectedServices?.length ? firstDate.selectedServices : null,
-        pricingModel: selectedPackageData?.pricingModel || "fixed",
+        selectedServices: firstDate.selectedServices || [],
         itemQuantities: firstDate.itemQuantities || {},
-        pricingOverrides: firstDate.pricingOverrides || null,
-        serviceTaxOverrides: firstDate.serviceTaxOverrides || null,
+        pricingOverrides: firstDate.pricingOverrides || {},
+        serviceTaxOverrides: firstDate.serviceTaxOverrides || {},
         totalAmount: totalPrice.toString(),
         notes: `Package: ${selectedPackageData?.name || 'None'}, Services: ${firstDate.selectedServices?.length || 0} selected`,
-        proposalStatus: ((submitType as string) === 'proposal' ? 'sent' : 'none') as string,
-        proposalSentAt: ((submitType as string) === 'proposal' ? new Date().toISOString() : null) as string | null
+        proposalStatus: (submitType === 'proposal' ? 'sent' : 'none') as string,
+        proposalSentAt: (submitType === 'proposal' ? new Date().toISOString() : null) as string | null
       };
 
       createBooking.mutate(bookingData, {

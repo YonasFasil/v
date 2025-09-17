@@ -29,7 +29,7 @@ export const venues = pgTable("venues", {
   name: text("name").notNull(),
   description: text("description"),
   amenities: text("amenities").array(),
-  imageUrl: text("image_url"),
+  images: jsonb("images"),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -56,7 +56,7 @@ export const spaces = pgTable("spaces", {
   capacity: integer("capacity").notNull(),
   pricePerHour: decimal("price_per_hour", { precision: 10, scale: 2 }),
   amenities: text("amenities").array(),
-  imageUrl: text("image_url"),
+  images: jsonb("images"),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -408,7 +408,7 @@ export const tenants = pgTable("tenants", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(), // URL-friendly name for routing
-  subscriptionPackageId: uuid("subscription_package_id").references(() => subscriptionPackages.id).notNull(),
+  subscriptionPackageId: uuid("subscription_package_id").references(() => subscriptionPackages.id),
   status: text("status").notNull().default("active"), // active, suspended, cancelled
   subscriptionStartedAt: timestamp("subscription_started_at"),
   subscriptionEndsAt: timestamp("subscription_ends_at"),

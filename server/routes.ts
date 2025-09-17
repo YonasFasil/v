@@ -126,8 +126,184 @@ const attachmentUpload = multer({
 
 // All upload configurations completed
 
+// Helper function to seed default subscription packages
+async function seedDefaultPackages() {
+  try {
+    const existingPackages = await storage.getSubscriptionPackages();
+    if (existingPackages.length > 0) {
+      console.log('Subscription packages already exist, skipping seed...');
+      return;
+    }
+
+    console.log('Seeding default subscription packages...');
+
+    const defaultPackages = [
+      {
+        name: "Starter",
+        description: "Perfect for small venues getting started with bookings",
+        price: "29.00",
+        billingInterval: "monthly" as const,
+        maxVenues: 1,
+        maxUsers: 3,
+        features: ["basic_analytics", "email_notifications", "customer_management"],
+        isActive: true,
+        sortOrder: 1
+      },
+      {
+        name: "Professional",
+        description: "Great for growing venues with multiple spaces and events",
+        price: "79.00",
+        billingInterval: "monthly" as const,
+        maxVenues: 5,
+        maxUsers: 10,
+        features: ["advanced_analytics", "custom_branding", "api_access", "priority_support", "proposal_system"],
+        isActive: true,
+        sortOrder: 2
+      },
+      {
+        name: "Enterprise",
+        description: "For large venues and event management companies",
+        price: "199.00",
+        billingInterval: "monthly" as const,
+        maxVenues: -1, // Unlimited
+        maxUsers: -1, // Unlimited
+        features: ["everything", "white_label", "dedicated_support", "custom_integrations", "advanced_reporting", "multi_tenant"],
+        isActive: true,
+        sortOrder: 3
+      }
+    ];
+
+    for (const pkg of defaultPackages) {
+      await storage.createSubscriptionPackage(pkg);
+      console.log(`✓ Added ${pkg.name} package`);
+    }
+
+    console.log('Successfully seeded subscription packages!');
+  } catch (error) {
+    console.error('Error seeding subscription packages:', error);
+  }
+}
+
+// Helper function to seed default event packages
+async function seedDefaultEventPackages() {
+  try {
+    const existingPackages = await storage.getAllPackagesAdmin();
+    if (existingPackages.length > 0) {
+      console.log('Event packages already exist, skipping seed...');
+      return;
+    }
+
+    console.log('Seeding default event packages...');
+
+    // We need to get the first tenant to assign these packages to
+    const users = await storage.getAllUsersAdmin();
+    const firstTenantUser = users.find(u => u.tenantId);
+    if (!firstTenantUser) {
+      console.log('No tenant users found, skipping event package seeding...');
+      return;
+    }
+
+    const tenantId = firstTenantUser.tenantId!;
+
+    const defaultEventPackages = [
+      {
+        tenantId: tenantId,
+        name: "Essential Wedding Package",
+        description: "Perfect for intimate weddings with essential services included",
+        category: "wedding",
+        price: "2500.00",
+        pricingModel: "fixed" as const,
+        applicableSpaceIds: [],
+        includedServiceIds: [],
+        enabledTaxIds: [],
+        enabledFeeIds: [],
+        isActive: true
+      },
+      {
+        tenantId: tenantId,
+        name: "Premium Wedding Package",
+        description: "Complete wedding package with premium services and amenities",
+        category: "wedding",
+        price: "5000.00",
+        pricingModel: "fixed" as const,
+        applicableSpaceIds: [],
+        includedServiceIds: [],
+        enabledTaxIds: [],
+        enabledFeeIds: [],
+        isActive: true
+      }
+    ];
+
+    for (const pkg of defaultEventPackages) {
+      await storage.createPackage(pkg);
+      console.log(`✓ Added ${pkg.name} event package`);
+    }
+
+    console.log('Successfully seeded event packages!');
+  } catch (error) {
+    console.error('Error seeding event packages:', error);
+  }
+}
+
+// Helper function to seed default services
+async function seedDefaultServices() {
+  try {
+    const existingServices = await storage.getAllServicesAdmin();
+    if (existingServices.length > 0) {
+      console.log('Services already exist, skipping seed...');
+      return;
+    }
+
+    console.log('Seeding default services...');
+
+    // We need to get the first tenant to assign these services to
+    const users = await storage.getAllUsersAdmin();
+    const firstTenantUser = users.find(u => u.tenantId);
+    if (!firstTenantUser) {
+      console.log('No tenant users found, skipping service seeding...');
+      return;
+    }
+
+    const tenantId = firstTenantUser.tenantId!;
+
+    const defaultServices = [
+      {
+        tenantId: tenantId,
+        name: "Catering Service",
+        description: "Full-service catering with customizable menu options",
+        category: "catering",
+        price: "45.00",
+        pricingModel: "per_person" as const,
+        enabledTaxIds: [],
+        enabledFeeIds: [],
+        isActive: true
+      },
+      {
+        tenantId: tenantId,
+        name: "Photography",
+        description: "Professional event photography with edited digital gallery",
+        category: "photography",
+        price: "800.00",
+        pricingModel: "fixed" as const,
+        enabledTaxIds: [],
+        enabledFeeIds: [],
+        isActive: true
+      }
+    ];
+
+    for (const service of defaultServices) {
+      await storage.createService(service);
+      console.log(`✓ Added ${service.name} service`);
+    }
+
+    console.log('Successfully seeded services!');
+  } catch (error) {
+    console.error('Error seeding services:', error);
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
-  
+
   // Health check endpoint - simplified
   app.get("/api/health", (req, res) => {
     try {
@@ -175,6 +351,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/dashboard', enforceRLSTenantIsolation, tenantContextMiddleware);
   app.use('/api/companies', enforceRLSTenantIsolation, tenantContextMiddleware);
   app.use('/api/contracts', enforceRLSTenantIsolation, tenantContextMiddleware);
+  app.use('/api/upload', tenantContextMiddleware);
 
   // Helper function to get tenant ID from authenticated user
   const getTenantIdFromAuth = async (req: any): Promise<string | null> => {
@@ -342,8 +519,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
     } catch (error: any) {
-      console.error("Error fetching tenant features:", error);
-      res.status(500).json({ message: "Failed to fetch tenant features" });
+      console.error("Error fetching tenant features:", error.message, error.stack);
+      res.status(500).json({ message: "Failed to fetch tenant features", error: error.message });
     }
   });
 
@@ -611,31 +788,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Validate required fields and provide defaults
-      const { name, description, capacity, pricePerHour, amenities, isActive } = req.body;
+      const { name, description, capacity, pricePerHour, amenities, isActive, image_url, image_urls } = req.body;
       
       if (!name) {
         return res.status(400).json({ message: "Venue name is required" });
       }
       
-      // Create venue data with validated fields
-      // Note: Capacity is optional for venues (venue = hotel, spaces = halls with capacity)
       const venueData = {
         name: name.trim(),
         description: description || '',
-        capacity: capacity && capacity > 0 ? parseInt(capacity) : null, // Optional field
+        capacity: capacity && capacity > 0 ? parseInt(capacity) : null,
         pricePerHour: pricePerHour ? parseFloat(pricePerHour) : null,
         amenities: Array.isArray(amenities) ? amenities : [],
-        isActive: isActive !== false, // Default to true
-        tenantId: user.tenantId
+        isActive: isActive !== false,
+        tenantId: user.tenantId,
+        image_url: image_url || "",
+        image_urls: image_urls || [],
       };
       
-      console.log('🏗️ Attempting to create venue via API:', { name: venueData.name, tenantId: venueData.tenantId });
       const venue = await storage.createVenue(venueData);
-      console.log('✅ Venue created successfully via API');
       res.status(201).json(venue);
     } catch (error) {
-      console.error('[VENUE] Failed to create venue:', error);
       res.status(500).json({ message: "Failed to create venue", error: error.message });
+    }
+  });
+
+  app.patch("/api/venues/:id", async (req, res) => {
+    try {
+      const tenantId = await getTenantIdFromAuth(req);
+      if (!tenantId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const existingVenue = await storage.getVenue(req.params.id);
+      if (!existingVenue || existingVenue.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Venue not found" });
+      }
+      
+      const venue = await storage.updateVenue(req.params.id, req.body);
+      if (!venue) {
+        return res.status(404).json({ message: "Venue not found" });
+      }
+      res.json(venue);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update venue" });
     }
   });
 
@@ -921,119 +1117,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const tenantId = await getTenantIdFromAuth(req);
       if (!tenantId) {
-        return res.status(401).json({ message: "Authentication required" });
+        return res.status(401).json({ message: "Unauthorized" });
       }
-      
-      // Get user role for proper context
-      const authHeader = req.headers.authorization;
-      const token = authHeader?.substring(7);
-      const decoded = verifyToken(token!);
-      const user = await storage.getUser(decoded.id);
-      
-      // Get customers filtered by tenant
-      const customers = await storage.getCustomersByTenant(tenantId);
-      
+      const customers = await storage.getCustomers();
       res.json(customers);
-    } catch (error) {
-      console.error('Customers API error:', error);
-      res.status(500).json({ message: "Failed to fetch customers" });
-    }
-  });
-
-  // Get customer analytics
-  app.get("/api/customers/analytics", async (req, res) => {
-    try {
-      const tenantId = await getTenantIdFromAuth(req);
-      if (!tenantId) {
-        return res.status(401).json({ message: "Authentication required" });
-      }
-      
-      // Get data filtered by tenant
-      const customers = await storage.getCustomersByTenant(tenantId);
-      const bookings = await storage.getBookingsByTenant(tenantId);
-      const payments = await storage.getPayments(); // Payments will be filtered by tenant in storage layer
-      
-      const customerAnalytics = customers.map(customer => {
-        // Find all bookings for this customer
-        const customerBookings = bookings.filter(booking => booking.customerId === customer.id);
-        
-        // Find all payments for this customer's bookings
-        const customerPayments = payments.filter(payment => 
-          customerBookings.some(booking => booking.id === payment.bookingId)
-        );
-        
-        // Calculate total revenue from bookings (using totalPrice from bookings)
-        const totalRevenue = customerBookings.reduce((sum, booking) => sum + (booking.totalPrice || 0), 0);
-        
-        // Calculate event count
-        const eventCount = customerBookings.length;
-        
-        // Calculate average event value
-        const averageEventValue = eventCount > 0 ? totalRevenue / eventCount : 0;
-        
-        // Get most recent booking
-        const recentBooking = customerBookings.sort((a, b) => 
-          new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime()
-        )[0];
-        
-        // Calculate lifetime value category
-        let lifetimeValueCategory = "Bronze";
-        if (totalRevenue >= 50000) lifetimeValueCategory = "Platinum";
-        else if (totalRevenue >= 25000) lifetimeValueCategory = "Gold";
-        else if (totalRevenue >= 10000) lifetimeValueCategory = "Silver";
-        
-        // Calculate booking statuses
-        const confirmedBookings = customerBookings.filter(b => b.status === "confirmed").length;
-        const pendingBookings = customerBookings.filter(b => b.status === "inquiry" || b.status === "proposal").length;
-        const cancelledBookings = customerBookings.filter(b => b.status === "cancelled").length;
-        
-        return {
-          ...customer,
-          analytics: {
-            totalRevenue,
-            eventCount,
-            averageEventValue,
-            lastEventDate: recentBooking?.eventDate || null,
-            lastEventName: recentBooking?.eventName || null,
-            lifetimeValueCategory,
-            totalPaid: customerPayments.filter(p => p.status === "paid").reduce((sum, p) => sum + p.amount, 0),
-            totalPending: customerPayments.filter(p => p.status === "pending").reduce((sum, p) => sum + p.amount, 0),
-            confirmedBookings,
-            pendingBookings,
-            cancelledBookings,
-            customerSince: customer.createdAt,
-          }
-        };
-      });
-      
-      // Sort by total revenue descending
-      customerAnalytics.sort((a, b) => b.analytics.totalRevenue - a.analytics.totalRevenue);
-      
-      res.json(customerAnalytics);
-    } catch (error) {
-      console.error("Error fetching customer analytics:", error);
-      res.status(500).json({ message: "Failed to fetch customer analytics" });
-    }
-  });
-
-  app.post("/api/customers", 
-    requireAuth('customers'),
-    async (req: AuthenticatedRequest, res) => {
-    try {
-      const tenantId = req.user!.tenantId;
-      
-      const validatedData = insertCustomerSchema.parse({
-        ...req.body,
-        tenantId
-      });
-      const customer = await storage.createCustomer(validatedData);
-      res.json(customer);
     } catch (error: any) {
-      console.error("Error creating customer:", error);
-      res.status(400).json({ 
-        message: error.message || "Invalid customer data",
-        details: error.toString()
-      });
+      console.error("Error fetching customers:", error);
+      res.status(500).json({ message: "Failed to fetch customers" });
     }
   });
 
@@ -9265,261 +9355,16 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     }
   });
 
+  const httpServer = createServer(app);
+
   // Seed default subscription packages if none exist
   await seedDefaultPackages();
-  
+
   // Seed default event packages if none exist
   await seedDefaultEventPackages();
-  
+
   // Seed default services if none exist
   await seedDefaultServices();
 
-  const httpServer = createServer(app);
   return httpServer;
-}
-
-// Helper function to seed default subscription packages
-async function seedDefaultPackages() {
-  try {
-    const existingPackages = await storage.getSubscriptionPackages();
-    if (existingPackages.length > 0) {
-      console.log('Subscription packages already exist, skipping seed...');
-      return;
-    }
-
-    console.log('Seeding default subscription packages...');
-
-    const defaultPackages = [
-      {
-        name: "Starter",
-        description: "Perfect for small venues getting started with bookings",
-        price: "29.00",
-        billingInterval: "monthly" as const,
-        maxVenues: 1,
-        maxUsers: 3,
-        features: ["basic_analytics", "email_notifications", "customer_management"],
-        isActive: true,
-        sortOrder: 1
-      },
-      {
-        name: "Professional",
-        description: "Great for growing venues with multiple spaces and events",
-        price: "79.00",
-        billingInterval: "monthly" as const,
-        maxVenues: 5,
-        maxUsers: 10,
-        features: ["advanced_analytics", "custom_branding", "api_access", "priority_support", "proposal_system"],
-        isActive: true,
-        sortOrder: 2
-      },
-      {
-        name: "Enterprise",
-        description: "For large venues and event management companies",
-        price: "199.00",
-        billingInterval: "monthly" as const,
-        maxVenues: -1, // Unlimited
-        maxUsers: -1, // Unlimited
-        features: ["everything", "white_label", "dedicated_support", "custom_integrations", "advanced_reporting", "multi_tenant"],
-        isActive: true,
-        sortOrder: 3
-      }
-    ];
-
-    for (const pkg of defaultPackages) {
-      await storage.createSubscriptionPackage(pkg);
-      console.log(`✓ Added ${pkg.name} package`);
-    }
-
-    console.log('Successfully seeded subscription packages!');
-  } catch (error) {
-    console.error('Error seeding subscription packages:', error);
-  }
-}
-
-// Helper function to seed default event packages
-async function seedDefaultEventPackages() {
-  try {
-    const existingPackages = await storage.getAllPackagesAdmin();
-    if (existingPackages.length > 0) {
-      console.log('Event packages already exist, skipping seed...');
-      return;
-    }
-
-    console.log('Seeding default event packages...');
-
-    // We need to get the first tenant to assign these packages to
-    const users = await storage.getAllUsersAdmin();
-    const firstTenantUser = users.find(u => u.tenantId);
-    if (!firstTenantUser) {
-      console.log('No tenant users found, skipping event package seeding...');
-      return;
-    }
-
-    const tenantId = firstTenantUser.tenantId!;
-
-    const defaultEventPackages = [
-      {
-        tenantId: tenantId,
-        name: "Essential Wedding Package",
-        description: "Perfect for intimate weddings with essential services included",
-        category: "wedding",
-        price: "2500.00",
-        pricingModel: "fixed" as const,
-        applicableSpaceIds: [],
-        includedServiceIds: [],
-        enabledTaxIds: [],
-        enabledFeeIds: [],
-        isActive: true
-      },
-      {
-        tenantId: tenantId,
-        name: "Premium Wedding Package",
-        description: "Complete wedding package with premium services and amenities",
-        category: "wedding",
-        price: "5000.00",
-        pricingModel: "fixed" as const,
-        applicableSpaceIds: [],
-        includedServiceIds: [],
-        enabledTaxIds: [],
-        enabledFeeIds: [],
-        isActive: true
-      },
-      {
-        tenantId: tenantId,
-        name: "Corporate Meeting Package",
-        description: "Professional meeting package with AV equipment and catering",
-        category: "corporate",
-        price: "800.00",
-        pricingModel: "fixed" as const,
-        applicableSpaceIds: [],
-        includedServiceIds: [],
-        enabledTaxIds: [],
-        enabledFeeIds: [],
-        isActive: true
-      },
-      {
-        tenantId: tenantId,
-        name: "Social Event Package",
-        description: "Perfect for birthdays, anniversaries, and celebrations",
-        category: "social",
-        price: "1200.00",
-        pricingModel: "fixed" as const,
-        applicableSpaceIds: [],
-        includedServiceIds: [],
-        enabledTaxIds: [],
-        enabledFeeIds: [],
-        isActive: true
-      }
-    ];
-
-    for (const pkg of defaultEventPackages) {
-      await storage.createPackage(pkg);
-      console.log(`✓ Added ${pkg.name} event package`);
-    }
-
-    console.log('Successfully seeded event packages!');
-  } catch (error) {
-    console.error('Error seeding event packages:', error);
-  }
-}
-
-// Helper function to seed default services
-async function seedDefaultServices() {
-  try {
-    const existingServices = await storage.getAllServicesAdmin();
-    if (existingServices.length > 0) {
-      console.log('Services already exist, skipping seed...');
-      return;
-    }
-
-    console.log('Seeding default services...');
-
-    // We need to get the first tenant to assign these services to
-    const users = await storage.getAllUsersAdmin();
-    const firstTenantUser = users.find(u => u.tenantId);
-    if (!firstTenantUser) {
-      console.log('No tenant users found, skipping service seeding...');
-      return;
-    }
-
-    const tenantId = firstTenantUser.tenantId!;
-
-    const defaultServices = [
-      {
-        tenantId: tenantId,
-        name: "Professional DJ",
-        description: "Experienced DJ with sound system and lighting",
-        category: "entertainment",
-        price: "400.00",
-        pricingModel: "fixed" as const,
-        enabledTaxIds: [],
-        enabledFeeIds: [],
-        isActive: true
-      },
-      {
-        tenantId: tenantId,
-        name: "Wedding Photography",
-        description: "Professional wedding photography with edited photos",
-        category: "photography",
-        price: "1200.00",
-        pricingModel: "fixed" as const,
-        enabledTaxIds: [],
-        enabledFeeIds: [],
-        isActive: true
-      },
-      {
-        tenantId: tenantId,
-        name: "Catering Service",
-        description: "Full-service catering with appetizers, main course, and dessert",
-        category: "catering",
-        price: "35.00",
-        pricingModel: "per_person" as const,
-        enabledTaxIds: [],
-        enabledFeeIds: [],
-        isActive: true
-      },
-      {
-        tenantId: tenantId,
-        name: "Floral Arrangements",
-        description: "Beautiful floral centerpieces and decorations",
-        category: "decor",
-        price: "600.00",
-        pricingModel: "fixed" as const,
-        enabledTaxIds: [],
-        enabledFeeIds: [],
-        isActive: true
-      },
-      {
-        tenantId: tenantId,
-        name: "AV Equipment",
-        description: "Professional audio/visual equipment with tech support",
-        category: "equipment",
-        price: "300.00",
-        pricingModel: "fixed" as const,
-        enabledTaxIds: [],
-        enabledFeeIds: [],
-        isActive: true
-      },
-      {
-        tenantId: tenantId,
-        name: "Bartending Service",
-        description: "Professional bartender with premium bar setup",
-        category: "additional",
-        price: "250.00",
-        pricingModel: "fixed" as const,
-        enabledTaxIds: [],
-        enabledFeeIds: [],
-        isActive: true
-      }
-    ];
-
-    for (const service of defaultServices) {
-      await storage.createService(service);
-      console.log(`✓ Added ${service.name} service`);
-    }
-
-    console.log('Successfully seeded services!');
-  } catch (error) {
-    console.error('Error seeding services:', error);
-  }
 }

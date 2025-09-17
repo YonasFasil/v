@@ -51,9 +51,26 @@ export default function Events() {
   // Event click handler - for individual event editing from calendar
   const handleEventClick = async (booking: any, source: 'calendar' | 'table' = 'calendar') => {
 
-    // For calendar events: treat as individual events for editing
+    // For calendar events: check if it's a multidate event (contract)
     if (source === 'calendar') {
-      // Prepare individual event data - strip contract context
+      // If it's a multidate event, find and show the full contract
+      if (booking.contractId || booking.isPartOfContract) {
+        const contractId = booking.contractId || booking.contractInfo?.id;
+        if (contractId) {
+          // Find the full contract data with all events
+          const contractBooking = (bookings as any[])?.find((b: any) =>
+            b.isContract && b.contractInfo?.id === contractId
+          );
+
+          if (contractBooking) {
+            // Show full contract modal with all events
+            setSelectedBooking(contractBooking);
+            return;
+          }
+        }
+      }
+
+      // For single day events: prepare individual event data
       const individualEvent = {
         ...booking,
         eventName: booking.eventName || booking.title,
@@ -69,8 +86,8 @@ export default function Events() {
       };
 
       setSelectedBooking(individualEvent);
-      // Skip EventSummaryModal and go directly to edit mode for calendar clicks
-      setShowEditModal(true);
+      // Open summary modal first for calendar clicks (changed from direct edit)
+      // setShowEditModal(true); // Removed - summary modal will open instead
       return;
     }
 

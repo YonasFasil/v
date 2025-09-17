@@ -35,6 +35,14 @@ const PaymentSuccess = lazy(() => import("@/pages/payment-success"));
 const SuperAdminDashboard = lazy(() => import("@/pages/super-admin-dashboard"));
 const Users = lazy(() => import("@/pages/users"));
 const UpgradePackage = lazy(() => import("@/pages/upgrade-package"));
+
+// Public pages (no authentication required)
+const PublicVenues = lazy(() => import("@/pages/public-venues"));
+const VenueDetail = lazy(() => import("@/pages/venue-detail"));
+const CustomerSignup = lazy(() => import("@/pages/customer-signup"));
+const CustomerLogin = lazy(() => import("@/pages/customer-login"));
+const CustomerDashboard = lazy(() => import("@/pages/customer-dashboard"));
+const CustomerVerifyEmail = lazy(() => import("@/pages/customer-verify-email"));
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { FullyProtectedRoute } from "@/components/auth/FullyProtectedRoute";
 
@@ -81,6 +89,44 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+
+      {/* Public routes - no authentication required */}
+      <Route path="/explore/venues">
+        <Suspense fallback={<PageLoader />}>
+          <PublicVenues />
+        </Suspense>
+      </Route>
+
+      <Route path="/explore/venues/:id">
+        <Suspense fallback={<PageLoader />}>
+          <VenueDetail />
+        </Suspense>
+      </Route>
+
+      <Route path="/customer/signup">
+        <Suspense fallback={<PageLoader />}>
+          <CustomerSignup />
+        </Suspense>
+      </Route>
+
+      <Route path="/customer/login">
+        <Suspense fallback={<PageLoader />}>
+          <CustomerLogin />
+        </Suspense>
+      </Route>
+
+      <Route path="/customer/dashboard">
+        <Suspense fallback={<PageLoader />}>
+          <CustomerDashboard />
+        </Suspense>
+      </Route>
+
+      <Route path="/customer/verify-email">
+        <Suspense fallback={<PageLoader />}>
+          <CustomerVerifyEmail />
+        </Suspense>
+      </Route>
+
       <Route path="/dashboard">
         <LazyProtectedRoute>
           <Dashboard />
@@ -193,15 +239,19 @@ function Router() {
   );
 }
 
+import { ThemeProvider } from "@/components/theme-provider";
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-        <QuickActions />
-        <FloatingChatbot />
-      </TooltipProvider>
+      <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+          <QuickActions />
+          <FloatingChatbot />
+        </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

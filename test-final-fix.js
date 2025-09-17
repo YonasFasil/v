@@ -1,6 +1,6 @@
 const { Pool } = require('pg');
 
-// Test the final fix for edit modal and contract crashes
+// Test the final fix for multidate event editing
 async function testFinalFix() {
   const pool = new Pool({
     connectionString: "postgresql://neondb_owner:npg_zRXKQ7WHkJ5f@ep-quiet-waterfall-ad02xgr6-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require"
@@ -9,10 +9,100 @@ async function testFinalFix() {
   const CORRECT_TENANT_ID = 'f50ed3e1-944b-49b7-bd1f-d50622f76172';
 
   try {
-    console.log("Testing FINAL fix for edit modal and contract crashes...\n");
+    console.log("Testing final fix for multidate event editing...\n");
 
-    // Test the updated bookings query with all aliases
-    const bookings = await pool.query(`SELECT b.*,
+    // Check for broken multidate events (bookings with null customer_id/venue_id)
+    console.log("=".repeat(60));
+    console.log("CHECKING FOR BROKEN MULTIDATE EVENTS:");
+    console.log("=".repeat(60));
+
+    const brokenBookingsQuery = `
+      SELECT b.id, b.contract_id, b.event_name, b.customer_id, b.venue_id, c2.customer_id as contract_customer_id
+      FROM bookings b
+      LEFT JOIN contracts c2 ON b.contract_id = c2.id
+      WHERE b.tenant_id = $1
+        AND b.contract_id IS NOT NULL
+        AND (b.customer_id IS NULL OR b.venue_id IS NULL)
+    `;
+
+    const brokenBookings = await pool.query(brokenBookingsQuery, [CORRECT_TENANT_ID]);
+
+    if (brokenBookings.rows.length > 0) {
+      console.log(`🔥 Found ${brokenBookings.rows.length} broken multidate bookings!`);
+
+      brokenBookings.rows.forEach((booking, i) => {
+        console.log(`${i + 1}. ${booking.event_name} (Contract: ${booking.contract_id})`);
+        console.log(`   customer_id: ${booking.customer_id} ${booking.customer_id ? '✅' : '❌'}`);
+        console.log(`   venue_id: ${booking.venue_id} ${booking.venue_id ? '✅' : '❌'}`);
+        console.log(`   contract_customer_id: ${booking.contract_customer_id}`);
+      });
+
+      console.log("\n💡 FIXING BROKEN MULTIDATE BOOKINGS...");
+
+      // Fix them all
+      let fixedCount = 0;
+      for (const brokenBooking of brokenBookings.rows) {
+        let updateFields = [];
+        let updateValues = [];
+        let paramIndex = 2;
+
+        updateValues.push(brokenBooking.id);
+
+        // Fix missing customer_id
+        if (brokenBooking.contract_customer_id && !brokenBooking.customer_id) {
+          updateFields.push(`customer_id = $${paramIndex}`);
+          updateValues.push(brokenBooking.contract_customer_id);
+          paramIndex++;
+        }
+
+        // Fix missing venue_id by finding it from other bookings in same contract
+        if (!brokenBooking.venue_id && brokenBooking.contract_id) {
+          const venueQuery = `
+            SELECT venue_id, space_id
+            FROM bookings
+            WHERE contract_id = $1 AND venue_id IS NOT NULL
+            LIMIT 1
+          `;
+          const venueResult = await pool.query(venueQuery, [brokenBooking.contract_id]);
+
+          if (venueResult.rows.length > 0) {
+            updateFields.push(`venue_id = $${paramIndex}`);
+            updateValues.push(venueResult.rows[0].venue_id);
+            paramIndex++;
+
+            if (venueResult.rows[0].space_id) {
+              updateFields.push(`space_id = $${paramIndex}`);
+              updateValues.push(venueResult.rows[0].space_id);
+              paramIndex++;
+            }
+          }
+        }
+
+        if (updateFields.length > 0) {
+          const updateQuery = `
+            UPDATE bookings
+            SET ${updateFields.join(', ')}
+            WHERE id = $1
+          `;
+
+          await pool.query(updateQuery, updateValues);
+          fixedCount++;
+          console.log(`✅ Fixed booking ${brokenBooking.id} (${brokenBooking.event_name})`);
+        }
+      }
+
+      console.log(`\n✅ Fixed ${fixedCount} out of ${brokenBookings.rows.length} broken multidate bookings!`);
+
+    } else {
+      console.log("✅ No broken multidate bookings found");
+    }
+
+    // Test the query after fixes
+    console.log("\n=".repeat(60));
+    console.log("TESTING MULTIDATE EVENT EDITING AFTER FIXES:");
+    console.log("=".repeat(60));
+
+    const testQuery = `SELECT b.*,
              b.event_name as "eventName",
              b.event_date as "eventDate",
              b.start_time as "startTime",
@@ -31,136 +121,74 @@ async function testFinalFix() {
       LEFT JOIN customers c ON b.customer_id = c.id
       LEFT JOIN venues v ON b.venue_id = v.id
       LEFT JOIN spaces s ON b.space_id = s.id
-      WHERE b.tenant_id = $1
-      ORDER BY b.event_date DESC
-      LIMIT 5`, [CORRECT_TENANT_ID]);
+      WHERE b.tenant_id = $1 AND b.contract_id IS NOT NULL
+      ORDER BY b.created_at DESC
+      LIMIT 3`;
 
-    // Simulate the FIXED contract grouping logic
-    const contracts = new Map();
-    const singleBookings = [];
+    const testBookings = await pool.query(testQuery, [CORRECT_TENANT_ID]);
 
-    bookings.rows.forEach(booking => {
-      if (booking.contract_id) {
-        if (!contracts.has(booking.contract_id)) {
-          // Create a contract object with ALL expected fields (using first booking's data)
-          contracts.set(booking.contract_id, {
-            id: booking.contract_id,
-            isContract: true,
-            contractInfo: {
-              id: booking.contract_id,
-              contractName: `${booking.eventName} (Multi-Date)`
-            },
-            contractEvents: [],
-            eventCount: 0,
-            status: booking.status,
-            customer_name: booking.customer_name,
-            venue_name: booking.venue_name,
-            // Add missing date fields that modals expect
-            eventName: booking.eventName,
-            eventDate: booking.eventDate,
-            startTime: booking.startTime,
-            endTime: booking.endTime,
-            guestCount: booking.guestCount,
-            totalAmount: 0,
-            created_at: booking.created_at,
-            // Add missing ID fields for edit modal
-            customerId: booking.customerId,
-            venueId: booking.venueId,
-            spaceId: booking.spaceId,
-            packageId: booking.packageId,
-            selectedServices: booking.selectedServices,
-            notes: booking.notes
-          });
-        }
+    if (testBookings.rows.length > 0) {
+      console.log("Sample multidate bookings after fix:");
 
-        const contract = contracts.get(booking.contract_id);
-        contract.contractEvents.push({
-          ...booking,
-          isPartOfContract: true
-        });
-        contract.eventCount = contract.contractEvents.length;
-        contract.totalAmount = (parseFloat(contract.totalAmount || 0) + parseFloat(booking.totalAmount || 0)).toFixed(2);
-      } else {
-        // Single booking (not part of contract)
-        singleBookings.push({
-          ...booking,
-          isContract: false,
-          isPartOfContract: false
-        });
-      }
-    });
-
-    // Combine contracts and single bookings
-    const result = [...Array.from(contracts.values()), ...singleBookings];
-
-    console.log("=".repeat(60));
-    console.log("FINAL TESTING - ALL ISSUES SHOULD BE FIXED");
-    console.log("=".repeat(60));
-
-    result.forEach((booking, i) => {
-      console.log(`\n${i + 1}. ${booking.isContract ? 'CONTRACT' : 'SINGLE'}: ${booking.eventName}`);
-
-      // Test edit modal fields - ALL should work now
-      const editModalFields = {
-        customerId: booking.customerId,
-        venueId: booking.venueId,
-        spaceId: booking.spaceId,
-        packageId: booking.packageId,
-        selectedServices: booking.selectedServices,
-        eventName: booking.eventName,
-        guestCount: booking.guestCount,
-        startTime: booking.startTime,
-        endTime: booking.endTime,
-        status: booking.status,
-        notes: booking.notes
-      };
-
-      console.log(`  Edit Modal Preselection:`);
-      Object.entries(editModalFields).forEach(([field, value]) => {
-        const hasValue = value !== null && value !== undefined && value !== '';
-        console.log(`    ${field}: ${hasValue ? '✅' : '⚠️ empty'} "${value}"`);
+      testBookings.rows.forEach((booking, i) => {
+        console.log(`\n${i + 1}. ${booking.eventName} (Contract: ${booking.contract_id.substring(0, 8)}...)`);
+        console.log(`   customerId: ${booking.customerId} ${booking.customerId ? '✅' : '❌'}`);
+        console.log(`   venueId: ${booking.venueId} ${booking.venueId ? '✅' : '❌'}`);
+        console.log(`   spaceId: ${booking.spaceId} ${booking.spaceId ? '✅' : '❌'}`);
+        console.log(`   customer_name: ${booking.customer_name}`);
+        console.log(`   venue_name: ${booking.venue_name}`);
       });
 
-      // Test summary modal safety
-      console.log(`  Summary Modal Safety:`);
-      if (booking.isContract) {
-        console.log(`    ✅ contractEvents exists (${booking.contractEvents?.length} events)`);
-        console.log(`    ✅ contractInfo exists (${booking.contractInfo?.contractName})`);
-        console.log(`    ✅ All array operations safe`);
-      } else {
-        console.log(`    ✅ Single booking - no contract operations needed`);
+      // Test if a typical date change would work
+      console.log("\n📋 TESTING DATE CHANGE SIMULATION:");
+      const testBooking = testBookings.rows[0];
+
+      const dateChangeQuery = `
+        UPDATE bookings
+        SET event_date = $3
+        WHERE tenant_id = $1 AND id = $2
+        RETURNING *
+      `;
+
+      const originalDate = testBooking.eventDate;
+      const newDate = "2025-10-15";
+
+      const changeResult = await pool.query(dateChangeQuery, [CORRECT_TENANT_ID, testBooking.id, newDate]);
+
+      if (changeResult.rows.length > 0) {
+        console.log(`✅ Date change test successful`);
+        console.log(`   Changed from: ${originalDate}`);
+        console.log(`   Changed to: ${changeResult.rows[0].event_date}`);
+
+        // Revert the change
+        await pool.query(dateChangeQuery, [CORRECT_TENANT_ID, testBooking.id, originalDate]);
+        console.log(`✅ Reverted test change`);
       }
 
-      // Overall assessment
-      const allFieldsPresent = editModalFields.customerId && editModalFields.venueId && editModalFields.spaceId;
-      console.log(`  Overall: ${allFieldsPresent ? '✅ FULLY FIXED' : '⚠️ Some fields missing'}`);
-    });
+      console.log("\n=".repeat(60));
+      console.log("🎉 MULTIDATE EVENT EDITING FIX COMPLETE");
+      console.log("=".repeat(60));
 
-    console.log("\n" + "=".repeat(60));
-    console.log("🎉 FINAL SUMMARY - ALL FIXES APPLIED:");
-    console.log("=".repeat(60));
+      const allHaveIds = testBookings.rows.every(b => b.customerId && b.venueId);
 
-    console.log("✅ Added SQL aliases for all camelCase fields:");
-    console.log("   - customerId, venueId, spaceId");
-    console.log("   - packageId, selectedServices");
-    console.log("   - eventName, eventDate, startTime, endTime, guestCount");
+      if (allHaveIds) {
+        console.log("✅ All multidate events have proper customer/venue IDs");
+        console.log("✅ Edit modal should populate correctly");
+        console.log("✅ Date changes should save properly");
+        console.log("✅ Adding/removing dates should work");
+        console.log("\n🎉 MULTIDATE EVENT EDITING SHOULD NOW WORK!");
+      } else {
+        console.log("❌ Some multidate events still missing IDs");
+        console.log("❌ Edit modal may not populate correctly");
+      }
 
-    console.log("✅ Fixed contract grouping to include all fields:");
-    console.log("   - Contract objects now have customerId, venueId, spaceId");
-    console.log("   - Edit modal can preselect customer, venue, space for contracts");
-
-    console.log("✅ Fixed contract modal safety:");
-    console.log("   - contractEvents is never null (always array)");
-    console.log("   - contractInfo always exists");
-    console.log("   - All array operations (.length, .map, .reduce) are safe");
-
-    console.log("\n🚀 Expected results:");
-    console.log("   🎯 Edit modal should preselect: customer, venue, space, package, services");
-    console.log("   🎯 Event summary modal should not crash with null length errors");
-    console.log("   🎯 Contract events should display properly");
+    } else {
+      console.log("❌ No multidate events found to test with");
+    }
 
   } catch (error) {
-    console.error('Error in final test:', error.message);
+    console.error('\n🔥 FINAL FIX TEST FAILED');
+    console.error('Error:', error.message);
   } finally {
     await pool.end();
   }

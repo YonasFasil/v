@@ -183,7 +183,7 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
   const selectedSpaceData = booking.spaceData || selectedVenueData?.spaces?.find((s: any) => s.id === booking.spaceId);
   const selectedPackageData = (packages as any[]).find((p: any) => p.id === booking.packageId);
   const selectedCustomerData = booking.customerData || (customers as any[]).find((c: any) => c.id === booking.customerId);
-  const selectedServicesData = (services as any[]).filter((s: any) => booking.serviceIds?.includes(s.id));
+  const selectedServicesData = (services as any[]).filter((s: any) => booking.selectedServices?.includes(s.id));
 
 
 
@@ -243,7 +243,7 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
                 <Badge className="bg-purple-100 text-purple-800">Contract</Badge>
                 <div>
                   <h3 className="font-semibold text-purple-900">
-                    {booking.contractInfo?.contractName || "Multi-Date Event Contract"}
+                    {booking.contractInfo?.contractName || booking.eventName || "Event Contract"}
                   </h3>
                   <p className="text-sm text-purple-700">
                     {booking.eventCount} events • Total: ${parseFloat(booking.totalAmount || '0').toLocaleString()}
@@ -656,7 +656,7 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
               )}
               
               {/* Communication History */}
-              {(communications as any[]).length > 0 && (
+              {(communications || []).length > 0 && (
                 <div className="mt-4 p-4 border border-blue-200 rounded-lg bg-blue-50">
                   <h4 className="font-medium mb-3 text-blue-900">Communication History</h4>
                   <div className="space-y-2 max-h-60 overflow-y-auto">

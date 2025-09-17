@@ -4,6 +4,13 @@ const { v4: uuidv4 } = require('uuid');
 const { getDatabaseUrl } = require('./db-config.js');
 
 module.exports = async function handler(req, res) {
+  // DEBUGGING: Log ALL API calls to tenant handler
+  console.log(`\n🌐 TENANT API: ${req.method} ${req.url}`);
+  console.log(`   Resource: ${req.query?.resource || 'unknown'}`);
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log(`   Body keys: ${Object.keys(req.body)}`);
+  }
+
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -193,14 +200,46 @@ module.exports = async function handler(req, res) {
       if (req.method === 'GET') {
         const analytics = await pool.query(`
           SELECT
-            c.*,
-            COUNT(DISTINCT b.id) as "bookingCount",
-            COALESCE(SUM(b.total_amount), 0) as "totalRevenue",
-            MAX(b.event_date) as "lastBookingDate",
-            COUNT(DISTINCT p.id) as "proposalCount"
+            c.id,
+            c.name,
+            c.email,
+            c.phone,
+            c.company_id as "companyId",
+            c.status,
+            c.notes,
+            json_build_object(
+              'totalRevenue', COALESCE(SUM(CASE WHEN b.status IN ('confirmed', 'completed') THEN b.total_amount ELSE 0 END), 0),
+              'lifetimeValue', COALESCE(SUM(CASE WHEN b.status IN ('confirmed', 'completed') THEN b.total_amount ELSE 0 END), 0),
+              'lifetimeValueCategory',
+                CASE
+                  WHEN COALESCE(SUM(CASE WHEN b.status IN ('confirmed', 'completed') THEN b.total_amount ELSE 0 END), 0) >= 10000 THEN 'Platinum'
+                  WHEN COALESCE(SUM(CASE WHEN b.status IN ('confirmed', 'completed') THEN b.total_amount ELSE 0 END), 0) >= 5000 THEN 'Gold'
+                  WHEN COALESCE(SUM(CASE WHEN b.status IN ('confirmed', 'completed') THEN b.total_amount ELSE 0 END), 0) >= 1000 THEN 'Silver'
+                  ELSE 'Bronze'
+                END,
+              'bookingsCount', COUNT(DISTINCT b.id),
+              'confirmedBookings', COUNT(DISTINCT CASE WHEN b.status = 'confirmed' THEN b.id END),
+              'completedBookings', COUNT(DISTINCT CASE WHEN b.status = 'completed' THEN b.id END),
+              'pendingBookings', COUNT(DISTINCT CASE WHEN b.status = 'inquiry' THEN b.id END),
+              'cancelledBookings', COUNT(DISTINCT CASE WHEN b.status = 'cancelled' THEN b.id END),
+              'averageBookingValue',
+                CASE
+                  WHEN COUNT(DISTINCT CASE WHEN b.status IN ('confirmed', 'completed') THEN b.id END) > 0
+                  THEN COALESCE(SUM(CASE WHEN b.status IN ('confirmed', 'completed') THEN b.total_amount ELSE 0 END), 0) / COUNT(DISTINCT CASE WHEN b.status IN ('confirmed', 'completed') THEN b.id END)
+                  ELSE 0
+                END,
+              'lastEventDate', MAX(b.event_date),
+              'lastEventName', (
+                SELECT b2.event_name
+                FROM bookings b2
+                WHERE b2.customer_id = c.id AND b2.tenant_id = c.tenant_id
+                ORDER BY b2.event_date DESC
+                LIMIT 1
+              ),
+              'customerSince', c.created_at
+            ) as analytics
           FROM customers c
-          LEFT JOIN bookings b ON c.id = b.customer_id AND c.tenant_id = b.tenant_id
-          LEFT JOIN proposals p ON c.id = p.customer_id AND c.tenant_id = p.tenant_id
+          LEFT JOIN bookings b ON c.id = b.customer_id
           WHERE c.tenant_id = $1
           GROUP BY c.id
           ORDER BY c.created_at DESC
@@ -237,40 +276,28 @@ module.exports = async function handler(req, res) {
         }
         
         const newVenue = await pool.query(`INSERT INTO venues (
-            tenant_id, name, description, address, city, state, zip_code, country,
-            capacity, phone_number, email, website, amenities, setup_styles,
-            cancellation_policy, images, price_per_hour, is_active, created_at
+            tenant_id, name, description, address, amenities, images, is_active, created_at, updated_at
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW()
+            $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
           ) RETURNING *`, [
-            tenantId, name, description || null, address || null, city || null, 
-            state || null, zipCode || null, country || null, capacity || null,
-            phoneNumber || null, email || null, website || null, 
-            amenities || [], setupStyles || [], cancellationPolicy || null,
-            images || [], pricePerHour || null, isActive !== false
+            tenantId, name, description || null, address || null,
+            amenities || [], images || [], isActive !== false
           ]);
         
         return res.status(201).json(newVenue.rows[0]);
         
       } else if (req.method === 'PUT' && id) {
-        const { 
-          name, description, address, city, state, zipCode, country,
-          capacity, phoneNumber, email, website, amenities, setupStyles,
-          cancellationPolicy, images, pricePerHour, isActive
+        const {
+          name, description, address, amenities, images, isActive
         } = req.body;
-        
-        const updatedVenue = await pool.query(`UPDATE venues 
-          SET name = $1, description = $2, address = $3, city = $4, state = $5,
-              zip_code = $6, country = $7, capacity = $8, phone_number = $9,
-              email = $10, website = $11, amenities = $12, setup_styles = $13,
-              cancellation_policy = $14, images = $15, price_per_hour = $16,
-              is_active = $17, updated_at = NOW()
-          WHERE tenant_id = $18 AND id = $19
+
+        const updatedVenue = await pool.query(`UPDATE venues
+          SET name = $1, description = $2, address = $3, amenities = $4,
+              images = $5, is_active = $6, updated_at = NOW()
+          WHERE tenant_id = $7 AND id = $8
           RETURNING *`, [
-            name, description, address, city, state, zipCode, country, capacity,
-            phoneNumber, email, website, amenities || [], setupStyles || [],
-            cancellationPolicy, images || [], pricePerHour, isActive !== false,
-            tenantId, id
+            name, description, address, amenities || [], images || [],
+            isActive !== false, tenantId, id
           ]);
         
         if (updatedVenue.rows.length === 0) {
@@ -308,6 +335,9 @@ module.exports = async function handler(req, res) {
                  b.space_id as "spaceId",
                  b.package_id as "packageId",
                  b.selected_services as "selectedServices",
+                 b.item_quantities as "itemQuantities",
+                 b.pricing_overrides as "pricingOverrides",
+                 b.service_tax_overrides as "serviceTaxOverrides",
                  c.name as customer_name,
                  v.name as venue_name,
                  s.name as space_name
@@ -392,7 +422,8 @@ module.exports = async function handler(req, res) {
           eventName, eventType, customerId, venueId, spaceId,
           eventDate, endDate, startTime, endTime, guestCount,
           setupStyle, status = 'inquiry', totalAmount, depositAmount,
-          notes, contractId, isMultiDay
+          notes, contractId, isMultiDay, packageId, selectedServices,
+          itemQuantities, pricingOverrides, serviceTaxOverrides
         } = req.body;
 
         if (!eventName || !eventDate || !startTime || !endTime) {
@@ -458,15 +489,17 @@ module.exports = async function handler(req, res) {
             tenant_id, event_name, event_type, customer_id, venue_id, space_id,
             event_date, end_date, start_time, end_time, guest_count,
             setup_style, status, total_amount, deposit_amount, notes,
-            contract_id, is_multi_day, created_at
+            contract_id, is_multi_day, package_id, selected_services,
+            item_quantities, pricing_overrides, service_tax_overrides, created_at
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW()
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, NOW()
           ) RETURNING *
         `, [
           tenantId, eventName, eventType, customerId, venueId, spaceId,
           eventDate, endDate, startTime, endTime, guestCount,
           setupStyle, status, totalAmount, depositAmount, notes,
-          contractId, isMultiDay
+          contractId, isMultiDay, packageId, selectedServices,
+          itemQuantities, pricingOverrides, serviceTaxOverrides
         ]);
 
         return res.status(201).json(newBooking.rows[0]);
@@ -477,6 +510,23 @@ module.exports = async function handler(req, res) {
         try {
           const updateData = req.body;
 
+          // DEBUGGING: Log when individual booking PATCH is called
+          console.log('🔍 INDIVIDUAL BOOKING PATCH called');
+          console.log('   Booking ID:', id);
+          console.log('   Update data keys:', Object.keys(updateData));
+          console.log('   ⚠️  This should NOT be called for multidate events!');
+
+          // Check if this is actually a single-to-multidate conversion
+          if (updateData.bookingsData && Array.isArray(updateData.bookingsData)) {
+            console.log('   🚨 PROBLEM: Individual booking PATCH received bookingsData array!');
+            console.log('   🚨 This should be a CONTRACT POST, not individual PATCH!');
+            console.log('   🚨 Frontend is calling wrong endpoint for single-to-multidate conversion');
+            return res.status(400).json({
+              message: 'Single to multidate conversion should use contract endpoint',
+              hint: 'Use POST /api/contracts instead of PATCH /api/bookings/{id}'
+            });
+          }
+
           // Build dynamic update query based on provided fields
           const updateFields = [];
           const updateValues = [];
@@ -485,52 +535,63 @@ module.exports = async function handler(req, res) {
           // Add tenant_id and booking id to WHERE clause values
           updateValues.push(tenantId, id);
 
-          // Handle common booking fields
-          if (updateData.eventName) {
-            updateFields.push(`event_name = $${valueIndex + 2}`);
-            updateValues.push(updateData.eventName);
-            valueIndex++;
-          }
+          // Define a mapping from camelCase to snake_case for database columns
+          const fieldMappings = {
+            eventName: 'event_name',
+            status: 'status',
+            guestCount: 'guest_count',
+            startTime: 'start_time',
+            endTime: 'end_time',
+            notes: 'notes',
+            totalAmount: 'total_amount',
+            eventDate: 'event_date',
+            endDate: 'end_date',
+            eventType: 'event_type',
+            setupStyle: 'setup_style',
+            depositAmount: 'deposit_amount',
+            depositPaid: 'deposit_paid',
+            customerId: 'customer_id',
+            venueId: 'venue_id',
+            spaceId: 'space_id',
+            packageId: 'package_id',
+            selectedServices: 'selected_services',
+            itemQuantities: 'item_quantities',
+            pricingOverrides: 'pricing_overrides',
+            serviceTaxOverrides: 'service_tax_overrides'
+          };
 
-          if (updateData.status) {
-            updateFields.push(`status = $${valueIndex + 2}`);
-            updateValues.push(updateData.status);
-            valueIndex++;
-          }
+          for (const key in updateData) {
+            if (fieldMappings[key] && updateData[key] !== undefined) {
+              let value = updateData[key];
 
-          if (updateData.guestCount) {
-            updateFields.push(`guest_count = $${valueIndex + 2}`);
-            updateValues.push(updateData.guestCount);
-            valueIndex++;
-          }
+              // Handle UUID fields - convert empty strings to null
+              if (['packageId', 'customerId', 'venueId', 'spaceId'].includes(key)) {
+                value = value && value.trim() !== '' ? value : null;
+              }
 
-          if (updateData.startTime) {
-            updateFields.push(`start_time = $${valueIndex + 2}`);
-            updateValues.push(updateData.startTime);
-            valueIndex++;
-          }
+              // Handle JSON fields - convert empty objects/arrays to null
+              if (['selectedServices', 'itemQuantities', 'pricingOverrides', 'serviceTaxOverrides'].includes(key)) {
+                if (Array.isArray(value)) {
+                  value = value.length > 0 ? value : null;
+                } else if (typeof value === 'object' && value !== null) {
+                  value = Object.keys(value).length > 0 ? value : null;
+                } else if (typeof value === 'string' && value.trim() === '') {
+                  value = null;
+                }
+              }
 
-          if (updateData.endTime) {
-            updateFields.push(`end_time = $${valueIndex + 2}`);
-            updateValues.push(updateData.endTime);
-            valueIndex++;
-          }
-
-          if (updateData.notes) {
-            updateFields.push(`notes = $${valueIndex + 2}`);
-            updateValues.push(updateData.notes);
-            valueIndex++;
-          }
-
-          if (updateData.totalAmount) {
-            updateFields.push(`total_amount = $${valueIndex + 2}`);
-            updateValues.push(updateData.totalAmount);
-            valueIndex++;
+              updateFields.push(`${fieldMappings[key]} = $${valueIndex + 2}`);
+              updateValues.push(value);
+              valueIndex++;
+            }
           }
 
           if (updateFields.length === 0) {
             return res.status(400).json({ message: 'No fields to update' });
           }
+
+          // Note: updated_at column doesn't exist in bookings table
+          // Using created_at instead for tracking purposes
 
           // Update the booking
           const updateQuery = `
@@ -553,15 +614,69 @@ module.exports = async function handler(req, res) {
           return res.status(500).json({ message: 'Failed to update booking' });
         }
       }
+
+      // DELETE booking (for single-to-multidate conversion)
+      if (req.method === 'DELETE' && id) {
+        try {
+          console.log('🗑️ DELETING INDIVIDUAL BOOKING:', id);
+
+          const deleteQuery = `
+            DELETE FROM bookings
+            WHERE tenant_id = $1 AND id = $2
+            RETURNING *
+          `;
+
+          const result = await pool.query(deleteQuery, [tenantId, id]);
+
+          if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Booking not found' });
+          }
+
+          console.log('✅ Successfully deleted booking:', id);
+          return res.json({ message: 'Booking deleted successfully', deletedBooking: result.rows[0] });
+
+        } catch (error) {
+          console.error('Booking deletion error:', error);
+          return res.status(500).json({ message: 'Failed to delete booking' });
+        }
+      }
     }
     
     // PACKAGES
     if (resource === 'packages') {
       if (req.method === 'GET') {
-        const packages = await pool.query(`SELECT * FROM packages 
+        if (id) {
+          const pkg = await pool.query(`SELECT * FROM packages
+            WHERE tenant_id = $1 AND id = $2`, [tenantId, id]);
+          if (pkg.rows.length === 0) {
+            return res.json(null);
+          }
+          // Convert snake_case to camelCase for frontend
+          const packageData = {
+            ...pkg.rows[0],
+            includedServiceIds: pkg.rows[0].included_service_ids,
+            enabledTaxIds: pkg.rows[0].enabled_tax_ids,
+            enabledFeeIds: pkg.rows[0].enabled_fee_ids,
+            pricingModel: pkg.rows[0].pricing_model,
+            createdAt: pkg.rows[0].created_at
+          };
+          return res.json(packageData);
+        }
+        const packages = await pool.query(`SELECT * FROM packages
           WHERE tenant_id = $1 AND is_active = true
           ORDER BY created_at DESC`, [tenantId]);
-        return res.json(packages.rows);
+
+        // Convert snake_case to camelCase for frontend
+        const formattedPackages = packages.rows.map(pkg => ({
+          ...pkg,
+          includedServiceIds: pkg.included_service_ids,
+          enabledTaxIds: pkg.enabled_tax_ids,
+          enabledFeeIds: pkg.enabled_fee_ids,
+          pricingModel: pkg.pricing_model,
+          createdAt: pkg.created_at
+        }));
+
+        return res.json(formattedPackages);
         
       } else if (req.method === 'POST') {
         const { 
@@ -583,30 +698,71 @@ module.exports = async function handler(req, res) {
             includedServiceIds || [], enabledTaxIds || [], enabledFeeIds || []
           ]);
         
-        return res.status(201).json(newPackage.rows[0]);
+        // Convert snake_case to camelCase for frontend
+        const formattedPackage = {
+          ...newPackage.rows[0],
+          includedServiceIds: newPackage.rows[0].included_service_ids,
+          enabledTaxIds: newPackage.rows[0].enabled_tax_ids,
+          enabledFeeIds: newPackage.rows[0].enabled_fee_ids,
+          pricingModel: newPackage.rows[0].pricing_model,
+          createdAt: newPackage.rows[0].created_at
+        };
+
+        return res.status(201).json(formattedPackage);
         
-      } else if (req.method === 'PUT' && id) {
-        const { 
-          name, description, category, price, pricingModel,
-          includedServiceIds, enabledTaxIds, enabledFeeIds 
-        } = req.body;
-        
-        const updatedPackage = await pool.query(`UPDATE packages 
-          SET name = $1, description = $2, category = $3, price = $4, 
-              pricing_model = $5, included_service_ids = $6, 
-              enabled_tax_ids = $7, enabled_fee_ids = $8
-          WHERE tenant_id = $9 AND id = $10
-          RETURNING *`, [
-            name, description, category, price, pricingModel,
-            includedServiceIds || [], enabledTaxIds || [], enabledFeeIds || [],
-            tenantId, id
-          ]);
+      } else if (req.method === 'PATCH' && id) {
+        const updates = req.body;
+        const updateFields = [];
+        const updateValues = [];
+        let valueIndex = 1;
+
+        const fieldMappings = {
+            name: 'name',
+            description: 'description',
+            category: 'category',
+            price: 'price',
+            pricingModel: 'pricing_model',
+            includedServiceIds: 'included_service_ids',
+            enabledTaxIds: 'enabled_tax_ids',
+            enabledFeeIds: 'enabled_fee_ids'
+        };
+
+        for (const [key, value] of Object.entries(updates)) {
+            if (fieldMappings[key]) {
+                updateFields.push(`${fieldMappings[key]} = ${valueIndex}`);
+                updateValues.push(value);
+                valueIndex++;
+            }
+        }
+
+        if (updateFields.length === 0) {
+            return res.status(400).json({ message: 'No fields to update' });
+        }
+
+        updateValues.push(tenantId, id);
+
+        const updateQuery = `UPDATE packages
+          SET ${updateFields.join(', ')}
+          WHERE tenant_id = ${valueIndex} AND id = ${valueIndex + 1}
+          RETURNING *`;
+
+        const updatedPackage = await pool.query(updateQuery, updateValues);
         
         if (updatedPackage.rows.length === 0) {
           return res.status(404).json({ message: 'Package not found' });
         }
         
-        return res.json(updatedPackage.rows[0]);
+        // Convert snake_case to camelCase for frontend
+        const formattedPackage = {
+          ...updatedPackage.rows[0],
+          includedServiceIds: updatedPackage.rows[0].included_service_ids,
+          enabledTaxIds: updatedPackage.rows[0].enabled_tax_ids,
+          enabledFeeIds: updatedPackage.rows[0].enabled_fee_ids,
+          pricingModel: updatedPackage.rows[0].pricing_model,
+          createdAt: updatedPackage.rows[0].created_at
+        };
+
+        return res.json(formattedPackage);
         
       } else if (req.method === 'DELETE' && id) {
         const deletedPackage = await pool.query(`UPDATE packages 
@@ -625,10 +781,36 @@ module.exports = async function handler(req, res) {
     // SERVICES
     if (resource === 'services') {
       if (req.method === 'GET') {
-        const services = await pool.query(`SELECT * FROM services 
+        if (id) {
+          const service = await pool.query(`SELECT * FROM services
+            WHERE tenant_id = $1 AND id = $2`, [tenantId, id]);
+          if (service.rows.length === 0) {
+            return res.json(null);
+          }
+          // Convert snake_case to camelCase for frontend
+          const serviceData = {
+            ...service.rows[0],
+            enabledTaxIds: service.rows[0].enabled_tax_ids,
+            enabledFeeIds: service.rows[0].enabled_fee_ids,
+            pricingModel: service.rows[0].pricing_model,
+            createdAt: service.rows[0].created_at
+          };
+          return res.json(serviceData);
+        }
+        const services = await pool.query(`SELECT * FROM services
           WHERE tenant_id = $1 AND is_active = true
           ORDER BY created_at DESC`, [tenantId]);
-        return res.json(services.rows);
+
+        // Convert snake_case to camelCase for frontend
+        const formattedServices = services.rows.map(service => ({
+          ...service,
+          enabledTaxIds: service.enabled_tax_ids,
+          enabledFeeIds: service.enabled_fee_ids,
+          pricingModel: service.pricing_model,
+          createdAt: service.created_at
+        }));
+
+        return res.json(formattedServices);
         
       } else if (req.method === 'POST') {
         const { 
@@ -650,29 +832,68 @@ module.exports = async function handler(req, res) {
             enabledTaxIds || [], enabledFeeIds || []
           ]);
         
-        return res.status(201).json(newService.rows[0]);
+        // Convert snake_case to camelCase for frontend
+        const formattedService = {
+          ...newService.rows[0],
+          enabledTaxIds: newService.rows[0].enabled_tax_ids,
+          enabledFeeIds: newService.rows[0].enabled_fee_ids,
+          pricingModel: newService.rows[0].pricing_model,
+          createdAt: newService.rows[0].created_at
+        };
+
+        return res.status(201).json(formattedService);
         
-      } else if (req.method === 'PUT' && id) {
-        const { 
-          name, description, category, price, pricingModel,
-          enabledTaxIds, enabledFeeIds 
-        } = req.body;
-        
-        const updatedService = await pool.query(`UPDATE services 
-          SET name = $1, description = $2, category = $3, price = $4, 
-              pricing_model = $5, enabled_tax_ids = $6, enabled_fee_ids = $7
-          WHERE tenant_id = $8 AND id = $9
-          RETURNING *`, [
-            name, description, category, price, pricingModel,
-            enabledTaxIds || [], enabledFeeIds || [],
-            tenantId, id
-          ]);
+      } else if (req.method === 'PATCH' && id) {
+        const updates = req.body;
+        const updateFields = [];
+        const updateValues = [];
+        let valueIndex = 1;
+
+        const fieldMappings = {
+            name: 'name',
+            description: 'description',
+            category: 'category',
+            price: 'price',
+            pricingModel: 'pricing_model',
+            enabledTaxIds: 'enabled_tax_ids',
+            enabledFeeIds: 'enabled_fee_ids'
+        };
+
+        for (const [key, value] of Object.entries(updates)) {
+            if (fieldMappings[key]) {
+                updateFields.push(`${fieldMappings[key]} = ${valueIndex}`);
+                updateValues.push(value);
+                valueIndex++;
+            }
+        }
+
+        if (updateFields.length === 0) {
+            return res.status(400).json({ message: 'No fields to update' });
+        }
+
+        updateValues.push(tenantId, id);
+
+        const updateQuery = `UPDATE services
+          SET ${updateFields.join(', ')}
+          WHERE tenant_id = ${valueIndex} AND id = ${valueIndex + 1}
+          RETURNING *`;
+
+        const updatedService = await pool.query(updateQuery, updateValues);
         
         if (updatedService.rows.length === 0) {
           return res.status(404).json({ message: 'Service not found' });
         }
         
-        return res.json(updatedService.rows[0]);
+        // Convert snake_case to camelCase for frontend
+        const formattedService = {
+          ...updatedService.rows[0],
+          enabledTaxIds: updatedService.rows[0].enabled_tax_ids,
+          enabledFeeIds: updatedService.rows[0].enabled_fee_ids,
+          pricingModel: updatedService.rows[0].pricing_model,
+          createdAt: updatedService.rows[0].created_at
+        };
+
+        return res.json(formattedService);
         
       } else if (req.method === 'DELETE' && id) {
         const deletedService = await pool.query(`UPDATE services 
@@ -783,31 +1004,74 @@ module.exports = async function handler(req, res) {
     // SETTINGS
     if (resource === 'settings') {
       if (req.method === 'GET') {
-        const settings = await pool.query(`SELECT * FROM settings 
-          WHERE tenant_id = $1
-          ORDER BY key ASC`, [tenantId]);
-        
-        // Convert to key-value object
-        const settingsObj = {};
-        settings.rows.forEach(setting => {
-          settingsObj[setting.key] = setting.value;
-        });
-        
-        return res.json(settingsObj);
+        if (userRole !== 'super_admin') {
+          const settings = await pool.query(`SELECT * FROM settings
+            WHERE tenant_id = $1
+            ORDER BY key ASC`, [tenantId]);
+
+          // Helper function to reconstruct nested objects from dot notation
+          const unflattenObject = (obj) => {
+            const result = {};
+            for (const [key, value] of Object.entries(obj)) {
+              const keys = key.split('.');
+              let current = result;
+              for (let i = 0; i < keys.length - 1; i++) {
+                if (!(keys[i] in current)) {
+                  current[keys[i]] = {};
+                }
+                current = current[keys[i]];
+              }
+              // Try to parse JSON values, fallback to original value
+              try {
+                current[keys[keys.length - 1]] = JSON.parse(value);
+              } catch {
+                current[keys[keys.length - 1]] = value;
+              }
+            }
+            return result;
+          };
+
+          // Convert to flat key-value object first
+          const flatSettings = {};
+          settings.rows.forEach(setting => {
+            flatSettings[setting.key] = setting.value;
+          });
+
+          // Convert to nested object structure
+          const nestedSettings = unflattenObject(flatSettings);
+
+          return res.json(nestedSettings);
+        }
         
       } else if (req.method === 'POST' || req.method === 'PUT') {
         const updates = req.body;
-        
+
+        // Helper function to flatten nested objects
+        const flattenObject = (obj, prefix = '') => {
+          const flattened = {};
+          for (const [key, value] of Object.entries(obj)) {
+            const newKey = prefix ? `${prefix}.${key}` : key;
+            if (value && typeof value === 'object' && !Array.isArray(value)) {
+              Object.assign(flattened, flattenObject(value, newKey));
+            } else {
+              flattened[newKey] = typeof value === 'object' ? JSON.stringify(value) : value;
+            }
+          }
+          return flattened;
+        };
+
+        const flattenedUpdates = flattenObject(updates);
+
         // Update or insert each setting
-        for (const [key, value] of Object.entries(updates)) {
+        for (const [key, value] of Object.entries(flattenedUpdates)) {
           await pool.query(`
             INSERT INTO settings (tenant_id, key, value, created_at, updated_at)
             VALUES ($1, $2, $3, NOW(), NOW())
-            ON CONFLICT (tenant_id, key) 
+            ON CONFLICT (tenant_id, key)
             DO UPDATE SET value = $3, updated_at = NOW()
           `, [tenantId, key, value]);
         }
-        
+
         return res.json({ message: 'Settings updated successfully' });
       }
     }
@@ -907,6 +1171,9 @@ module.exports = async function handler(req, res) {
           const communication = await pool.query(`SELECT * FROM communications
             WHERE tenant_id = $1 AND id = $2`, [tenantId, id]);
           return res.json(communication.rows[0] || null);
+        } else if (bookingId) {
+          const communications = await pool.query(`SELECT * FROM communications WHERE tenant_id = $1 AND booking_id = $2 ORDER BY created_at DESC`, [tenantId, bookingId]);
+          return res.json(communications.rows);
         } else {
           // Get all communications
           const communications = await pool.query(`SELECT * FROM communications
@@ -1099,6 +1366,17 @@ module.exports = async function handler(req, res) {
       if (req.method === 'POST') {
         const { contractData, bookingsData } = req.body;
 
+        // DEBUGGING: Log contract creation data
+        console.log('📋 CONTRACT CREATION: Creating new multidate event');
+        console.log('   Contract data:', JSON.stringify(contractData, null, 2));
+        console.log('   Number of bookings:', bookingsData?.length);
+        if (bookingsData && Array.isArray(bookingsData)) {
+          console.log('   Package/Service data in creation:');
+          bookingsData.forEach((booking, i) => {
+            console.log(`     Booking ${i + 1}: packageId=${booking.packageId}, selectedServices=${JSON.stringify(booking.selectedServices)}`);
+          });
+        }
+
         if (!contractData || !bookingsData || !Array.isArray(bookingsData)) {
           return res.status(400).json({ message: 'Contract data and bookings array are required' });
         }
@@ -1200,8 +1478,16 @@ module.exports = async function handler(req, res) {
               eventName, eventType, customerId, venueId, spaceId,
               eventDate, endDate, startTime, endTime, guestCount,
               setupStyle, status = 'inquiry', totalAmount, depositAmount,
-              notes, isMultiDay, proposalId, proposalStatus, proposalSentAt
+              notes, isMultiDay, proposalId, proposalStatus, proposalSentAt,
+              packageId, selectedServices, itemQuantities, pricingOverrides, serviceTaxOverrides
             } = bookingData;
+
+            // Handle UUID fields - convert empty strings to null
+            const safePackageId = packageId && packageId.trim() !== '' ? packageId : null;
+            const safeSelectedServices = selectedServices && selectedServices.length > 0 ? selectedServices : null;
+            const safeItemQuantities = itemQuantities && Object.keys(itemQuantities).length > 0 ? itemQuantities : null;
+            const safePricingOverrides = pricingOverrides && Object.keys(pricingOverrides).length > 0 ? pricingOverrides : null;
+            const safeServiceTaxOverrides = serviceTaxOverrides && Object.keys(serviceTaxOverrides).length > 0 ? serviceTaxOverrides : null;
 
             const newBooking = await pool.query(`
               INSERT INTO bookings (
@@ -1209,15 +1495,17 @@ module.exports = async function handler(req, res) {
                 event_date, end_date, start_time, end_time, guest_count,
                 setup_style, status, total_amount, deposit_amount, notes,
                 contract_id, is_multi_day, proposal_id, proposal_status,
-                proposal_sent_at, created_at
+                proposal_sent_at, package_id, selected_services, item_quantities,
+                pricing_overrides, service_tax_overrides, created_at
               ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, NOW()
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, NOW()
               ) RETURNING *
             `, [
               tenantId, eventName, eventType, customerId, venueId, spaceId,
               eventDate, endDate, startTime, endTime, guestCount,
               setupStyle, status, totalAmount, depositAmount, notes,
-              contractId, isMultiDay, proposalId, proposalStatus, proposalSentAt
+              contractId, isMultiDay, proposalId, proposalStatus, proposalSentAt,
+              safePackageId, safeSelectedServices, safeItemQuantities, safePricingOverrides, safeServiceTaxOverrides
             ]);
 
             createdBookings.push(newBooking.rows[0]);
@@ -1252,9 +1540,63 @@ module.exports = async function handler(req, res) {
         }
       }
 
-      // PATCH contract (update all bookings in a contract)
+      // PATCH contract (supports complex multidate event editing)
       if (req.method === 'PATCH') {
         const contractId = req.query.contractId;
+        const action = req.query.action;
+
+        // DEBUGGING: Log when contract PATCH is called
+        console.log('🎯 CONTRACT PATCH called - This is CORRECT for multidate events!');
+        console.log('   Contract ID:', contractId);
+        console.log('   Action:', action);
+        console.log('   Request URL:', req.url);
+        console.log('   Request body keys:', Object.keys(req.body));
+        console.log('   Full update data:', JSON.stringify(req.body, null, 2));
+
+        // Handle status updates specifically
+        if (action === 'status') {
+          console.log('📊 CONTRACT STATUS UPDATE requested');
+
+          if (!contractId) {
+            return res.status(400).json({ message: 'Contract ID is required for status update' });
+          }
+
+          try {
+            const { status } = req.body;
+
+            if (!status) {
+              return res.status(400).json({ message: 'Status is required' });
+            }
+
+            // Update status for all bookings in the contract
+            const updateQuery = `
+              UPDATE bookings
+              SET status = $3
+              WHERE tenant_id = $1 AND contract_id = $2
+              RETURNING *
+            `;
+
+            const result = await pool.query(updateQuery, [tenantId, contractId, status]);
+
+            if (result.rows.length === 0) {
+              return res.status(404).json({ message: 'Contract not found' });
+            }
+
+            console.log(`✅ Updated ${result.rows.length} bookings to status: ${status}`);
+
+            return res.json({
+              message: 'Contract status updated successfully',
+              contractId: contractId,
+              updatedBookings: result.rows.length,
+              newStatus: status,
+              bookings: result.rows
+            });
+
+          } catch (error) {
+            console.error('Contract status update error:', error);
+            return res.status(500).json({ message: 'Failed to update contract status' });
+          }
+        }
 
         if (!contractId) {
           return res.status(400).json({ message: 'Contract ID is required' });
@@ -1263,53 +1605,156 @@ module.exports = async function handler(req, res) {
         try {
           const updateData = req.body;
 
-          // Build dynamic update query based on provided fields
-          const updateFields = [];
-          const updateValues = [];
-          let valueIndex = 1;
+          // Handle different types of contract updates
+          if (updateData.bookingsData && Array.isArray(updateData.bookingsData)) {
+            // Complex multidate event update: replace all bookings in the contract
+            console.log('🔄 COMPLEX CONTRACT UPDATE: Performing multidate event update for contract:', contractId);
+            console.log('   Number of bookings to create:', updateData.bookingsData.length);
+            console.log('   Bookings data preview:', updateData.bookingsData.map(b => `${b.eventName} on ${b.eventDate}`));
+            console.log('   Package/Service data check:');
+            updateData.bookingsData.forEach((booking, i) => {
+              console.log(`     Booking ${i + 1}: packageId=${booking.packageId}, selectedServices=${JSON.stringify(booking.selectedServices)}`);
+            });
 
-          // Add tenant_id and contract_id to WHERE clause values
-          updateValues.push(tenantId, contractId);
+            // First, delete existing bookings in the contract
+            await pool.query(`
+              DELETE FROM bookings
+              WHERE tenant_id = $1 AND contract_id = $2
+            `, [tenantId, contractId]);
 
-          if (updateData.status) {
-            updateFields.push(`status = $${valueIndex + 2}`);
-            updateValues.push(updateData.status);
-            valueIndex++;
+            // Create new bookings with the updated data
+            const createdBookings = [];
+            for (const bookingData of updateData.bookingsData) {
+              const {
+                eventName, eventType, customerId, venueId, spaceId,
+                eventDate, endDate, startTime, endTime, guestCount,
+                setupStyle, status = 'inquiry', totalAmount, depositAmount,
+                notes, isMultiDay, proposalId, proposalStatus, proposalSentAt,
+                packageId, selectedServices, itemQuantities, pricingOverrides, serviceTaxOverrides
+              } = bookingData;
+
+              // Handle UUID fields - convert empty strings to null
+              const safePackageId = packageId && packageId.trim() !== '' ? packageId : null;
+              const safeSelectedServices = selectedServices && selectedServices.length > 0 ? selectedServices : null;
+              const safeItemQuantities = itemQuantities && Object.keys(itemQuantities).length > 0 ? itemQuantities : null;
+              const safePricingOverrides = pricingOverrides && Object.keys(pricingOverrides).length > 0 ? pricingOverrides : null;
+              const safeServiceTaxOverrides = serviceTaxOverrides && Object.keys(serviceTaxOverrides).length > 0 ? serviceTaxOverrides : null;
+
+              const newBooking = await pool.query(`
+                INSERT INTO bookings (
+                  tenant_id, event_name, event_type, customer_id, venue_id, space_id,
+                  event_date, end_date, start_time, end_time, guest_count,
+                  setup_style, status, total_amount, deposit_amount, notes,
+                  contract_id, is_multi_day, proposal_id, proposal_status,
+                  proposal_sent_at, package_id, selected_services, item_quantities,
+                  pricing_overrides, service_tax_overrides, created_at
+                ) VALUES (
+                  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, NOW()
+                ) RETURNING *
+              `, [
+                tenantId, eventName, eventType, customerId, venueId, spaceId,
+                eventDate, endDate, startTime, endTime, guestCount,
+                setupStyle, status, totalAmount, depositAmount, notes,
+                contractId, isMultiDay, proposalId, proposalStatus, proposalSentAt,
+                safePackageId, safeSelectedServices, safeItemQuantities, safePricingOverrides, safeServiceTaxOverrides
+              ]);
+
+              createdBookings.push(newBooking.rows[0]);
+            }
+
+            // Update the contract total amount if needed
+            if (updateData.contractData?.totalAmount) {
+              await pool.query(`
+                UPDATE contracts
+                SET total_amount = $3
+                WHERE tenant_id = $1 AND id = $2
+              `, [tenantId, contractId, updateData.contractData.totalAmount]);
+            }
+
+            return res.json({
+              message: 'Contract updated successfully',
+              contractId: contractId,
+              updatedBookings: createdBookings.length,
+              bookings: createdBookings
+            });
+
+          } else {
+            // Simple contract update: update common fields across all bookings
+            console.log('📝 SIMPLE CONTRACT UPDATE: Updating common fields across all bookings');
+            console.log('   Update data:', JSON.stringify(updateData, null, 2));
+
+            const updateFields = [];
+            const updateValues = [];
+            let valueIndex = 1;
+
+            // Add tenant_id and contract_id to WHERE clause values
+            updateValues.push(tenantId, contractId);
+
+            if (updateData.status) {
+              updateFields.push(`status = $${valueIndex + 2}`);
+              updateValues.push(updateData.status);
+              valueIndex++;
+            }
+
+            if (updateData.notes) {
+              updateFields.push(`notes = $${valueIndex + 2}`);
+              updateValues.push(updateData.notes);
+              valueIndex++;
+            }
+
+            if (updateData.eventName) {
+              updateFields.push(`event_name = $${valueIndex + 2}`);
+              updateValues.push(updateData.eventName);
+              valueIndex++;
+            }
+
+            if (updateData.eventType) {
+              updateFields.push(`event_type = $${valueIndex + 2}`);
+              updateValues.push(updateData.eventType);
+              valueIndex++;
+            }
+
+            if (updateData.guestCount) {
+              updateFields.push(`guest_count = $${valueIndex + 2}`);
+              updateValues.push(updateData.guestCount);
+              valueIndex++;
+            }
+
+            if (updateData.setupStyle) {
+              updateFields.push(`setup_style = $${valueIndex + 2}`);
+              updateValues.push(updateData.setupStyle);
+              valueIndex++;
+            }
+
+            if (updateFields.length === 0) {
+              return res.status(400).json({ message: 'No fields to update' });
+            }
+
+            // Update all bookings in the contract
+            const updateQuery = `
+              UPDATE bookings
+              SET ${updateFields.join(', ')}
+              WHERE tenant_id = $1 AND contract_id = $2
+              RETURNING *
+            `;
+
+            const result = await pool.query(updateQuery, updateValues);
+
+            if (result.rows.length === 0) {
+              return res.status(404).json({ message: 'Contract not found' });
+            }
+
+            return res.json({
+              message: 'Contract updated successfully',
+              updatedBookings: result.rows.length,
+              contractId: contractId,
+              bookings: result.rows
+            });
           }
-
-          if (updateData.notes) {
-            updateFields.push(`notes = $${valueIndex + 2}`);
-            updateValues.push(updateData.notes);
-            valueIndex++;
-          }
-
-          if (updateFields.length === 0) {
-            return res.status(400).json({ message: 'No fields to update' });
-          }
-
-          // Update all bookings in the contract
-          const updateQuery = `
-            UPDATE bookings
-            SET ${updateFields.join(', ')}
-            WHERE tenant_id = $1 AND contract_id = $2
-            RETURNING *
-          `;
-
-          const result = await pool.query(updateQuery, updateValues);
-
-          if (result.rows.length === 0) {
-            return res.status(404).json({ message: 'Contract not found' });
-          }
-
-          return res.json({
-            message: 'Contract updated successfully',
-            updatedBookings: result.rows.length,
-            contractId: contractId
-          });
 
         } catch (error) {
           console.error('Contract update error:', error);
-          return res.status(500).json({ message: 'Failed to update contract' });
+          return res.status(500).json({ message: 'Failed to update contract', error: error.message });
         }
       }
     }

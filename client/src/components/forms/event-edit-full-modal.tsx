@@ -14,6 +14,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useFormattedCurrency } from "@/lib/currency";
+import { usePermissions } from "@/hooks/usePermissions";
 import { type EventStatus, getStatusConfig } from "@shared/status-utils";
 
 interface Props {
@@ -48,6 +49,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { formatAmount } = useFormattedCurrency();
+  const { hasFeature } = usePermissions();
   
   // Step management
   const [currentStep, setCurrentStep] = useState(1);
@@ -186,11 +188,11 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
           setTaxFeeOverrides(booking.taxFeeOverrides);
         }
 
-        // For editing, start at step 3 (final details) since everything is pre-configured
-        setCurrentStep(3);
+        // Start at step 1 (calendar) for editing from summary modal
+        setCurrentStep(1);
       } else if (booking.isContract && booking.contractEvents) {
         // Handle full contract editing with multiple events
-        setEventName(booking.contractInfo?.contractName || "Multi-Date Contract");
+        setEventName(booking.contractInfo?.contractName || booking.eventName || "Event Contract");
         setEventStatus(booking.status || "inquiry");
         setSelectedVenue(booking.venueId || "");
         setSelectedCustomer(booking.customerId || "");
@@ -217,8 +219,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
           setTaxFeeOverrides(booking.contractEvents[0].taxFeeOverrides);
         }
 
-        // For multi-date editing, start at step 3 (final details)
-        setCurrentStep(3);
+        // Start at step 1 (calendar) for editing from summary modal
+        setCurrentStep(1);
       } else {
         // Handle single event
         setEventName(booking.eventName || "");
@@ -262,8 +264,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
           setTaxFeeOverrides(booking.taxFeeOverrides);
         }
 
-        // For single event editing, start at step 3 (final details)
-        setCurrentStep(3);
+        // Start at step 1 (calendar) for editing from summary modal
+        setCurrentStep(1);
       }
     }
   }, [booking, open]);
@@ -485,28 +487,78 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
     mutationFn: async (bookingData: any) => {
       // Only use contract endpoints for editing complete contracts
       // Individual events (even if part of contract) should use individual booking endpoints
-      
+
       // Check if this event should be forced to individual editing (from calendar clicks)
       const editAsIndividual = booking?._editAsIndividual;
 
-      const isEditingFullContract = !editAsIndividual && booking?.isContract && booking?.contractInfo?.id && (
-        (booking?.contractEvents?.length > 1) ||
-        (booking?.eventCount > 1) ||
-        (booking?.contractInfo?.eventDates?.length > 1)
+      // Check if converting single day to multidate
+      const isConvertingToMultidate = !booking?.isContract && selectedDates.length > 1;
+
+      const isEditingFullContract = !editAsIndividual && (
+        (booking?.isContract && booking?.contractInfo?.id && (
+          (booking?.contractEvents?.length > 1) ||
+          (booking?.eventCount > 1) ||
+          (booking?.contractInfo?.eventDates?.length > 1)
+        )) ||
+        isConvertingToMultidate
       );
       
       
       if (isEditingFullContract) {
-        const response = await apiRequest(`/api/bookings/contract/${booking.contractInfo.id}`, {
-          method: "PATCH",
-          body: JSON.stringify(bookingData),
-          headers: { "Content-Type": "application/json" }
-        });
-        return response;
+        const contractData = {
+          contractData: {
+            contractName: eventName,
+            status: eventStatus,
+            totalAmount: totalPrice.toString(),
+          },
+          bookingsData: selectedDates.map(date => ({
+            eventName,
+            eventType: packages.find((p: any) => p.id === date.packageId)?.name || "Custom Event",
+            customerId: selectedCustomer,
+            venueId: selectedVenue,
+            spaceId: date.spaceId,
+            eventDate: date.date,
+            startTime: date.startTime,
+            endTime: date.endTime,
+            guestCount: date.guestCount,
+            status: eventStatus,
+            totalAmount: "0", // Will be recalculated on backend if needed
+            notes: "", // Add notes field if available
+            packageId: date.packageId,
+            selectedServices: date.selectedServices,
+            itemQuantities: date.itemQuantities,
+            pricingOverrides: date.pricingOverrides,
+            serviceTaxOverrides: date.serviceTaxOverrides,
+          }))
+        };
+
+        if (isConvertingToMultidate) {
+          // Converting single day to multidate - create new contract and delete original booking
+          console.log('🔄 Converting single day event to multidate contract');
+
+          // Create new contract
+          const response = await apiRequest("POST", "/api/contracts", contractData);
+
+          // Delete original single day booking
+          await apiRequest("DELETE", `/api/bookings?id=${booking.id}`);
+
+          return response;
+        } else {
+          // Updating existing contract
+          const response = await apiRequest(
+            `/api/contracts?id=${booking.contractInfo.id}`,
+            {
+              method: "PATCH",
+              body: JSON.stringify(contractData),
+              headers: { "Content-Type": "application/json" }
+            }
+          );
+          return response;
+        }
       }
       
       // For single events (even if they have contract info), use regular booking endpoint
-      const response = await apiRequest(`/api/bookings/${booking.id}`, {
+      const response = await apiRequest(`/api/bookings?id=${booking.id}`, {
         method: "PATCH",
         body: JSON.stringify(bookingData),
         headers: { "Content-Type": "application/json" }
@@ -549,7 +601,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
         throw new Error("Contract events must be deleted through contract management");
       }
       
-      const response = await apiRequest("DELETE", `/api/bookings/${booking.id}`);
+      const response = await apiRequest("DELETE", `/api/bookings?id=${booking.id}`);
       return response;
     },
     onSuccess: () => {
@@ -724,6 +776,20 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
         toast({
           title: "❌ Cannot Select Past Date",
           description: "Past dates cannot be selected for new events. Please choose today or a future date.",
+          variant: "destructive",
+          duration: 5000
+        });
+        return;
+      }
+
+      // Check if multidate booking feature is available
+      const hasMultidateFeature = hasFeature('multidate_booking');
+      console.log('🔒 Multidate feature available:', hasMultidateFeature);
+
+      if (selectedDates.length >= 1 && !hasMultidateFeature) {
+        toast({
+          title: "❌ Multiple Dates Not Available",
+          description: "Multi-date booking is not available with your current package. Please upgrade to unlock this feature.",
           variant: "destructive",
           duration: 5000
         });
@@ -1148,7 +1214,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                           Contract
                         </Badge>
                         <h3 className="font-semibold text-purple-900">
-                          {booking.contractInfo.contractName || "Multi-Date Contract"}
+                          {booking.contractInfo.contractName || booking.eventName || "Event Contract"}
                         </h3>
                       </div>
                       <div className="text-sm text-purple-700 space-y-1">

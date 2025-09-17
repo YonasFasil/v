@@ -27,24 +27,24 @@ import {
 
 const navigationItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, permission: "dashboard" },
-  { name: "Events & Bookings", href: "/events", icon: Calendar, permission: "bookings" },  // No feature required - it's default now
+  { name: "Events & Bookings", href: "/events", icon: Calendar, permission: "bookings" },
   { name: "Customers", href: "/customers", icon: Users, permission: "customers" },
-  { name: "Leads", href: "/leads", icon: UserPlus, permission: "customers", feature: "leads_management" },
+  { name: "Leads", href: "/leads", icon: UserPlus, permission: "leads", feature: "lead_management" },
   { name: "Proposals", href: "/proposals", icon: FileText, permission: "proposals", feature: "proposal_system" },
   { name: "Payments", href: "/payments", icon: CreditCard, permission: "payments" },
   { name: "Tasks & Team", href: "/tasks", icon: CheckSquare, permission: "tasks", feature: "task_management" },
   { name: "Venues", href: "/venues", icon: MapPin, permission: "venues" },
-  { name: "Setup Styles", href: "/setup-styles", icon: Grid3X3, permission: "venues", feature: "floor_plans" },
-  { name: "Packages & Services", href: "/packages", icon: Package, permission: "venues" },
+  { name: "Setup Styles", href: "/setup-styles", icon: Grid3X3, permission: "floor-plans", feature: "floor_plans" },
+  { name: "Services", href: "/packages", icon: Package, permission: "packages" },
 ];
 
 const aiFeatures = [
-  { name: "AI Analytics & Reports", href: "/ai-analytics", icon: BarChart3, permission: "settings", feature: "ai_analytics" },
-  { name: "Voice Booking", href: "/voice-booking", icon: Mic, permission: "bookings", feature: "voice_booking" },
+  { name: "AI Analytics & Reports", href: "/ai-analytics", icon: BarChart3, permission: "ai-analytics", feature: "ai_analytics" },
+  { name: "Voice Booking", href: "/voice-booking", icon: Mic, permission: "voice-booking", feature: "voice_booking" },
 ];
 
 const analyticsItems = [
-  { name: "Reports & Analytics", href: "/reports", icon: BarChart3, permission: "settings", feature: "advanced_reports" },
+  { name: "Reports & Analytics", href: "/reports", icon: BarChart3, permission: "reports", feature: "advanced_reports" },
   { name: "Settings", href: "/settings", icon: Settings, permission: "settings" },
 ];
 
@@ -117,14 +117,29 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
       <nav className="flex-1 px-4 py-4 space-y-1 sidebar-scroll overflow-y-auto">
         {/* Main Navigation */}
         <div className="space-y-1">
-          {navigationItems.filter(item => hasPermission(item.permission) && (!item.feature || hasFeature(item.feature))).map((item) => {
+          {navigationItems.filter(item => {
+            const hasPerms = hasPermission(item.permission);
+            const hasFeatureReq = !item.feature || hasFeature(item.feature);
+            const shouldShow = hasPerms && hasFeatureReq;
+
+            console.log(`[SIDEBAR] ${item.name}: permission(${item.permission})=${hasPerms}, feature(${item.feature || 'none'})=${hasFeatureReq}, show=${shouldShow}`);
+
+            return shouldShow;
+          }).map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
-            
+
+            // Dynamic name for services based on package_management feature
+            // Service management is always available, but package management is a feature
+            let displayName = item.name;
+            if (item.name === "Services" && item.href === "/packages") {
+              displayName = hasFeature('package_management') ? "Packages & Services" : "Services";
+            }
+
             return (
               <Link key={item.name} href={item.href}>
                 <div
-                  className={`${collapsed ? 
+                  className={`${collapsed ?
                     'flex items-center justify-center w-10 h-10 mx-auto rounded-lg text-sm font-medium transition-colors cursor-pointer' :
                     'flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer'
                   } ${
@@ -132,10 +147,10 @@ export function Sidebar({ collapsed = false }: SidebarProps) {
                       ? "bg-blue-600 text-white"
                       : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                   }`}
-                  title={collapsed ? item.name : undefined}
+                  title={collapsed ? displayName : undefined}
                 >
                   <Icon className={collapsed ? "w-5 h-5" : "w-5 h-5 mr-3"} />
-                  {!collapsed && item.name}
+                  {!collapsed && displayName}
                 </div>
               </Link>
             );

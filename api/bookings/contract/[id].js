@@ -3,8 +3,17 @@ module.exports = async function handler(req, res) {
   const { id } = req.query;
   const tenantHandler = require('../../tenant.js');
 
+  // DEBUGGING: Log contract endpoint routing
+  console.log('🚦 CONTRACT ENDPOINT ROUTING:');
+  console.log('   Request URL:', req.url);
+  console.log('   Original req.query:', JSON.stringify(req.query, null, 2));
+  console.log('   Extracted ID:', id);
+  console.log('   Method:', req.method);
+
   // Set the resource and contract ID for tenant handler
   req.query = { ...req.query, resource: 'contracts', contractId: id };
+
+  console.log('   Modified req.query:', JSON.stringify(req.query, null, 2));
 
   return tenantHandler(req, res);
 };

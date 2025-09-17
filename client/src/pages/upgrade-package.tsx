@@ -4,11 +4,12 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Check, 
-  Zap, 
-  Star, 
-  Crown, 
+import { invalidateTenantFeatures } from '@/lib/queryClient';
+import {
+  Check,
+  Zap,
+  Star,
+  Crown,
   ArrowRight,
   Calendar,
   Users,
@@ -17,7 +18,8 @@ import {
   Mic,
   Building2,
   Settings,
-  CheckSquare
+  CheckSquare,
+  CreditCard
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 
@@ -42,27 +44,39 @@ interface TenantFeatures {
 }
 
 const featureIcons: Record<string, any> = {
-  event_booking: Calendar,
+  dashboard_analytics: BarChart3,
+  venue_management: Building2,
+  customer_management: Users,
+  booking_management: Calendar,
+  payment_processing: CreditCard,
   proposal_system: FileText,
-  leads_management: Users,
+  lead_management: Users,
   ai_analytics: BarChart3,
   voice_booking: Mic,
   floor_plans: Building2,
   advanced_reports: BarChart3,
   task_management: CheckSquare,
-  custom_fields: Settings
+  multidate_booking: Calendar,
+  package_management: Settings,
+  service_management: Settings
 };
 
 const featureNames: Record<string, string> = {
-  event_booking: 'Event Booking & Calendar',
+  dashboard_analytics: 'Dashboard Analytics',
+  venue_management: 'Venue Management',
+  customer_management: 'Customer Management',
+  booking_management: 'Booking Management',
+  payment_processing: 'Payment Processing',
   proposal_system: 'Proposal System',
-  leads_management: 'Advanced Lead Management',
+  lead_management: 'Lead Management',
   ai_analytics: 'AI Analytics & Insights',
   voice_booking: 'Voice Booking Assistant',
   floor_plans: 'Interactive Floor Plans',
   advanced_reports: 'Advanced Reporting',
   task_management: 'Task & Team Management',
-  custom_fields: 'Custom Fields & Forms'
+  multidate_booking: 'Multi-date Booking',
+  package_management: 'Package Management',
+  service_management: 'Service Management'
 };
 
 export default function UpgradePackage() {
@@ -83,42 +97,91 @@ export default function UpgradePackage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [packagesRes, featuresRes] = await Promise.all([
-          fetch('/api/packages', {
+        // Get tenant ID from JWT token
+        const token = localStorage.getItem('auth_token');
+        let tenantId = null;
+        if (token) {
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            tenantId = payload.tenant_id || payload.tenantId;
+          } catch (error) {
+            console.error('Error parsing token:', error);
+          }
+        }
+
+        const [featuresRes, packagesRes] = await Promise.all([
+          fetch(`/api/tenant-features${tenantId ? `?tenantId=${tenantId}` : ''}`, {
             headers: {
-              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+              'Authorization': `Bearer ${token}`
             }
           }),
-          fetch('/api/tenant-features', {
+          fetch('/api/subscription-packages', {
             headers: {
-              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+              'Authorization': `Bearer ${token}`
             }
           })
         ]);
 
-        const packagesData = await packagesRes.json();
-        const featuresData = await featuresRes.json();
+        const [featuresData, packagesData] = await Promise.all([
+          featuresRes.json(),
+          packagesRes.json()
+        ]);
 
-        // Handle API errors
-        if (!packagesRes.ok) {
-          console.error('Failed to fetch packages:', packagesData);
-          setPackages([]);
-        } else {
-          setPackages(Array.isArray(packagesData) ? packagesData : []);
-        }
+        console.log('Tenant features response:', featuresData);
+        console.log('Packages response:', packagesData);
 
+        // Handle tenant features
         if (!featuresRes.ok) {
           console.error('Failed to fetch features:', featuresData);
           setTenantFeatures(null);
-        } else {
-          setTenantFeatures(featuresData?.features || null);
+        } else if (featuresData?.success) {
+          // Set tenant features - the enabled/disabled features from the API
+          if (featuresData.features) {
+            const legacyFormat = {
+              enabled: featuresData.features.enabled || [],
+              disabled: featuresData.features.disabled || [],
+              total: featuresData.features.summary?.total || 0,
+              available: featuresData.features.summary?.enabled || 0
+            };
+            setTenantFeatures(legacyFormat);
+          }
+
+          // Set current package from tenant info
+          if (featuresData.tenant && featuresData.package) {
+            let packageFeatures = [];
+
+            // Parse package features if they exist
+            if (featuresData.package.features) {
+              try {
+                packageFeatures = typeof featuresData.package.features === 'string'
+                  ? JSON.parse(featuresData.package.features)
+                  : featuresData.package.features;
+              } catch (error) {
+                console.error('Error parsing package features:', error);
+                packageFeatures = [];
+              }
+            }
+
+            const currentPkg: Package = {
+              id: featuresData.package.id,
+              name: featuresData.package.name,
+              price: parseFloat(featuresData.package.price),
+              description: featuresData.package.description || `Your current ${featuresData.package.name} plan`,
+              features: packageFeatures,
+              maxUsers: featuresData.package.max_users || 0,
+              maxVenues: featuresData.package.max_venues || 0,
+              isActive: true
+            };
+            setCurrentPackage(currentPkg);
+          }
         }
 
-        // Find current package
-        if (featuresRes.ok && featuresData?.tenant && packagesRes.ok && Array.isArray(packagesData)) {
-          const tenantPackageId = featuresData.tenant?.subscriptionPackageId || featuresData.tenant?.subscription_package_id;
-          const current = packagesData.find((pkg: Package) => pkg.id === tenantPackageId);
-          setCurrentPackage(current || null);
+        // Handle subscription packages
+        if (!packagesRes.ok) {
+          console.error('Failed to fetch packages:', packagesData);
+          setPackages([]);
+        } else if (packagesData?.success && packagesData.packages) {
+          setPackages(packagesData.packages);
         }
       } catch (error) {
         console.error('Error fetching upgrade data:', error);
@@ -131,9 +194,108 @@ export default function UpgradePackage() {
   }, []);
 
   const handleUpgrade = async (packageId: string) => {
-    // In a real implementation, this would integrate with a payment system
-    // For now, we'll show a contact message
-    alert('Please contact our sales team to upgrade your package. We\'ll be in touch within 24 hours!');
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        alert('Please log in to upgrade your package.');
+        return;
+      }
+
+      // Get tenant ID from JWT token
+      let tenantId = null;
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        tenantId = payload.tenant_id || payload.tenantId;
+      } catch (error) {
+        console.error('Error parsing token:', error);
+        alert('Authentication error. Please log in again.');
+        return;
+      }
+
+      if (!tenantId) {
+        alert('Tenant information not found. Please contact support.');
+        return;
+      }
+
+      const targetPackage = packages.find(pkg => pkg.id === packageId);
+      if (!targetPackage) {
+        alert('Package not found. Please try again.');
+        return;
+      }
+
+      const confirmUpgrade = window.confirm(
+        `Are you sure you want to upgrade to ${targetPackage.name} for $${targetPackage.price}/month?\n\n` +
+        `This will give you access to ${targetPackage.features.length} features including:\n` +
+        `• Up to ${targetPackage.maxVenues} venues\n` +
+        `• Up to ${targetPackage.maxUsers} users\n` +
+        `• ${targetPackage.features.filter(f => featureNames[f]).slice(0, 3).map(f => featureNames[f]).join('\n• ')}\n` +
+        `${targetPackage.features.length > 3 ? `• And ${targetPackage.features.length - 3} more features` : ''}\n\n` +
+        `Click OK to proceed with the upgrade.`
+      );
+
+      if (!confirmUpgrade) {
+        return;
+      }
+
+      // Show loading state
+      const upgradeButton = document.querySelector(`[data-package-id="${packageId}"]`) as HTMLButtonElement;
+      const originalText = upgradeButton?.textContent;
+      if (upgradeButton) {
+        upgradeButton.textContent = 'Processing...';
+        upgradeButton.disabled = true;
+      }
+
+      try {
+        // Call the actual upgrade API
+        const upgradeResponse = await fetch('/api/upgrade-package', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            packageId: packageId,
+            tenantId: tenantId
+          })
+        });
+
+        const upgradeResult = await upgradeResponse.json();
+
+        if (!upgradeResponse.ok || !upgradeResult.success) {
+          throw new Error(upgradeResult.error || 'Upgrade failed');
+        }
+
+        // Show success message
+        alert(
+          `✅ Successfully upgraded to ${upgradeResult.package.name}!\n\n` +
+          `Your account has been updated immediately. ` +
+          `You now have access to all features in your new package.\n\n` +
+          `The page will refresh to show your updated features.`
+        );
+
+        // Invalidate tenant features cache before reloading to ensure fresh data
+        invalidateTenantFeatures(tenantId);
+
+        // Small delay to allow cache invalidation to complete, then reload
+        setTimeout(() => {
+          window.location.reload();
+        }, 100);
+
+      } catch (upgradeError) {
+        console.error('Upgrade API error:', upgradeError);
+        alert(`❌ Upgrade failed: ${upgradeError.message}\n\nPlease try again or contact support if the problem persists.`);
+
+        // Reset button state
+        if (upgradeButton) {
+          upgradeButton.textContent = originalText || 'Upgrade Now';
+          upgradeButton.disabled = false;
+        }
+      }
+
+    } catch (error) {
+      console.error('Upgrade error:', error);
+      alert('An error occurred during the upgrade process. Please try again or contact support.');
+    }
   };
 
   if (loading) {
@@ -281,15 +443,16 @@ export default function UpgradePackage() {
                     </ul>
                   </div>
 
-                  <Button 
-                    className={`w-full ${isCurrentPackage 
-                      ? 'bg-gray-100 text-gray-500 cursor-not-allowed' 
-                      : pkg.isPopular 
-                        ? 'bg-blue-600 hover:bg-blue-700' 
+                  <Button
+                    className={`w-full ${isCurrentPackage
+                      ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                      : pkg.isPopular
+                        ? 'bg-blue-600 hover:bg-blue-700'
                         : 'bg-slate-900 hover:bg-slate-800'
                     }`}
                     onClick={() => !isCurrentPackage && handleUpgrade(pkg.id)}
                     disabled={isCurrentPackage}
+                    data-package-id={pkg.id}
                   >
                     {isCurrentPackage ? (
                       'Current Plan'

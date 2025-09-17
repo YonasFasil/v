@@ -15,6 +15,7 @@ import { Package, Plus, Edit, Trash2, DollarSign, Check, Copy, Upload, Grid, Lis
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useFormattedCurrency } from "@/lib/currency";
+import { usePermissions } from "@/hooks/usePermissions";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { EditPackageModal } from "@/components/forms/edit-package-modal";
@@ -43,6 +44,11 @@ export default function Packages() {
   const [newCategory, setNewCategory] = useState({ name: "", color: "bg-blue-100 text-blue-800" });
   const { toast } = useToast();
   const { formatAmount } = useFormattedCurrency();
+  const { hasFeature } = usePermissions();
+
+  // Check if package management feature is available
+  const hasPackageManagement = hasFeature('package_management');
+  console.log('🔧 Package management feature available:', hasPackageManagement);
 
   const getCategoryColor = (category: string) => {
     const categoryConfig = categories.find(c => c.id === category);
@@ -368,28 +374,30 @@ export default function Packages() {
       />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header 
-          title="Packages & Services" 
-          subtitle="Manage event packages and additional services"
+        <Header
+          title={hasPackageManagement ? "Packages & Services" : "Services"}
+          subtitle={hasPackageManagement ? "Manage event packages and additional services" : "Manage additional services for events"}
           onMobileMenuToggle={() => setMobileNavOpen(true)}
           action={
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setShowImportServices(true)}
                 className="border-gray-300 text-gray-600 hover:bg-gray-50"
               >
                 <Upload className="w-4 h-4 mr-2" />
                 Import Services
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => setShowImportPackages(true)}
-                className="border-gray-300 text-gray-600 hover:bg-gray-50"
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Import Packages
-              </Button>
+              {hasPackageManagement && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowImportPackages(true)}
+                  className="border-gray-300 text-gray-600 hover:bg-gray-50"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Import Packages
+                </Button>
+              )}
               <Dialog open={showCreateServiceForm} onOpenChange={setShowCreateServiceForm}>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-50">
@@ -615,14 +623,15 @@ export default function Packages() {
                   </div>
                 </DialogContent>
               </Dialog>
-              
-              <Dialog open={showCreatePackageForm} onOpenChange={setShowCreatePackageForm}>
-                <DialogTrigger asChild>
-                  <Button className="bg-blue-600 hover:bg-blue-700">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Package
-                  </Button>
-                </DialogTrigger>
+
+              {hasPackageManagement && (
+                <Dialog open={showCreatePackageForm} onOpenChange={setShowCreatePackageForm}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-blue-600 hover:bg-blue-700">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Package
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Create New Package</DialogTitle>
@@ -921,13 +930,15 @@ export default function Packages() {
                   </div>
                 </DialogContent>
               </Dialog>
+              )}
             </div>
           }
         />
         
         <main className="flex-1 overflow-y-auto p-6 space-y-8">
           {/* Event Packages Section */}
-          <div>
+          {hasPackageManagement && (
+            <div>
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
                 <Package className="w-5 h-5 text-blue-600" />
@@ -1122,8 +1133,9 @@ export default function Packages() {
               </div>
             )}
           </div>
+          )}
 
-          <Separator />
+          {hasPackageManagement && <Separator />}
 
           {/* Service Categories Section */}
           <div>
@@ -1438,11 +1450,13 @@ export default function Packages() {
       </div>
       
       {/* Import Modals */}
-      <ImportMenuModal 
-        open={showImportPackages}
-        onOpenChange={setShowImportPackages}
-        type="packages"
-      />
+      {hasPackageManagement && (
+        <ImportMenuModal
+          open={showImportPackages}
+          onOpenChange={setShowImportPackages}
+          type="packages"
+        />
+      )}
       
       <ImportMenuModal 
         open={showImportServices}

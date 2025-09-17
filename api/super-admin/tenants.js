@@ -71,6 +71,45 @@ module.exports = async function handler(req, res) {
         ORDER BY created_at DESC
       `, [tenantId]);
       return res.json(result.rows);
+
+    } else if (req.method === 'GET' && action === 'billing' && tenantId) {
+      // Get tenant billing history
+      const result = await pool.query(`
+        SELECT bh.*, sp.name as package_name
+        FROM billing_history bh
+        LEFT JOIN subscription_packages sp ON bh.subscription_package_id = sp.id
+        WHERE bh.tenant_id = $1
+        ORDER BY bh.billing_period_start DESC
+      `, [tenantId]);
+      return res.json(result.rows);
+
+    } else if (req.method === 'GET' && action === 'billing-summary' && tenantId) {
+      // Get tenant billing summary
+      const summary = await pool.query(`
+        SELECT
+          COUNT(*) as total_bills,
+          COUNT(*) FILTER (WHERE status = 'paid') as paid_bills,
+          COUNT(*) FILTER (WHERE status = 'pending') as pending_bills,
+          COUNT(*) FILTER (WHERE status = 'overdue') as overdue_bills,
+          SUM(amount) as total_amount,
+          SUM(amount) FILTER (WHERE status = 'paid') as paid_amount,
+          SUM(amount) FILTER (WHERE status = 'pending') as pending_amount
+        FROM billing_history
+        WHERE tenant_id = $1
+      `, [tenantId]);
+
+      const recentPayments = await pool.query(`
+        SELECT amount, status, billing_period_start, billing_period_end, processed_at
+        FROM billing_history
+        WHERE tenant_id = $1 AND status = 'paid'
+        ORDER BY processed_at DESC
+        LIMIT 5
+      `, [tenantId]);
+
+      return res.json({
+        summary: summary.rows[0],
+        recentPayments: recentPayments.rows
+      });
       
     } else if (req.method === 'POST' && (action === 'create' || !action)) {
       // Create tenant
@@ -198,18 +237,78 @@ module.exports = async function handler(req, res) {
       
       return res.status(201).json(result.rows[0]);
       
+    } else if (req.method === 'POST' && action === 'billing' && tenantId) {
+      // Create billing record
+      const { amount, packageId, billingPeriodStart, billingPeriodEnd, dueDate, notes } = req.body;
+
+      if (!amount || !billingPeriodStart || !billingPeriodEnd) {
+        return res.status(400).json({ message: 'Amount, billing period start and end are required' });
+      }
+
+      const result = await pool.query(`
+        INSERT INTO billing_history (
+          tenant_id, subscription_package_id, amount,
+          billing_period_start, billing_period_end, due_date, notes
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING *
+      `, [tenantId, packageId, amount, billingPeriodStart, billingPeriodEnd, dueDate, notes]);
+
+      return res.status(201).json(result.rows[0]);
+
+    } else if (req.method === 'PUT' && action === 'billing' && req.query.billingId) {
+      // Update billing record
+      const { billingId } = req.query;
+      const { amount, status, paymentMethod, transactionId, notes, processedAt } = req.body;
+
+      const result = await pool.query(`
+        UPDATE billing_history
+        SET amount = COALESCE($1, amount),
+            status = COALESCE($2, status),
+            payment_method = COALESCE($3, payment_method),
+            transaction_id = COALESCE($4, transaction_id),
+            notes = COALESCE($5, notes),
+            processed_at = COALESCE($6, processed_at),
+            updated_at = NOW()
+        WHERE id = $7 AND tenant_id = $8
+        RETURNING *
+      `, [amount, status, paymentMethod, transactionId, notes, processedAt, billingId, tenantId]);
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: 'Billing record not found' });
+      }
+      return res.json(result.rows[0]);
+
     } else if (req.method === 'PUT' && action === 'tenant' && tenantId) {
       // Update tenant
-      const { name, slug, subscriptionPackageId, subscriptionStatus } = req.body;
-      
-      const result = await pool.query(`
-        UPDATE tenants 
+      const { name, slug, subscriptionPackageId, subscriptionStatus, billingSettings } = req.body;
+
+      // Handle billing settings update
+      let updateQuery = `
+        UPDATE tenants
         SET name = COALESCE($1, name), slug = COALESCE($2, slug),
             subscription_package_id = COALESCE($3, subscription_package_id),
-            status = COALESCE($4, status), created_at = NOW()
-        WHERE id = $5 RETURNING *
-      `, [name, slug, subscriptionPackageId, subscriptionStatus, tenantId]);
-      
+            status = COALESCE($4, status)
+      `;
+      let params = [name, slug, subscriptionPackageId, subscriptionStatus];
+
+      if (billingSettings) {
+        updateQuery += `,
+          subscription_started_at = COALESCE($${params.length + 1}, subscription_started_at),
+          subscription_ends_at = COALESCE($${params.length + 2}, subscription_ends_at),
+          last_billing_date = COALESCE($${params.length + 3}, last_billing_date)
+        `;
+        params.push(
+          billingSettings.subscriptionStartedAt,
+          billingSettings.subscriptionEndsAt,
+          billingSettings.lastBillingDate
+        );
+      }
+
+      updateQuery += ` WHERE id = $${params.length + 1} RETURNING *`;
+      params.push(tenantId);
+
+      const result = await pool.query(updateQuery, params);
+
       if (result.rows.length === 0) {
         return res.status(404).json({ message: 'Tenant not found' });
       }
