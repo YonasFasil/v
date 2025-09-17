@@ -11,6 +11,7 @@ import { requireAuth, ALL_PERMISSIONS } from "./permissions";
 import { stripeService } from "./services/stripe";
 import { notificationEmailService } from "./services/notification-email";
 import { sendCustomerCommunicationEmail, sendUserVerificationEmail, sendSuperAdminTestEmail } from "./services/super-admin-email";
+import { unifiedEmailService } from "./services/unified-email";
 import { resolveTenant, requireTenant, filterByTenant, type TenantRequest } from "./middleware/tenant";
 import { addFeatureAccess, requireFeature, getFeaturesForTenant, requireWithinLimits, getTenantFeatures, AVAILABLE_FEATURES, type FeatureRequest } from "./middleware/feature-access";
 import { setTenantContext, getTenantIdFromAuth } from "./db/tenant-context";
@@ -6285,24 +6286,22 @@ Respond with specific, factual information from the actual data only. If the use
       });
       
       try {
-        // Check if Gmail credentials are configured first
-        if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-          return res.status(500).json({ 
-            message: "Email not configured. Please set up Gmail credentials in environment variables.",
-            error: "Missing GMAIL_USER or GMAIL_APP_PASSWORD"
-          });
-        }
+        console.log(`[PROPOSAL-RESEND] Sending proposal resend email to ${customer.email}`);
 
-        await emailService.sendProposalEmail({
+        await unifiedEmailService.sendProposalEmail({
           to: customer.email,
           subject: `Updated Proposal for ${eventData.eventName}`,
           htmlContent: updatedProposalContent,
-          proposalViewLink
+          proposalViewLink,
+          customerName: customer.name,
+          eventName: eventData.eventName
         });
+
+        console.log(`[PROPOSAL-RESEND] Proposal resend email sent successfully to ${customer.email}`);
       } catch (error) {
-        console.error('Failed to resend proposal email:', error);
-        return res.status(500).json({ 
-          message: "Failed to send proposal email. Please check your Gmail configuration and credentials.",
+        console.error(`[PROPOSAL-RESEND] Failed to send proposal email to ${customer.email}:`, error);
+        return res.status(500).json({
+          message: "Failed to send proposal email. Please check your email configuration in Super Admin settings.",
           error: error instanceof Error ? error.message : 'Unknown error'
         });
       }
@@ -8786,20 +8785,66 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
 
   app.post("/api/super-admin/config/email/test", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
     try {
-      const emailConfig = await storage.getSetting('email_config');
-      if (!emailConfig?.value?.email) {
-        return res.status(400).json({ message: "Email not configured" });
+      console.log('[EMAIL-TEST] Testing super admin email configuration...');
+
+      // Get test email from request body or use the configured email
+      const { testEmail } = req.body || {};
+
+      // Check email service status
+      const emailStatus = await unifiedEmailService.getStatus();
+
+      if (!emailStatus.configured) {
+        console.error('[EMAIL-TEST] Email service not configured:', emailStatus.error);
+        return res.status(400).json({
+          success: false,
+          message: emailStatus.error || 'Email service not configured',
+          configured: false
+        });
       }
 
-      const success = await sendSuperAdminTestEmail(emailConfig.value.email);
+      const recipientEmail = testEmail || emailStatus.email;
+      console.log(`[EMAIL-TEST] Sending test email to: ${recipientEmail}`);
 
-      if (success) {
-        res.json({ success: true, message: "Test email sent successfully!" });
-      } else {
-        res.status(500).json({ success: false, message: "Failed to send test email" });
-      }
+      // Send test email using unified service
+      const info = await unifiedEmailService.sendTestEmail(recipientEmail);
+
+      console.log(`[EMAIL-TEST] Test email sent successfully, MessageID: ${info.messageId}`);
+
+      return res.json({
+        success: true,
+        message: `Test email sent successfully to ${recipientEmail}`,
+        details: {
+          messageId: info.messageId,
+          recipient: recipientEmail,
+          provider: emailStatus.provider,
+          sentAt: new Date().toISOString()
+        }
+      });
+
     } catch (error: any) {
-      res.status(500).json({ message: "Failed to send test email", error: error.message });
+      console.error('[EMAIL-TEST] Email test failed:', error);
+
+      // Provide specific error messages for common issues
+      let errorMessage = 'Failed to send test email';
+
+      if (error.code === 'EAUTH') {
+        errorMessage = 'Gmail authentication failed. Please check your app password.';
+      } else if (error.code === 'ECONNECTION') {
+        errorMessage = 'Connection failed. Please check your internet connection.';
+      } else if (error.message?.includes('Invalid login')) {
+        errorMessage = 'Invalid Gmail credentials. Please verify your email and app password.';
+      } else if (error.message?.includes('not configured')) {
+        errorMessage = 'Email service not configured. Please configure Gmail settings first.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: errorMessage,
+        error: error.message,
+        code: error.code
+      });
     }
   });
 
@@ -9366,19 +9411,23 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
         // Continue without Stripe - tenant can set up payment later
       }
 
-      // Send welcome email
+      // Send welcome email using super admin email configuration
       try {
-        await notificationEmailService.sendWelcomeEmail({
+        console.log(`[SIGNUP] Sending welcome email to ${email} for organization ${organizationName}`);
+
+        await unifiedEmailService.sendWelcomeEmail({
           name: fullName,
           email: email,
           organizationName: organizationName,
-          subdomain: "", // No longer using subdomains
           loginUrl: `${process.env.FRONTEND_URL || 'http://localhost:5000'}/dashboard`,
-          checkoutUrl: checkoutUrl || undefined
+          packageName: selectedPackage.name
         });
+
+        console.log(`[SIGNUP] Welcome email sent successfully to ${email}`);
       } catch (emailError) {
-        console.error('Failed to send welcome email:', emailError);
-        // Continue without email - not a critical failure
+        console.error(`[SIGNUP] Failed to send welcome email to ${email}:`, emailError);
+        // Continue without email - not a critical failure for signup
+        // But log the error for debugging
       }
 
       res.json({
