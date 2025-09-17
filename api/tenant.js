@@ -1166,7 +1166,33 @@ module.exports = async function handler(req, res) {
             });
           }
 
-          // Create all bookings with the same contract ID
+          // First, create the contract record in the contracts table
+          const customerId = bookingsData[0]?.customerId;
+          if (!customerId) {
+            return res.status(400).json({ message: 'Customer ID is required for contract creation' });
+          }
+
+          // Calculate total amount from all bookings
+          const totalContractAmount = bookingsData.reduce((sum, booking) => {
+            return sum + (parseFloat(booking.totalAmount) || 0);
+          }, 0);
+
+          const contractRecord = await pool.query(`
+            INSERT INTO contracts (
+              id, tenant_id, customer_id, contract_name, status, total_amount, created_at, updated_at
+            ) VALUES (
+              $1, $2, $3, $4, $5, $6, NOW(), NOW()
+            ) RETURNING *
+          `, [
+            contractId,
+            tenantId,
+            customerId,
+            contractData.contractName || `Multi-Date Event Contract`,
+            'inquiry',
+            totalContractAmount
+          ]);
+
+          // Now create all bookings with the same contract ID
           const createdBookings = [];
 
           for (const bookingData of bookingsData) {
@@ -1200,6 +1226,7 @@ module.exports = async function handler(req, res) {
           return res.status(201).json({
             message: 'Contract created successfully',
             contractId: contractId,
+            contract: contractRecord.rows[0],
             bookings: createdBookings
           });
 
