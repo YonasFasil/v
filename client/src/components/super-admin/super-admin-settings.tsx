@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,24 +35,6 @@ export default function SuperAdminSettings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("stripe");
-
-  // Email form state for controlled components
-  const [emailFormData, setEmailFormData] = useState({
-    enabled: false,
-    email: "",
-    password: ""
-  });
-
-  // Update form when email config loads
-  useEffect(() => {
-    if (emailConfig) {
-      setEmailFormData({
-        enabled: emailConfig.enabled || false,
-        email: emailConfig.email || "",
-        password: "" // Always empty for security
-      });
-    }
-  }, [emailConfig]);
 
   // Fetch current configuration
   const { data: config, isLoading } = useQuery<SuperAdminConfig>({
@@ -109,38 +91,21 @@ export default function SuperAdminSettings() {
 
   // Test email configuration mutation
   const testEmailMutation = useMutation({
-    mutationFn: async (testEmail?: string) => {
+    mutationFn: async () => {
       return apiRequest("/api/super-admin/config/email/test", {
         method: "POST",
-        body: JSON.stringify({
-          testEmail: testEmail || emailConfig?.email
-        }),
       });
     },
-    onSuccess: (data: any) => {
-      const recipient = data?.details?.recipient || emailConfig?.email;
+    onSuccess: () => {
       toast({
-        title: "✅ Test Email Sent Successfully!",
-        description: `Test email was sent to ${recipient}. Check your inbox.`,
+        title: "Test Email Sent",
+        description: "Test email was sent successfully. Check your inbox.",
       });
     },
     onError: (error: any) => {
-      console.error('Email test error:', error);
-      let errorMessage = "Failed to send test email";
-
-      if (error.message?.includes("Authentication failed")) {
-        errorMessage = "Gmail authentication failed. Please check your app password.";
-      } else if (error.message?.includes("configuration not found")) {
-        errorMessage = "Email not configured. Please save your configuration first.";
-      } else if (error.message?.includes("not enabled")) {
-        errorMessage = "Email service is not enabled. Please enable it and save.";
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
       toast({
-        title: "❌ Email Test Failed",
-        description: errorMessage,
+        title: "Email Test Failed",
+        description: error.message || "Failed to send test email.",
         variant: "destructive",
       });
     },
@@ -160,12 +125,12 @@ export default function SuperAdminSettings() {
 
   const handleEmailSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
+    const formData = new FormData(e.currentTarget);
     const emailConfigData = {
       provider: "gmail",
-      email: emailFormData.email,
-      password: emailFormData.password || undefined, // Don't send empty password
-      enabled: emailFormData.enabled,
+      email: formData.get("email") as string,
+      password: formData.get("password") as string,
+      enabled: formData.get("enabled") === "on",
     };
 
     // Validate required fields
@@ -178,21 +143,16 @@ export default function SuperAdminSettings() {
       return;
     }
 
-    if (emailConfigData.enabled && !emailConfigData.password && !emailConfig?.password) {
+    if (emailConfigData.enabled && !emailConfigData.password) {
       toast({
         title: "Validation Error",
-        description: "Gmail app password is required when email service is enabled",
+        description: "App password is required when email service is enabled",
         variant: "destructive"
       });
       return;
     }
 
-    // If password is empty but we have existing config, use existing password
-    if (!emailConfigData.password && emailConfig?.password) {
-      emailConfigData.password = emailConfig.password;
-    }
-
-    console.log('Submitting email config:', { ...emailConfigData, password: '***hidden***' });
+    console.log('Submitting email config:', emailConfigData);
     updateConfigMutation.mutate({ type: 'email', config: emailConfigData });
   };
 
@@ -306,23 +266,12 @@ export default function SuperAdminSettings() {
               ) : (
                 <form onSubmit={handleEmailSubmit} className="space-y-6">
                   <div className="space-y-4">
-                    {/* Configuration Status Indicator */}
-                    {emailConfig?.enabled && emailConfig?.email && (
-                      <div className="flex items-center space-x-2 p-3 bg-green-50 border border-green-200 rounded-md">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-sm text-green-700 font-medium">
-                          Email service configured for {emailConfig.email}
-                        </span>
-                      </div>
-                    )}
-
                     <div className="flex items-center space-x-2">
                       <input
                         type="checkbox"
                         id="enabled"
                         name="enabled"
-                        checked={emailFormData.enabled}
-                        onChange={(e) => setEmailFormData(prev => ({ ...prev, enabled: e.target.checked }))}
+                        defaultChecked={emailConfig?.enabled}
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       />
                       <Label htmlFor="enabled" className="text-sm font-medium">
@@ -337,8 +286,7 @@ export default function SuperAdminSettings() {
                         name="email"
                         type="email"
                         placeholder="your-email@gmail.com"
-                        value={emailFormData.email}
-                        onChange={(e) => setEmailFormData(prev => ({ ...prev, email: e.target.value }))}
+                        defaultValue={emailConfig?.email}
                         required
                       />
                       <p className="text-xs text-muted-foreground">
@@ -352,9 +300,8 @@ export default function SuperAdminSettings() {
                         id="password"
                         name="password"
                         type="password"
-                        placeholder={emailConfig?.password ? "Password configured ••••••••" : "Enter Gmail app password"}
-                        value={emailFormData.password}
-                        onChange={(e) => setEmailFormData(prev => ({ ...prev, password: e.target.value }))}
+                        placeholder={emailConfig?.password ? "••••••••" : "Enter Gmail app password"}
+                        defaultValue=""
                       />
                       <div className="text-xs text-muted-foreground space-y-1">
                         <p>• You must use a Gmail App Password, not your regular password</p>
