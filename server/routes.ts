@@ -2718,11 +2718,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Proposals
-  app.get("/api/proposals", 
+  app.get("/api/proposals",
     requireAuth('proposals'),
     requireTenant,
     addFeatureAccess,
-    requireFeature('proposal_system'),
+    // requireFeature('proposal_system'), // Temporarily disabled
     async (req: AuthenticatedRequest, res) => {
     try {
       const tenantId = req.user!.tenantId;
@@ -2741,7 +2741,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     requireAuth('proposals'),
     requireTenant,
     addFeatureAccess,
-    requireFeature('proposal_system'),
+    // requireFeature('proposal_system'), // Temporarily disabled
     async (req, res) => {
     try {
       const tenantId = await getTenantIdFromAuth(req);
