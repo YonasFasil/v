@@ -33,7 +33,7 @@ module.exports = async function handler(req, res) {
 
       let query = `
         SELECT
-          v.id, v.name, v.description, v.amenities, v.image_url,
+          v.id, v.name, v.description, v.amenities, v.image_urls as images,
           t.name as tenant_name, t.slug as tenant_slug,
           COUNT(s.id) as space_count,
           COALESCE(vv.view_count, 0) as view_count
@@ -70,10 +70,10 @@ module.exports = async function handler(req, res) {
       }
 
       query += `
-        GROUP BY v.id, v.name, v.description, v.amenities, v.image_url,
+        GROUP BY v.id, v.name, v.description, v.amenities, v.image_urls,
                  t.name, t.slug, vv.view_count
         ORDER BY vv.view_count DESC, v.created_at DESC
-        LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
+        LIMIT ${paramCount + 1} OFFSET ${paramCount + 2}
       `;
 
       params.push(parseInt(limit), offset);
@@ -123,7 +123,7 @@ module.exports = async function handler(req, res) {
       // Get detailed venue information (for venue detail page)
       const result = await pool.query(`
         SELECT
-          v.id, v.name, v.description, v.amenities, v.image_url, v.created_at,
+          v.id, v.name, v.description, v.amenities, v.image_urls as images, v.created_at,
           t.id as tenant_id, t.name as tenant_name, t.slug as tenant_slug,
           t.primary_color
         FROM venues v
@@ -187,7 +187,7 @@ module.exports = async function handler(req, res) {
       // Get featured venues (most viewed/popular)
       const result = await pool.query(`
         SELECT
-          v.id, v.name, v.description, v.amenities, v.image_url,
+          v.id, v.name, v.description, v.amenities, v.image_urls as images,
           t.name as tenant_name, t.slug as tenant_slug,
           COUNT(s.id) as space_count,
           COALESCE(vv.view_count, 0) as view_count
@@ -201,7 +201,7 @@ module.exports = async function handler(req, res) {
           GROUP BY venue_id
         ) vv ON v.id = vv.venue_id
         WHERE v.is_active = true AND t.status = 'active'
-        GROUP BY v.id, v.name, v.description, v.amenities, v.image_url,
+        GROUP BY v.id, v.name, v.description, v.amenities, v.image_urls,
                  t.name, t.slug, vv.view_count
         ORDER BY vv.view_count DESC, v.created_at DESC
         LIMIT 6
