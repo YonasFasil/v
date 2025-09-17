@@ -8848,6 +8848,35 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     }
   });
 
+  // Check email service status for tenant admin
+  app.get("/api/email/status", requireAuth('settings'), requireTenant, async (req: AuthenticatedRequest, res) => {
+    try {
+      console.log('[EMAIL-STATUS] Checking email service status for tenant admin...');
+
+      const emailStatus = await unifiedEmailService.getStatus();
+
+      res.json({
+        configured: emailStatus.configured,
+        provider: emailStatus.provider || 'Not configured',
+        email: emailStatus.email || 'Not configured',
+        error: emailStatus.error || null,
+        description: emailStatus.configured
+          ? 'Email service is configured and ready. All customer emails will be sent automatically.'
+          : 'Email service is not configured. Please contact your administrator.',
+        managedBy: 'Super Admin'
+      });
+
+    } catch (error: any) {
+      console.error('[EMAIL-STATUS] Error checking email status:', error);
+      res.status(500).json({
+        configured: false,
+        error: 'Failed to check email status',
+        description: 'Unable to verify email service status. Please try again later.',
+        managedBy: 'Super Admin'
+      });
+    }
+  });
+
   // Super Admin - Update tenant
   app.put("/api/super-admin/tenants/:id", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
     try {

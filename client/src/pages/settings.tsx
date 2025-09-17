@@ -19,6 +19,7 @@ import { apiRequest } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { TaxesAndFeesSettings } from "@/components/taxes-and-fees-settings";
 import { NotificationTestPanel } from "@/components/NotificationTestPanel";
+import { EmailStatusDisplay } from "@/components/EmailStatusDisplay";
 import { 
   Building2, 
   Mail, 
@@ -539,25 +540,8 @@ export default function Settings() {
                     {/* Stripe Payment Integration */}
                     <StripePaymentSection />
 
-                    {/* Email Provider */}
-                    <div className="space-y-3">
-                      <Label>Email Service Provider</Label>
-                      <Select 
-                        value={formData.integrations.emailProvider} 
-                        onValueChange={(value) => updateFormData("integrations", "emailProvider", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="gmail">Gmail</SelectItem>
-                          <SelectItem value="sendgrid">SendGrid</SelectItem>
-                          <SelectItem value="mailgun">Mailgun</SelectItem>
-                          <SelectItem value="resend">Resend</SelectItem>
-                          <SelectItem value="postmark">Postmark</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {/* Email Service Status - Managed by Super Admin */}
+                    <EmailStatusDisplay />
 
                     {/* Gmail Configuration - Show when Gmail is selected */}
                     {formData.integrations.emailProvider === "gmail" && (
