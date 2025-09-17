@@ -1790,7 +1790,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updateData = { ...req.body };
 
       // Convert string dates to proper Date objects for Drizzle ORM
-      const dateFields = ['eventDate', 'completedAt', 'cancelledAt', 'proposalSentAt', 'createdAt', 'updatedAt'];
+      // Note: updatedAt removed because it doesn't exist in bookings table
+      const dateFields = ['eventDate', 'completedAt', 'cancelledAt', 'proposalSentAt', 'createdAt'];
       dateFields.forEach(field => {
         if (updateData[field] && typeof updateData[field] === 'string') {
           updateData[field] = new Date(updateData[field]);
