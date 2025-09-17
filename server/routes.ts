@@ -508,15 +508,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
           enabled: false
         }));
 
+      // Generate sidebar permissions based on available features
+      const featureToSidebarMapping = {
+        'dashboard_analytics': 'dashboard',
+        'venue_management': 'venues',
+        'customer_management': 'customers',
+        'event_booking': 'bookings',
+        'payment_processing': 'payments',
+        'proposal_system': 'proposals',
+        'lead_management': 'leads',
+        'task_management': 'tasks',
+        'floor_plans': 'floor-plans',
+        'advanced_reports': 'reports',
+        'ai_analytics': 'ai-analytics',
+        'voice_booking': 'voice-booking',
+        'package_management': 'packages'
+      };
+
+      // Generate sidebar permissions from available features
+      const sidebarPermissions = availableFeatures
+        .map(featureId => featureToSidebarMapping[featureId as keyof typeof featureToSidebarMapping])
+        .filter(key => key);
+
+      // Always include core sidebar permissions regardless of features
+      const coreSidebarPermissions = ['dashboard', 'venues', 'bookings', 'customers', 'payments', 'settings', 'packages'];
+      const allSidebarPermissions = [...new Set([...sidebarPermissions, ...coreSidebarPermissions])];
+
       res.json({
+        success: true,
         tenant: tenant,
         package: tenant?.subscriptionPackageId ? await storage.getSubscriptionPackage(tenant.subscriptionPackageId) : null,
         features: {
+          all: featureDetails.concat(disabledFeatures),
+          byCategory: {
+            core: featureDetails.concat(disabledFeatures).filter(f => f.category === 'core'),
+            premium: featureDetails.concat(disabledFeatures).filter(f => f.category === 'premium')
+          },
           enabled: featureDetails,
           disabled: disabledFeatures,
-          total: allFeatureIds.length,
-          available: availableFeatures.length
-        }
+          summary: {
+            enabled: featureDetails.length,
+            total: allFeatureIds.length,
+            percentage: Math.round((featureDetails.length / allFeatureIds.length) * 100)
+          }
+        },
+        sidebarPermissions: allSidebarPermissions
       });
     } catch (error: any) {
       console.error("Error fetching tenant features:", error.message, error.stack);
