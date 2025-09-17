@@ -8710,24 +8710,74 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     }
   });
 
-  app.put("/api/super-admin/config/email", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+  // GET email configuration
+  app.get("/api/super-admin/config/email", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
     try {
-      const { smtpHost, smtpPort, smtpUser, smtpPass, fromName, fromEmail } = req.body;
-      
-      if (!smtpHost || !smtpUser || !smtpPass || !fromEmail) {
-        return res.status(400).json({ message: "SMTP host, user, password, and from email are required" });
+      const emailConfig = await storage.getSetting('email_config');
+
+      if (emailConfig?.value) {
+        const config = emailConfig.value;
+        // Don't return the password for security
+        const safeConfig = {
+          ...config,
+          password: config.password ? '••••••••' : ''
+        };
+        return res.json(safeConfig);
+      } else {
+        return res.json({
+          provider: 'gmail',
+          email: '',
+          password: '',
+          enabled: false
+        });
+      }
+    } catch (error: any) {
+      console.error("Error getting email config:", error);
+      res.status(500).json({ message: "Failed to get email configuration" });
+    }
+  });
+
+  // Update email configuration
+  app.post("/api/super-admin/config/email", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { provider, email, password, enabled } = req.body;
+
+      // Validate required fields
+      if (!provider || !email) {
+        return res.status(400).json({ message: "Provider and email are required" });
       }
 
-      await storage.updateSetting('super_admin_email_config', {
-        smtpHost,
-        smtpPort: parseInt(smtpPort) || 587,
-        smtpUser,
-        smtpPass,
-        fromName: fromName || 'Venuine Support',
-        fromEmail
-      });
+      if (provider === 'gmail' && !password) {
+        return res.status(400).json({ message: "App password is required for Gmail" });
+      }
 
-      res.json({ message: "Email configuration updated successfully" });
+      // Create configuration object
+      const config = {
+        provider,
+        email,
+        password,
+        enabled: enabled || false,
+        smtp: provider === 'gmail' ? {
+          host: 'smtp.gmail.com',
+          port: 587,
+          secure: false,
+          auth: {
+            user: email,
+            pass: password
+          }
+        } : null,
+        updatedAt: new Date().toISOString()
+      };
+
+      await storage.updateSetting('email_config', config);
+
+      res.json({
+        message: "Email configuration saved successfully",
+        config: {
+          ...config,
+          password: '••••••••' // Don't return the actual password
+        }
+      });
     } catch (error: any) {
       console.error("Error updating email config:", error);
       res.status(500).json({ message: "Failed to update email configuration" });
@@ -8736,56 +8786,143 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
 
   app.post("/api/super-admin/config/email/test", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
     try {
+      // Check if nodemailer is available
+      let nodemailer;
+      try {
+        nodemailer = require('nodemailer');
+      } catch (importError) {
+        return res.status(500).json({
+          success: false,
+          message: 'Email service not available',
+          error: 'Nodemailer module not loaded'
+        });
+      }
+
       // Get current email configuration
-      const emailConfig = await storage.getSetting('super_admin_email_config');
-      
+      const emailConfig = await storage.getSetting('email_config');
+
       if (!emailConfig?.value) {
-        return res.status(400).json({ message: "Email configuration not found. Please configure email settings first." });
+        return res.status(400).json({
+          success: false,
+          message: 'Email configuration not found. Please configure email settings first.'
+        });
       }
 
       const config = emailConfig.value;
-      
-      // Test email configuration by sending a test email
-      try {
-        await notificationEmailService.configure({
-          host: config.smtpHost,
-          port: config.smtpPort,
-          secure: config.smtpPort === 465,
-          auth: {
-            user: config.smtpUser,
-            pass: config.smtpPass,
-          },
-        });
 
-        await notificationEmailService.sendEmail({
-          to: config.smtpUser, // Send test email to the configured user
-          from: `${config.fromName} <${config.fromEmail}>`,
-          subject: 'Super Admin Email Configuration Test',
-          html: `
-            <h2>Email Configuration Test</h2>
-            <p>This is a test email to verify your super admin email configuration is working correctly.</p>
-            <p><strong>Configuration details:</strong></p>
-            <ul>
-              <li>SMTP Host: ${config.smtpHost}</li>
-              <li>SMTP Port: ${config.smtpPort}</li>
-              <li>From Name: ${config.fromName}</li>
-              <li>From Email: ${config.fromEmail}</li>
-            </ul>
-            <p>If you received this email, your configuration is working correctly!</p>
-          `
-        });
-
-        res.json({ message: "Test email sent successfully!" });
-      } catch (emailError: any) {
-        console.error("Email test error:", emailError);
-        res.status(400).json({ 
-          message: "Failed to send test email. Please check your SMTP configuration.", 
-          error: emailError.message 
+      if (!config.enabled) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email service is not enabled. Please enable it in settings.'
         });
       }
+
+      // Get test email from request body or use the configured email
+      const { testEmail } = req.body || {};
+      const recipientEmail = testEmail || config.email;
+
+      // Create transporter based on configuration
+      let transporter;
+
+      if (config.provider === 'gmail') {
+        transporter = nodemailer.createTransport({
+          host: 'smtp.gmail.com',
+          port: 587,
+          secure: false,
+          auth: {
+            user: config.email,
+            pass: config.password
+          }
+        });
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'Unsupported email provider. Currently only Gmail is supported.'
+        });
+      }
+
+      // Test email content
+      const mailOptions = {
+        from: `"VenuinePro System" <${config.email}>`,
+        to: recipientEmail,
+        subject: 'VenuinePro Email Configuration Test',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #3b82f6;">Email Configuration Test</h2>
+            <p>This is a test email to verify that your VenuinePro email configuration is working correctly.</p>
+
+            <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="margin: 0 0 10px 0; color: #374151;">Configuration Details:</h3>
+              <ul style="margin: 0; padding-left: 20px;">
+                <li><strong>Provider:</strong> ${config.provider}</li>
+                <li><strong>From Email:</strong> ${config.email}</li>
+                <li><strong>Test Date:</strong> ${new Date().toLocaleString()}</li>
+              </ul>
+            </div>
+
+            <p>If you received this email, your email configuration is working properly and you can now:</p>
+            <ul>
+              <li>Send customer verification emails</li>
+              <li>Send booking confirmation emails</li>
+              <li>Send system notifications</li>
+            </ul>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+            <p style="color: #6b7280; font-size: 14px;">
+              This email was sent from VenuinePro Super Admin panel as a configuration test.
+            </p>
+          </div>
+        `,
+        text: `
+VenuinePro Email Configuration Test
+
+This is a test email to verify that your VenuinePro email configuration is working correctly.
+
+Configuration Details:
+- Provider: ${config.provider}
+- From Email: ${config.email}
+- Test Date: ${new Date().toLocaleString()}
+
+If you received this email, your email configuration is working properly and you can now send customer verification emails, booking confirmations, and system notifications.
+
+This email was sent from VenuinePro Super Admin panel as a configuration test.
+        `
+      };
+
+      // Send test email
+      const info = await transporter.sendMail(mailOptions);
+
+      return res.json({
+        success: true,
+        message: `Test email sent successfully to ${recipientEmail}`,
+        details: {
+          messageId: info.messageId,
+          recipient: recipientEmail,
+          provider: config.provider,
+          sentAt: new Date().toISOString()
+        }
+      });
+
     } catch (error: any) {
-      console.error("Error testing email config:", error);
-      res.status(500).json({ message: "Failed to test email configuration" });
+      console.error('Email test error:', error);
+
+      // Provide specific error messages for common issues
+      let errorMessage = 'Failed to send test email';
+
+      if (error.code === 'EAUTH') {
+        errorMessage = 'Authentication failed. Please check your email and app password.';
+      } else if (error.code === 'ECONNECTION') {
+        errorMessage = 'Connection failed. Please check your internet connection.';
+      } else if (error.message.includes('Invalid login')) {
+        errorMessage = 'Invalid login credentials. Please verify your email and app password.';
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: errorMessage,
+        error: error.message,
+        code: error.code
+      });
     }
   });
 
