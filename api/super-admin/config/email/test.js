@@ -88,7 +88,7 @@ module.exports = async function handler(req, res) {
     let transporter;
 
     if (emailConfig.provider === 'gmail') {
-      transporter = nodemailer.createTransporter({
+      transporter = nodemailer.createTransport({
         host: 'smtp.gmail.com',
         port: 587,
         secure: false,
