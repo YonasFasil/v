@@ -43,7 +43,7 @@ export {
   aiInsights
 } from "../../shared/schema";
 
-// Export common Drizzle operators
-export { eq, and, or, not, isNull, isNotNull, desc, asc, like, ilike, inArray } from "drizzle-orm";
+// Export common Drizzle operators and sql helper
+export { eq, and, or, not, isNull, isNotNull, desc, asc, like, ilike, inArray, sql } from "drizzle-orm";
 
 export default db;

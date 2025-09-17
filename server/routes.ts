@@ -8709,35 +8709,20 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     }
   });
 
-  // GET email configuration
-  app.get("/api/super-admin/config/email", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+  // Global Email Configuration - Environment Variable Based (Vercel Compatible)
+  app.get("/api/super-admin/global-email/status", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
     try {
-      const emailConfig = await storage.getSetting('email_config');
-
-      if (emailConfig?.value) {
-        const config = emailConfig.value;
-        // Don't return the password for security
-        const safeConfig = {
-          ...config,
-          password: config.password ? '••••••••' : ''
-        };
-        return res.json(safeConfig);
-      } else {
-        return res.json({
-          provider: 'gmail',
-          email: '',
-          password: '',
-          enabled: false
-        });
-      }
+      const globalEmailService = await import('./services/global-email-service');
+      const status = await globalEmailService.getGlobalEmailStatus();
+      res.json(status);
     } catch (error: any) {
-      console.error("Error getting email config:", error);
-      res.status(500).json({ message: "Failed to get email configuration" });
+      console.error("Error getting global email status:", error);
+      res.status(500).json({ message: "Failed to get global email status" });
     }
   });
 
-  // Update email configuration
-  app.post("/api/super-admin/config/email", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+  // Set Global Email Configuration (Environment Variables for Vercel compatibility)
+  app.post("/api/super-admin/global-email/configure", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
     try {
       const { provider, email, password, enabled } = req.body;
 
@@ -8750,129 +8735,147 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
         return res.status(400).json({ message: "App password is required for Gmail" });
       }
 
-      // Create configuration object
-      const config = {
+      const globalEmailService = await import('./services/global-email-service');
+      const result = await globalEmailService.configureGlobalEmail({
         provider,
         email,
         password,
-        enabled: enabled || false,
-        smtp: provider === 'gmail' ? {
-          host: 'smtp.gmail.com',
-          port: 587,
-          secure: false,
-          auth: {
-            user: email,
-            pass: password
-          }
-        } : null,
-        updatedAt: new Date().toISOString()
-      };
-
-      await storage.updateSetting('email_config', config);
+        enabled: enabled || false
+      });
 
       res.json({
-        message: "Email configuration saved successfully",
-        config: {
-          ...config,
-          password: '••••••••' // Don't return the actual password
-        }
+        message: "Global email configuration updated successfully",
+        configured: result.success,
+        provider: result.provider
       });
     } catch (error: any) {
-      console.error("Error updating email config:", error);
-      res.status(500).json({ message: "Failed to update email configuration" });
+      console.error("Error configuring global email:", error);
+      res.status(500).json({ message: "Failed to configure global email" });
     }
   });
 
-  app.post("/api/super-admin/config/email/test", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+  // Test Global Email Service
+  app.post("/api/super-admin/global-email/test", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
     try {
-      console.log('[EMAIL-TEST] Testing super admin email configuration...');
+      const { to } = req.body;
 
-      // Get test email from request body or use the configured email
-      const { testEmail } = req.body || {};
-
-      // Check email service status
-      const emailStatus = await unifiedEmailService.getStatus();
-
-      if (!emailStatus.configured) {
-        console.error('[EMAIL-TEST] Email service not configured:', emailStatus.error);
-        return res.status(400).json({
-          success: false,
-          message: emailStatus.error || 'Email service not configured',
-          configured: false
-        });
+      if (!to) {
+        return res.status(400).json({ message: "Recipient email address is required" });
       }
 
-      const recipientEmail = testEmail || emailStatus.email;
-      console.log(`[EMAIL-TEST] Sending test email to: ${recipientEmail}`);
-
-      // Send test email using unified service
-      const info = await unifiedEmailService.sendTestEmail(recipientEmail);
-
-      console.log(`[EMAIL-TEST] Test email sent successfully, MessageID: ${info.messageId}`);
-
-      return res.json({
-        success: true,
-        message: `Test email sent successfully to ${recipientEmail}`,
-        details: {
-          messageId: info.messageId,
-          recipient: recipientEmail,
-          provider: emailStatus.provider,
-          sentAt: new Date().toISOString()
-        }
-      });
-
-    } catch (error: any) {
-      console.error('[EMAIL-TEST] Email test failed:', error);
-
-      // Provide specific error messages for common issues
-      let errorMessage = 'Failed to send test email';
-
-      if (error.code === 'EAUTH') {
-        errorMessage = 'Gmail authentication failed. Please check your app password.';
-      } else if (error.code === 'ECONNECTION') {
-        errorMessage = 'Connection failed. Please check your internet connection.';
-      } else if (error.message?.includes('Invalid login')) {
-        errorMessage = 'Invalid Gmail credentials. Please verify your email and app password.';
-      } else if (error.message?.includes('not configured')) {
-        errorMessage = 'Email service not configured. Please configure Gmail settings first.';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      return res.status(500).json({
-        success: false,
-        message: errorMessage,
-        error: error.message,
-        code: error.code
-      });
-    }
-  });
-
-  // Check email service status for tenant admin
-  app.get("/api/email/status", requireAuth('settings'), requireTenant, async (req: AuthenticatedRequest, res) => {
-    try {
-      console.log('[EMAIL-STATUS] Checking email service status for tenant admin...');
-
-      const emailStatus = await unifiedEmailService.getStatus();
+      const globalEmailService = await import('./services/global-email-service');
+      const result = await globalEmailService.sendTestEmail(to);
 
       res.json({
-        configured: emailStatus.configured,
-        provider: emailStatus.provider || 'Not configured',
-        email: emailStatus.email || 'Not configured',
-        error: emailStatus.error || null,
-        description: emailStatus.configured
-          ? 'Email service is configured and ready. All customer emails will be sent automatically.'
-          : 'Email service is not configured. Please contact your administrator.',
-        managedBy: 'Super Admin'
+        success: result.success,
+        message: result.success ? `Test email sent successfully to ${to}` : result.error,
+        messageId: result.messageId
       });
-
     } catch (error: any) {
-      console.error('[EMAIL-STATUS] Error checking email status:', error);
+      console.error("Error sending test email:", error);
       res.status(500).json({
-        configured: false,
-        error: 'Failed to check email status',
-        description: 'Unable to verify email service status. Please try again later.',
-        managedBy: 'Super Admin'
+        success: false,
+        message: "Failed to send test email"
+      });
+    }
+  });
+
+  // Send Customer Verification Email
+  app.post("/api/global-email/send-verification", async (req: AuthenticatedRequest, res) => {
+    try {
+      const { email, verificationToken, customerName } = req.body;
+
+      if (!email || !verificationToken) {
+        return res.status(400).json({ message: "Email and verification token are required" });
+      }
+
+      const globalEmailService = await import('./services/global-email-service');
+      const result = await globalEmailService.sendVerificationEmail({
+        to: email,
+        customerName: customerName || 'Customer',
+        verificationToken
+      });
+
+      res.json({
+        success: result.success,
+        message: result.success ? 'Verification email sent successfully' : result.error
+      });
+    } catch (error: any) {
+      console.error("Error sending verification email:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to send verification email"
+      });
+    }
+  });
+
+  // Send Tenant Communication Email (Proposals, Notifications, etc.)
+  app.post("/api/global-email/send-communication", requireAuth(['manage_communications']), async (req: AuthenticatedRequest, res) => {
+    try {
+      const { to, subject, type, data } = req.body;
+
+      if (!to || !subject || !type) {
+        return res.status(400).json({ message: "To, subject, and type are required" });
+      }
+
+      const globalEmailService = await import('./services/global-email-service');
+
+      let result;
+      switch (type) {
+        case 'proposal':
+          result = await globalEmailService.sendProposalEmail({
+            to,
+            subject,
+            ...data
+          });
+          break;
+        case 'notification':
+          result = await globalEmailService.sendNotificationEmail({
+            to,
+            subject,
+            ...data
+          });
+          break;
+        default:
+          return res.status(400).json({ message: "Invalid email type" });
+      }
+
+      res.json({
+        success: result.success,
+        message: result.success ? `${type} email sent successfully` : result.error
+      });
+    } catch (error: any) {
+      console.error(`Error sending ${req.body.type} email:`, error);
+      res.status(500).json({
+        success: false,
+        message: `Failed to send ${req.body.type} email`
+      });
+    }
+  });
+
+  // Test global email configuration
+  app.post("/api/super-admin/global-email/test", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    try {
+      console.log('[EMAIL-TEST] Request body:', req.body);
+      const { testEmail } = req.body;
+
+      if (!testEmail) {
+        return res.status(400).json({ message: "Test email address is required", received: req.body });
+      }
+
+      const globalEmailService = await import('./services/global-email-service');
+      const result = await globalEmailService.testGlobalEmail(testEmail);
+
+      res.json({
+        success: true,
+        message: "Test email sent successfully",
+        messageId: result.messageId
+      });
+    } catch (error: any) {
+      console.error('Error sending test email:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to send test email"
       });
     }
   });

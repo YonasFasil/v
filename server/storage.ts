@@ -25,10 +25,10 @@ import {
   type SubscriptionPackage, type InsertSubscriptionPackage,
 } from "@shared/schema";
 
-import { 
-  db, 
-  eq, and, or, not, isNull, isNotNull, desc, asc, like, ilike, inArray,
-  users, venues, spaces, setupStyles, companies, customers, contracts, 
+import {
+  db,
+  eq, and, or, not, isNull, isNotNull, desc, asc, like, ilike, inArray, sql,
+  users, venues, spaces, setupStyles, companies, customers, contracts,
   bookings, proposals, payments, tasks, packages, services,
   settings, communications, taxSettings, campaignSources, tags, leads,
   leadActivities, leadTasks, tours, tenants, subscriptionPackages, aiInsights,

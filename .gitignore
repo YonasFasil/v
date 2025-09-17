@@ -16,6 +16,9 @@ build/
 .env.production.local
 .env.production
 
+# Email configuration (contains sensitive data)
+.email-config.json
+
 # Runtime data
 pids
 *.pid
