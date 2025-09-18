@@ -4,6 +4,10 @@
   "outputDirectory": "dist/public",
   "rewrites": [
     {
+      "source": "/api/email-configure",
+      "destination": "/api/email-configure.js"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api"
     },

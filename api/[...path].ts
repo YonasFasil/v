@@ -43,44 +43,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// CRITICAL: Add email configuration route directly here to avoid registration issues
-app.post('/api/email-configure', async (req, res) => {
-  console.log('[EMAIL-DIRECT] Route hit directly in [...path].ts');
-  console.log('[EMAIL-DIRECT] Method:', req.method);
-  console.log('[EMAIL-DIRECT] Body:', req.body);
-
-  try {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-    const { provider, email, password, enabled } = req.body || {};
-
-    if (!provider || !email) {
-      return res.status(400).json({
-        message: "Provider and email are required",
-        received: { provider, email, hasPassword: !!password, enabled }
-      });
-    }
-
-    // For now, return success to verify the route works
-    return res.status(200).json({
-      message: "Email configuration successful (DIRECT ROUTE)",
-      configured: true,
-      provider: provider,
-      testMode: true,
-      receivedData: { provider, email, enabled }
-    });
-
-  } catch (error: any) {
-    console.error('[EMAIL-DIRECT] Error:', error);
-    return res.status(500).json({
-      message: "Failed to configure email",
-      error: error.message
-    });
-  }
-});
-
 // Register all routes from your server
 try {
   registerRoutes(app);
