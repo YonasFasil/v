@@ -268,13 +268,13 @@ export default async function handler(req, res) {
         const insertQuery = `
           INSERT INTO communications (
             id, tenant_id, type, subject, message,
-            sender_email, recipient_email, recipient_name,
+            sender, recipient,
             customer_id, booking_id, proposal_id,
-            status, sent_at, created_at, email_message_id,
+            status, sent_at, email_message_id,
             thread_id, reply_to_address, direction
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
-            $12, NOW(), NOW(), $13, $14, $15, $16
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+            $11, NOW(), $12, $13, $14, $15
           )
         `;
 
@@ -286,7 +286,6 @@ export default async function handler(req, res) {
           finalContent,
           senderEmail,
           recipientEmail,
-          finalCustomerName,
           customerId || null,
           bookingId || null,
           proposalId || null,
