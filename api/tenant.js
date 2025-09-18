@@ -1096,18 +1096,41 @@ module.exports = async function handler(req, res) {
     if (resource === 'proposals') {
       if (req.method === 'GET') {
         try {
-          const proposals = await pool.query(`SELECT p.*,
-                   c.name as customer_name,
-                   v.name as venue_name
-            FROM proposals p
-            LEFT JOIN customers c ON p.customer_id = c.id AND c.tenant_id = $1
-            LEFT JOIN venues v ON p.venue_id = v.id AND v.tenant_id = $1
-            WHERE p.tenant_id = $1
-            ORDER BY p.created_at DESC`, [tenantId]);
-          return res.json(proposals.rows);
+          if (id) {
+            // Get individual proposal by ID
+            const proposal = await pool.query(`SELECT p.*,
+                     c.name as customer_name,
+                     c.email as customer_email,
+                     c.phone as customer_phone,
+                     v.name as venue_name
+              FROM proposals p
+              LEFT JOIN customers c ON p.customer_id = c.id AND c.tenant_id = $1
+              LEFT JOIN venues v ON p.venue_id = v.id AND v.tenant_id = $1
+              WHERE p.tenant_id = $1 AND p.id = $2`, [tenantId, id]);
+
+            if (proposal.rows.length === 0) {
+              return res.status(404).json({ message: 'Proposal not found' });
+            }
+
+            return res.json(proposal.rows[0]);
+          } else {
+            // Get all proposals
+            const proposals = await pool.query(`SELECT p.*,
+                     c.name as customer_name,
+                     v.name as venue_name
+              FROM proposals p
+              LEFT JOIN customers c ON p.customer_id = c.id AND c.tenant_id = $1
+              LEFT JOIN venues v ON p.venue_id = v.id AND v.tenant_id = $1
+              WHERE p.tenant_id = $1
+              ORDER BY p.created_at DESC`, [tenantId]);
+            return res.json(proposals.rows);
+          }
         } catch (error) {
           console.error('Proposals query error:', error);
-          // Return empty array if query fails
+          if (id) {
+            return res.status(500).json({ message: 'Failed to fetch proposal' });
+          }
+          // Return empty array if query fails for list
           return res.json([]);
         }
       }

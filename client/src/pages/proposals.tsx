@@ -137,7 +137,7 @@ export default function Proposals() {
                   </div>
                   <div>
                     <span className="text-gray-500">Amount:</span>
-                    <div className="font-medium">${parseFloat(proposal.totalAmount || 0).toLocaleString()}</div>
+                    <div className="font-medium">${parseFloat(proposal.totalAmount || proposal.total_amount || 0).toLocaleString()}</div>
                   </div>
                   <div>
                     <span className="text-gray-500">Created:</span>
@@ -223,7 +223,7 @@ export default function Proposals() {
                     {safeFormatDate(proposal.eventDate, "MMM d, yyyy", "TBD")}
                   </TableCell>
                   <TableCell className="font-medium">
-                    ${parseFloat(proposal.totalAmount).toFixed(2)}
+                    ${parseFloat(proposal.totalAmount || proposal.total_amount || 0).toFixed(2)}
                   </TableCell>
                   <TableCell>
                     <Badge className={getStatusColor(proposal.status)}>
