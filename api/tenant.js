@@ -1293,10 +1293,175 @@ module.exports = async function handler(req, res) {
     // TASKS
     if (resource === 'tasks') {
       if (req.method === 'GET') {
-        const tasks = await pool.query(`SELECT * FROM tasks
-          WHERE tenant_id = $1
-          ORDER BY created_at DESC`, [tenantId]);
-        return res.json(tasks.rows);
+        try {
+          const tasks = await pool.query(`
+            SELECT t.*,
+                   c.name as customer_name,
+                   b.event_name,
+                   u.name as assigned_user_name,
+                   u.email as assigned_user_email
+            FROM tasks t
+            LEFT JOIN customers c ON t.customer_id = c.id
+            LEFT JOIN bookings b ON t.booking_id = b.id
+            LEFT JOIN users u ON t.assigned_to = u.id
+            WHERE t.tenant_id = $1
+            ORDER BY t.created_at DESC
+          `, [tenantId]);
+          return res.json(tasks.rows);
+        } catch (error) {
+          // If tasks table doesn't exist, create it
+          try {
+            await pool.query(`
+              CREATE TABLE IF NOT EXISTS tasks (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                tenant_id VARCHAR(255) NOT NULL,
+                title VARCHAR(500) NOT NULL,
+                description TEXT,
+                status VARCHAR(50) DEFAULT 'pending',
+                priority VARCHAR(50) DEFAULT 'medium',
+                assigned_to UUID,
+                customer_id UUID,
+                booking_id UUID,
+                due_date TIMESTAMP WITH TIME ZONE,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                completed_at TIMESTAMP WITH TIME ZONE
+              )
+            `);
+
+            // Create indexes
+            await pool.query(`CREATE INDEX IF NOT EXISTS idx_tasks_tenant ON tasks(tenant_id)`);
+            await pool.query(`CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)`);
+            await pool.query(`CREATE INDEX IF NOT EXISTS idx_tasks_assigned ON tasks(assigned_to)`);
+
+            console.log('✅ Tasks table created');
+            return res.json([]);
+          } catch (createError) {
+            console.error('Failed to create tasks table:', createError);
+            return res.json([]);
+          }
+        }
+      }
+
+      if (req.method === 'POST') {
+        try {
+          const {
+            title,
+            description,
+            status = 'pending',
+            priority = 'medium',
+            assignedTo,
+            customerId,
+            bookingId,
+            dueDate
+          } = req.body;
+
+          if (!title) {
+            return res.status(400).json({ message: 'Title is required' });
+          }
+
+          const newTask = await pool.query(`
+            INSERT INTO tasks (
+              tenant_id, title, description, status, priority,
+              assigned_to, customer_id, booking_id, due_date, created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+            RETURNING *
+          `, [
+            tenantId, title, description || null, status, priority,
+            assignedTo || null, customerId || null, bookingId || null,
+            dueDate ? new Date(dueDate) : null
+          ]);
+
+          return res.status(201).json(newTask.rows[0]);
+        } catch (error) {
+          console.error('Task creation error:', error);
+          return res.status(500).json({ message: 'Failed to create task' });
+        }
+      }
+
+      if (req.method === 'PATCH' && id) {
+        try {
+          const updateData = req.body;
+          const updateFields = [];
+          const updateValues = [];
+          let valueIndex = 1;
+
+          updateValues.push(tenantId, id);
+
+          const fieldMappings = {
+            title: 'title',
+            description: 'description',
+            status: 'status',
+            priority: 'priority',
+            assignedTo: 'assigned_to',
+            customerId: 'customer_id',
+            bookingId: 'booking_id',
+            dueDate: 'due_date'
+          };
+
+          for (const [key, value] of Object.entries(updateData)) {
+            if (fieldMappings[key] && value !== undefined) {
+              updateFields.push(`${fieldMappings[key]} = $${valueIndex + 2}`);
+
+              if (key === 'dueDate' && value) {
+                updateValues.push(new Date(value));
+              } else {
+                updateValues.push(value);
+              }
+              valueIndex++;
+            }
+          }
+
+          // Add completed_at if status is being set to completed
+          if (updateData.status === 'completed') {
+            updateFields.push(`completed_at = NOW()`);
+          } else if (updateData.status && updateData.status !== 'completed') {
+            updateFields.push(`completed_at = NULL`);
+          }
+
+          updateFields.push(`updated_at = NOW()`);
+
+          if (updateFields.length === 0) {
+            return res.status(400).json({ message: 'No fields to update' });
+          }
+
+          const updateQuery = `
+            UPDATE tasks
+            SET ${updateFields.join(', ')}
+            WHERE tenant_id = $1 AND id = $2
+            RETURNING *
+          `;
+
+          const updatedTask = await pool.query(updateQuery, updateValues);
+
+          if (updatedTask.rows.length === 0) {
+            return res.status(404).json({ message: 'Task not found' });
+          }
+
+          return res.json(updatedTask.rows[0]);
+        } catch (error) {
+          console.error('Task update error:', error);
+          return res.status(500).json({ message: 'Failed to update task' });
+        }
+      }
+
+      if (req.method === 'DELETE' && id) {
+        try {
+          const deletedTask = await pool.query(`
+            DELETE FROM tasks
+            WHERE tenant_id = $1 AND id = $2
+            RETURNING *
+          `, [tenantId, id]);
+
+          if (deletedTask.rows.length === 0) {
+            return res.status(404).json({ message: 'Task not found' });
+          }
+
+          return res.json({ message: 'Task deleted successfully' });
+        } catch (error) {
+          console.error('Task deletion error:', error);
+          return res.status(500).json({ message: 'Failed to delete task' });
+        }
       }
     }
 
@@ -1892,6 +2057,131 @@ module.exports = async function handler(req, res) {
         } catch (error) {
           console.error('Contract update error:', error);
           return res.status(500).json({ message: 'Failed to update contract', error: error.message });
+        }
+      }
+    }
+
+    // USERS / TEAM MANAGEMENT
+    if (resource === 'users') {
+      if (req.method === 'GET') {
+        try {
+          const users = await pool.query(`
+            SELECT id, name, email, role,
+                   created_at, updated_at, last_login_at,
+                   CASE
+                     WHEN last_login_at > NOW() - INTERVAL '30 days' THEN 'active'
+                     ELSE 'inactive'
+                   END as status
+            FROM users
+            WHERE tenant_id = $1
+            ORDER BY created_at DESC
+          `, [tenantId]);
+          return res.json(users.rows);
+        } catch (error) {
+          // If users table doesn't exist or error, return empty array
+          console.warn('Users query error:', error.message);
+          return res.json([]);
+        }
+      }
+
+      if (req.method === 'POST') {
+        try {
+          const { name, email, role = 'team_member' } = req.body;
+
+          if (!name || !email) {
+            return res.status(400).json({ message: 'Name and email are required' });
+          }
+
+          // Check if user already exists
+          const existingUser = await pool.query(`
+            SELECT id FROM users WHERE email = $1 AND tenant_id = $2
+          `, [email, tenantId]);
+
+          if (existingUser.rows.length > 0) {
+            return res.status(400).json({ message: 'User with this email already exists' });
+          }
+
+          const newUser = await pool.query(`
+            INSERT INTO users (tenant_id, name, email, role, created_at)
+            VALUES ($1, $2, $3, $4, NOW())
+            RETURNING id, name, email, role, created_at
+          `, [tenantId, name, email, role]);
+
+          return res.status(201).json(newUser.rows[0]);
+        } catch (error) {
+          console.error('User creation error:', error);
+          return res.status(500).json({ message: 'Failed to create user' });
+        }
+      }
+
+      if (req.method === 'PATCH' && id) {
+        try {
+          const updateData = req.body;
+          const updateFields = [];
+          const updateValues = [];
+          let valueIndex = 1;
+
+          updateValues.push(tenantId, id);
+
+          const allowedFields = {
+            name: 'name',
+            email: 'email',
+            role: 'role'
+          };
+
+          for (const [key, value] of Object.entries(updateData)) {
+            if (allowedFields[key] && value !== undefined) {
+              updateFields.push(`${allowedFields[key]} = $${valueIndex + 2}`);
+              updateValues.push(value);
+              valueIndex++;
+            }
+          }
+
+          updateFields.push(`updated_at = NOW()`);
+
+          if (updateFields.length <= 1) { // Only updated_at
+            return res.status(400).json({ message: 'No fields to update' });
+          }
+
+          const updateQuery = `
+            UPDATE users
+            SET ${updateFields.join(', ')}
+            WHERE tenant_id = $1 AND id = $2
+            RETURNING id, name, email, role, created_at, updated_at
+          `;
+
+          const updatedUser = await pool.query(updateQuery, updateValues);
+
+          if (updatedUser.rows.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+          }
+
+          return res.json(updatedUser.rows[0]);
+        } catch (error) {
+          console.error('User update error:', error);
+          return res.status(500).json({ message: 'Failed to update user' });
+        }
+      }
+
+      if (req.method === 'DELETE' && id) {
+        try {
+          const deletedUser = await pool.query(`
+            DELETE FROM users
+            WHERE tenant_id = $1 AND id = $2
+            RETURNING id, name, email
+          `, [tenantId, id]);
+
+          if (deletedUser.rows.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+          }
+
+          return res.json({
+            message: 'User deleted successfully',
+            deletedUser: deletedUser.rows[0]
+          });
+        } catch (error) {
+          console.error('User deletion error:', error);
+          return res.status(500).json({ message: 'Failed to delete user' });
         }
       }
     }
