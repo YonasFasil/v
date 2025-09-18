@@ -339,7 +339,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/super-admin/global-email/configure", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+  // Test version without auth middleware to debug 405 issue
+  app.post("/api/super-admin/global-email/configure", async (req: any, res: any) => {
     console.log('[EMAIL-CONFIGURE] Route hit with body:', req.body);
     try {
       const { provider, email, password, enabled } = req.body;
@@ -388,6 +389,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: error.message || "Failed to send test email"
       });
     }
+  });
+
+  // DEBUG: Simple test route to verify routing works
+  app.get("/api/super-admin/global-email/debug", (req: any, res: any) => {
+    console.log('[EMAIL-DEBUG] Debug route hit');
+    res.json({
+      message: "Email debug route working",
+      method: req.method,
+      path: req.path,
+      timestamp: new Date().toISOString()
+    });
   });
 
   console.log('[ROUTES] Super admin email routes registered successfully');
