@@ -1,7 +1,7 @@
 // Vercel Serverless Function for Email Testing
-import * as nodemailer from 'nodemailer';
+const nodemailer = require('nodemailer');
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -37,6 +37,13 @@ export default async function handler(req, res) {
     const password = process.env.GLOBAL_EMAIL_PASSWORD;
     const enabled = process.env.GLOBAL_EMAIL_ENABLED !== 'false';
 
+    console.log('Email config check:', {
+      hasProvider: !!provider,
+      hasEmail: !!senderEmail,
+      hasPassword: !!password,
+      enabled
+    });
+
     if (!provider || !senderEmail || !password) {
       return res.status(400).json({
         error: 'Email service not configured. Please set GLOBAL_EMAIL_PROVIDER, GLOBAL_EMAIL_ADDRESS, and GLOBAL_EMAIL_PASSWORD environment variables.'
@@ -71,11 +78,14 @@ export default async function handler(req, res) {
       };
     }
 
-    const transporter = nodemailer.createTransporter(transportConfig);
+    console.log('Creating transporter with config:', {
+      service: transportConfig.service || 'custom',
+      host: transportConfig.host,
+      port: transportConfig.port,
+      secure: transportConfig.secure
+    });
 
-    // Verify transporter configuration
-    console.log('Verifying email transporter...');
-    await transporter.verify();
+    const transporter = nodemailer.createTransporter(transportConfig);
 
     // Test email content
     const mailOptions = {
@@ -99,6 +109,7 @@ export default async function handler(req, res) {
 
     console.log('Sending test email to:', testEmail);
     const result = await transporter.sendMail(mailOptions);
+    console.log('Email sent successfully:', result.messageId);
 
     return res.status(200).json({
       success: true,
@@ -137,4 +148,4 @@ export default async function handler(req, res) {
       }
     });
   }
-}
+};

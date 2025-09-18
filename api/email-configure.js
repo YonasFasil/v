@@ -1,8 +1,8 @@
 // Vercel Serverless Function for Email Configuration
-import fs from 'fs';
-import path from 'path';
+const fs = require('fs');
+const path = require('path');
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -25,6 +25,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Parse request body
     const { provider, email, password, enabled } = req.body || {};
 
     console.log('Parsed data:', { provider, email, enabled, hasPassword: !!password });
@@ -112,4 +113,4 @@ export default async function handler(req, res) {
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
-}
+};

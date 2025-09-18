@@ -1,8 +1,8 @@
 // Vercel Serverless Function for Email Status
-import fs from 'fs';
-import path from 'path';
+const fs = require('fs');
+const path = require('path');
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -83,4 +83,4 @@ export default async function handler(req, res) {
       message: error.message
     });
   }
-}
+};
