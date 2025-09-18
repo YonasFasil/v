@@ -319,6 +319,14 @@ export default async function handler(req, res) {
           'outbound'
         ]);
 
+        console.log('✅ Communication recorded:', {
+          id: communicationId,
+          tenantId,
+          customerId,
+          proposalId,
+          type: finalType
+        });
+
         console.log('✅ Communication recorded with thread ID:', threadId);
       } catch (dbError) {
         console.warn('Failed to record communication:', dbError.message);
