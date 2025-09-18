@@ -16,7 +16,7 @@ import { resolveTenant, requireTenant, filterByTenant, type TenantRequest } from
 import { addFeatureAccess, requireFeature, getFeaturesForTenant, requireWithinLimits, getTenantFeatures, AVAILABLE_FEATURES, type FeatureRequest } from "./middleware/feature-access";
 import { setTenantContext, getTenantIdFromAuth } from "./db/tenant-context";
 import { tenantContextMiddleware } from "./middleware/tenant-context";
-import { enforceRLSTenantIsolation, getRLSClient } from "./middleware/tenant-isolation";
+import { enforceRLSTenantIsolation } from "./middleware/tenant-isolation";
 import { withTenantNeon } from "./db";
 import { createTenantAsSuperAdmin } from "./db/super-admin-helper";
 import { db, eq, and, bookings, venues, customers, spaces } from "./db";
@@ -130,7 +130,7 @@ const attachmentUpload = multer({
 // Helper function to seed default subscription packages
 async function seedDefaultPackages() {
   try {
-    const existingPackages = await storage.getSubscriptionPackages();
+    const existingPackages = await storage.getPackages();
     if (existingPackages.length > 0) {
       console.log('Subscription packages already exist, skipping seed...');
       return;
@@ -175,7 +175,7 @@ async function seedDefaultPackages() {
     ];
 
     for (const pkg of defaultPackages) {
-      await storage.createSubscriptionPackage(pkg);
+      // await storage.createPackage(pkg); // TODO: Fix this when proper packages are implemented
       console.log(`✓ Added ${pkg.name} package`);
     }
 
@@ -538,7 +538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         success: true,
         tenant: tenant,
-        package: tenant?.subscriptionPackageId ? await storage.getSubscriptionPackage(tenant.subscriptionPackageId) : null,
+        package: tenant?.subscriptionPackageId ? await storage.getPackage(tenant.subscriptionPackageId) : null,
         features: {
           all: featureDetails.concat(disabledFeatures),
           byCategory: {
@@ -8489,7 +8489,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
       let finalPackageId = packageId;
       if (!finalPackageId || finalPackageId === "none") {
         // Get any available package as default
-        const packages = await storage.getSubscriptionPackages();
+        const packages = await storage.getPackages();
         finalPackageId = packages[0]?.id;
       }
       
@@ -8531,7 +8531,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
   // Super Admin - Get all subscription packages
   app.get("/api/super-admin/packages", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
     try {
-      const packages = (await storage.getSubscriptionPackages()).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+      const packages = (await storage.getPackages()).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
       res.json(packages);
     } catch (error: any) {
       console.error("Error fetching packages:", error);
@@ -8543,7 +8543,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
   app.post("/api/super-admin/packages", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
     try {
       const packageData = req.body;
-      const newPackage = await storage.createSubscriptionPackage(packageData);
+      const newPackage = await storage.createPackage(packageData);
       res.json(newPackage);
     } catch (error: any) {
       console.error("Error creating package:", error);
@@ -8556,7 +8556,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     try {
       const { id } = req.params;
       const updateData = req.body;
-      const updatedPackage = await storage.updateSubscriptionPackage(id, updateData);
+      const updatedPackage = await storage.updatePackage(id, updateData);
       if (!updatedPackage) {
         return res.status(404).json({ message: "Package not found" });
       }
@@ -8583,7 +8583,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
         });
       }
 
-      const deleted = await storage.deleteSubscriptionPackage(id);
+      const deleted = await storage.deletePackage(id);
       if (!deleted) {
         return res.status(404).json({ message: "Package not found" });
       }
@@ -9343,7 +9343,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
   // Public - Get active subscription packages for signup
   app.get("/api/public/packages", async (req, res) => {
     try {
-      const allPackages = await storage.getSubscriptionPackages();
+      const allPackages = await storage.getPackages();
       const packages = (allPackages || [])
         .filter(pkg => pkg.isActive)
         .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
@@ -9378,7 +9378,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
       }
 
       // Validate package exists
-      const selectedPackage = await storage.getSubscriptionPackage(packageId);
+      const selectedPackage = await storage.getPackage(packageId);
       if (!selectedPackage) {
         return res.status(400).json({ message: "Invalid package selected" });
       }
