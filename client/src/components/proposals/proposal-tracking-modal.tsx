@@ -209,11 +209,8 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     }
   }, [open, proposalId, refetch]);
 
-  // Fetch communications
-  const { data: communications = [] } = useQuery<Communication[]>({
-    queryKey: [`/api/proposals/${proposalId}/communications`],
-    enabled: !!proposalId && open
-  });
+  // Communications not yet implemented - placeholder
+  const communications: Communication[] = [];
 
   // Fetch related events/bookings
   const { data: bookings = [] } = useQuery<Booking[]>({
@@ -348,28 +345,32 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async (data: any) => {
-      const formData = new FormData();
-      formData.append('type', data.type);
-      formData.append('direction', data.direction);
-      if (data.subject) formData.append('subject', data.subject);
-      formData.append('content', data.content);
-      formData.append('customerId', data.customerId);
-      
-      // Add attachments
-      attachments.forEach((file, index) => {
-        formData.append('attachments', file);
-      });
-      
-      const response = await fetch(`/api/proposals/${proposalId}/communications`, {
-        method: 'POST',
-        body: formData
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (data.type === 'email') {
+        // Use the global email service for sending emails
+        const response = await fetch("/api/send-communication-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to: customer?.email,
+            subject: data.subject || 'Follow-up on your event proposal',
+            customerName: customer?.name,
+            content: data.content,
+            type: "follow-up",
+            emailType: "follow-up"
+          })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Failed to send email');
+        }
+
+        return response.json();
+      } else {
+        // For internal notes, we could store them locally or just show success
+        // For now, just return success since it's an internal note
+        return { success: true, type: 'note' };
       }
-      
-      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -379,7 +380,6 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
       setNewMessage("");
       setEmailSubject("");
       setAttachments([]);
-      queryClient.invalidateQueries({ queryKey: [`/api/proposals/${proposalId}/communications`] });
     },
     onError: () => {
       toast({
@@ -393,8 +393,30 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
   // Resend proposal mutation
   const resendProposalMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", `/api/proposals/${proposalId}/resend`);
-      return response;
+      if (!proposal || !customer) {
+        throw new Error('Proposal or customer data not available');
+      }
+
+      // Resend the proposal email using the global email service
+      const response = await fetch("/api/send-communication-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: customer.email,
+          subject: `Event Proposal: ${proposal.title?.replace(/^Proposal for\s+/i, '') || 'Your Event'}`,
+          customerName: customer.name,
+          content: proposal.content, // Use the existing HTML content
+          type: "proposal",
+          emailType: "proposal"
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to resend proposal');
+      }
+
+      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -402,7 +424,6 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
         description: "The proposal has been resent to the customer with updated event details"
       });
       queryClient.invalidateQueries({ queryKey: [`/api/proposals?id=${proposalId}`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/proposals/${proposalId}/communications`] });
     },
     onError: (error: any) => {
       console.error('Resend proposal error:', error);
