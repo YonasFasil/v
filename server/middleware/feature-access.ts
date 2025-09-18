@@ -111,7 +111,7 @@ export async function getTenantFeatures(tenantId: string): Promise<string[]> {
   }
 
   // Filter package features to only include valid feature IDs from AVAILABLE_FEATURES
-  const validPackageFeatures = packageFeatures.filter(feature => 
+  const validPackageFeatures = packageFeatures.filter((feature: string) =>
     Object.keys(AVAILABLE_FEATURES).includes(feature)
   );
 

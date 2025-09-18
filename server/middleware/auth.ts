@@ -18,6 +18,7 @@ export interface AuthenticatedRequest extends Request {
     role: string;
     permissions?: string[];
     tenantId?: string;
+    assumedTenantId?: string;
   };
 }
 
@@ -33,17 +34,17 @@ export async function comparePassword(password: string, hash: string): Promise<b
 }
 
 // Generate JWT token
-export function generateToken(payload: { id: string; email: string; name?: string; role: string; permissions?: string[]; tenantId?: string }): string {
+export function generateToken(payload: { id: string; email: string; name?: string; role: string; permissions?: string[]; tenantId?: string; assumedTenantId?: string }): string {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
 }
 
 // Verify JWT token
-export function verifyToken(token: string): { id: string; email: string; role: string; permissions?: string[]; tenantId?: string } | null {
+export function verifyToken(token: string): { id: string; email: string; role: string; permissions?: string[]; tenantId?: string; assumedTenantId?: string } | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { id: string; email: string; role: string; permissions?: string[]; tenantId?: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: string; email: string; role: string; permissions?: string[]; tenantId?: string; assumedTenantId?: string };
     console.log('✅ Token verified successfully:', { id: decoded.id, email: decoded.email, role: decoded.role });
     return decoded;
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Token verification failed:', error.message);
     return null;
   }

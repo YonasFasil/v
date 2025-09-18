@@ -29,7 +29,7 @@ export async function withSuperAdminRole<T>(
     // Always reset role and release connection
     try {
       await client.query('RESET ROLE');
-    } catch (error) {
+    } catch (error: any) {
       console.warn('Warning: Could not reset role:', error.message);
     }
     client.release();
@@ -103,7 +103,7 @@ export async function createTenantAsSuperAdmin(tenantData: any, userData: any): 
     // Reset role and release connection
     try {
       await client.query('RESET ROLE');
-    } catch (error) {
+    } catch (error: any) {
       console.warn('Warning: Could not reset role:', error.message);
     }
     client.release();

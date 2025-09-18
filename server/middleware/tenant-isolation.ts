@@ -21,12 +21,12 @@ export async function enforceRLSTenantIsolation(req: AuthenticatedRequest, res: 
 
   const cleanup = async () => {
     try {
-      await client.query('RESET app.current_tenant');
-      await client.query('RESET app.user_role');
+      await (client as any).query('RESET app.current_tenant');
+      await (client as any).query('RESET app.user_role');
     } catch (e) {
       // Ignore errors during cleanup
     }
-    client.release();
+    (client as any).release();
     console.log('🔓 Released RLS tenant context connection');
   };
 
@@ -40,11 +40,11 @@ export async function enforceRLSTenantIsolation(req: AuthenticatedRequest, res: 
     console.log(`🔒 Setting RLS context: tenant=${tenantId || 'NULL'}, role=${userRole}`);
 
     if (tenantId) {
-      await client.query('SET LOCAL app.current_tenant = $1', [tenantId]);
+      await (client as any).query('SET LOCAL app.current_tenant = $1', [tenantId]);
     } else {
-      await client.query("SET LOCAL app.current_tenant = ''");
+      await (client as any).query("SET LOCAL app.current_tenant = ''");
     }
-    await client.query('SET LOCAL app.user_role = $1', [userRole]);
+    await (client as any).query('SET LOCAL app.user_role = $1', [userRole]);
 
     (req as any).rlsClient = client;
     next();
