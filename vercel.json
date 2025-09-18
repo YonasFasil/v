@@ -12,18 +12,6 @@
       "destination": "/api/email-status.js"
     },
     {
-      "source": "/api/super-admin/global-email/test",
-      "destination": "/api/email-test.js"
-    },
-    {
-      "source": "/api/global-email/send-verification",
-      "destination": "/api/email-send-verification.js"
-    },
-    {
-      "source": "/api/global-email/send-communication",
-      "destination": "/api/email-send-communication.js"
-    },
-    {
       "source": "/api/(.*)",
       "destination": "/api"
     },
