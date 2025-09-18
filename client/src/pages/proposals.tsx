@@ -10,6 +10,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useQuery } from "@tanstack/react-query";
 import { ProposalTrackingModal } from "@/components/proposals/proposal-tracking-modal";
 import { format } from "date-fns";
+
+// Safe date formatting function
+const safeFormatDate = (dateValue: any, formatString: string, fallback: string = 'N/A') => {
+  if (!dateValue) return fallback;
+  try {
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) return fallback;
+    return format(date, formatString);
+  } catch (error) {
+    console.warn('Date formatting error:', error, 'for value:', dateValue);
+    return fallback;
+  }
+};
 import { 
   FileText, 
   Eye, 
@@ -120,7 +133,7 @@ export default function Proposals() {
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
                     <span className="text-gray-500">Date:</span>
-                    <div>{proposal.eventDate ? format(new Date(proposal.eventDate), 'MMM d, yyyy') : 'N/A'}</div>
+                    <div>{safeFormatDate(proposal.eventDate, 'MMM d, yyyy', 'N/A')}</div>
                   </div>
                   <div>
                     <span className="text-gray-500">Amount:</span>
@@ -128,7 +141,7 @@ export default function Proposals() {
                   </div>
                   <div>
                     <span className="text-gray-500">Created:</span>
-                    <div>{format(new Date(proposal.createdAt), 'MMM d')}</div>
+                    <div>{safeFormatDate(proposal.createdAt, 'MMM d', 'N/A')}</div>
                   </div>
                   <div>
                     <span className="text-gray-500">Deposit:</span>
@@ -207,10 +220,7 @@ export default function Proposals() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {proposal.eventDate 
-                      ? format(new Date(proposal.eventDate), "MMM d, yyyy")
-                      : "TBD"
-                    }
+                    {safeFormatDate(proposal.eventDate, "MMM d, yyyy", "TBD")}
                   </TableCell>
                   <TableCell className="font-medium">
                     ${parseFloat(proposal.totalAmount).toFixed(2)}
@@ -238,7 +248,7 @@ export default function Proposals() {
                     </div>
                   </TableCell>
                   <TableCell className="text-sm text-gray-500">
-                    {format(new Date(proposal.createdAt), "MMM d, yyyy")}
+                    {safeFormatDate(proposal.createdAt, "MMM d, yyyy", "N/A")}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">

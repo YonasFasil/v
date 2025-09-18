@@ -190,12 +190,9 @@ This proposal is valid for 30 days from the date of this email.`);
       };
       
       const proposal = await apiRequest("POST", "/api/proposals", proposalData);
-      
-      // Now update the proposal with the correct content including the proposal ID
+
+      // Generate the final content with the real proposal ID
       const updatedContent = generateHtmlContent(proposal.id);
-      await apiRequest("PATCH", `/api/proposals/${proposal.id}`, {
-        content: updatedContent
-      });
       
       // Then send the email via global email service
       await fetch("/api/send-communication-email", {
