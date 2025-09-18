@@ -50,7 +50,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // Save configuration to a JSON file
+    // Save configuration data
     const configData = {
       provider,
       email,
@@ -59,17 +59,29 @@ export default async function handler(req, res) {
       configuredAt: new Date().toISOString()
     };
 
+    // For serverless environments, we need to set environment variables
+    // Note: This only works within the current function execution
+    process.env.GLOBAL_EMAIL_PROVIDER = provider;
+    process.env.GLOBAL_EMAIL_ADDRESS = email;
+    process.env.GLOBAL_EMAIL_PASSWORD = password;
+    process.env.GLOBAL_EMAIL_ENABLED = enabled !== false ? 'true' : 'false';
+    process.env.EMAIL_CONFIG_TIMESTAMP = new Date().toISOString();
+
     try {
-      // Try to save to file system (works locally and some serverless environments)
+      // Try to save to file system as backup (works locally)
       const configPath = path.join('/tmp', '.email-config.json');
       fs.writeFileSync(configPath, JSON.stringify(configData, null, 2));
       console.log('Email config saved to file system');
     } catch (fileError) {
       console.warn('Could not save to file system:', fileError.message);
-      // Continue anyway - we'll rely on environment variables in production
+      // Continue anyway - environment variables are set
     }
 
-    console.log('Email configuration processed successfully');
+    console.log('Email configuration processed successfully', {
+      provider,
+      email: email ? 'SET' : 'NOT_SET',
+      enabled: enabled !== false
+    });
 
     return res.status(200).json({
       success: true,
@@ -80,7 +92,16 @@ export default async function handler(req, res) {
         enabled: enabled !== false,
         configured: true
       },
-      notice: 'For production use, set GLOBAL_EMAIL_PROVIDER, GLOBAL_EMAIL_ADDRESS, GLOBAL_EMAIL_PASSWORD, GLOBAL_EMAIL_ENABLED in Vercel environment variables'
+      instructions: {
+        message: 'To complete setup in production, add these environment variables in your Vercel dashboard:',
+        variables: [
+          { name: 'GLOBAL_EMAIL_PROVIDER', value: provider },
+          { name: 'GLOBAL_EMAIL_ADDRESS', value: email },
+          { name: 'GLOBAL_EMAIL_PASSWORD', value: '[YOUR_APP_PASSWORD]' },
+          { name: 'GLOBAL_EMAIL_ENABLED', value: enabled !== false ? 'true' : 'false' }
+        ],
+        link: 'https://vercel.com/docs/projects/environment-variables'
+      }
     });
 
   } catch (error) {
