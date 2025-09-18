@@ -223,6 +223,7 @@ This proposal is valid for 30 days from the date of this email.`);
       });
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/proposals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/communications"] });
       console.log('Calling onProposalSent with proposal ID:', proposal.id);
       onProposalSent(proposal.id);
       onOpenChange(false);
