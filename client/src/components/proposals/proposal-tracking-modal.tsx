@@ -146,6 +146,55 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     }
   };
 
+  // Extract event details from HTML content when database fields are null
+  const extractEventDetailsFromHTML = (htmlContent: string) => {
+    if (!htmlContent) return null;
+
+    try {
+      // Extract event details using regex patterns
+      const dateMatch = htmlContent.match(/📅 Date:<\/strong>\s*([^<]+)/);
+      const timeMatch = htmlContent.match(/🕐 Time:<\/strong>\s*([^<]+)/);
+      const locationMatch = htmlContent.match(/📍 Location:<\/strong>\s*([^<]+)/);
+      const guestMatch = htmlContent.match(/👥 Guest Count:<\/strong>\s*(\d+)\s*guests/);
+      const amountMatch = htmlContent.match(/💰 Total Investment:\s*\$([0-9,]+\.?\d*)/);
+
+      const eventDate = dateMatch ? dateMatch[1].trim() : null;
+      const timeRange = timeMatch ? timeMatch[1].trim() : null;
+      const location = locationMatch ? locationMatch[1].trim() : null;
+      const guestCount = guestMatch ? parseInt(guestMatch[1]) : null;
+      const amount = amountMatch ? amountMatch[1].replace(/,/g, '') : null;
+
+      // Parse time range
+      let startTime = null, endTime = null;
+      if (timeRange) {
+        const timeParts = timeRange.split(' - ');
+        startTime = timeParts[0]?.trim();
+        endTime = timeParts[1]?.trim();
+      }
+
+      // Parse location
+      let venue = null, space = null;
+      if (location && location.includes(' - ')) {
+        const locationParts = location.split(' - ');
+        venue = locationParts[0]?.trim();
+        space = locationParts[1]?.trim();
+      }
+
+      return {
+        eventDate,
+        startTime,
+        endTime,
+        venue,
+        space,
+        guestCount,
+        amount: amount || "0.00"
+      };
+    } catch (error) {
+      console.warn('Error extracting event details from HTML:', error);
+      return null;
+    }
+  };
+
 
   // Fetch proposal details
   const { data: proposal, isLoading, refetch } = useQuery<Proposal>({
@@ -189,28 +238,46 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     console.log('=== PROPOSAL EVENT MATCHING DEBUG ===');
     console.log('Proposal ID:', proposal.id);
     console.log('Proposal Title:', proposal.title);
-    console.log('Proposal Customer ID:', proposal.customerId);
+    console.log('Proposal Customer ID:', proposal.customer_id);
 
-    console.log('Proposal Sent At:', proposal.sentAt);
+    console.log('Proposal Sent At:', proposal.sent_at);
     console.log('Total Bookings Available:', bookings.length);
-    
-    // For direct proposals with event data embedded in the proposal
-    if (proposal.eventDate && proposal.guestCount) {
-      console.log('Using embedded event data from proposal');
+
+    // Extract event details from HTML content if database fields are null
+    const htmlEventDetails = extractEventDetailsFromHTML(proposal.content);
+    console.log('Extracted HTML event details:', htmlEventDetails);
+
+    // For direct proposals with event data (either from database or extracted from HTML)
+    const hasEventData = (proposal.event_date && proposal.guest_count) || htmlEventDetails;
+
+    if (hasEventData) {
+      console.log('Using event data from proposal (database or HTML)');
+      const eventData = htmlEventDetails || {
+        eventDate: proposal.event_date,
+        startTime: proposal.start_time,
+        endTime: proposal.end_time,
+        venue: proposal.venue_name,
+        space: null,
+        guestCount: proposal.guest_count,
+        amount: proposal.total_amount
+      };
+
       return [{
         id: `proposal-event-${proposal.id}`,
         eventName: proposal.title ? proposal.title.replace(/^Proposal for\s+/i, '') : 'Untitled Event',
-        eventType: proposal.eventType || 'corporate',
-        customerId: proposal.customerId,
-        venueId: proposal.venueId || '',
-        spaceId: proposal.spaceId || '',
-        eventDate: proposal.eventDate,
-        startTime: proposal.startTime || '09:00',
-        endTime: proposal.endTime || '17:00',
-        guestCount: proposal.guestCount,
+        eventType: proposal.event_type || 'corporate',
+        customerId: proposal.customer_id,
+        venueId: proposal.venue_id || '',
+        spaceId: proposal.space_id || '',
+        eventDate: eventData.eventDate,
+        startTime: eventData.startTime || '09:00',
+        endTime: eventData.endTime || '17:00',
+        guestCount: eventData.guestCount || 1,
         status: 'proposal_shared',
-        totalAmount: proposal.totalAmount,
-        notes: `Proposal: ${proposal.title || 'Untitled'}`
+        totalAmount: eventData.amount || proposal.total_amount || '0.00',
+        notes: `Proposal: ${proposal.title || 'Untitled'}`,
+        venue: eventData.venue,
+        space: eventData.space
       }];
     }
 
@@ -231,8 +298,8 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     // SECOND: Skip bookingId check as this field doesn't exist in current schema
 
     // THIRD: For proposals created from booking flow - precise time-based matching
-    if (proposal.sentAt) {
-      const proposalTime = new Date(proposal.sentAt).getTime();
+    if (proposal.sent_at) {
+      const proposalTime = new Date(proposal.sent_at).getTime();
       console.log('Trying time-based matching for proposal sent at:', proposalTime);
       
       // Find bookings that were created at the exact same time as this proposal was sent
@@ -270,8 +337,13 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     return [];
   })() : [];
 
-  // Get customer
-  const customer = proposal ? customers.find((c) => c.id === proposal.customerId) : null;
+  // Get customer - use data directly from proposal since it includes customer info
+  const customer = proposal ? {
+    id: proposal.customer_id,
+    name: proposal.customer_name || 'Customer Name',
+    email: proposal.customer_email || 'No email',
+    phone: proposal.customer_phone || 'No phone'
+  } : null;
 
   // Send message mutation
   const sendMessageMutation = useMutation({
@@ -428,11 +500,11 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="flex items-center space-x-2">
-                    <div className={`w-3 h-3 rounded-full ${proposal.sentAt ? 'bg-green-500' : 'bg-gray-300'}`} />
+                    <div className={`w-3 h-3 rounded-full ${proposal.sent_at ? 'bg-green-500' : 'bg-gray-300'}`} />
                     <div>
                       <div className="text-sm font-medium">Sent</div>
                       <div className="text-xs text-gray-500">
-                        {safeFormatDate(proposal.sentAt, "MMM d, h:mm a", 'Not sent')}
+                        {safeFormatDate(proposal.sent_at, "MMM d, h:mm a", 'Not sent')}
                       </div>
                     </div>
                   </div>
@@ -442,7 +514,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                     <div>
                       <div className="text-sm font-medium">Viewed</div>
                       <div className="text-xs text-gray-500">
-                        {safeFormatDate(proposal.viewedAt, "MMM d, h:mm a", 'Not viewed')}
+                        {safeFormatDate(proposal.viewed_at, "MMM d, h:mm a", 'Not viewed')}
                       </div>
                     </div>
                   </div>
@@ -462,7 +534,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                     <div>
                       <div className="text-sm font-medium">Paid</div>
                       <div className="text-xs text-gray-500">
-                        {safeFormatDate(proposal.depositPaidAt, "MMM d, h:mm a", 'Not paid')}
+                        {safeFormatDate(proposal.deposit_paid_at, "MMM d, h:mm a", 'Not paid')}
                       </div>
                     </div>
                   </div>
@@ -477,7 +549,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                             proposal.depositPaid ? 'Paid' : 'Draft'}
                   </div>
                   <div className="text-xs text-gray-600 mt-2">
-                    Created: {safeFormatDate(proposal.createdAt, "MMM d, yyyy 'at' h:mm a")}
+                    Created: {safeFormatDate(proposal.created_at, "MMM d, yyyy 'at' h:mm a")}
                   </div>
                 </div>
               </CardContent>
@@ -523,7 +595,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                               </div>
                               <div className="flex items-center gap-2">
                                 <MapPin className="h-4 w-4 text-gray-400" />
-                                <span>{venue?.name || 'Venue TBD'}{space ? ` - ${space.name}` : ''}</span>
+                                <span>{event.venue || venue?.name || 'Venue TBD'}{event.space || space?.name ? ` - ${event.space || space?.name}` : ''}</span>
                               </div>
                             </div>
                             
@@ -547,7 +619,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                     <span className="font-medium">${parseFloat(
                       relatedEvents.length > 0 && relatedEvents[0].totalAmount 
                         ? relatedEvents[0].totalAmount 
-                        : proposal.totalAmount || '0'
+                        : proposal.total_amount || '0'
                     ).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-green-600">
@@ -555,7 +627,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                     <span className="font-medium">${(() => {
                       const currentTotal = relatedEvents.length > 0 && relatedEvents[0].totalAmount 
                         ? relatedEvents[0].totalAmount 
-                        : proposal.totalAmount || '0';
+                        : proposal.total_amount || '0';
                       const currentDeposit = (parseFloat(currentTotal) * 0.3).toString();
                       return parseFloat(currentDeposit).toFixed(2);
                     })()}</span>
@@ -564,8 +636,8 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                   {(() => {
                     const currentTotal = relatedEvents.length > 0 && relatedEvents[0].totalAmount 
                       ? relatedEvents[0].totalAmount 
-                      : proposal.totalAmount || '0';
-                    const originalTotal = proposal.totalAmount || '0';
+                      : proposal.total_amount || '0';
+                    const originalTotal = proposal.total_amount || '0';
                     const hasChanged = currentTotal !== originalTotal;
                     
                     return hasChanged ? (
@@ -613,15 +685,15 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                           ${(() => {
                             const currentTotal = relatedEvents.length > 0 && relatedEvents[0].totalAmount 
                               ? relatedEvents[0].totalAmount 
-                              : proposal.totalAmount || '0';
+                              : proposal.total_amount || '0';
                             const paidDeposit = parseFloat(proposal.depositAmount || '0');
                             return (parseFloat(currentTotal) - paidDeposit).toFixed(2);
                           })()}
                         </span>
                       </div>
                       <div className="text-xs text-emerald-600 mt-1">
-                        Paid on: {proposal.depositPaidAt && !isNaN(new Date(proposal.depositPaidAt).getTime()) 
-                        ? safeFormatDate(proposal.depositPaidAt, "MMM d, yyyy 'at' h:mm a") 
+                        Paid on: {proposal.deposit_paid_at && !isNaN(new Date(proposal.deposit_paid_at).getTime()) 
+                        ? safeFormatDate(proposal.deposit_paid_at, "MMM d, yyyy 'at' h:mm a") 
                         : 'N/A'}
                       </div>
                     </div>
