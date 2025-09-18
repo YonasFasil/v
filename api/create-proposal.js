@@ -54,7 +54,12 @@ export default async function handler(req, res) {
       updatedAt: new Date().toISOString()
     };
 
-    console.log('✅ Proposal created successfully:', proposalId);
+    // Store the proposal in global storage so it can be retrieved
+    global.proposalStorage = global.proposalStorage || new Map();
+    global.proposalStorage.set(proposalId, proposal);
+
+    console.log('✅ Proposal created and stored:', proposalId);
+    console.log('📋 Total proposals in storage:', global.proposalStorage.size);
 
     return res.status(201).json(proposal);
 

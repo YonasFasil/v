@@ -189,20 +189,12 @@ This proposal is valid for 30 days from the date of this email.`);
         depositAmount: depositAmount.toFixed(2)
       };
       
-      const proposal = await fetch("/api/create-proposal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(proposalData)
-      }).then(res => res.json());
+      const proposal = await apiRequest("POST", "/api/proposals", proposalData);
       
       // Now update the proposal with the correct content including the proposal ID
       const updatedContent = generateHtmlContent(proposal.id);
-      await fetch(`/api/update-proposal?proposalId=${proposal.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: updatedContent
-        })
+      await apiRequest("PATCH", `/api/proposals/${proposal.id}`, {
+        content: updatedContent
       });
       
       // Then send the email via global email service

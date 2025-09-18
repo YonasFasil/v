@@ -1096,7 +1096,7 @@ module.exports = async function handler(req, res) {
     if (resource === 'proposals') {
       if (req.method === 'GET') {
         try {
-          const proposals = await pool.query(`SELECT p.*, 
+          const proposals = await pool.query(`SELECT p.*,
                    c.name as customer_name,
                    v.name as venue_name
             FROM proposals p
@@ -1109,6 +1109,115 @@ module.exports = async function handler(req, res) {
           console.error('Proposals query error:', error);
           // Return empty array if query fails
           return res.json([]);
+        }
+      }
+
+      if (req.method === 'POST') {
+        try {
+          const {
+            customerId,
+            title,
+            content,
+            totalAmount,
+            validUntil,
+            status = 'sent',
+            sentAt,
+            eventType = 'corporate',
+            guestCount = 1,
+            depositPercentage = 25,
+            depositAmount
+          } = req.body || {};
+
+          if (!customerId || !title || !content) {
+            return res.status(400).json({
+              error: 'Missing required fields',
+              required: ['customerId', 'title', 'content']
+            });
+          }
+
+          const newProposal = await pool.query(`
+            INSERT INTO proposals (
+              tenant_id, customer_id, title, content, total_amount,
+              valid_until, status, sent_at, event_type, guest_count,
+              deposit_percentage, deposit_amount, created_at, updated_at
+            ) VALUES (
+              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW()
+            ) RETURNING *
+          `, [
+            tenantId, customerId, title, content, parseFloat(totalAmount) || 0,
+            validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            status, sentAt || new Date().toISOString(), eventType,
+            parseInt(guestCount) || 1, parseFloat(depositPercentage) || 25,
+            parseFloat(depositAmount) || 0
+          ]);
+
+          console.log('✅ Proposal saved to database:', newProposal.rows[0].id);
+          return res.status(201).json(newProposal.rows[0]);
+
+        } catch (error) {
+          console.error('Proposal creation error:', error);
+          return res.status(500).json({
+            error: 'Failed to create proposal',
+            message: error.message
+          });
+        }
+      }
+
+      if (req.method === 'PATCH' && id) {
+        try {
+          const updateData = req.body;
+          const updateFields = [];
+          const updateValues = [];
+          let valueIndex = 1;
+
+          updateValues.push(tenantId, id);
+
+          const fieldMappings = {
+            title: 'title',
+            content: 'content',
+            totalAmount: 'total_amount',
+            status: 'status',
+            validUntil: 'valid_until',
+            depositAmount: 'deposit_amount',
+            depositPercentage: 'deposit_percentage'
+          };
+
+          for (const [key, value] of Object.entries(updateData)) {
+            if (fieldMappings[key] && value !== undefined) {
+              updateFields.push(`${fieldMappings[key]} = $${valueIndex + 2}`);
+              updateValues.push(value);
+              valueIndex++;
+            }
+          }
+
+          if (updateFields.length === 0) {
+            return res.status(400).json({ message: 'No fields to update' });
+          }
+
+          updateFields.push('updated_at = NOW()');
+
+          const updateQuery = `
+            UPDATE proposals
+            SET ${updateFields.join(', ')}
+            WHERE tenant_id = $1 AND id = $2
+            RETURNING *
+          `;
+
+          const updatedProposal = await pool.query(updateQuery, updateValues);
+
+          if (updatedProposal.rows.length === 0) {
+            return res.status(404).json({ message: 'Proposal not found' });
+          }
+
+          console.log('✅ Proposal updated in database:', id);
+          return res.json(updatedProposal.rows[0]);
+
+        } catch (error) {
+          console.error('Proposal update error:', error);
+          return res.status(500).json({
+            error: 'Failed to update proposal',
+            message: error.message
+          });
         }
       }
     }
