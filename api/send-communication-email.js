@@ -87,17 +87,24 @@ export default async function handler(req, res) {
     // Get tenant ID from auth token if available
     let tenantId = null;
     const authHeader = req.headers.authorization;
+    console.log('🔍 Auth header present:', !!authHeader);
+
     if (authHeader && authHeader.startsWith('Bearer ')) {
       try {
         const token = authHeader.substring(7);
         const jwtSecret = process.env.JWT_SECRET;
+        console.log('🔍 JWT Secret present:', !!jwtSecret);
+
         if (jwtSecret) {
           const decoded = jwt.verify(token, jwtSecret);
           tenantId = decoded.tenantId;
+          console.log('🔍 Decoded tenant ID:', tenantId);
         }
       } catch (error) {
-        console.warn('Could not decode JWT for communication logging:', error.message);
+        console.warn('❌ Could not decode JWT for communication logging:', error.message);
       }
+    } else {
+      console.warn('❌ No valid Authorization header found');
     }
 
     // Get environment variables
@@ -118,28 +125,44 @@ export default async function handler(req, res) {
     let threadId = null;
     let replyToAddress = senderEmail;
 
+    console.log('🔍 Database URL present:', !!databaseUrl);
+    console.log('🔍 Tenant ID for token generation:', tenantId);
+
     if (databaseUrl && tenantId) {
-      pool = new Pool({
-        connectionString: databaseUrl,
-        ssl: { rejectUnauthorized: false }
-      });
+      try {
+        pool = new Pool({
+          connectionString: databaseUrl,
+          ssl: { rejectUnauthorized: false }
+        });
 
-      // Generate secure token for this communication
-      const tokenResult = await generateSecureToken(
-        pool,
-        tenantId,
-        finalType,
-        proposalId || bookingId || 'general',
-        recipientEmail
-      );
+        console.log('🔍 About to generate secure token...');
 
-      secureToken = tokenResult.token;
-      threadId = tokenResult.threadId;
+        // Generate secure token for this communication
+        const tokenResult = await generateSecureToken(
+          pool,
+          tenantId,
+          finalType,
+          proposalId || bookingId || 'general',
+          recipientEmail
+        );
 
-      if (secureToken) {
-        replyToAddress = generateReplyToAddress(senderEmail, secureToken);
-        console.log('📧 Generated secure reply-to:', replyToAddress);
+        secureToken = tokenResult.token;
+        threadId = tokenResult.threadId;
+
+        console.log('🔍 Token generation result:', { secureToken: !!secureToken, threadId: !!threadId });
+
+        if (secureToken) {
+          replyToAddress = generateReplyToAddress(senderEmail, secureToken);
+          console.log('📧 Generated secure reply-to:', replyToAddress);
+        }
+      } catch (error) {
+        console.error('❌ Error in token generation setup:', error.message);
       }
+    } else {
+      console.warn('❌ Skipping token generation:', {
+        databaseUrl: !!databaseUrl,
+        tenantId: !!tenantId
+      });
     }
 
     const nodemailer = require('nodemailer');
