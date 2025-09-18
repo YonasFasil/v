@@ -84,7 +84,7 @@ export async function authenticateSuperAdmin(email: string, password: string): P
       email: superAdmin.email,
       name: superAdmin.name,
       role: superAdmin.role,
-      permissions: superAdmin.permissions || []
+      permissions: Array.isArray(superAdmin.permissions) ? superAdmin.permissions : []
     };
 
     const token = generateToken(user);
