@@ -266,16 +266,29 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
 
   // Fetch communications related to this proposal
   const { data: communications = [] } = useQuery<Communication[]>({
-    queryKey: ["/api/communications", proposalId, proposal?.customer_id || proposal?.customerId],
-    enabled: !!proposalId && open && (!!proposal?.customer_id || !!proposal?.customerId),
-    select: (data: Communication[]) => {
-      // Filter communications related to this proposal or customer
+    queryKey: ["/api/communications", { proposalId, customerId: proposal?.customer_id || proposal?.customerId }],
+    queryFn: async () => {
       const customerId = proposal?.customer_id || proposal?.customerId;
-      if (!customerId) return [];
+      if (!customerId || !proposalId) return [];
 
-      console.log('📧 Loading communications for customer:', customerId);
-      console.log('📧 Available communications:', data);
+      const params = new URLSearchParams();
+      if (proposalId) params.append('proposalId', proposalId);
+      if (customerId) params.append('customerId', customerId);
 
+      const response = await fetch(`/api/communications?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('super_admin_token') || localStorage.getItem('auth_token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch communications');
+      }
+
+      const data = await response.json();
+      console.log('📧 Raw communications data:', data);
+
+      // Filter communications related to this proposal or customer
       return data.filter((comm: any) =>
         comm.customer_id === customerId ||
         comm.customerId === customerId ||
@@ -283,7 +296,8 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
         comm.proposalId === proposalId ||
         comm.to?.includes(proposal?.customer_email || proposal?.email || '')
       );
-    }
+    },
+    enabled: !!proposalId && open && (!!proposal?.customer_id || !!proposal?.customerId),
   });
 
   // Fetch related events/bookings
