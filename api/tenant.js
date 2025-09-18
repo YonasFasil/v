@@ -1138,9 +1138,9 @@ module.exports = async function handler(req, res) {
           const newProposal = await pool.query(`
             INSERT INTO proposals (
               tenant_id, customer_id, title, content, total_amount,
-              valid_until, status, sent_at, created_at, updated_at
+              valid_until, status, sent_at, created_at
             ) VALUES (
-              $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()
+              $1, $2, $3, $4, $5, $6, $7, $8, NOW()
             ) RETURNING *
           `, [
             tenantId, customerId, title, content, parseFloat(totalAmount) || 0,
@@ -1188,8 +1188,6 @@ module.exports = async function handler(req, res) {
           if (updateFields.length === 0) {
             return res.status(400).json({ message: 'No fields to update' });
           }
-
-          updateFields.push('updated_at = NOW()');
 
           const updateQuery = `
             UPDATE proposals
