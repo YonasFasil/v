@@ -48,7 +48,7 @@ export class NotificationEmailService {
 
     // Only initialize if credentials are provided
     if (config.auth.user && config.auth.pass) {
-      this.transporter = nodemailer.createTransporter(config);
+      this.transporter = nodemailer.createTransport(config);
     } else {
       console.warn('Email service not configured - SMTP credentials missing');
     }
@@ -56,7 +56,7 @@ export class NotificationEmailService {
 
   // Allow dynamic configuration (used by super admin config)
   async configure(config: EmailConfig) {
-    this.transporter = nodemailer.createTransporter(config);
+    this.transporter = nodemailer.createTransport(config);
   }
 
   async sendEmail(data: EmailTemplateData): Promise<boolean> {
