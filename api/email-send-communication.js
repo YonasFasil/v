@@ -25,28 +25,54 @@ export default async function handler(req, res) {
   try {
     const {
       to,
+      email,
       subject,
       customerName,
       content,
       emailType,
+      type,
+      notificationType,
       actionUrl,
       actionText,
-      tenantName
+      tenantName,
+      eventName,
+      proposalViewUrl,
+      eventDate,
+      venue,
+      customMessage
     } = req.body || {};
 
-    if (!to || !subject || !customerName || !content) {
+    // Support both 'to' and 'email' field names
+    const recipientEmail = to || email;
+
+    // Handle different email types from frontend
+    const finalEmailType = emailType || type;
+    const finalContent = content || customMessage || `Test ${finalEmailType || 'communication'} email content`;
+    const finalSubject = subject || `Test ${finalEmailType || 'Communication'} Email`;
+    const finalCustomerName = customerName || 'Test Customer';
+
+    if (!recipientEmail) {
       return res.status(400).json({
-        error: 'Required fields: to, subject, customerName, content'
+        error: 'Required field: to or email',
+        received: { to, email, subject, customerName, content, type, emailType }
       });
     }
 
+    console.log('Communication email request:', {
+      recipientEmail,
+      subject: finalSubject,
+      customerName: finalCustomerName,
+      type: finalEmailType,
+      notificationType
+    });
+
     // Get email configuration from environment variables
     const provider = process.env.GLOBAL_EMAIL_PROVIDER;
-    const email = process.env.GLOBAL_EMAIL_ADDRESS;
+    const senderEmail = process.env.GLOBAL_EMAIL_ADDRESS;
     const password = process.env.GLOBAL_EMAIL_PASSWORD;
     const enabled = process.env.GLOBAL_EMAIL_ENABLED !== 'false';
 
-    if (!provider || !email || !password) {
+    if (!provider || !senderEmail || !password) {
       return res.status(400).json({
         error: 'Email service not configured. Please set GLOBAL_EMAIL_PROVIDER, GLOBAL_EMAIL_ADDRESS, and GLOBAL_EMAIL_PASSWORD environment variables.'
       });
@@ -64,7 +90,7 @@ export default async function handler(req, res) {
       transportConfig = {
         service: 'gmail',
         auth: {
-          user: email,
+          user: senderEmail,
           pass: password
         }
       };
@@ -74,7 +100,7 @@ export default async function handler(req, res) {
         port: parseInt(process.env.GLOBAL_EMAIL_PORT) || 587,
         secure: process.env.GLOBAL_EMAIL_SECURE === 'true',
         auth: {
-          user: email,
+          user: senderEmail,
           pass: password
         }
       };
@@ -97,29 +123,29 @@ export default async function handler(req, res) {
 
     // Communication email content
     const mailOptions = {
-      from: email,
-      to,
-      subject,
+      from: senderEmail,
+      to: recipientEmail,
+      subject: finalSubject,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 30px;">
             <h1 style="color: #2563eb; margin: 0;">${finalTenantName}</h1>
           </div>
 
-          ${emailType ? `
+          ${finalEmailType ? `
             <div style="text-align: center; margin-bottom: 20px;">
-              <span style="font-size: 48px;">${getNotificationIcon(emailType)}</span>
+              <span style="font-size: 48px;">${getNotificationIcon(finalEmailType)}</span>
             </div>
           ` : ''}
 
-          <h2 style="color: #1f2937; text-align: center;">${subject}</h2>
+          <h2 style="color: #1f2937; text-align: center;">${finalSubject}</h2>
 
           <p style="font-size: 16px; line-height: 1.6; color: #374151;">
-            Hi ${customerName},
+            Hi ${finalCustomerName},
           </p>
 
           <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <div style="margin: 0; color: #374151; line-height: 1.6;">${content}</div>
+            <div style="margin: 0; color: #374151; line-height: 1.6;">${finalContent}</div>
           </div>
 
           ${actionUrl && actionText ? `
@@ -144,7 +170,7 @@ export default async function handler(req, res) {
       `
     };
 
-    console.log('Sending communication email to:', to, 'Subject:', subject);
+    console.log('Sending communication email to:', recipientEmail, 'Subject:', finalSubject);
     const result = await transporter.sendMail(mailOptions);
 
     return res.status(200).json({
@@ -152,10 +178,10 @@ export default async function handler(req, res) {
       message: 'Communication email sent successfully',
       data: {
         messageId: result.messageId,
-        to: to,
-        subject: subject,
-        customerName: customerName,
-        emailType: emailType || 'communication'
+        to: recipientEmail,
+        subject: finalSubject,
+        customerName: finalCustomerName,
+        emailType: finalEmailType || 'communication'
       }
     });
 

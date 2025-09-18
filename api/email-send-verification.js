@@ -23,21 +23,31 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { to, customerName, verificationToken, verificationUrl } = req.body || {};
+    const {
+      to,
+      email,
+      customerName,
+      verificationToken,
+      verificationUrl
+    } = req.body || {};
 
-    if (!to || !customerName || !verificationToken) {
+    // Support both 'to' and 'email' field names
+    const recipientEmail = to || email;
+
+    if (!recipientEmail || !customerName || !verificationToken) {
       return res.status(400).json({
-        error: 'Required fields: to, customerName, verificationToken'
+        error: 'Required fields: to/email, customerName, verificationToken',
+        received: { to, email, customerName, verificationToken }
       });
     }
 
     // Get email configuration from environment variables
     const provider = process.env.GLOBAL_EMAIL_PROVIDER;
-    const email = process.env.GLOBAL_EMAIL_ADDRESS;
+    const senderEmail = process.env.GLOBAL_EMAIL_ADDRESS;
     const password = process.env.GLOBAL_EMAIL_PASSWORD;
     const enabled = process.env.GLOBAL_EMAIL_ENABLED !== 'false';
 
-    if (!provider || !email || !password) {
+    if (!provider || !senderEmail || !password) {
       return res.status(400).json({
         error: 'Email service not configured. Please set GLOBAL_EMAIL_PROVIDER, GLOBAL_EMAIL_ADDRESS, and GLOBAL_EMAIL_PASSWORD environment variables.'
       });
@@ -55,7 +65,7 @@ export default async function handler(req, res) {
       transportConfig = {
         service: 'gmail',
         auth: {
-          user: email,
+          user: senderEmail,
           pass: password
         }
       };
@@ -65,7 +75,7 @@ export default async function handler(req, res) {
         port: parseInt(process.env.GLOBAL_EMAIL_PORT) || 587,
         secure: process.env.GLOBAL_EMAIL_SECURE === 'true',
         auth: {
-          user: email,
+          user: senderEmail,
           pass: password
         }
       };
@@ -79,8 +89,8 @@ export default async function handler(req, res) {
 
     // Verification email content
     const mailOptions = {
-      from: email,
-      to,
+      from: senderEmail,
+      to: recipientEmail,
       subject: 'Verify Your Email - Venue Project',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -117,7 +127,7 @@ export default async function handler(req, res) {
       `
     };
 
-    console.log('Sending verification email to:', to);
+    console.log('Sending verification email to:', recipientEmail);
     const result = await transporter.sendMail(mailOptions);
 
     return res.status(200).json({
@@ -125,7 +135,7 @@ export default async function handler(req, res) {
       message: 'Verification email sent successfully',
       data: {
         messageId: result.messageId,
-        to: to,
+        to: recipientEmail,
         customerName: customerName
       }
     });
