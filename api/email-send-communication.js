@@ -1,5 +1,5 @@
 // Vercel Serverless Function for Sending Communication Emails
-import nodemailer from 'nodemailer';
+import * as nodemailer from 'nodemailer';
 
 export default async function handler(req, res) {
   // Enable CORS
