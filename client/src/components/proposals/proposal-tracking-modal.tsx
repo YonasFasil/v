@@ -136,7 +136,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
 
   // Fetch proposal details
   const { data: proposal, isLoading, refetch } = useQuery<Proposal>({
-    queryKey: [`/api/tenant?type=proposals&id=${proposalId}`],
+    queryKey: [`/api/proposals?id=${proposalId}`],
     enabled: !!proposalId && open && !proposalId?.startsWith('booking-')
   });
 
@@ -316,7 +316,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
         title: "Proposal Resent",
         description: "The proposal has been resent to the customer with updated event details"
       });
-      queryClient.invalidateQueries({ queryKey: [`/api/tenant?type=proposals&id=${proposalId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/proposals?id=${proposalId}`] });
       queryClient.invalidateQueries({ queryKey: [`/api/proposals/${proposalId}/communications`] });
     },
     onError: (error: any) => {
