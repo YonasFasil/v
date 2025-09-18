@@ -146,7 +146,7 @@ export default function SuperAdminSettings() {
   // Test email configuration mutation
   const testEmailMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("/api/super-admin/global-email/test", {
+      return apiRequest("/api/send-test-email", {
         method: "POST",
         body: JSON.stringify({ testEmail: testEmailAddress || emailConfig?.email || "test@example.com" }),
       });
@@ -169,7 +169,7 @@ export default function SuperAdminSettings() {
   // Test verification email mutation
   const testVerificationMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("/api/global-email/send-verification", {
+      return apiRequest("/api/send-verification-email", {
         method: "POST",
         body: JSON.stringify({
           email: testEmailAddress || emailConfig?.email || "test@example.com",
@@ -196,7 +196,7 @@ export default function SuperAdminSettings() {
   // Test proposal email mutation
   const testProposalMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("/api/global-email/send-communication", {
+      return apiRequest("/api/send-communication-email", {
         method: "POST",
         body: JSON.stringify({
           type: "proposal",
@@ -230,7 +230,7 @@ export default function SuperAdminSettings() {
   // Test notification email mutation
   const testNotificationMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("/api/global-email/send-communication", {
+      return apiRequest("/api/send-communication-email", {
         method: "POST",
         body: JSON.stringify({
           type: "notification",

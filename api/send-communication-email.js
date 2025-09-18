@@ -1,5 +1,3 @@
-const nodemailer = require('nodemailer');
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -14,8 +12,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('Communication email request:', req.body);
-
     const {
       to,
       email,
@@ -25,38 +21,42 @@ export default async function handler(req, res) {
       type,
       emailType,
       notificationType
-    } = req.body;
+    } = req.body || {};
 
     const recipientEmail = to || email;
     const finalSubject = subject || `Test ${type || emailType || 'Communication'} Email`;
     const finalCustomerName = customerName || 'Test Customer';
-    const finalContent = content || `This is a test ${type || emailType || 'communication'} email.`;
+    const finalContent = content || `This is a test ${type || emailType || 'communication'} email from Venue Project.`;
 
     if (!recipientEmail) {
       return res.status(400).json({
-        error: 'Recipient email is required (use "to" or "email" field)',
-        received: { to: !!to, email: !!email }
+        error: 'Recipient email required',
+        message: 'Use "to" or "email" field'
       });
     }
 
-    // Get config from environment
-    const provider = process.env.GLOBAL_EMAIL_PROVIDER;
+    // Get environment variables
     const senderEmail = process.env.GLOBAL_EMAIL_ADDRESS;
-    const password = process.env.GLOBAL_EMAIL_PASSWORD;
+    const senderPassword = process.env.GLOBAL_EMAIL_PASSWORD;
 
-    if (!provider || !senderEmail || !password) {
+    if (!senderEmail || !senderPassword) {
       return res.status(400).json({
-        error: 'Email not configured. Set GLOBAL_EMAIL_PROVIDER, GLOBAL_EMAIL_ADDRESS, GLOBAL_EMAIL_PASSWORD in Vercel environment variables.'
+        error: 'Email configuration missing',
+        message: 'Set GLOBAL_EMAIL_ADDRESS and GLOBAL_EMAIL_PASSWORD in Vercel'
       });
     }
 
-    // Create transporter
+    const nodemailer = require('nodemailer');
+
     const transporter = nodemailer.createTransporter({
       service: 'gmail',
-      auth: { user: senderEmail, pass: password }
+      auth: {
+        user: senderEmail,
+        pass: senderPassword
+      }
     });
 
-    // Get icon based on type
+    // Simple icon mapping
     const getIcon = (emailType) => {
       switch (emailType) {
         case 'proposal': return '📄';
@@ -69,7 +69,6 @@ export default async function handler(req, res) {
 
     const icon = getIcon(type || emailType || notificationType);
 
-    // Send communication email
     await transporter.sendMail({
       from: senderEmail,
       to: recipientEmail,
@@ -86,6 +85,10 @@ export default async function handler(req, res) {
             <p>${finalContent}</p>
           </div>
           <p>Thank you for choosing Venue Project.</p>
+          <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
+          <p style="color: #666; font-size: 12px;">
+            This is an automated email from Venue Project.
+          </p>
         </div>
       `
     });
@@ -103,8 +106,7 @@ export default async function handler(req, res) {
     console.error('Communication email error:', error);
     return res.status(500).json({
       error: 'Failed to send communication email',
-      message: error.message,
-      code: error.code
+      message: error.message
     });
   }
 }
