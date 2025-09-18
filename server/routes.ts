@@ -323,7 +323,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
+  // PRIORITY: Super Admin Email Routes (placed early to ensure registration)
+  console.log('[ROUTES] Registering super admin email routes...');
+
+  app.get("/api/super-admin/global-email/status", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    console.log('[EMAIL-STATUS] Route hit');
+    try {
+      const { getGlobalEmailStatus } = require('./services/global-email-service');
+      const status = await getGlobalEmailStatus();
+      res.json(status);
+    } catch (error: any) {
+      console.error("Error getting global email status:", error);
+      res.status(500).json({ message: "Failed to get global email status" });
+    }
+  });
+
+  app.post("/api/super-admin/global-email/configure", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    console.log('[EMAIL-CONFIGURE] Route hit with body:', req.body);
+    try {
+      const { provider, email, password, enabled } = req.body;
+      if (!provider || !email) {
+        return res.status(400).json({ message: "Provider and email are required" });
+      }
+      if (provider === 'gmail' && !password) {
+        return res.status(400).json({ message: "App password is required for Gmail" });
+      }
+      const { configureGlobalEmail } = require('./services/global-email-service');
+      const result = await configureGlobalEmail({
+        provider,
+        email,
+        password,
+        enabled: enabled || false
+      });
+      res.json({
+        message: "Global email configuration updated successfully",
+        configured: result.success,
+        provider: result.provider || provider
+      });
+    } catch (error: any) {
+      console.error("Error configuring global email:", error);
+      res.status(500).json({ message: "Failed to configure global email", error: error.message });
+    }
+  });
+
+  app.post("/api/super-admin/global-email/test", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    console.log('[EMAIL-TEST] Route hit with body:', req.body);
+    try {
+      const { to } = req.body;
+      if (!to) {
+        return res.status(400).json({ message: "Recipient email address is required" });
+      }
+      const { testGlobalEmail } = require('./services/global-email-service');
+      const result = await testGlobalEmail(to);
+      res.json({
+        success: result.success,
+        message: result.success ? `Test email sent successfully to ${to}` : result.message,
+        messageId: result.messageId
+      });
+    } catch (error: any) {
+      console.error('Error sending test email:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to send test email"
+      });
+    }
+  });
+
+  console.log('[ROUTES] Super admin email routes registered successfully');
+
   // Apply tenant resolution middleware to all routes
   app.use(resolveTenant);
   
@@ -8712,7 +8780,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
   // Global Email Configuration - Environment Variable Based (Vercel Compatible)
   app.get("/api/super-admin/global-email/status", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
     try {
-      const { getGlobalEmailStatus } = await import('./services/global-email-service');
+      const { getGlobalEmailStatus } = require('./services/global-email-service');
       const status = await getGlobalEmailStatus();
       res.json(status);
     } catch (error: any) {
@@ -8723,6 +8791,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
 
   // Set Global Email Configuration (Environment Variables for Vercel compatibility)
   app.post("/api/super-admin/global-email/configure", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    console.log('[EMAIL-CONFIGURE] Route hit with body:', req.body);
     try {
       const { provider, email, password, enabled } = req.body;
 
@@ -8735,7 +8804,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
         return res.status(400).json({ message: "App password is required for Gmail" });
       }
 
-      const { configureGlobalEmail } = await import('./services/global-email-service');
+      const { configureGlobalEmail } = require('./services/global-email-service');
       const result = await configureGlobalEmail({
         provider,
         email,
@@ -8763,7 +8832,7 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
         return res.status(400).json({ message: "Recipient email address is required" });
       }
 
-      const { testGlobalEmail } = await import('./services/global-email-service');
+      const { testGlobalEmail } = require('./services/global-email-service');
       const result = await testGlobalEmail(to);
 
       res.json({
