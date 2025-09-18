@@ -5,11 +5,11 @@
   "rewrites": [
     {
       "source": "/api/email-configure",
-      "destination": "/api/email-configure"
+      "destination": "/api/email-configure.js"
     },
     {
       "source": "/api/email-status",
-      "destination": "/api/email-status"
+      "destination": "/api/email-status.js"
     },
     {
       "source": "/api/(.*)",
