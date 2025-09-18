@@ -1,6 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  console.log('[EMAIL-CONFIGURE-DIRECT] Function started');
+  console.log('[EMAIL-CONFIGURE-DIRECT] Method:', req.method);
+  console.log('[EMAIL-CONFIGURE-DIRECT] Headers:', JSON.stringify(req.headers, null, 2));
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -22,19 +25,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { provider, email, password, enabled } = req.body;
+    console.log('[EMAIL-CONFIGURE-DIRECT] Raw body:', req.body);
+    console.log('[EMAIL-CONFIGURE-DIRECT] Body type:', typeof req.body);
+
+    const { provider, email, password, enabled } = req.body || {};
+
+    console.log('[EMAIL-CONFIGURE-DIRECT] Extracted values:', { provider, email, password: password ? '***' : 'none', enabled });
 
     // Validate required fields
     if (!provider || !email) {
-      return res.status(400).json({ message: "Provider and email are required" });
+      console.log('[EMAIL-CONFIGURE-DIRECT] Validation failed - missing required fields');
+      return res.status(400).json({
+        message: "Provider and email are required",
+        received: { provider, email, hasPassword: !!password, enabled }
+      });
     }
 
     if (provider === 'gmail' && !password) {
+      console.log('[EMAIL-CONFIGURE-DIRECT] Validation failed - Gmail needs password');
       return res.status(400).json({ message: "App password is required for Gmail" });
     }
 
+    console.log('[EMAIL-CONFIGURE-DIRECT] Validation passed, returning success');
+
     // For now, just return success to test if the route works
-    return res.json({
+    return res.status(200).json({
       message: "Global email configuration updated successfully (TEST)",
       configured: true,
       provider: provider,
@@ -43,10 +58,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
   } catch (error: any) {
-    console.error("Error configuring global email:", error);
+    console.error('[EMAIL-CONFIGURE-DIRECT] Error:', error);
+    console.error('[EMAIL-CONFIGURE-DIRECT] Error stack:', error.stack);
     return res.status(500).json({
       message: "Failed to configure global email",
-      error: error.message
+      error: error.message,
+      stack: error.stack
     });
   }
 }
