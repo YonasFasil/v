@@ -108,7 +108,7 @@ export default function SuperAdminSettings() {
   const updateConfigMutation = useMutation({
     mutationFn: async (data: { type: 'stripe' | 'email', config: any }) => {
       const endpoint = data.type === 'email'
-        ? '/api/super-admin/global-email/configure'
+        ? '/api/email-configure'
         : `/api/super-admin/config/${data.type}`;
       return apiRequest(endpoint, {
         method: 'POST',
