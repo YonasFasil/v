@@ -133,7 +133,7 @@ export default function Proposals() {
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
                     <span className="text-gray-500">Date:</span>
-                    <div>{safeFormatDate(proposal.eventDate, 'MMM d, yyyy', 'N/A')}</div>
+                    <div>{safeFormatDate(proposal.eventDate || proposal.event_date, 'MMM d, yyyy', 'N/A')}</div>
                   </div>
                   <div>
                     <span className="text-gray-500">Amount:</span>
@@ -141,7 +141,7 @@ export default function Proposals() {
                   </div>
                   <div>
                     <span className="text-gray-500">Created:</span>
-                    <div>{safeFormatDate(proposal.createdAt, 'MMM d', 'N/A')}</div>
+                    <div>{safeFormatDate(proposal.createdAt || proposal.created_at, 'MMM d', 'N/A')}</div>
                   </div>
                   <div>
                     <span className="text-gray-500">Deposit:</span>
@@ -220,7 +220,7 @@ export default function Proposals() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {safeFormatDate(proposal.eventDate, "MMM d, yyyy", "TBD")}
+                    {safeFormatDate(proposal.eventDate || proposal.event_date, "MMM d, yyyy", "TBD")}
                   </TableCell>
                   <TableCell className="font-medium">
                     ${parseFloat(proposal.totalAmount || proposal.total_amount || 0).toFixed(2)}
@@ -248,7 +248,7 @@ export default function Proposals() {
                     </div>
                   </TableCell>
                   <TableCell className="text-sm text-gray-500">
-                    {safeFormatDate(proposal.createdAt, "MMM d, yyyy", "N/A")}
+                    {safeFormatDate(proposal.createdAt || proposal.created_at, "MMM d, yyyy", "N/A")}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">

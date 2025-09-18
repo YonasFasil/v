@@ -136,7 +136,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
 
   // Fetch proposal details
   const { data: proposal, isLoading, refetch } = useQuery<Proposal>({
-    queryKey: [`/api/proposals/${proposalId}`],
+    queryKey: ["/api/tenant", { type: "proposals", id: proposalId }],
     enabled: !!proposalId && open && !proposalId?.startsWith('booking-')
   });
 
@@ -309,14 +309,14 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
   const resendProposalMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("POST", `/api/proposals/${proposalId}/resend`);
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       toast({
         title: "Proposal Resent",
         description: "The proposal has been resent to the customer with updated event details"
       });
-      queryClient.invalidateQueries({ queryKey: [`/api/proposals/${proposalId}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tenant", { type: "proposals", id: proposalId }] });
       queryClient.invalidateQueries({ queryKey: [`/api/proposals/${proposalId}/communications`] });
     },
     onError: (error: any) => {
@@ -362,6 +362,9 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Loading Proposal</DialogTitle>
+          </DialogHeader>
           <div className="flex items-center justify-center p-8">
             <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
             <span className="ml-2">Loading proposal details...</span>
@@ -375,6 +378,9 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Proposal Not Found</DialogTitle>
+          </DialogHeader>
           <div className="text-center p-6">
             <XCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">Proposal Not Found</h3>
