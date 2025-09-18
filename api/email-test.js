@@ -1,5 +1,5 @@
 // Vercel Serverless Function for Email Testing
-const nodemailer = require('nodemailer');
+import nodemailer from 'nodemailer';
 
 export default async function handler(req, res) {
   // Enable CORS
@@ -33,11 +33,11 @@ export default async function handler(req, res) {
 
     // Get email configuration from environment variables
     const provider = process.env.GLOBAL_EMAIL_PROVIDER;
-    const email = process.env.GLOBAL_EMAIL_ADDRESS;
+    const senderEmail = process.env.GLOBAL_EMAIL_ADDRESS;
     const password = process.env.GLOBAL_EMAIL_PASSWORD;
     const enabled = process.env.GLOBAL_EMAIL_ENABLED !== 'false';
 
-    if (!provider || !email || !password) {
+    if (!provider || !senderEmail || !password) {
       return res.status(400).json({
         error: 'Email service not configured. Please set GLOBAL_EMAIL_PROVIDER, GLOBAL_EMAIL_ADDRESS, and GLOBAL_EMAIL_PASSWORD environment variables.'
       });
@@ -55,7 +55,7 @@ export default async function handler(req, res) {
       transportConfig = {
         service: 'gmail',
         auth: {
-          user: email,
+          user: senderEmail,
           pass: password
         }
       };
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
         port: parseInt(process.env.GLOBAL_EMAIL_PORT) || 587,
         secure: process.env.GLOBAL_EMAIL_SECURE === 'true',
         auth: {
-          user: email,
+          user: senderEmail,
           pass: password
         }
       };
@@ -73,16 +73,20 @@ export default async function handler(req, res) {
 
     const transporter = nodemailer.createTransporter(transportConfig);
 
+    // Verify transporter configuration
+    console.log('Verifying email transporter...');
+    await transporter.verify();
+
     // Test email content
     const mailOptions = {
-      from: email,
+      from: senderEmail,
       to: testEmail,
       subject: 'Venue Project - Email Test',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #2563eb;">Email Service Test</h2>
           <p>This is a test email from your Venue Project global email service.</p>
-          <p><strong>Sent from:</strong> ${email}</p>
+          <p><strong>Sent from:</strong> ${senderEmail}</p>
           <p><strong>Provider:</strong> ${provider}</p>
           <p><strong>Time:</strong> ${new Date().toISOString()}</p>
           <hr style="margin: 20px 0; border: none; border-top: 1px solid #e5e7eb;">
@@ -102,17 +106,35 @@ export default async function handler(req, res) {
       data: {
         messageId: result.messageId,
         to: testEmail,
-        from: email,
+        from: senderEmail,
         provider: provider
       }
     });
 
   } catch (error) {
     console.error('Email test error:', error);
+
+    // Enhanced error handling for debugging
+    let errorMessage = error.message;
+    if (error.code === 'EAUTH') {
+      errorMessage = 'Authentication failed. Please check your email credentials.';
+    } else if (error.code === 'ECONNECTION') {
+      errorMessage = 'Connection failed. Please check your email server settings.';
+    } else if (error.code === 'ESOCKET') {
+      errorMessage = 'Socket error. Please try again.';
+    }
+
     return res.status(500).json({
       error: 'Failed to send test email',
-      message: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      message: errorMessage,
+      code: error.code,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      config: {
+        hasProvider: !!process.env.GLOBAL_EMAIL_PROVIDER,
+        hasEmail: !!process.env.GLOBAL_EMAIL_ADDRESS,
+        hasPassword: !!process.env.GLOBAL_EMAIL_PASSWORD,
+        enabled: process.env.GLOBAL_EMAIL_ENABLED !== 'false'
+      }
     });
   }
 }

@@ -1,6 +1,6 @@
 // Vercel Serverless Function for Email Status
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 export default async function handler(req, res) {
   // Enable CORS

@@ -1,5 +1,5 @@
 // Vercel Serverless Function for Sending Communication Emails
-const nodemailer = require('nodemailer');
+import nodemailer from 'nodemailer';
 
 export default async function handler(req, res) {
   // Enable CORS
@@ -187,10 +187,28 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('Communication email error:', error);
+
+    // Enhanced error handling for debugging
+    let errorMessage = error.message;
+    if (error.code === 'EAUTH') {
+      errorMessage = 'Authentication failed. Please check your email credentials.';
+    } else if (error.code === 'ECONNECTION') {
+      errorMessage = 'Connection failed. Please check your email server settings.';
+    } else if (error.code === 'ESOCKET') {
+      errorMessage = 'Socket error. Please try again.';
+    }
+
     return res.status(500).json({
       error: 'Failed to send communication email',
-      message: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      message: errorMessage,
+      code: error.code,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      config: {
+        hasProvider: !!process.env.GLOBAL_EMAIL_PROVIDER,
+        hasEmail: !!process.env.GLOBAL_EMAIL_ADDRESS,
+        hasPassword: !!process.env.GLOBAL_EMAIL_PASSWORD,
+        enabled: process.env.GLOBAL_EMAIL_ENABLED !== 'false'
+      }
     });
   }
 }
