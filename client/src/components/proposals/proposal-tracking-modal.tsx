@@ -266,7 +266,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
 
   // Fetch communications related to this proposal
   const { data: communications = [] } = useQuery<Communication[]>({
-    queryKey: ["/api/communications", { proposalId, customerId: proposal?.customer_id || proposal?.customerId }],
+    queryKey: ["/api/communications", proposalId, proposal?.customer_id || proposal?.customerId],
     enabled: !!proposalId && open && (!!proposal?.customer_id || !!proposal?.customerId),
     select: (data: Communication[]) => {
       // Filter communications related to this proposal or customer
