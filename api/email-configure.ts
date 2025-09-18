@@ -1,5 +1,8 @@
 // Vercel Serverless Function for Email Configuration
-export default function handler(req, res) {
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { configureGlobalEmail } from '../server/services/global-email-service';
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -42,19 +45,33 @@ export default function handler(req, res) {
       });
     }
 
-    // For now, return success (we'll implement actual email service later)
-    return res.status(200).json({
-      success: true,
-      message: 'Email configuration saved successfully',
-      data: {
-        provider,
-        email,
-        enabled: enabled || false,
-        configured: true
-      }
+    // Use the actual GlobalEmailService to save configuration
+    const result = await configureGlobalEmail({
+      provider,
+      email,
+      password,
+      enabled: enabled !== false // Default to true if not specified
     });
 
-  } catch (error) {
+    if (result.success) {
+      return res.status(200).json({
+        success: true,
+        message: result.message,
+        data: {
+          provider,
+          email,
+          enabled: enabled !== false,
+          configured: true
+        }
+      });
+    } else {
+      return res.status(400).json({
+        error: result.message,
+        success: false
+      });
+    }
+
+  } catch (error: any) {
     console.error('Email configuration error:', error);
     return res.status(500).json({
       error: 'Internal server error',

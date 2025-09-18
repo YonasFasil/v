@@ -68,7 +68,7 @@ export default function SuperAdminSettings() {
 
   // Fetch email configuration separately with aggressive refetching
   const { data: emailConfig, isLoading: emailLoading, refetch: refetchEmailConfig, error: emailError } = useQuery<EmailConfig>({
-    queryKey: ["/api/super-admin/global-email/status"],
+    queryKey: ["/api/email-status"],
     staleTime: 0, // Always fetch fresh data
     gcTime: 0, // Don't cache the data
     refetchOnMount: "always", // Always refetch when component mounts
@@ -122,8 +122,8 @@ export default function SuperAdminSettings() {
       });
       if (variables.type === 'email') {
         // Force refetch of email configuration
-        queryClient.removeQueries({ queryKey: ["/api/super-admin/global-email/status"] }); // Remove from cache completely
-        await queryClient.invalidateQueries({ queryKey: ["/api/super-admin/global-email/status"] });
+        queryClient.removeQueries({ queryKey: ["/api/email-status"] }); // Remove from cache completely
+        await queryClient.invalidateQueries({ queryKey: ["/api/email-status"] });
         await refetchEmailConfig();
         // Double check after a short delay
         setTimeout(() => {
