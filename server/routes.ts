@@ -8712,8 +8712,8 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
   // Global Email Configuration - Environment Variable Based (Vercel Compatible)
   app.get("/api/super-admin/global-email/status", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
     try {
-      const globalEmailService = await import('./services/global-email-service');
-      const status = await globalEmailService.getGlobalEmailStatus();
+      const { getGlobalEmailStatus } = await import('./services/global-email-service');
+      const status = await getGlobalEmailStatus();
       res.json(status);
     } catch (error: any) {
       console.error("Error getting global email status:", error);
@@ -8735,8 +8735,8 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
         return res.status(400).json({ message: "App password is required for Gmail" });
       }
 
-      const globalEmailService = await import('./services/global-email-service');
-      const result = await globalEmailService.configureGlobalEmail({
+      const { configureGlobalEmail } = await import('./services/global-email-service');
+      const result = await configureGlobalEmail({
         provider,
         email,
         password,
@@ -8763,8 +8763,8 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
         return res.status(400).json({ message: "Recipient email address is required" });
       }
 
-      const globalEmailService = await import('./services/global-email-service');
-      const result = await globalEmailService.sendTestEmail(to);
+      const { testGlobalEmail } = await import('./services/global-email-service');
+      const result = await testGlobalEmail(to);
 
       res.json({
         success: result.success,
@@ -8853,32 +8853,6 @@ ${lead.notes ? `\n## Additional Notes\n${lead.notes}` : ''}
     }
   });
 
-  // Test global email configuration
-  app.post("/api/super-admin/global-email/test", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
-    try {
-      console.log('[EMAIL-TEST] Request body:', req.body);
-      const { testEmail } = req.body;
-
-      if (!testEmail) {
-        return res.status(400).json({ message: "Test email address is required", received: req.body });
-      }
-
-      const globalEmailService = await import('./services/global-email-service');
-      const result = await globalEmailService.testGlobalEmail(testEmail);
-
-      res.json({
-        success: true,
-        message: "Test email sent successfully",
-        messageId: result.messageId
-      });
-    } catch (error: any) {
-      console.error('Error sending test email:', error);
-      res.status(500).json({
-        success: false,
-        message: error.message || "Failed to send test email"
-      });
-    }
-  });
 
   // Super Admin - Update tenant
   app.put("/api/super-admin/tenants/:id", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
