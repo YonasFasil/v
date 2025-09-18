@@ -153,25 +153,61 @@ export default function Reports() {
 
   // Fetch comprehensive analytics data
   const { data: analyticsData, isLoading: analyticsLoading, refetch: refetchAnalytics } = useQuery<AnalyticsData>({
-    queryKey: ["/api/reports/analytics", dateRange],
+    queryKey: ["/api/reports/analytics", { dateRange }],
+    queryFn: async () => {
+      const response = await fetch(`/api/reports/analytics?dateRange=${dateRange}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('super_admin_token') || localStorage.getItem('auth_token')}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch analytics');
+      return response.json();
+    },
     refetchInterval: autoRefresh ? 30000 : false,
   });
 
   // Fetch revenue analytics
   const { data: revenueData, isLoading: revenueLoading } = useQuery<RevenueAnalytics>({
-    queryKey: ["/api/reports/revenue", dateRange],
+    queryKey: ["/api/reports/revenue", { dateRange }],
+    queryFn: async () => {
+      const response = await fetch(`/api/reports/revenue?dateRange=${dateRange}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('super_admin_token') || localStorage.getItem('auth_token')}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch revenue data');
+      return response.json();
+    },
     enabled: reportType === "revenue",
   });
 
   // Fetch customer analytics
   const { data: customerData, isLoading: customerLoading } = useQuery<CustomerAnalytics>({
-    queryKey: ["/api/reports/customers", dateRange],
+    queryKey: ["/api/reports/customers", { dateRange }],
+    queryFn: async () => {
+      const response = await fetch(`/api/reports/customers?dateRange=${dateRange}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('super_admin_token') || localStorage.getItem('auth_token')}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch customer data');
+      return response.json();
+    },
     enabled: reportType === "customers",
   });
 
   // Fetch venue analytics
   const { data: venueData, isLoading: venueLoading } = useQuery<VenueAnalytics>({
-    queryKey: ["/api/reports/venues", dateRange],
+    queryKey: ["/api/reports/venues", { dateRange }],
+    queryFn: async () => {
+      const response = await fetch(`/api/reports/venues?dateRange=${dateRange}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('super_admin_token') || localStorage.getItem('auth_token')}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch venue data');
+      return response.json();
+    },
     enabled: reportType === "venues",
   });
 
