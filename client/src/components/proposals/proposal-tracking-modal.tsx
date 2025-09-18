@@ -10,14 +10,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { 
-  FileText, 
-  Eye, 
-  Mail, 
-  Phone, 
-  MessageSquare, 
-  Clock, 
+import {
+  FileText,
+  Eye,
+  Mail,
+  Phone,
+  MessageSquare,
+  Clock,
   DollarSign,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Link,
   CheckCircle2,
   XCircle,
   Send,
@@ -261,22 +264,23 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     }
   }, [open, proposalId, refetch]);
 
-  // Fetch all communications to see what's available
+  // Fetch communications related to this proposal
   const { data: communications = [] } = useQuery<Communication[]>({
-    queryKey: ["/api/communications"],
-    enabled: !!proposalId && open,
+    queryKey: ["/api/communications", { proposalId, customerId: proposal?.customer_id || proposal?.customerId }],
+    enabled: !!proposalId && open && (!!proposal?.customer_id || !!proposal?.customerId),
     select: (data: Communication[]) => {
-      // Filter communications related to this proposal's customer
+      // Filter communications related to this proposal or customer
       const customerId = proposal?.customer_id || proposal?.customerId;
-      if (!customerId) return data;
+      if (!customerId) return [];
 
-      // For now, return all communications and log them to see structure
-      console.log('All communications:', data);
-      console.log('Proposal customer ID:', customerId);
+      console.log('📧 Loading communications for customer:', customerId);
+      console.log('📧 Available communications:', data);
 
       return data.filter((comm: any) =>
         comm.customer_id === customerId ||
         comm.customerId === customerId ||
+        comm.proposal_id === proposalId ||
+        comm.proposalId === proposalId ||
         comm.to?.includes(proposal?.customer_email || proposal?.email || '')
       );
     }
