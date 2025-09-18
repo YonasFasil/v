@@ -5,10 +5,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import 'dotenv/config';
 import express from 'express';
 import { registerRoutes } from '../server/routes';
-import { storage } from '../server/storage';
-
-// Initialize storage for Vercel environment
-storage.init().catch(console.error);
+// Storage is automatically initialized when imported
 
 // Create Express app instance
 const app = express();
