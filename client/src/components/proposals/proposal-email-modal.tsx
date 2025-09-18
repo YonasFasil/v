@@ -189,45 +189,25 @@ This proposal is valid for 30 days from the date of this email.`);
         depositAmount: depositAmount.toFixed(2)
       };
       
-      const proposalResponse = await fetch("/api/proposals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(proposalData)
-      });
-      
-      if (!proposalResponse.ok) {
-        const errorData = await proposalResponse.json();
-        console.error('Proposal creation failed:', errorData);
-        throw new Error(errorData.errors ? 
-          errorData.errors.map((e: any) => `${e.path}: ${e.message}`).join(', ') : 
-          errorData.message || 'Failed to create proposal'
-        );
-      }
-      
-      const proposal = await proposalResponse.json();
+      const proposal = await apiRequest("POST", "/api/proposals", proposalData);
       
       // Now update the proposal with the correct content including the proposal ID
       const updatedContent = generateHtmlContent(proposal.id);
-      await fetch(`/api/proposals/${proposal.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: updatedContent
-        })
+      await apiRequest("PATCH", `/api/proposals/${proposal.id}`, {
+        content: updatedContent
       });
       
-      // Then send the email via Gmail with the correct proposal ID
-      await fetch("/api/gmail/send-proposal", {
+      // Then send the email via global email service
+      await fetch("/api/send-communication-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to: emailTo,
+          subject: emailSubject,
           customerName: eventData.customerName,
-          proposalContent: updatedContent,
-          totalAmount: eventData.totalAmount.toString(),
-          validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
-          companyName: 'Venuine Events',
-          proposalId: proposal.id
+          content: updatedContent,
+          type: "proposal",
+          emailType: "proposal"
         })
       }).then(res => res.json());
       
