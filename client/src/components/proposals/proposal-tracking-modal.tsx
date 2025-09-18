@@ -133,6 +133,19 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
   const [showEmailComposer, setShowEmailComposer] = useState(false);
   const [expandedComms, setExpandedComms] = useState<Set<string>>(new Set());
 
+  // Safe date formatting function
+  const safeFormatDate = (dateValue: any, formatString: string, fallback: string = 'N/A') => {
+    if (!dateValue) return fallback;
+    try {
+      const date = new Date(dateValue);
+      if (isNaN(date.getTime())) return fallback;
+      return format(date, formatString);
+    } catch (error) {
+      console.warn('Date formatting error:', error, 'for value:', dateValue);
+      return fallback;
+    }
+  };
+
 
   // Fetch proposal details
   const { data: proposal, isLoading, refetch } = useQuery<Proposal>({
@@ -419,7 +432,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                     <div>
                       <div className="text-sm font-medium">Sent</div>
                       <div className="text-xs text-gray-500">
-                        {proposal.sentAt ? format(new Date(proposal.sentAt), "MMM d, h:mm a") : 'Not sent'}
+                        {safeFormatDate(proposal.sentAt, "MMM d, h:mm a", 'Not sent')}
                       </div>
                     </div>
                   </div>
@@ -429,7 +442,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                     <div>
                       <div className="text-sm font-medium">Viewed</div>
                       <div className="text-xs text-gray-500">
-                        {proposal.viewedAt ? format(new Date(proposal.viewedAt), "MMM d, h:mm a") : 'Not viewed'}
+                        {safeFormatDate(proposal.viewedAt, "MMM d, h:mm a", 'Not viewed')}
                       </div>
                     </div>
                   </div>
@@ -449,7 +462,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                     <div>
                       <div className="text-sm font-medium">Paid</div>
                       <div className="text-xs text-gray-500">
-                        {proposal.depositPaidAt ? format(new Date(proposal.depositPaidAt), "MMM d, h:mm a") : 'Not paid'}
+                        {safeFormatDate(proposal.depositPaidAt, "MMM d, h:mm a", 'Not paid')}
                       </div>
                     </div>
                   </div>
@@ -464,7 +477,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                             proposal.depositPaid ? 'Paid' : 'Draft'}
                   </div>
                   <div className="text-xs text-gray-600 mt-2">
-                    Created: {format(new Date(proposal.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                    Created: {safeFormatDate(proposal.createdAt, "MMM d, yyyy 'at' h:mm a")}
                   </div>
                 </div>
               </CardContent>
@@ -497,7 +510,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                               <div className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4 text-gray-400" />
                                 <span>{event.eventDate && !isNaN(new Date(event.eventDate).getTime()) 
-                                  ? format(new Date(event.eventDate), "MMMM d, yyyy") 
+                                  ? safeFormatDate(event.eventDate, "MMMM d, yyyy", "Date TBD") 
                                   : "Date TBD"}</span>
                               </div>
                               <div className="flex items-center gap-2">
@@ -608,7 +621,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                       </div>
                       <div className="text-xs text-emerald-600 mt-1">
                         Paid on: {proposal.depositPaidAt && !isNaN(new Date(proposal.depositPaidAt).getTime()) 
-                        ? format(new Date(proposal.depositPaidAt), "MMM d, yyyy 'at' h:mm a") 
+                        ? safeFormatDate(proposal.depositPaidAt, "MMM d, yyyy 'at' h:mm a") 
                         : 'N/A'}
                       </div>
                     </div>
@@ -704,9 +717,9 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                               </span>
                               <span className="font-medium">
                                 {comm.sentAt && !isNaN(new Date(comm.sentAt).getTime()) 
-                                  ? format(new Date(comm.sentAt), "MMM d, h:mm a")
+                                  ? safeFormatDate(comm.sentAt, "MMM d, h:mm a")
                                   : comm.createdAt && !isNaN(new Date(comm.createdAt).getTime())
-                                    ? format(new Date(comm.createdAt), "MMM d, h:mm a")
+                                    ? safeFormatDate(comm.createdAt, "MMM d, h:mm a")
                                     : "Unknown"}
                               </span>
                             </div>
@@ -800,12 +813,12 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                                       <div><span className="font-medium text-gray-700">
                                         {comm.direction === 'outbound' ? 'Sent' : 'Received'}:</span> {
                                         comm.sentAt 
-                                          ? format(new Date(comm.sentAt), "MMM d, yyyy 'at' h:mm a")
-                                          : format(new Date(comm.createdAt), "MMM d, yyyy 'at' h:mm a")
+                                          ? safeFormatDate(comm.sentAt, "MMM d, yyyy 'at' h:mm a")
+                                          : safeFormatDate(comm.createdAt, "MMM d, yyyy 'at' h:mm a")
                                       }</div>
                                     )}
                                     {comm.direction === 'outbound' && comm.deliveredAt && (
-                                      <div><span className="font-medium text-gray-700">Delivered:</span> {format(new Date(comm.deliveredAt), "h:mm a")}</div>
+                                      <div><span className="font-medium text-gray-700">Delivered:</span> {safeFormatDate(comm.deliveredAt, "h:mm a")}</div>
                                     )}
                                   </div>
                                 </div>
@@ -853,7 +866,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
                                       }
                                       {comm.lastOpenedAt && (
                                         <span className="block mt-1">
-                                          Last opened: {format(new Date(comm.lastOpenedAt), "MMM d 'at' h:mm a")}
+                                          Last opened: {safeFormatDate(comm.lastOpenedAt, "MMM d 'at' h:mm a")}
                                         </span>
                                       )}
                                     </div>
