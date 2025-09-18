@@ -62,9 +62,9 @@ export default async function handler(req, res) {
         depositAmount: (parseFloat(proposal.total_amount) * 0.3)?.toFixed(2) || "0.00",
         depositPercentage: 30,
         status: proposal.status || 'sent',
-        validUntil: proposal.valid_until || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        eventType: proposal.event_type || 'corporate',
-        guestCount: proposal.guest_count || 50,
+        validUntil: proposal.valid_until || proposal.validuntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        eventType: proposal.event_type || proposal.eventtype || 'corporate',
+        guestCount: proposal.guest_count || proposal.guestcount || 50,
         customer: {
           name: proposal.customer_name || 'Valued Customer',
           email: proposal.customer_email || 'customer@example.com',

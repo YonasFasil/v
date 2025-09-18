@@ -1138,14 +1138,23 @@ module.exports = async function handler(req, res) {
           const newProposal = await pool.query(`
             INSERT INTO proposals (
               tenant_id, customer_id, title, content, total_amount,
-              valid_until, status, sent_at, created_at
+              deposit_amount, status, valid_until, sent_at, created_at,
+              event_type, guest_count
             ) VALUES (
-              $1, $2, $3, $4, $5, $6, $7, $8, NOW()
+              $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), $10, $11
             ) RETURNING *
           `, [
-            tenantId, customerId, title, content, parseFloat(totalAmount) || 0,
+            tenantId,
+            customerId,
+            title,
+            content,
+            parseFloat(totalAmount) || 0,
+            parseFloat(depositAmount) || parseFloat(totalAmount) * 0.3 || 0,
+            status,
             validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            status, sentAt || new Date().toISOString()
+            sentAt || new Date().toISOString(),
+            eventType,
+            parseInt(guestCount) || 1
           ]);
 
           console.log('✅ Proposal saved to database:', newProposal.rows[0].id);
@@ -1173,8 +1182,11 @@ module.exports = async function handler(req, res) {
             title: 'title',
             content: 'content',
             totalAmount: 'total_amount',
+            depositAmount: 'deposit_amount',
             status: 'status',
-            validUntil: 'valid_until'
+            validUntil: 'valid_until',
+            eventType: 'event_type',
+            guestCount: 'guest_count'
           };
 
           for (const [key, value] of Object.entries(updateData)) {
