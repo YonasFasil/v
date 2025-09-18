@@ -598,14 +598,14 @@ export class MemStorage implements IStorage {
   async getSetupStyles(): Promise<SetupStyle[]> { const items = Array.from(this.setupStyles.values()); return this.filterByTenant(items); }
   async getSetupStylesByTenant(tenantId: string): Promise<SetupStyle[]> { const items = Array.from(this.setupStyles.values()); return items.filter(item => item.tenantId === tenantId); }
   async getSetupStyle(id: string): Promise<SetupStyle | undefined> { return this.setupStyles.get(id); }
-  async createSetupStyle(setupStyle: InsertSetupStyle): Promise<SetupStyle> { const id = randomUUID(); const item: SetupStyle = { ...setupStyle, id, isActive: setupStyle.isActive ?? true, createdAt: new Date() }; this.setupStyles.set(id, item); return item; }
+  async createSetupStyle(setupStyle: InsertSetupStyle): Promise<SetupStyle> { const id = randomUUID(); const item: SetupStyle = { ...setupStyle, id, isActive: setupStyle.isActive ?? true, createdAt: new Date() } as SetupStyle; this.setupStyles.set(id, item); return item; }
   async updateSetupStyle(id: string, setupStyle: Partial<InsertSetupStyle>): Promise<SetupStyle | undefined> { const existing = this.setupStyles.get(id); if (!existing) return undefined; const updated = { ...existing, ...setupStyle }; this.setupStyles.set(id, updated); return updated; }
   async deleteSetupStyle(id: string): Promise<boolean> { return this.setupStyles.delete(id); }
 
   async getCompanies(): Promise<Company[]> { const items = Array.from(this.companies.values()); return this.filterByTenant(items); }
   async getCompaniesByTenant(tenantId: string): Promise<Company[]> { const items = Array.from(this.companies.values()); return items.filter(item => item.tenantId === tenantId); }
   async getCompany(id: string): Promise<Company | undefined> { return this.companies.get(id); }
-  async createCompany(company: InsertCompany): Promise<Company> { const id = randomUUID(); const item: Company = { ...company, id, createdAt: new Date(), updatedAt: new Date() }; this.companies.set(id, item); return item; }
+  async createCompany(company: InsertCompany): Promise<Company> { const id = randomUUID(); const item: Company = { ...company, id, isActive: company.isActive ?? true, createdAt: new Date(), updatedAt: new Date() } as Company; this.companies.set(id, item); return item; }
   async updateCompany(id: string, company: Partial<InsertCompany>): Promise<Company | undefined> { const existing = this.companies.get(id); if (!existing) return undefined; const updated = { ...existing, ...company, updatedAt: new Date() }; this.companies.set(id, updated); return updated; }
   async deleteCompany(id: string): Promise<boolean> { return this.companies.delete(id); }
 
@@ -614,14 +614,14 @@ export class MemStorage implements IStorage {
   async getContractsByTenant(tenantId: string): Promise<Contract[]> { const items = Array.from(this.contracts.values()); return items.filter(item => item.tenantId === tenantId); }
   async getContract(id: string): Promise<Contract | undefined> { return this.contracts.get(id); }
   async getContractsByCustomer(customerId: string): Promise<Contract[]> { const items = Array.from(this.contracts.values()); return items.filter(item => item.customerId === customerId); }
-  async createContract(contract: InsertContract): Promise<Contract> { const id = randomUUID(); const item: Contract = { ...contract, id, createdAt: new Date() }; this.contracts.set(id, item); return item; }
+  async createContract(contract: InsertContract): Promise<Contract> { const id = randomUUID(); const item: Contract = { ...contract, id, status: contract.status || 'draft', createdAt: new Date(), updatedAt: new Date() } as Contract; this.contracts.set(id, item); return item; }
   async updateContract(id: string, contract: Partial<InsertContract>): Promise<Contract | undefined> { const existing = this.contracts.get(id); if (!existing) return undefined; const updated = { ...existing, ...contract }; this.contracts.set(id, updated); return updated; }
   async deleteContract(id: string): Promise<boolean> { return this.contracts.delete(id); }
 
   async getProposals(): Promise<Proposal[]> { const items = Array.from(this.proposals.values()); return this.filterByTenant(items); }
   async getProposal(id: string): Promise<Proposal | undefined> { return this.proposals.get(id); }
   async getProposalsByCustomer(customerId: string): Promise<Proposal[]> { const items = Array.from(this.proposals.values()); return items.filter(item => item.customerId === customerId); }
-  async createProposal(proposal: InsertProposal): Promise<Proposal> { const id = randomUUID(); const item: Proposal = { ...proposal, id, createdAt: new Date() }; this.proposals.set(id, item); return item; }
+  async createProposal(proposal: InsertProposal): Promise<Proposal> { const id = randomUUID(); const item: Proposal = { ...proposal, id, status: proposal.status || 'draft', createdAt: new Date(), sentAt: null, viewedAt: null } as Proposal; this.proposals.set(id, item); return item; }
   async updateProposal(id: string, proposal: Partial<InsertProposal>): Promise<Proposal | undefined> { const existing = this.proposals.get(id); if (!existing) return undefined; const updated = { ...existing, ...proposal }; this.proposals.set(id, updated); return updated; }
   async deleteProposal(id: string): Promise<boolean> { return this.proposals.delete(id); }
 
@@ -630,7 +630,7 @@ export class MemStorage implements IStorage {
   async getCommunicationsByProposal(proposalId: string): Promise<Communication[]> { const items = Array.from(this.communications.values()); return items.filter(item => item.proposalId === proposalId); }
   async getCommunicationsByCustomer(customerId: string): Promise<Communication[]> { const items = Array.from(this.communications.values()); return items.filter(item => item.customerId === customerId); }
   async getCommunicationByMessageId(messageId: string): Promise<Communication | undefined> { const items = Array.from(this.communications.values()); return items.find(item => item.messageId === messageId); }
-  async createCommunication(communication: InsertCommunication): Promise<Communication> { const id = randomUUID(); const item: Communication = { ...communication, id, createdAt: new Date() }; this.communications.set(id, item); return item; }
+  async createCommunication(communication: InsertCommunication): Promise<Communication> { const id = randomUUID(); const item: Communication = { ...communication, id, status: communication.status || 'sent', sentAt: new Date(), readAt: null, createdAt: new Date() } as Communication; this.communications.set(id, item); return item; }
   async updateCommunication(id: string, communication: Partial<InsertCommunication>): Promise<Communication | undefined> { const existing = this.communications.get(id); if (!existing) return undefined; const updated = { ...existing, ...communication }; this.communications.set(id, updated); return updated; }
 
   async getSettings(): Promise<Setting[]> { return Array.from(this.settings.values()); }
@@ -641,64 +641,64 @@ export class MemStorage implements IStorage {
   async getPayments(): Promise<Payment[]> { const items = Array.from(this.payments.values()); return this.filterByTenant(items); }
   async getPayment(id: string): Promise<Payment | undefined> { return this.payments.get(id); }
   async getPaymentsByBooking(bookingId: string): Promise<Payment[]> { const items = Array.from(this.payments.values()); return items.filter(item => item.bookingId === bookingId); }
-  async createPayment(payment: InsertPayment): Promise<Payment> { const id = randomUUID(); const item: Payment = { ...payment, id, createdAt: new Date() }; this.payments.set(id, item); return item; }
+  async createPayment(payment: InsertPayment): Promise<Payment> { const id = randomUUID(); const item: Payment = { ...payment, id, status: payment.status || 'pending', createdAt: new Date(), processedAt: null } as Payment; this.payments.set(id, item); return item; }
   async updatePayment(id: string, payment: Partial<InsertPayment>): Promise<Payment | undefined> { const existing = this.payments.get(id); if (!existing) return undefined; const updated = { ...existing, ...payment }; this.payments.set(id, updated); return updated; }
 
   async getTasks(): Promise<Task[]> { const items = Array.from(this.tasks.values()); return this.filterByTenant(items); }
   async getTask(id: string): Promise<Task | undefined> { return this.tasks.get(id); }
   async getTasksByUser(userId: string): Promise<Task[]> { const items = Array.from(this.tasks.values()); return items.filter(item => item.assignedTo === userId); }
-  async createTask(task: InsertTask): Promise<Task> { const id = randomUUID(); const item: Task = { ...task, id, createdAt: new Date() }; this.tasks.set(id, item); return item; }
+  async createTask(task: InsertTask): Promise<Task> { const id = randomUUID(); const item: Task = { ...task, id, status: task.status || 'pending', priority: task.priority || 'medium', createdAt: new Date() } as Task; this.tasks.set(id, item); return item; }
   async updateTask(id: string, task: Partial<InsertTask>): Promise<Task | undefined> { const existing = this.tasks.get(id); if (!existing) return undefined; const updated = { ...existing, ...task }; this.tasks.set(id, updated); return updated; }
 
   async getAiInsights(): Promise<AiInsight[]> { return Array.from(this.aiInsights.values()); }
   async getActiveAiInsights(): Promise<AiInsight[]> { const items = Array.from(this.aiInsights.values()); return items.filter(item => item.status === 'active'); }
-  async createAiInsight(insight: InsertAiInsight): Promise<AiInsight> { const id = randomUUID(); const item: AiInsight = { ...insight, id, createdAt: new Date() }; this.aiInsights.set(id, item); return item; }
+  async createAiInsight(insight: InsertAiInsight): Promise<AiInsight> { const id = randomUUID(); const item: AiInsight = { ...insight, id, data: insight.data || {}, isActive: insight.isActive ?? true, priority: insight.priority || 'medium', createdAt: new Date() } as AiInsight; this.aiInsights.set(id, item); return item; }
 
   async getPackages(): Promise<Package[]> { const items = Array.from(this.packages.values()); return this.filterByTenant(items); }
   async getPackagesByTenant(tenantId: string): Promise<Package[]> { const items = Array.from(this.packages.values()); return items.filter(item => item.tenantId === tenantId); }
   async getPackage(id: string): Promise<Package | undefined> { return this.packages.get(id); }
-  async createPackage(pkg: InsertPackage): Promise<Package> { const id = randomUUID(); const item: Package = { ...pkg, id, createdAt: new Date() }; this.packages.set(id, item); return item; }
+  async createPackage(pkg: InsertPackage): Promise<Package> { const id = randomUUID(); const item: Package = { ...pkg, id, isActive: pkg.isActive ?? true, createdAt: new Date() } as Package; this.packages.set(id, item); return item; }
   async updatePackage(id: string, pkg: Partial<InsertPackage>): Promise<Package | undefined> { const existing = this.packages.get(id); if (!existing) return undefined; const updated = { ...existing, ...pkg }; this.packages.set(id, updated); return updated; }
   async deletePackage(id: string): Promise<boolean> { return this.packages.delete(id); }
 
   async getServices(): Promise<Service[]> { const items = Array.from(this.services.values()); return this.filterByTenant(items); }
   async getServicesByTenant(tenantId: string): Promise<Service[]> { const items = Array.from(this.services.values()); return items.filter(item => item.tenantId === tenantId); }
   async getService(id: string): Promise<Service | undefined> { return this.services.get(id); }
-  async createService(service: InsertService): Promise<Service> { const id = randomUUID(); const item: Service = { ...service, id, createdAt: new Date() }; this.services.set(id, item); return item; }
+  async createService(service: InsertService): Promise<Service> { const id = randomUUID(); const item: Service = { ...service, id, isActive: service.isActive ?? true, pricingModel: service.pricingModel || 'fixed', createdAt: new Date() } as Service; this.services.set(id, item); return item; }
   async updateService(id: string, service: Partial<InsertService>): Promise<Service | undefined> { const existing = this.services.get(id); if (!existing) return undefined; const updated = { ...existing, ...service }; this.services.set(id, updated); return updated; }
   async deleteService(id: string): Promise<boolean> { return this.services.delete(id); }
 
   async getTaxSettings(): Promise<TaxSetting[]> { const items = Array.from(this.taxSettings.values()); return this.filterByTenant(items); }
   async getTaxSetting(id: string): Promise<TaxSetting | undefined> { return this.taxSettings.get(id); }
-  async createTaxSetting(taxSetting: InsertTaxSetting): Promise<TaxSetting> { const id = randomUUID(); const item: TaxSetting = { ...taxSetting, id, createdAt: new Date() }; this.taxSettings.set(id, item); return item; }
+  async createTaxSetting(taxSetting: InsertTaxSetting): Promise<TaxSetting> { const id = randomUUID(); const item: TaxSetting = { ...taxSetting, id, tenantId: taxSetting.tenantId || 'default', isActive: taxSetting.isActive ?? true, createdAt: new Date() } as TaxSetting; this.taxSettings.set(id, item); return item; }
   async updateTaxSetting(id: string, taxSetting: Partial<InsertTaxSetting>): Promise<TaxSetting | undefined> { const existing = this.taxSettings.get(id); if (!existing) return undefined; const updated = { ...existing, ...taxSetting }; this.taxSettings.set(id, updated); return updated; }
   async deleteTaxSetting(id: string): Promise<boolean> { return this.taxSettings.delete(id); }
 
   async getCampaignSources(): Promise<CampaignSource[]> { return Array.from(this.campaignSources.values()); }
-  async createCampaignSource(source: InsertCampaignSource): Promise<CampaignSource> { const id = randomUUID(); const item: CampaignSource = { ...source, id, createdAt: new Date() }; this.campaignSources.set(id, item); return item; }
+  async createCampaignSource(source: InsertCampaignSource): Promise<CampaignSource> { const id = randomUUID(); const item: CampaignSource = { ...source, id, isActive: source.isActive ?? true, createdAt: new Date() } as CampaignSource; this.campaignSources.set(id, item); return item; }
   async updateCampaignSource(id: string, source: Partial<InsertCampaignSource>): Promise<CampaignSource | undefined> { const existing = this.campaignSources.get(id); if (!existing) return undefined; const updated = { ...existing, ...source }; this.campaignSources.set(id, updated); return updated; }
 
   async getTags(): Promise<Tag[]> { return Array.from(this.tags.values()); }
-  async createTag(tag: InsertTag): Promise<Tag> { const id = randomUUID(); const item: Tag = { ...tag, id, createdAt: new Date() }; this.tags.set(id, item); return item; }
+  async createTag(tag: InsertTag): Promise<Tag> { const id = randomUUID(); const item: Tag = { ...tag, id, color: tag.color || '#000000', createdAt: new Date() } as Tag; this.tags.set(id, item); return item; }
   async updateTag(id: string, tag: Partial<InsertTag>): Promise<Tag | undefined> { const existing = this.tags.get(id); if (!existing) return undefined; const updated = { ...existing, ...tag }; this.tags.set(id, updated); return updated; }
   async deleteTag(id: string): Promise<boolean> { return this.tags.delete(id); }
 
   async getLeads(filters?: { status?: string; source?: string; q?: string }): Promise<Lead[]> { let items = Array.from(this.leads.values()); if (filters?.status) items = items.filter(item => item.status === filters.status); if (filters?.source) items = items.filter(item => item.source === filters.source); if (filters?.q) items = items.filter(item => item.name?.includes(filters.q!) || item.email?.includes(filters.q!)); return items; }
   async getLead(id: string): Promise<Lead | undefined> { return this.leads.get(id); }
-  async createLead(lead: InsertLead): Promise<Lead> { const id = randomUUID(); const item: Lead = { ...lead, id, createdAt: new Date() }; this.leads.set(id, item); return item; }
+  async createLead(lead: InsertLead): Promise<Lead> { const id = randomUUID(); const item: Lead = { ...lead, id, status: lead.status || 'new', createdAt: new Date(), updatedAt: new Date() } as Lead; this.leads.set(id, item); return item; }
   async updateLead(id: string, lead: Partial<InsertLead>): Promise<Lead | undefined> { const existing = this.leads.get(id); if (!existing) return undefined; const updated = { ...existing, ...lead }; this.leads.set(id, updated); return updated; }
   async deleteLead(id: string): Promise<boolean> { return this.leads.delete(id); }
 
   async getLeadActivities(leadId: string): Promise<LeadActivity[]> { const items = Array.from(this.leadActivities.values()); return items.filter(item => item.leadId === leadId); }
-  async createLeadActivity(activity: InsertLeadActivity): Promise<LeadActivity> { const id = randomUUID(); const item: LeadActivity = { ...activity, id, createdAt: new Date() }; this.leadActivities.set(id, item); return item; }
+  async createLeadActivity(activity: InsertLeadActivity): Promise<LeadActivity> { const id = randomUUID(); const item: LeadActivity = { ...activity, id, meta: activity.meta || {}, createdBy: activity.createdBy || null, createdAt: new Date() } as LeadActivity; this.leadActivities.set(id, item); return item; }
 
   async getLeadTasks(filters?: { assignee?: string; due?: string }): Promise<LeadTask[]> { let items = Array.from(this.leadTasks.values()); if (filters?.assignee) items = items.filter(item => item.assignedTo === filters.assignee); return items; }
-  async createLeadTask(task: InsertLeadTask): Promise<LeadTask> { const id = randomUUID(); const item: LeadTask = { ...task, id, createdAt: new Date() }; this.leadTasks.set(id, item); return item; }
+  async createLeadTask(task: InsertLeadTask): Promise<LeadTask> { const id = randomUUID(); const item: LeadTask = { ...task, id, status: task.status || 'pending', assignedTo: task.assignedTo || null, dueAt: task.dueAt || null, createdAt: new Date() } as LeadTask; this.leadTasks.set(id, item); return item; }
   async updateLeadTask(id: string, task: Partial<InsertLeadTask>): Promise<LeadTask | undefined> { const existing = this.leadTasks.get(id); if (!existing) return undefined; const updated = { ...existing, ...task }; this.leadTasks.set(id, updated); return updated; }
 
   async getTours(): Promise<Tour[]> { const items = Array.from(this.tours.values()); return this.filterByTenant(items); }
   async getTour(id: string): Promise<Tour | undefined> { return this.tours.get(id); }
-  async createTour(tour: InsertTour): Promise<Tour> { const id = randomUUID(); const item: Tour = { ...tour, id, createdAt: new Date() }; this.tours.set(id, item); return item; }
+  async createTour(tour: InsertTour): Promise<Tour> { const id = randomUUID(); const item: Tour = { ...tour, id, status: tour.status || 'scheduled', duration: tour.duration || 60, attendeeCount: tour.attendeeCount || null, conductedBy: tour.conductedBy || null, createdAt: new Date() } as Tour; this.tours.set(id, item); return item; }
   async updateTour(id: string, tour: Partial<InsertTour>): Promise<Tour | undefined> { const existing = this.tours.get(id); if (!existing) return undefined; const updated = { ...existing, ...tour }; this.tours.set(id, updated); return updated; }
 
   async getLeadTags(leadId: string): Promise<Tag[]> { const tagIds = this.leadTags.get(leadId) || []; return tagIds.map(tagId => this.tags.get(tagId)).filter(Boolean) as Tag[]; }
