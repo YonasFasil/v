@@ -1138,17 +1138,14 @@ module.exports = async function handler(req, res) {
           const newProposal = await pool.query(`
             INSERT INTO proposals (
               tenant_id, customer_id, title, content, total_amount,
-              valid_until, status, sent_at, event_type, guest_count,
-              deposit_percentage, deposit_amount, created_at, updated_at
+              valid_until, status, sent_at, created_at, updated_at
             ) VALUES (
-              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW()
+              $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()
             ) RETURNING *
           `, [
             tenantId, customerId, title, content, parseFloat(totalAmount) || 0,
             validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            status, sentAt || new Date().toISOString(), eventType,
-            parseInt(guestCount) || 1, parseFloat(depositPercentage) || 25,
-            parseFloat(depositAmount) || 0
+            status, sentAt || new Date().toISOString()
           ]);
 
           console.log('✅ Proposal saved to database:', newProposal.rows[0].id);
@@ -1177,9 +1174,7 @@ module.exports = async function handler(req, res) {
             content: 'content',
             totalAmount: 'total_amount',
             status: 'status',
-            validUntil: 'valid_until',
-            depositAmount: 'deposit_amount',
-            depositPercentage: 'deposit_percentage'
+            validUntil: 'valid_until'
           };
 
           for (const [key, value] of Object.entries(updateData)) {
