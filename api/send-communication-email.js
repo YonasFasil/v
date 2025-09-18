@@ -1,7 +1,11 @@
+const { Pool } = require('pg');
+const { getDatabaseUrl } = require('./db-config.js');
+const jwt = require('jsonwebtoken');
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -10,6 +14,8 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  let pool;
 
   try {
     const {
@@ -20,7 +26,10 @@ export default async function handler(req, res) {
       content,
       type,
       emailType,
-      notificationType
+      notificationType,
+      customerId,
+      bookingId,
+      proposalId
     } = req.body || {};
 
     const recipientEmail = to || email;
@@ -33,6 +42,22 @@ export default async function handler(req, res) {
         error: 'Recipient email required',
         message: 'Use "to" or "email" field'
       });
+    }
+
+    // Get tenant ID from auth token if available
+    let tenantId = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.substring(7);
+        const jwtSecret = process.env.JWT_SECRET;
+        if (jwtSecret) {
+          const decoded = jwt.verify(token, jwtSecret);
+          tenantId = decoded.tenantId;
+        }
+      } catch (error) {
+        console.warn('Could not decode JWT for communication logging:', error.message);
+      }
     }
 
     // Get environment variables
@@ -69,7 +94,7 @@ export default async function handler(req, res) {
 
     const icon = getIcon(type || emailType || notificationType);
 
-    await transporter.sendMail({
+    const mailResult = await transporter.sendMail({
       from: senderEmail,
       to: recipientEmail,
       subject: finalSubject,
@@ -93,6 +118,54 @@ export default async function handler(req, res) {
       `
     });
 
+    // Record the communication in the database if we have tenant context
+    if (tenantId) {
+      try {
+        const databaseUrl = getDatabaseUrl();
+        if (databaseUrl) {
+          pool = new Pool({
+            connectionString: databaseUrl,
+            ssl: { rejectUnauthorized: false }
+          });
+
+          const { v4: uuidv4 } = require('uuid');
+          const communicationId = uuidv4();
+
+          const insertQuery = `
+            INSERT INTO communications (
+              id, tenant_id, type, subject, content,
+              sender_email, recipient_email, recipient_name,
+              customer_id, booking_id, proposal_id,
+              status, sent_at, created_at, message_id
+            ) VALUES (
+              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW(), $13
+            )
+          `;
+
+          await pool.query(insertQuery, [
+            communicationId,
+            tenantId,
+            type || emailType || 'email',
+            finalSubject,
+            finalContent,
+            senderEmail,
+            recipientEmail,
+            finalCustomerName,
+            customerId || null,
+            bookingId || null,
+            proposalId || null,
+            'sent',
+            mailResult.messageId || null
+          ]);
+
+          console.log('✅ Communication recorded in database:', communicationId);
+        }
+      } catch (dbError) {
+        console.warn('Failed to record communication in database:', dbError.message);
+        // Don't fail the whole request if database recording fails
+      }
+    }
+
     return res.status(200).json({
       success: true,
       message: 'Communication email sent successfully',
@@ -108,5 +181,9 @@ export default async function handler(req, res) {
       error: 'Failed to send communication email',
       message: error.message
     });
+  } finally {
+    if (pool) {
+      await pool.end();
+    }
   }
 }

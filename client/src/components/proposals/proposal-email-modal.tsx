@@ -197,14 +197,19 @@ This proposal is valid for 30 days from the date of this email.`);
       // Then send the email via global email service
       await fetch("/api/send-communication-email", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem('authToken')}`
+        },
         body: JSON.stringify({
           to: emailTo,
           subject: emailSubject,
           customerName: eventData.customerName,
           content: updatedContent,
           type: "proposal",
-          emailType: "proposal"
+          emailType: "proposal",
+          customerId: eventData.customerId,
+          proposalId: proposal.id
         })
       }).then(res => res.json());
       

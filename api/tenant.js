@@ -58,7 +58,7 @@ module.exports = async function handler(req, res) {
       ssl: { rejectUnauthorized: false }
     });
     
-    const { resource, action, id } = req.query;
+    const { resource, action, id, bookingId, customerId } = req.query;
     
     // INIT MODE - Create missing tables
     if (resource === 'init') {

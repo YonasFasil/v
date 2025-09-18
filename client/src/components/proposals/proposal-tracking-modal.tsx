@@ -146,49 +146,101 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     }
   };
 
-  // Extract event details from HTML content when database fields are null
+  // Extract ALL event details from HTML content when database fields are null
   const extractEventDetailsFromHTML = (htmlContent: string) => {
     if (!htmlContent) return null;
 
     try {
-      // Extract event details using regex patterns
-      const dateMatch = htmlContent.match(/📅 Date:<\/strong>\s*([^<]+)/);
-      const timeMatch = htmlContent.match(/🕐 Time:<\/strong>\s*([^<]+)/);
-      const locationMatch = htmlContent.match(/📍 Location:<\/strong>\s*([^<]+)/);
-      const guestMatch = htmlContent.match(/👥 Guest Count:<\/strong>\s*(\d+)\s*guests/);
-      const amountMatch = htmlContent.match(/💰 Total Investment:\s*\$([0-9,]+\.?\d*)/);
+      // First check if this is a multi-date event by looking for event-detail divs
+      const eventDetailMatches = htmlContent.match(/<div class="event-detail"[^>]*>[\s\S]*?<\/div>/g);
 
-      const eventDate = dateMatch ? dateMatch[1].trim() : null;
-      const timeRange = timeMatch ? timeMatch[1].trim() : null;
-      const location = locationMatch ? locationMatch[1].trim() : null;
-      const guestCount = guestMatch ? parseInt(guestMatch[1]) : null;
-      const amount = amountMatch ? amountMatch[1].replace(/,/g, '') : null;
+      if (eventDetailMatches && eventDetailMatches.length > 1) {
+        // Multi-date event - extract all event details
+        console.log('Multi-date event detected, extracting', eventDetailMatches.length, 'events');
 
-      // Parse time range
-      let startTime = null, endTime = null;
-      if (timeRange) {
-        const timeParts = timeRange.split(' - ');
-        startTime = timeParts[0]?.trim();
-        endTime = timeParts[1]?.trim();
+        const events = [];
+        const amountMatch = htmlContent.match(/💰 Total Investment:\s*\$([0-9,]+\.?\d*)/);
+        const totalAmount = amountMatch ? amountMatch[1].replace(/,/g, '') : "0.00";
+
+        for (const eventDiv of eventDetailMatches) {
+          const dateMatch = eventDiv.match(/📅 Date:<\/strong>\s*([^<]+)/);
+          const timeMatch = eventDiv.match(/🕐 Time:<\/strong>\s*([^<]+)/);
+          const locationMatch = eventDiv.match(/📍 Location:<\/strong>\s*([^<]+)/);
+          const guestMatch = eventDiv.match(/👥 Guest Count:<\/strong>\s*(\d+)\s*guests/);
+
+          const eventDate = dateMatch ? dateMatch[1].trim() : null;
+          const timeRange = timeMatch ? timeMatch[1].trim() : null;
+          const location = locationMatch ? locationMatch[1].trim() : null;
+          const guestCount = guestMatch ? parseInt(guestMatch[1]) : null;
+
+          // Parse time range
+          let startTime = null, endTime = null;
+          if (timeRange) {
+            const timeParts = timeRange.split(' - ');
+            startTime = timeParts[0]?.trim();
+            endTime = timeParts[1]?.trim();
+          }
+
+          // Parse location
+          let venue = null, space = null;
+          if (location && location.includes(' - ')) {
+            const locationParts = location.split(' - ');
+            venue = locationParts[0]?.trim();
+            space = locationParts[1]?.trim();
+          }
+
+          events.push({
+            eventDate,
+            startTime,
+            endTime,
+            venue,
+            space,
+            guestCount,
+            amount: totalAmount
+          });
+        }
+
+        return events; // Return array of events for multi-date
+      } else {
+        // Single event - use original logic
+        const dateMatch = htmlContent.match(/📅 Date:<\/strong>\s*([^<]+)/);
+        const timeMatch = htmlContent.match(/🕐 Time:<\/strong>\s*([^<]+)/);
+        const locationMatch = htmlContent.match(/📍 Location:<\/strong>\s*([^<]+)/);
+        const guestMatch = htmlContent.match(/👥 Guest Count:<\/strong>\s*(\d+)\s*guests/);
+        const amountMatch = htmlContent.match(/💰 Total Investment:\s*\$([0-9,]+\.?\d*)/);
+
+        const eventDate = dateMatch ? dateMatch[1].trim() : null;
+        const timeRange = timeMatch ? timeMatch[1].trim() : null;
+        const location = locationMatch ? locationMatch[1].trim() : null;
+        const guestCount = guestMatch ? parseInt(guestMatch[1]) : null;
+        const amount = amountMatch ? amountMatch[1].replace(/,/g, '') : null;
+
+        // Parse time range
+        let startTime = null, endTime = null;
+        if (timeRange) {
+          const timeParts = timeRange.split(' - ');
+          startTime = timeParts[0]?.trim();
+          endTime = timeParts[1]?.trim();
+        }
+
+        // Parse location
+        let venue = null, space = null;
+        if (location && location.includes(' - ')) {
+          const locationParts = location.split(' - ');
+          venue = locationParts[0]?.trim();
+          space = locationParts[1]?.trim();
+        }
+
+        return {
+          eventDate,
+          startTime,
+          endTime,
+          venue,
+          space,
+          guestCount,
+          amount: amount || "0.00"
+        };
       }
-
-      // Parse location
-      let venue = null, space = null;
-      if (location && location.includes(' - ')) {
-        const locationParts = location.split(' - ');
-        venue = locationParts[0]?.trim();
-        space = locationParts[1]?.trim();
-      }
-
-      return {
-        eventDate,
-        startTime,
-        endTime,
-        venue,
-        space,
-        guestCount,
-        amount: amount || "0.00"
-      };
     } catch (error) {
       console.warn('Error extracting event details from HTML:', error);
       return null;
@@ -209,8 +261,26 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
     }
   }, [open, proposalId, refetch]);
 
-  // Communications not yet implemented - placeholder
-  const communications: Communication[] = [];
+  // Fetch all communications to see what's available
+  const { data: communications = [] } = useQuery<Communication[]>({
+    queryKey: ["/api/communications"],
+    enabled: !!proposalId && open,
+    select: (data: Communication[]) => {
+      // Filter communications related to this proposal's customer
+      const customerId = proposal?.customer_id || proposal?.customerId;
+      if (!customerId) return data;
+
+      // For now, return all communications and log them to see structure
+      console.log('All communications:', data);
+      console.log('Proposal customer ID:', customerId);
+
+      return data.filter((comm: any) =>
+        comm.customer_id === customerId ||
+        comm.customerId === customerId ||
+        comm.to?.includes(proposal?.customer_email || proposal?.email || '')
+      );
+    }
+  });
 
   // Fetch related events/bookings
   const { data: bookings = [] } = useQuery<Booking[]>({
@@ -249,33 +319,58 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
 
     if (hasEventData) {
       console.log('Using event data from proposal (database or HTML)');
-      const eventData = htmlEventDetails || {
-        eventDate: proposal.event_date,
-        startTime: proposal.start_time,
-        endTime: proposal.end_time,
-        venue: proposal.venue_name,
-        space: null,
-        guestCount: proposal.guest_count,
-        amount: proposal.total_amount
-      };
 
-      return [{
-        id: `proposal-event-${proposal.id}`,
-        eventName: proposal.title ? proposal.title.replace(/^Proposal for\s+/i, '') : 'Untitled Event',
-        eventType: proposal.event_type || 'corporate',
-        customerId: proposal.customer_id,
-        venueId: proposal.venue_id || '',
-        spaceId: proposal.space_id || '',
-        eventDate: eventData.eventDate,
-        startTime: eventData.startTime || '09:00',
-        endTime: eventData.endTime || '17:00',
-        guestCount: eventData.guestCount || 1,
-        status: 'proposal_shared',
-        totalAmount: eventData.amount || proposal.total_amount || '0.00',
-        notes: `Proposal: ${proposal.title || 'Untitled'}`,
-        venue: eventData.venue,
-        space: eventData.space
-      }];
+      // Handle both single events and multi-date events
+      if (Array.isArray(htmlEventDetails)) {
+        // Multi-date event from HTML
+        console.log('Processing multi-date event with', htmlEventDetails.length, 'dates');
+        return htmlEventDetails.map((eventData, index) => ({
+          id: `proposal-event-${proposal.id}-${index}`,
+          eventName: proposal.title ? proposal.title.replace(/^Proposal for\s+/i, '') : 'Untitled Event',
+          eventType: proposal.event_type || 'corporate',
+          customerId: proposal.customer_id,
+          venueId: proposal.venue_id || '',
+          spaceId: proposal.space_id || '',
+          eventDate: eventData.eventDate,
+          startTime: eventData.startTime || '09:00',
+          endTime: eventData.endTime || '17:00',
+          guestCount: eventData.guestCount || 1,
+          status: 'proposal_shared',
+          totalAmount: eventData.amount || proposal.total_amount || '0.00',
+          notes: `Proposal: ${proposal.title || 'Untitled'} (Date ${index + 1})`,
+          venue: eventData.venue,
+          space: eventData.space
+        }));
+      } else {
+        // Single event (from HTML or database)
+        const eventData = htmlEventDetails || {
+          eventDate: proposal.event_date,
+          startTime: proposal.start_time,
+          endTime: proposal.end_time,
+          venue: proposal.venue_name,
+          space: null,
+          guestCount: proposal.guest_count,
+          amount: proposal.total_amount
+        };
+
+        return [{
+          id: `proposal-event-${proposal.id}`,
+          eventName: proposal.title ? proposal.title.replace(/^Proposal for\s+/i, '') : 'Untitled Event',
+          eventType: proposal.event_type || 'corporate',
+          customerId: proposal.customer_id,
+          venueId: proposal.venue_id || '',
+          spaceId: proposal.space_id || '',
+          eventDate: eventData.eventDate,
+          startTime: eventData.startTime || '09:00',
+          endTime: eventData.endTime || '17:00',
+          guestCount: eventData.guestCount || 1,
+          status: 'proposal_shared',
+          totalAmount: eventData.amount || proposal.total_amount || '0.00',
+          notes: `Proposal: ${proposal.title || 'Untitled'}`,
+          venue: eventData.venue,
+          space: eventData.space
+        }];
+      }
     }
 
     // FIRST: Try direct proposal ID matching (most reliable)
@@ -349,14 +444,19 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
         // Use the global email service for sending emails
         const response = await fetch("/api/send-communication-email", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem('authToken')}`
+          },
           body: JSON.stringify({
             to: customer?.email,
             subject: data.subject || 'Follow-up on your event proposal',
             customerName: customer?.name,
             content: data.content,
             type: "follow-up",
-            emailType: "follow-up"
+            emailType: "follow-up",
+            customerId: customer?.id,
+            proposalId: proposalId
           })
         });
 
@@ -380,6 +480,9 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
       setNewMessage("");
       setEmailSubject("");
       setAttachments([]);
+
+      // Refresh the communications list
+      queryClient.invalidateQueries({ queryKey: ["/api/communications"] });
     },
     onError: () => {
       toast({
@@ -400,14 +503,19 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
       // Resend the proposal email using the global email service
       const response = await fetch("/api/send-communication-email", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem('authToken')}`
+        },
         body: JSON.stringify({
           to: customer.email,
           subject: `Event Proposal: ${proposal.title?.replace(/^Proposal for\s+/i, '') || 'Your Event'}`,
           customerName: customer.name,
           content: proposal.content, // Use the existing HTML content
           type: "proposal",
-          emailType: "proposal"
+          emailType: "proposal",
+          customerId: customer.id,
+          proposalId: proposalId
         })
       });
 
@@ -424,6 +532,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
         description: "The proposal has been resent to the customer with updated event details"
       });
       queryClient.invalidateQueries({ queryKey: [`/api/proposals?id=${proposalId}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/communications"] });
     },
     onError: (error: any) => {
       console.error('Resend proposal error:', error);
