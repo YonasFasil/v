@@ -450,7 +450,7 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${localStorage.getItem('authToken')}`
+            "Authorization": `Bearer ${localStorage.getItem('super_admin_token') || localStorage.getItem('auth_token')}`
           },
           body: JSON.stringify({
             to: customer?.email,

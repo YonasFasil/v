@@ -199,7 +199,7 @@ This proposal is valid for 30 days from the date of this email.`);
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem('authToken')}`
+          "Authorization": `Bearer ${localStorage.getItem('super_admin_token') || localStorage.getItem('auth_token')}`
         },
         body: JSON.stringify({
           to: emailTo,
