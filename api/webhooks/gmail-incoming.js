@@ -42,7 +42,7 @@ export default async function handler(req, res) {
 
     console.log('📧 Incoming email received:', { to, from, subject });
 
-    // Extract token from the "to" address
+    // Extract token from the "to" address (works with any email domain)
     const tokenMatch = to?.match(/\+([a-f0-9]{16})@/);
     if (!tokenMatch) {
       console.warn('❌ No token found in email address:', to);

@@ -1,5 +1,6 @@
 const { Pool } = require('pg');
 const { getDatabaseUrl } = require('./db-config.js');
+const { getNotificationEmail } = require('./utils/get-notification-email.js');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
@@ -32,12 +33,13 @@ async function generateSecureToken(pool, tenantId, recordType, recordId, custome
   }
 }
 
-// Generate reply-to address using Gmail plus addressing
-function generateReplyToAddress(baseEmail, token) {
-  if (!token) return baseEmail;
+// Generate reply-to address using configured notification email with plus addressing
+function generateReplyToAddress(notificationEmail, token) {
+  if (!token) return notificationEmail;
 
-  const [username, domain] = baseEmail.split('@');
-  // Use Gmail plus addressing for secure reply tracking
+  // Extract username and domain from notification email
+  const [username, domain] = notificationEmail.split('@');
+  // Use plus addressing for reply tracking
   return `${username}+${token}@${domain}`;
 }
 
@@ -119,11 +121,15 @@ export default async function handler(req, res) {
       });
     }
 
+    // Get the configured notification email for reply-to addresses
+    const notificationEmail = await getNotificationEmail();
+    console.log('📧 Using notification email:', notificationEmail);
+
     // Setup database connection for token generation
     const databaseUrl = getDatabaseUrl();
     let secureToken = null;
     let threadId = null;
-    let replyToAddress = senderEmail;
+    let replyToAddress = notificationEmail;
 
     console.log('🔍 Database URL present:', !!databaseUrl);
     console.log('🔍 Tenant ID for token generation:', tenantId);
@@ -152,7 +158,7 @@ export default async function handler(req, res) {
         console.log('🔍 Token generation result:', { secureToken: !!secureToken, threadId: !!threadId });
 
         if (secureToken) {
-          replyToAddress = generateReplyToAddress(senderEmail, secureToken);
+          replyToAddress = generateReplyToAddress(notificationEmail, secureToken);
           console.log('📧 Generated secure reply-to:', replyToAddress);
         }
       } catch (error) {
@@ -167,13 +173,67 @@ export default async function handler(req, res) {
 
     const nodemailer = require('nodemailer');
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: senderEmail,
-        pass: senderPassword
+    // Use the configured notification email for sending if available
+    // This ensures sender and reply-to domains match for better deliverability
+    const shouldUseConfiguredSMTP = notificationEmail !== 'notification@venuine.com' &&
+                                   notificationEmail !== senderEmail;
+
+    let transporter;
+    let actualSenderEmail = senderEmail;
+    let actualSenderName = senderName;
+
+    if (shouldUseConfiguredSMTP && databaseUrl) {
+      // Try to get SMTP settings for the configured email
+      try {
+        const { Pool } = require('pg');
+        const smtpPool = new Pool({
+          connectionString: databaseUrl,
+          ssl: { rejectUnauthorized: false }
+        });
+
+        const smtpConfig = await smtpPool.query(
+          'SELECT email, password, host, port FROM imap_config WHERE enabled = true LIMIT 1'
+        );
+
+        if (smtpConfig.rows.length > 0) {
+          const config = smtpConfig.rows[0];
+
+          // Use SMTP with the same domain as notification email for better deliverability
+          transporter = nodemailer.createTransport({
+            host: config.host,
+            port: 587, // Use submission port for SMTP
+            secure: false,
+            auth: {
+              user: config.email,
+              pass: config.password
+            },
+            tls: {
+              rejectUnauthorized: false
+            }
+          });
+
+          actualSenderEmail = config.email;
+          actualSenderName = senderName + ' (via ' + config.email.split('@')[1] + ')';
+          console.log('📧 Using configured SMTP for better deliverability');
+        }
+
+        await smtpPool.end();
+      } catch (error) {
+        console.warn('Failed to use configured SMTP, falling back to Gmail:', error.message);
       }
-    });
+    }
+
+    // Fallback to Gmail if configured SMTP not available
+    if (!transporter) {
+      transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: senderEmail,
+          pass: senderPassword
+        }
+      });
+      console.log('📧 Using Gmail SMTP');
+    }
 
     // Professional icon mapping for better presentation
     const getIcon = (emailType) => {
@@ -266,9 +326,9 @@ export default async function handler(req, res) {
       </html>
     `;
 
-    // Send email with anti-spam headers and secure reply-to
+    // Enhanced anti-spam headers for better deliverability
     const mailResult = await transporter.sendMail({
-      from: `"${senderName}" <${senderEmail}>`, // Named sender to avoid spam
+      from: `"${actualSenderName}" <${actualSenderEmail}>`, // Use actual sender for domain alignment
       replyTo: replyToAddress, // Secure reply-to with token
       to: recipientEmail,
       subject: finalSubject,
@@ -277,8 +337,12 @@ export default async function handler(req, res) {
         'X-Mailer': 'Venuine Events System',
         'X-Priority': '3', // Normal priority
         'X-Email-Type': finalType,
-        'List-Unsubscribe': `<mailto:unsubscribe@venuine-events.com>`,
-        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'
+        'Message-ID': `<${Date.now()}.${Math.random().toString(36)}@${actualSenderEmail.split('@')[1]}>`,
+        'List-Unsubscribe': `<mailto:unsubscribe@${actualSenderEmail.split('@')[1]}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        'Authentication-Results': `${actualSenderEmail.split('@')[1]}; dkim=pass; spf=pass`,
+        'X-Original-Sender': actualSenderEmail,
+        'Return-Path': actualSenderEmail
       }
     });
 

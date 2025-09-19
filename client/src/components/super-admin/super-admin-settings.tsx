@@ -786,6 +786,340 @@ export default function SuperAdminSettings() {
               </Alert>
             </CardContent>
           </Card>
+
+          {/* IMAP Configuration for Incoming Email */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="w-5 h-5" />
+                IMAP Email Monitoring
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Configure IMAP monitoring to automatically process incoming customer replies. The email you configure here will be used for all reply-to addresses with secure tokens.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <Alert className="bg-blue-50 border-blue-200">
+                  <Info className="h-4 w-4 text-blue-600" />
+                  <AlertDescription className="text-blue-700">
+                    <strong>Incoming Email Processing:</strong> Set up notification@venuine.com to automatically capture customer replies and display them in communication history.
+                  </AlertDescription>
+                </Alert>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="imap-email">IMAP Email Address</Label>
+                    <Input
+                      id="imap-email"
+                      type="email"
+                      placeholder="notification@venuine.com"
+                      defaultValue="notification@venuine.com"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      The email address that will receive customer replies
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="imap-password">IMAP Password</Label>
+                    <Input
+                      id="imap-password"
+                      type="password"
+                      placeholder="Enter IMAP password"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Password for the IMAP email account
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="imap-host">IMAP Host</Label>
+                    <Input
+                      id="imap-host"
+                      placeholder="mail.venuine.com"
+                      defaultValue="mail.venuine.com"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Your cPanel IMAP server hostname
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="imap-port">IMAP Port</Label>
+                    <Input
+                      id="imap-port"
+                      type="number"
+                      placeholder="993"
+                      defaultValue="993"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      IMAP port (usually 993 for SSL)
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex items-center gap-2"
+                    onClick={async () => {
+                      const email = (document.getElementById('imap-email') as HTMLInputElement)?.value;
+                      const password = (document.getElementById('imap-password') as HTMLInputElement)?.value;
+                      const host = (document.getElementById('imap-host') as HTMLInputElement)?.value;
+                      const port = (document.getElementById('imap-port') as HTMLInputElement)?.value;
+
+                      if (!email || !password || !host || !port) {
+                        toast({
+                          title: "Missing Configuration",
+                          description: "Please fill in all IMAP settings",
+                          variant: "destructive"
+                        });
+                        return;
+                      }
+
+                      try {
+                        const response = await fetch('/api/super-admin/test-imap', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${localStorage.getItem('super_admin_token')}`
+                          },
+                          body: JSON.stringify({ email, password, host, port: parseInt(port) })
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                          toast({
+                            title: "IMAP Connection Successful",
+                            description: "Successfully connected to the IMAP server",
+                          });
+                        } else {
+                          toast({
+                            title: "IMAP Connection Failed",
+                            description: result.message || "Failed to connect to IMAP server",
+                            variant: "destructive"
+                          });
+                        }
+                      } catch (error) {
+                        toast({
+                          title: "Test Failed",
+                          description: "Network error while testing IMAP connection",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
+                  >
+                    <TestTube className="w-4 h-4" />
+                    Test IMAP Connection
+                  </Button>
+
+                  <Button
+                    type="button"
+                    className="flex items-center gap-2"
+                    onClick={async () => {
+                      const email = (document.getElementById('imap-email') as HTMLInputElement)?.value;
+                      const password = (document.getElementById('imap-password') as HTMLInputElement)?.value;
+                      const host = (document.getElementById('imap-host') as HTMLInputElement)?.value;
+                      const port = (document.getElementById('imap-port') as HTMLInputElement)?.value;
+
+                      if (!email || !password || !host || !port) {
+                        toast({
+                          title: "Missing Configuration",
+                          description: "Please fill in all IMAP settings",
+                          variant: "destructive"
+                        });
+                        return;
+                      }
+
+                      try {
+                        const response = await fetch('/api/super-admin/configure-imap', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${localStorage.getItem('super_admin_token')}`
+                          },
+                          body: JSON.stringify({
+                            email,
+                            password,
+                            host,
+                            port: parseInt(port),
+                            enabled: true
+                          })
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                          toast({
+                            title: "IMAP Configuration Saved",
+                            description: "Email monitoring is now active for incoming replies",
+                          });
+                        } else {
+                          toast({
+                            title: "Configuration Failed",
+                            description: result.message || "Failed to save IMAP configuration",
+                            variant: "destructive"
+                          });
+                        }
+                      } catch (error) {
+                        toast({
+                          title: "Save Failed",
+                          description: "Network error while saving IMAP configuration",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
+                  >
+                    <Save className="w-4 h-4" />
+                    Save IMAP Configuration
+                  </Button>
+
+                  <Button
+                    type="button"
+                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                    onClick={async () => {
+                      try {
+                        const response = await fetch('/api/super-admin/start-email-monitoring', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${localStorage.getItem('super_admin_token')}`
+                          }
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                          toast({
+                            title: "Email Monitoring Started",
+                            description: "IMAP email monitoring service is now active and processing incoming emails",
+                          });
+                        } else {
+                          toast({
+                            title: "Failed to Start Monitoring",
+                            description: result.message || "Failed to start email monitoring service",
+                            variant: "destructive"
+                          });
+                        }
+                      } catch (error) {
+                        toast({
+                          title: "Start Failed",
+                          description: "Network error while starting email monitoring",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
+                  >
+                    <Zap className="w-4 h-4" />
+                    Start Email Monitoring
+                  </Button>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-medium mb-2">How Incoming Email Processing Works:</h4>
+                  <div className="space-y-1 text-sm text-muted-foreground">
+                    <div className="flex items-start gap-2">
+                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <span>Customer receives proposal email with reply-to: [your-email]+token@[your-domain]</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <span>Customer replies to the email from their own email client</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <span>System monitors your configured IMAP email via IMAP</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <span>Reply automatically appears in communication history</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Email Deliverability Guide */}
+                <Alert className="bg-amber-50 border-amber-200">
+                  <Shield className="h-4 w-4" />
+                  <AlertDescription>
+                    <h4 className="font-medium mb-2">📧 Email Deliverability Best Practices</h4>
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <strong>To avoid spam filters:</strong>
+                        <ul className="ml-4 mt-1 space-y-1 list-disc">
+                          <li>Set up SPF record: <code className="bg-white px-1 rounded">v=spf1 include:your-mail-server.com ~all</code></li>
+                          <li>Configure DKIM signing in your cPanel/mail server</li>
+                          <li>Set DMARC policy: <code className="bg-white px-1 rounded">v=DMARC1; p=quarantine; rua=mailto:dmarc@yourdomain.com</code></li>
+                          <li>Use the same domain for sending and reply-to addresses</li>
+                          <li>Start with low email volumes and gradually increase</li>
+                        </ul>
+                      </div>
+                      <div className="pt-2 border-t border-amber-200">
+                        <strong>Recommended Setup:</strong> Configure your email server (e.g., cPanel) to handle both sending and receiving for optimal deliverability.
+                      </div>
+                      <div className="pt-2 border-t border-amber-200">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center gap-2"
+                          onClick={async () => {
+                            const email = (document.getElementById('imap-email') as HTMLInputElement)?.value;
+                            if (!email) {
+                              toast({
+                                title: "No Email Configured",
+                                description: "Please enter an email address first",
+                                variant: "destructive"
+                              });
+                              return;
+                            }
+
+                            const domain = email.split('@')[1];
+                            try {
+                              const response = await fetch('/api/super-admin/check-email-deliverability', {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  'Authorization': `Bearer ${localStorage.getItem('super_admin_token')}`
+                                },
+                                body: JSON.stringify({ domain })
+                              });
+
+                              const result = await response.json();
+
+                              if (result.success) {
+                                toast({
+                                  title: `Deliverability Score: ${result.deliverabilityScore}%`,
+                                  description: result.recommendation,
+                                });
+                              } else {
+                                toast({
+                                  title: "Check Failed",
+                                  description: result.message || "Failed to check email deliverability",
+                                  variant: "destructive"
+                                });
+                              }
+                            } catch (error) {
+                              toast({
+                                title: "Check Failed",
+                                description: "Network error while checking deliverability",
+                                variant: "destructive"
+                              });
+                            }
+                          }}
+                        >
+                          <Shield className="w-4 h-4" />
+                          Check Email Deliverability
+                        </Button>
+                      </div>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
