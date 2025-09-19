@@ -113,6 +113,8 @@ export default async function handler(req, res) {
     const senderEmail = process.env.GLOBAL_EMAIL_ADDRESS;
     const senderPassword = process.env.GLOBAL_EMAIL_PASSWORD;
     const senderName = process.env.GLOBAL_EMAIL_NAME || 'Venuine Events';
+    const smtpHost = process.env.GLOBAL_EMAIL_HOST;
+    const smtpPort = process.env.GLOBAL_EMAIL_PORT;
 
     if (!senderEmail || !senderPassword) {
       return res.status(400).json({
@@ -223,16 +225,34 @@ export default async function handler(req, res) {
       }
     }
 
-    // Fallback to Gmail if configured SMTP not available
+    // Fallback to environment SMTP or Gmail
     if (!transporter) {
-      transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: senderEmail,
-          pass: senderPassword
-        }
-      });
-      console.log('📧 Using Gmail SMTP');
+      // Check if cPanel SMTP is configured in environment
+      if (smtpHost && smtpPort) {
+        transporter = nodemailer.createTransport({
+          host: smtpHost,
+          port: parseInt(smtpPort),
+          secure: parseInt(smtpPort) === 465,
+          auth: {
+            user: senderEmail,
+            pass: senderPassword
+          },
+          tls: {
+            rejectUnauthorized: false
+          }
+        });
+        console.log('📧 Using cPanel SMTP from environment');
+      } else {
+        // Fallback to Gmail
+        transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: senderEmail,
+            pass: senderPassword
+          }
+        });
+        console.log('📧 Using Gmail SMTP');
+      }
     }
 
     // Professional icon mapping for better presentation
