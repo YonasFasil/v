@@ -402,6 +402,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Email reply checking endpoint
+  app.post("/api/check-email-replies", requireSuperAdmin, async (req: AuthenticatedRequest, res) => {
+    console.log('[EMAIL-REPLIES] Checking for customer email replies...');
+    try {
+      // Import the email checking logic
+      const { checkEmailReplies } = await import('./services/email-reply-checker');
+      const result = await checkEmailReplies();
+      res.json(result);
+    } catch (error: any) {
+      console.error('Error checking email replies:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to check email replies"
+      });
+    }
+  });
+
   console.log('[ROUTES] Super admin email routes registered successfully');
 
   // Apply tenant resolution middleware to all routes
