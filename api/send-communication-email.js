@@ -114,55 +114,19 @@ export default async function handler(req, res) {
       console.warn('❌ No valid Authorization header found');
     }
 
-    // Get database URL to fetch IMAP configuration
-    const databaseUrl = getDatabaseUrl();
-    let senderEmail = null;
-    let senderPassword = null;
-    let smtpHost = null;
-    let smtpPort = null;
-    let senderName = 'Venuine Events';
+    // Use ONLY environment variables for email configuration
+    const senderEmail = process.env.GLOBAL_EMAIL_ADDRESS;
+    const senderPassword = process.env.GLOBAL_EMAIL_PASSWORD;
+    const smtpHost = process.env.GLOBAL_EMAIL_HOST;
+    const smtpPort = process.env.GLOBAL_EMAIL_PORT;
+    const senderName = 'Venuine Events';
 
-    // Try to get IMAP configuration from database first
-    if (databaseUrl) {
-      try {
-        const { Pool } = require('pg');
-        const configPool = new Pool({
-          connectionString: databaseUrl,
-          ssl: { rejectUnauthorized: false }
-        });
-
-        const imapConfig = await configPool.query(
-          'SELECT email, password, host, port FROM imap_config WHERE enabled = true LIMIT 1'
-        );
-
-        if (imapConfig.rows.length > 0) {
-          const config = imapConfig.rows[0];
-          senderEmail = config.email;
-          senderPassword = config.password;
-          smtpHost = config.host;
-          smtpPort = 465; // Use SSL port for SMTP
-          console.log('📧 Using IMAP configuration from database:', senderEmail);
-        }
-
-        await configPool.end();
-      } catch (error) {
-        console.error('Failed to get IMAP config:', error.message);
-      }
-    }
-
-    // Fallback to environment variables (Gmail) if no IMAP config
-    if (!senderEmail || !senderPassword) {
-      senderEmail = process.env.GLOBAL_EMAIL_ADDRESS;
-      senderPassword = process.env.GLOBAL_EMAIL_PASSWORD;
-      smtpHost = process.env.GLOBAL_EMAIL_HOST;
-      smtpPort = process.env.GLOBAL_EMAIL_PORT;
-      console.log('📧 Using Gmail fallback configuration');
-    }
+    console.log('📧 Using IMAP configuration from environment variables:', senderEmail);
 
     if (!senderEmail || !senderPassword) {
       return res.status(400).json({
         error: 'Email configuration missing',
-        message: 'Please configure IMAP email settings in Super Admin panel or check Gmail environment variables.'
+        message: 'Please configure IMAP email settings in Vercel environment variables.'
       });
     }
 
@@ -218,102 +182,33 @@ export default async function handler(req, res) {
 
     const nodemailer = require('nodemailer');
 
-    // Use the configured notification email for sending if available
-    // This ensures sender and reply-to domains match for better deliverability
-    const shouldUseConfiguredSMTP = notificationEmail !== 'notification@venuine.com' &&
-                                   notificationEmail !== senderEmail;
-
+    // Create transporter using environment variables only
     let transporter;
-    let actualSenderEmail = senderEmail;
-    let actualSenderName = senderName;
-
-    if (shouldUseConfiguredSMTP && databaseUrl) {
-      // Try to get SMTP settings for the configured email
-      try {
-        const { Pool } = require('pg');
-        const smtpPool = new Pool({
-          connectionString: databaseUrl,
-          ssl: { rejectUnauthorized: false }
-        });
-
-        const smtpConfig = await smtpPool.query(
-          'SELECT email, password, host, port FROM imap_config WHERE enabled = true LIMIT 1'
-        );
-
-        if (smtpConfig.rows.length > 0) {
-          const config = smtpConfig.rows[0];
-
-          // Use SMTP with the same domain as notification email for better deliverability
-          transporter = nodemailer.createTransport({
-            host: config.host,
-            port: 587, // Use submission port for SMTP
-            secure: false,
-            auth: {
-              user: config.email,
-              pass: config.password
-            },
-            tls: {
-              rejectUnauthorized: false
-            }
-          });
-
-          actualSenderEmail = config.email;
-          actualSenderName = senderName + ' (via ' + config.email.split('@')[1] + ')';
-          console.log('📧 Using configured SMTP for better deliverability');
+    if (smtpHost && smtpPort) {
+      // Use custom SMTP (cPanel)
+      transporter = nodemailer.createTransporter({
+        host: smtpHost,
+        port: parseInt(smtpPort),
+        secure: parseInt(smtpPort) === 465,
+        auth: {
+          user: senderEmail,
+          pass: senderPassword
+        },
+        tls: {
+          rejectUnauthorized: false
         }
-
-        await smtpPool.end();
-      } catch (error) {
-        console.warn('Failed to use configured SMTP, falling back to Gmail:', error.message);
-      }
-    }
-
-    // Fallback to environment SMTP or Gmail
-    if (!transporter) {
-      // Check if cPanel SMTP is configured in environment
-      if (smtpHost && smtpPort) {
-        transporter = nodemailer.createTransport({
-          host: smtpHost,
-          port: parseInt(smtpPort),
-          secure: parseInt(smtpPort) === 465,
-          auth: {
-            user: senderEmail,
-            pass: senderPassword
-          },
-          tls: {
-            rejectUnauthorized: false
-          }
-        });
-        console.log('📧 Using cPanel SMTP from environment');
-      } else {
-        // Check if this is Gmail (no custom SMTP host configured)
-        if (!smtpHost) {
-          // Use Gmail SMTP
-          transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-              user: senderEmail,
-              pass: senderPassword
-            }
-          });
-          console.log('📧 Using Gmail SMTP fallback');
-        } else {
-          // Use custom SMTP settings
-          transporter = nodemailer.createTransport({
-            host: smtpHost,
-            port: parseInt(smtpPort) || 587,
-            secure: parseInt(smtpPort) === 465,
-            auth: {
-              user: senderEmail,
-              pass: senderPassword
-            },
-            tls: {
-              rejectUnauthorized: false
-            }
-          });
-          console.log('📧 Using custom SMTP configuration');
+      });
+      console.log('📧 Using cPanel SMTP from environment variables');
+    } else {
+      // Use Gmail if no custom SMTP host
+      transporter = nodemailer.createTransporter({
+        service: 'gmail',
+        auth: {
+          user: senderEmail,
+          pass: senderPassword
         }
-      }
+      });
+      console.log('📧 Using Gmail SMTP from environment variables');
     }
 
     // Professional icon mapping for better presentation
@@ -408,71 +303,24 @@ export default async function handler(req, res) {
     `;
 
     // Enhanced anti-spam headers for better deliverability
-    let mailResult;
-    try {
-      mailResult = await transporter.sendMail({
-        from: `"${actualSenderName}" <${actualSenderEmail}>`, // Use actual sender for domain alignment
-        replyTo: replyToAddress, // Secure reply-to with token
-        to: recipientEmail,
-        subject: finalSubject,
-        html: enhancedHtmlContent,
-        headers: {
-          'X-Mailer': 'Venuine Events System',
-          'X-Priority': '3', // Normal priority
-          'X-Email-Type': finalType,
-          'Message-ID': `<${Date.now()}.${Math.random().toString(36)}@${actualSenderEmail.split('@')[1]}>`,
-          'List-Unsubscribe': `<mailto:unsubscribe@${actualSenderEmail.split('@')[1]}>`,
-          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-          'Authentication-Results': `${actualSenderEmail.split('@')[1]}; dkim=pass; spf=pass`,
-          'X-Original-Sender': actualSenderEmail,
-          'Return-Path': actualSenderEmail
-        }
-      });
-    } catch (smtpError) {
-      console.error('📧 SMTP Error:', smtpError.message);
-
-      // If IMAP/custom SMTP fails, fall back to Gmail
-      if (smtpError.code === 'EAUTH' || smtpError.responseCode === 535) {
-        console.log('📧 IMAP authentication failed, falling back to Gmail...');
-
-        // Use Gmail as fallback
-        const fallbackEmail = process.env.GLOBAL_EMAIL_ADDRESS;
-        const fallbackPassword = process.env.GLOBAL_EMAIL_PASSWORD;
-
-        if (fallbackEmail && fallbackPassword) {
-          console.log('📧 Using Gmail fallback for failed IMAP');
-
-          const fallbackTransporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-              user: fallbackEmail,
-              pass: fallbackPassword
-            }
-          });
-
-          mailResult = await fallbackTransporter.sendMail({
-            from: `"${senderName}" <${fallbackEmail}>`,
-            replyTo: replyToAddress,
-            to: recipientEmail,
-            subject: finalSubject,
-            html: enhancedHtmlContent,
-            headers: {
-              'X-Mailer': 'Venuine Events System (Gmail Fallback)',
-              'X-Priority': '3',
-              'X-Email-Type': finalType
-            }
-          });
-
-          // Update sender info for logging
-          actualSenderEmail = fallbackEmail;
-          actualSenderName = senderName + ' (Gmail Fallback)';
-        } else {
-          throw new Error('IMAP authentication failed and no Gmail fallback configured');
-        }
-      } else {
-        throw smtpError; // Re-throw if not an auth error
+    const mailResult = await transporter.sendMail({
+      from: `"${senderName}" <${senderEmail}>`,
+      replyTo: replyToAddress,
+      to: recipientEmail,
+      subject: finalSubject,
+      html: enhancedHtmlContent,
+      headers: {
+        'X-Mailer': 'Venuine Events System',
+        'X-Priority': '3', // Normal priority
+        'X-Email-Type': finalType,
+        'Message-ID': `<${Date.now()}.${Math.random().toString(36)}@${senderEmail.split('@')[1]}>`,
+        'List-Unsubscribe': `<mailto:unsubscribe@${senderEmail.split('@')[1]}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        'Authentication-Results': `${senderEmail.split('@')[1]}; dkim=pass; spf=pass`,
+        'X-Original-Sender': senderEmail,
+        'Return-Path': senderEmail
       }
-    }
+    });
 
     // Record the communication in the database if we have tenant context
     if (tenantId && pool) {
@@ -569,7 +417,6 @@ export default async function handler(req, res) {
       details: error.message,
       debug: {
         ...debugInfo,
-        hasGmailFallback: !!(process.env.GLOBAL_EMAIL_ADDRESS && process.env.GLOBAL_EMAIL_PASSWORD),
         timestamp: new Date().toISOString()
       }
     });
