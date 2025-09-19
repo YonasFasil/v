@@ -78,8 +78,8 @@ export function EventSummaryModal({ open, onOpenChange, booking, onEditClick }: 
     mutationFn: async ({ bookingId, newStatus }: { bookingId: string; newStatus: EventStatus }) => {
       // Handle contract status updates differently
       if (booking?.isContract && booking?.contractInfo?.id) {
-        return apiRequest(`/api/bookings/contract/${booking.contractInfo.id}/status`, {
-          method: "PATCH", 
+        return apiRequest(`/api/bookings/contract/status?contractId=${booking.contractInfo.id}`, {
+          method: "PATCH",
           body: JSON.stringify({ status: newStatus }),
           headers: { "Content-Type": "application/json" }
         });

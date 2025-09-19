@@ -49,7 +49,7 @@ export function StatusChangeModal({ open, onOpenChange, booking, onStatusChanged
 
       // If this booking has a contractId (multi-date event), update all related bookings
       if (booking.contractId) {
-        const response = await apiRequest(`/api/bookings/contract/${booking.contractId}/status`, {
+        const response = await apiRequest(`/api/bookings/contract/status?contractId=${booking.contractId}`, {
           method: "PATCH",
           body: JSON.stringify(updateData),
           headers: { "Content-Type": "application/json" }
