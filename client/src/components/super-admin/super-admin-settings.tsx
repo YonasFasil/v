@@ -437,12 +437,12 @@ export default function SuperAdminSettings() {
                   <Info className="h-4 w-4" />
                   <AlertDescription>
                     <div className="space-y-2">
-                      <div className="font-medium">How Reply Monitoring Works:</div>
+                      <div className="font-medium">How Customer Reply Detection Works:</div>
                       <div className="text-sm space-y-1">
                         <div>• Customer receives proposal with reply-to: <code>notifications+token@venuine.com</code></div>
                         <div>• Customer replies from their email client</div>
-                        <div>• System monitors your IMAP inbox for new emails</div>
-                        <div>• Replies are automatically added to communication history</div>
+                        <div>• Click "Check for Customer Replies" to scan your inbox</div>
+                        <div>• New replies are automatically added to communication history</div>
                       </div>
                     </div>
                   </AlertDescription>
@@ -451,11 +451,10 @@ export default function SuperAdminSettings() {
                 <Button
                   onClick={async () => {
                     try {
-                      const response = await fetch('/api/super-admin/start-imap-monitoring', {
+                      const response = await fetch('/api/check-email-replies', {
                         method: 'POST',
                         headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': `Bearer ${localStorage.getItem('super_admin_token')}`
+                          'Content-Type': 'application/json'
                         }
                       });
 
@@ -463,28 +462,28 @@ export default function SuperAdminSettings() {
 
                       if (result.success) {
                         toast({
-                          title: "✅ IMAP Monitoring Started",
-                          description: "Now monitoring for customer email replies automatically",
+                          title: "✅ Email Check Complete",
+                          description: `Found ${result.newReplies?.length || 0} new customer replies`,
                         });
                       } else {
                         toast({
-                          title: "❌ Failed to Start Monitoring",
-                          description: result.message || "Could not start IMAP monitoring",
+                          title: "❌ Email Check Failed",
+                          description: result.message || "Could not check for email replies",
                           variant: "destructive"
                         });
                       }
                     } catch (error) {
                       toast({
-                        title: "❌ Monitoring Failed",
-                        description: "Network error while starting IMAP monitoring",
+                        title: "❌ Check Failed",
+                        description: "Network error while checking for email replies",
                         variant: "destructive"
                       });
                     }
                   }}
-                  className="w-full h-12 bg-green-600 hover:bg-green-700"
+                  className="w-full h-12 bg-blue-600 hover:bg-blue-700"
                 >
-                  <Shield className="w-4 h-4 mr-2" />
-                  Start IMAP Reply Monitoring
+                  <Mail className="w-4 h-4 mr-2" />
+                  Check for Customer Replies
                 </Button>
 
                 <Alert className="bg-amber-50 border-amber-200">
@@ -493,10 +492,11 @@ export default function SuperAdminSettings() {
                     <div className="space-y-2 text-sm">
                       <div className="font-medium">Important Notes:</div>
                       <ul className="ml-4 space-y-1 list-disc">
-                        <li>IMAP monitoring runs in the background to capture customer replies</li>
+                        <li>Click the button periodically to check for new customer replies</li>
                         <li>Uses port 993 (IMAP) for reading emails, port 465 (SMTP) for sending</li>
                         <li>Replies are tracked using secure tokens in the reply-to address</li>
-                        <li>Only emails with valid tokens are processed</li>
+                        <li>Only emails with valid tokens are processed and added to history</li>
+                        <li>Duplicate emails are automatically prevented</li>
                       </ul>
                     </div>
                   </AlertDescription>
