@@ -1161,6 +1161,101 @@ export default function SuperAdminSettings() {
                   </div>
                 </div>
 
+                {/* Email Testing Section */}
+                <Card className="border-green-200 bg-green-50">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-green-800">
+                      <Send className="w-5 h-5" />
+                      Test Email System
+                    </CardTitle>
+                    <p className="text-sm text-green-700">
+                      Send a test email to verify your configuration is working correctly
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="test-email">Test Email Address</Label>
+                        <Input
+                          id="test-email"
+                          type="email"
+                          placeholder="your-email@example.com"
+                          className="bg-white"
+                        />
+                        <p className="text-xs text-green-600">
+                          We'll send a test email to this address with a secure reply-to token
+                        </p>
+                      </div>
+
+                      <Button
+                        type="button"
+                        className="w-full bg-green-600 hover:bg-green-700"
+                        onClick={async () => {
+                          const testEmail = (document.getElementById('test-email') as HTMLInputElement)?.value;
+                          if (!testEmail) {
+                            toast({
+                              title: "Email Required",
+                              description: "Please enter a test email address",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
+
+                          try {
+                            const response = await fetch('/api/super-admin/test-email-sending', {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${localStorage.getItem('super_admin_token')}`
+                              },
+                              body: JSON.stringify({ testEmail })
+                            });
+
+                            const result = await response.json();
+
+                            if (result.success) {
+                              toast({
+                                title: "Test Email Sent! 📧",
+                                description: `Sent to ${result.details.to} with reply-to: ${result.details.replyTo}`,
+                              });
+                            } else {
+                              toast({
+                                title: "Test Failed",
+                                description: result.message || "Failed to send test email",
+                                variant: "destructive"
+                              });
+                            }
+                          } catch (error) {
+                            toast({
+                              title: "Test Failed",
+                              description: "Network error while sending test email",
+                              variant: "destructive"
+                            });
+                          }
+                        }}
+                      >
+                        <Send className="w-4 h-4 mr-2" />
+                        Send Test Email
+                      </Button>
+
+                      <Alert className="bg-blue-50 border-blue-200">
+                        <Info className="h-4 w-4" />
+                        <AlertDescription>
+                          <div className="space-y-2 text-sm">
+                            <div><strong>What the test email will show:</strong></div>
+                            <ul className="ml-4 space-y-1 list-disc">
+                              <li>Which email address is sending (Gmail or your IMAP email)</li>
+                              <li>What reply-to address customers will use (with secure token)</li>
+                              <li>If emails are landing in inbox vs spam folder</li>
+                              <li>Test reply functionality by responding to the email</li>
+                            </ul>
+                          </div>
+                        </AlertDescription>
+                      </Alert>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {/* Email Deliverability Guide */}
                 <Alert className="bg-amber-50 border-amber-200">
                   <Shield className="h-4 w-4" />
@@ -1179,6 +1274,21 @@ export default function SuperAdminSettings() {
                       </div>
                       <div className="pt-2 border-t border-amber-200">
                         <strong>Recommended Setup:</strong> Configure your email server (e.g., cPanel) to handle both sending and receiving for optimal deliverability.
+                      </div>
+                      <div className="pt-2 border-t border-amber-200">
+                        <h4 className="font-medium mb-2">🔧 Environment Variables Required</h4>
+                        <div className="bg-gray-900 text-green-400 p-3 rounded font-mono text-xs">
+                          <div># Required for Gmail sending (current):</div>
+                          <div>GLOBAL_EMAIL_ADDRESS=your-gmail@gmail.com</div>
+                          <div>GLOBAL_EMAIL_PASSWORD=your-app-password</div>
+                          <div className="mt-2"># Database for IMAP config storage:</div>
+                          <div>DATABASE_URL=your-postgres-url</div>
+                          <div>JWT_SECRET=your-jwt-secret</div>
+                        </div>
+                        <p className="text-xs mt-2">
+                          <strong>Note:</strong> IMAP settings are stored in database, not environment variables.
+                          Your Gmail credentials are still needed for sending emails.
+                        </p>
                       </div>
                       <div className="pt-2 border-t border-amber-200">
                         <Button
