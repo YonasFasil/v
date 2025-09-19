@@ -33,7 +33,8 @@ import {
   ChevronDown,
   ChevronRight,
   MessageCircle,
-  Shield
+  Shield,
+  Plus
 } from "lucide-react";
 
 interface Proposal {
