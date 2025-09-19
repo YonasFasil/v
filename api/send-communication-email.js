@@ -44,9 +44,11 @@ function generateReplyToAddress(notificationEmail, token) {
 }
 
 export default async function handler(req, res) {
+  // Set headers first to ensure JSON responses
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Content-Type', 'application/json');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -57,6 +59,9 @@ export default async function handler(req, res) {
   }
 
   let pool;
+
+  // Wrap everything in try-catch to prevent server crashes
+  try {
 
   try {
     const {
@@ -571,6 +576,26 @@ export default async function handler(req, res) {
   } finally {
     if (pool) {
       await pool.end();
+    }
+  }
+
+  } catch (criticalError) {
+    // Catch any unhandled errors to prevent server crashes
+    console.error('Critical email service error:', criticalError);
+
+    try {
+      return res.status(500).json({
+        error: 'Email service temporarily unavailable',
+        message: 'Please try again in a moment or contact support',
+        debug: {
+          error: criticalError.message,
+          timestamp: new Date().toISOString()
+        }
+      });
+    } catch (responseError) {
+      // If even JSON response fails, return plain text
+      console.error('Failed to send JSON error response:', responseError);
+      res.status(500).send('Email service error');
     }
   }
 }
