@@ -47,7 +47,7 @@ export default async function handler(req, res) {
       gmail: {
         configured: false,
         email: null,
-        status: 'not_configured'
+        status: 'disabled_by_admin'
       },
       imap: {
         configured: false,
@@ -58,18 +58,11 @@ export default async function handler(req, res) {
         status: 'not_configured'
       },
       current_notification_email: 'notification@venuine.com',
-      active_system: 'gmail' // default
+      active_system: 'imap', // IMAP is now the primary system
+      system_message: 'Gmail configuration has been disabled. IMAP is the primary email system.'
     };
 
-    // Check Gmail configuration
-    const gmailEmail = process.env.GLOBAL_EMAIL_ADDRESS;
-    const gmailPassword = process.env.GLOBAL_EMAIL_PASSWORD;
-
-    if (gmailEmail && gmailPassword) {
-      status.gmail.configured = true;
-      status.gmail.email = gmailEmail;
-      status.gmail.status = 'configured';
-    }
+    // Gmail is no longer checked or supported
 
     // Check IMAP configuration
     const databaseUrl = getDatabaseUrl();
@@ -108,16 +101,13 @@ export default async function handler(req, res) {
       console.warn('Failed to get notification email:', error);
     }
 
-    // Determine active system
+    // Determine active system - IMAP only
     if (status.imap.configured && status.imap.enabled) {
-      if (status.current_notification_email !== 'notification@venuine.com' &&
-          status.current_notification_email !== status.gmail.email) {
-        status.active_system = 'imap';
-      } else {
-        status.active_system = 'gmail_with_imap_monitoring';
-      }
+      status.active_system = 'imap';
+      status.system_message = `IMAP email system active: ${status.imap.email}`;
     } else {
-      status.active_system = 'gmail';
+      status.active_system = 'not_configured';
+      status.system_message = 'No email system configured. Please configure IMAP email settings.';
     }
 
     return res.json({

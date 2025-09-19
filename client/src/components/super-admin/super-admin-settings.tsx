@@ -69,7 +69,16 @@ export default function SuperAdminSettings() {
 
   // Fetch email configuration separately with aggressive refetching
   const { data: emailConfig, isLoading: emailLoading, refetch: refetchEmailConfig, error: emailError } = useQuery<EmailConfig>({
-    queryKey: ["/api/email-status"],
+    queryKey: ["/api/super-admin/get-email-status"],
+    queryFn: async () => {
+      const response = await fetch('/api/super-admin/get-email-status', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('super_admin_token')}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch email status');
+      return response.json();
+    },
     staleTime: 0, // Always fetch fresh data
     gcTime: 0, // Don't cache the data
     refetchOnMount: "always", // Always refetch when component mounts
@@ -139,8 +148,8 @@ export default function SuperAdminSettings() {
       });
       if (variables.type === 'email') {
         // Force refetch of email configuration
-        queryClient.removeQueries({ queryKey: ["/api/email-status"] }); // Remove from cache completely
-        await queryClient.invalidateQueries({ queryKey: ["/api/email-status"] });
+        queryClient.removeQueries({ queryKey: ["/api/super-admin/get-email-status"] }); // Remove from cache completely
+        await queryClient.invalidateQueries({ queryKey: ["/api/super-admin/get-email-status"] });
         await refetchEmailConfig();
         // Double check after a short delay
         setTimeout(() => {
@@ -833,16 +842,21 @@ export default function SuperAdminSettings() {
                           📧 Current Email System: {
                             emailStatusData.status.active_system === 'imap'
                               ? 'IMAP (Custom Email Server)'
-                              : emailStatusData.status.active_system === 'gmail_with_imap_monitoring'
-                              ? 'Gmail with IMAP Monitoring'
-                              : 'Gmail Only'
+                              : emailStatusData.status.active_system === 'not_configured'
+                              ? 'Not Configured'
+                              : 'Unknown'
                           }
                         </div>
+                        {emailStatusData.status.system_message && (
+                          <div className="text-sm font-medium text-blue-600">
+                            {emailStatusData.status.system_message}
+                          </div>
+                        )}
                         <div className="text-sm space-y-1">
                           <div>
                             <strong>Sending emails from:</strong> {
-                              emailStatusData.status.gmail.configured
-                                ? emailStatusData.status.gmail.email
+                              emailStatusData.status.imap.configured
+                                ? emailStatusData.status.imap.email
                                 : 'Not configured'
                             }
                           </div>
@@ -1072,8 +1086,8 @@ export default function SuperAdminSettings() {
 
                         if (result.success) {
                           toast({
-                            title: "IMAP Configuration Saved",
-                            description: "Email monitoring is now active for incoming replies",
+                            title: "✅ IMAP Configuration Saved",
+                            description: `Successfully configured: ${result.currentEmail}. Gmail configuration has been disabled.`,
                           });
                           // Refresh email status
                           refetchEmailStatus();

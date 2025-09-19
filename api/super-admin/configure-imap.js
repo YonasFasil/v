@@ -109,7 +109,7 @@ export default async function handler(req, res) {
 
     return res.json({
       success: true,
-      message: 'IMAP configuration saved successfully',
+      message: `IMAP configuration saved successfully. Currently using: ${email}`,
       config: {
         id: result.rows[0].id,
         email: result.rows[0].email,
@@ -117,7 +117,9 @@ export default async function handler(req, res) {
         port: result.rows[0].port,
         enabled: result.rows[0].enabled,
         updated_at: result.rows[0].updated_at
-      }
+      },
+      currentEmail: email,
+      systemStatus: 'IMAP email system active - Gmail configuration disabled'
     });
 
   } catch (error) {

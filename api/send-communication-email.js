@@ -109,17 +109,46 @@ export default async function handler(req, res) {
       console.warn('❌ No valid Authorization header found');
     }
 
-    // Get environment variables
-    const senderEmail = process.env.GLOBAL_EMAIL_ADDRESS;
-    const senderPassword = process.env.GLOBAL_EMAIL_PASSWORD;
-    const senderName = process.env.GLOBAL_EMAIL_NAME || 'Venuine Events';
-    const smtpHost = process.env.GLOBAL_EMAIL_HOST;
-    const smtpPort = process.env.GLOBAL_EMAIL_PORT;
+    // Get database URL to fetch IMAP configuration
+    const databaseUrl = getDatabaseUrl();
+    let senderEmail = null;
+    let senderPassword = null;
+    let smtpHost = null;
+    let smtpPort = null;
+    let senderName = 'Venuine Events';
+
+    // Try to get IMAP configuration from database first
+    if (databaseUrl) {
+      try {
+        const { Pool } = require('pg');
+        const configPool = new Pool({
+          connectionString: databaseUrl,
+          ssl: { rejectUnauthorized: false }
+        });
+
+        const imapConfig = await configPool.query(
+          'SELECT email, password, host, port FROM imap_config WHERE enabled = true LIMIT 1'
+        );
+
+        if (imapConfig.rows.length > 0) {
+          const config = imapConfig.rows[0];
+          senderEmail = config.email;
+          senderPassword = config.password;
+          smtpHost = config.host;
+          smtpPort = 465; // Use SSL port for SMTP
+          console.log('📧 Using IMAP configuration from database:', senderEmail);
+        }
+
+        await configPool.end();
+      } catch (error) {
+        console.error('Failed to get IMAP config:', error.message);
+      }
+    }
 
     if (!senderEmail || !senderPassword) {
       return res.status(400).json({
-        error: 'Email configuration missing',
-        message: 'Set GLOBAL_EMAIL_ADDRESS and GLOBAL_EMAIL_PASSWORD in Vercel'
+        error: 'IMAP email configuration missing',
+        message: 'Please configure IMAP email settings in Super Admin panel. Gmail configuration is no longer supported.'
       });
     }
 
@@ -243,15 +272,20 @@ export default async function handler(req, res) {
         });
         console.log('📧 Using cPanel SMTP from environment');
       } else {
-        // Fallback to Gmail
+        // Use default SMTP settings for IMAP configuration
         transporter = nodemailer.createTransport({
-          service: 'gmail',
+          host: smtpHost || 'mail.venuine.com',
+          port: 587,
+          secure: false,
           auth: {
             user: senderEmail,
             pass: senderPassword
+          },
+          tls: {
+            rejectUnauthorized: false
           }
         });
-        console.log('📧 Using Gmail SMTP');
+        console.log('📧 Using default IMAP SMTP configuration');
       }
     }
 
