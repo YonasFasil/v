@@ -1,6 +1,14 @@
 module.exports = async function handler(req, res) {
   // Handle specific contract operations by ID
   const { id } = req.query;
+
+  // Check if this is a status update request
+  if (req.url && req.url.includes('/status')) {
+    // Redirect to the status handler
+    const statusHandler = require('./[id]/status.js');
+    return statusHandler.default(req, res);
+  }
+
   const tenantHandler = require('../../tenant.js');
 
   // DEBUGGING: Log contract endpoint routing
