@@ -852,8 +852,43 @@ export function ProposalTrackingModal({ open, onOpenChange, proposalId }: Props)
 
             {/* Communication Log */}
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-lg">Communication History</CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const replyContent = prompt("Enter customer's reply content:");
+                    if (replyContent) {
+                      // Record manual reply
+                      fetch("/api/communications", {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          "Authorization": `Bearer ${localStorage.getItem('super_admin_token') || localStorage.getItem('auth_token')}`
+                        },
+                        body: JSON.stringify({
+                          type: "reply",
+                          subject: "Re: Customer Reply",
+                          message: replyContent,
+                          sender: proposal?.customer_email || "customer@example.com",
+                          recipient: "system@venuine-events.com",
+                          customer_id: proposal?.customer_id || proposal?.customerId,
+                          proposal_id: proposalId,
+                          status: "received",
+                          direction: "inbound"
+                        })
+                      }).then(() => {
+                        // Refresh communications
+                        window.location.reload();
+                      }).catch(console.error);
+                    }
+                  }}
+                  className="text-xs"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add Reply
+                </Button>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4 max-h-64 overflow-y-auto">

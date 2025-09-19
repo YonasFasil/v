@@ -1522,6 +1522,48 @@ module.exports = async function handler(req, res) {
           return res.json([]);
         }
       }
+
+      if (req.method === 'POST') {
+        try {
+          const {
+            type = 'email',
+            subject,
+            message,
+            sender,
+            recipient,
+            customer_id,
+            booking_id,
+            proposal_id,
+            status = 'sent',
+            direction = 'outbound'
+          } = req.body;
+
+          if (!message || !sender) {
+            return res.status(400).json({ message: 'Message and sender are required' });
+          }
+
+          const { v4: uuidv4 } = require('uuid');
+          const communicationId = uuidv4();
+
+          const newCommunication = await pool.query(`
+            INSERT INTO communications (
+              id, tenant_id, type, subject, message, sender, recipient,
+              customer_id, booking_id, proposal_id, status, sent_at, direction
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), $12)
+            RETURNING *
+          `, [
+            communicationId, tenantId, type, subject || 'Communication',
+            message, sender, recipient || 'system@venuine-events.com',
+            customer_id || null, booking_id || null, proposal_id || null,
+            status, direction
+          ]);
+
+          return res.status(201).json(newCommunication.rows[0]);
+        } catch (error) {
+          console.error('Communication creation error:', error);
+          return res.status(500).json({ message: 'Failed to create communication' });
+        }
+      }
     }
 
     // PAYMENTS
