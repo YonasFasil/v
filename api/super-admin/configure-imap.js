@@ -122,10 +122,14 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('IMAP configuration error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Database URL present:', !!getDatabaseUrl());
+
     return res.status(500).json({
       success: false,
       message: 'Failed to save IMAP configuration',
-      error: error.message
+      error: error.message,
+      details: error.stack
     });
   } finally {
     if (pool) {

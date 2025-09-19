@@ -48,6 +48,7 @@ interface EmailConfig {
 
 export default function SuperAdminSettings() {
   const { toast } = useToast();
+  const [emailStatus, setEmailStatus] = useState(null);
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("stripe");
   const [testEmailAddress, setTestEmailAddress] = useState("");
@@ -77,6 +78,22 @@ export default function SuperAdminSettings() {
     retry: 1, // Only retry once on failure
     enabled: true, // Always enabled
     networkMode: "always" // Fetch even when offline
+  });
+
+  // Fetch email status to show which system is active
+  const { data: emailStatusData, refetch: refetchEmailStatus } = useQuery({
+    queryKey: ['emailStatus'],
+    queryFn: async () => {
+      const response = await fetch('/api/super-admin/get-email-status', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('super_admin_token')}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch email status');
+      return response.json();
+    },
+    staleTime: 0,
+    refetchOnMount: "always"
   });
 
   // Force refresh of email configuration on component mount and tab change
@@ -800,6 +817,107 @@ export default function SuperAdminSettings() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
+                {/* Email System Status Display */}
+                {emailStatusData?.success && (
+                  <Alert className={`${
+                    emailStatusData.status.active_system === 'imap'
+                      ? 'bg-green-50 border-green-200'
+                      : emailStatusData.status.active_system === 'gmail_with_imap_monitoring'
+                      ? 'bg-yellow-50 border-yellow-200'
+                      : 'bg-gray-50 border-gray-200'
+                  }`}>
+                    <Info className="h-4 w-4" />
+                    <AlertDescription>
+                      <div className="space-y-2">
+                        <div className="font-medium">
+                          📧 Current Email System: {
+                            emailStatusData.status.active_system === 'imap'
+                              ? 'IMAP (Custom Email Server)'
+                              : emailStatusData.status.active_system === 'gmail_with_imap_monitoring'
+                              ? 'Gmail with IMAP Monitoring'
+                              : 'Gmail Only'
+                          }
+                        </div>
+                        <div className="text-sm space-y-1">
+                          <div>
+                            <strong>Sending emails from:</strong> {
+                              emailStatusData.status.gmail.configured
+                                ? emailStatusData.status.gmail.email
+                                : 'Not configured'
+                            }
+                          </div>
+                          <div>
+                            <strong>Reply-to addresses use:</strong> {emailStatusData.status.current_notification_email}
+                          </div>
+                          {emailStatusData.status.imap.configured && (
+                            <div>
+                              <strong>IMAP monitoring:</strong> {emailStatusData.status.imap.email}
+                              <Badge className="ml-2" variant={emailStatusData.status.imap.enabled ? "default" : "secondary"}>
+                                {emailStatusData.status.imap.enabled ? "Active" : "Inactive"}
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                        <div className="pt-2 border-t">
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => refetchEmailStatus()}
+                              className="flex items-center gap-2"
+                            >
+                              <Settings className="w-3 h-3" />
+                              Refresh Status
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  const response = await fetch('/api/super-admin/debug-imap-db', {
+                                    headers: {
+                                      'Authorization': `Bearer ${localStorage.getItem('super_admin_token')}`
+                                    }
+                                  });
+                                  const result = await response.json();
+                                  console.log('🔍 Database Debug:', result);
+
+                                  if (result.success) {
+                                    const records = result.debug.records;
+                                    toast({
+                                      title: "Database Debug",
+                                      description: `Table exists: ${result.debug.tableExists}, Records: ${records.length}. Check console for details.`,
+                                    });
+                                  } else {
+                                    toast({
+                                      title: "Debug Failed",
+                                      description: result.message,
+                                      variant: "destructive"
+                                    });
+                                  }
+                                } catch (error) {
+                                  console.error('Debug error:', error);
+                                  toast({
+                                    title: "Debug Failed",
+                                    description: "Check console for details",
+                                    variant: "destructive"
+                                  });
+                                }
+                              }}
+                              className="flex items-center gap-2"
+                            >
+                              <AlertCircle className="w-3 h-3" />
+                              Debug DB
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 <Alert className="bg-blue-50 border-blue-200">
                   <Info className="h-4 w-4 text-blue-600" />
                   <AlertDescription className="text-blue-700">
@@ -957,12 +1075,15 @@ export default function SuperAdminSettings() {
                             title: "IMAP Configuration Saved",
                             description: "Email monitoring is now active for incoming replies",
                           });
+                          // Refresh email status
+                          refetchEmailStatus();
                         } else {
                           toast({
                             title: "Configuration Failed",
                             description: result.message || "Failed to save IMAP configuration",
                             variant: "destructive"
                           });
+                          console.error('IMAP save error:', result);
                         }
                       } catch (error) {
                         toast({
