@@ -420,7 +420,7 @@ export default function SuperAdminSettings() {
             </Card>
           )}
 
-          {/* IMAP Monitoring */}
+          {/* IMAP Monitoring - Customer Reply Detection */}
           {emailConfig?.configured && (
             <Card>
               <CardHeader>
