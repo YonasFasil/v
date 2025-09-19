@@ -1,4 +1,4 @@
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'PATCH, OPTIONS');
@@ -20,4 +20,4 @@ module.exports = async function handler(req, res) {
   req.query = { ...req.query, resource: 'contracts', contractId: id, action: 'status' };
 
   return tenantHandler(req, res);
-};
+}
