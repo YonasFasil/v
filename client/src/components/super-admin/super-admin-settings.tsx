@@ -420,6 +420,91 @@ export default function SuperAdminSettings() {
             </Card>
           )}
 
+          {/* IMAP Monitoring */}
+          {emailConfig?.configured && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="w-5 h-5" />
+                  Incoming Email Monitoring
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Monitor your IMAP inbox for customer replies and automatically add them to communication history
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="space-y-2">
+                      <div className="font-medium">How Reply Monitoring Works:</div>
+                      <div className="text-sm space-y-1">
+                        <div>• Customer receives proposal with reply-to: <code>notifications+token@venuine.com</code></div>
+                        <div>• Customer replies from their email client</div>
+                        <div>• System monitors your IMAP inbox for new emails</div>
+                        <div>• Replies are automatically added to communication history</div>
+                      </div>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+
+                <Button
+                  onClick={async () => {
+                    try {
+                      const response = await fetch('/api/super-admin/start-imap-monitoring', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${localStorage.getItem('super_admin_token')}`
+                        }
+                      });
+
+                      const result = await response.json();
+
+                      if (result.success) {
+                        toast({
+                          title: "✅ IMAP Monitoring Started",
+                          description: "Now monitoring for customer email replies automatically",
+                        });
+                      } else {
+                        toast({
+                          title: "❌ Failed to Start Monitoring",
+                          description: result.message || "Could not start IMAP monitoring",
+                          variant: "destructive"
+                        });
+                      }
+                    } catch (error) {
+                      toast({
+                        title: "❌ Monitoring Failed",
+                        description: "Network error while starting IMAP monitoring",
+                        variant: "destructive"
+                      });
+                    }
+                  }}
+                  className="w-full h-12 bg-green-600 hover:bg-green-700"
+                >
+                  <Shield className="w-4 h-4 mr-2" />
+                  Start IMAP Reply Monitoring
+                </Button>
+
+                <Alert className="bg-amber-50 border-amber-200">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="space-y-2 text-sm">
+                      <div className="font-medium">Important Notes:</div>
+                      <ul className="ml-4 space-y-1 list-disc">
+                        <li>IMAP monitoring runs in the background to capture customer replies</li>
+                        <li>Uses port 993 (IMAP) for reading emails, port 465 (SMTP) for sending</li>
+                        <li>Replies are tracked using secure tokens in the reply-to address</li>
+                        <li>Only emails with valid tokens are processed</li>
+                      </ul>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Email Service Information */}
           <Card>
             <CardHeader>
