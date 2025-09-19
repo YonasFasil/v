@@ -287,7 +287,7 @@ export function AdvancedCalendar({ onEventClick }: AdvancedCalendarProps) {
                     </div>
                     
                     {/* Enhanced Event Cards */}
-                    <div className="space-y-2 max-h-32 overflow-y-auto">
+                    <div className="space-y-2">
                       {dayEvents.map((event, eventIndex) => {
                         const statusConfig = getStatusConfig(event.status as EventStatus);
                         const statusClasses = `${statusConfig.bgColor} ${statusConfig.textColor} ${statusConfig.borderColor} hover:opacity-90`;
