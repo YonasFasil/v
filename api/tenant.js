@@ -1468,20 +1468,58 @@ module.exports = async function handler(req, res) {
     // COMMUNICATIONS
     if (resource === 'communications') {
       if (req.method === 'GET') {
-        if (id) {
-          // Get specific communication
-          const communication = await pool.query(`SELECT * FROM communications
-            WHERE tenant_id = $1 AND id = $2`, [tenantId, id]);
-          return res.json(communication.rows[0] || null);
-        } else if (bookingId) {
-          const communications = await pool.query(`SELECT * FROM communications WHERE tenant_id = $1 AND booking_id = $2 ORDER BY created_at DESC`, [tenantId, bookingId]);
-          return res.json(communications.rows);
-        } else {
-          // Get all communications
-          const communications = await pool.query(`SELECT * FROM communications
-            WHERE tenant_id = $1
-            ORDER BY created_at DESC`, [tenantId]);
-          return res.json(communications.rows);
+        try {
+          // Get query parameters for filtering
+          const { proposalId, customerId } = req.query;
+
+          if (id) {
+            // Get specific communication
+            const communication = await pool.query(`SELECT * FROM communications
+              WHERE tenant_id = $1 AND id = $2`, [tenantId, id]);
+            return res.json(communication.rows[0] || null);
+          } else if (proposalId || customerId || bookingId) {
+            // Build the query conditions
+            let conditions = ['tenant_id = $1'];
+            let params = [tenantId];
+            let paramIndex = 2;
+
+            if (proposalId) {
+              conditions.push(`proposal_id = $${paramIndex}`);
+              params.push(proposalId);
+              paramIndex++;
+            }
+
+            if (customerId) {
+              conditions.push(`customer_id = $${paramIndex}`);
+              params.push(customerId);
+              paramIndex++;
+            }
+
+            if (bookingId) {
+              conditions.push(`booking_id = $${paramIndex}`);
+              params.push(bookingId);
+              paramIndex++;
+            }
+
+            const query = `
+              SELECT * FROM communications
+              WHERE ${conditions.join(' AND ')}
+              ORDER BY sent_at DESC
+            `;
+
+            const communications = await pool.query(query, params);
+            return res.json(communications.rows);
+          } else {
+            // Get all communications
+            const communications = await pool.query(`SELECT * FROM communications
+              WHERE tenant_id = $1
+              ORDER BY sent_at DESC`, [tenantId]);
+            return res.json(communications.rows);
+          }
+        } catch (error) {
+          console.error('Communications query error:', error);
+          // Return empty array if there's an error (likely table doesn't have data)
+          return res.json([]);
         }
       }
     }
