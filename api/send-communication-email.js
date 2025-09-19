@@ -186,7 +186,7 @@ export default async function handler(req, res) {
     let transporter;
     if (smtpHost && smtpPort) {
       // Use custom SMTP (cPanel)
-      transporter = nodemailer.createTransporter({
+      transporter = nodemailer.createTransport({
         host: smtpHost,
         port: parseInt(smtpPort),
         secure: parseInt(smtpPort) === 465,
@@ -201,7 +201,7 @@ export default async function handler(req, res) {
       console.log('📧 Using cPanel SMTP from environment variables');
     } else {
       // Use Gmail if no custom SMTP host
-      transporter = nodemailer.createTransporter({
+      transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
           user: senderEmail,
