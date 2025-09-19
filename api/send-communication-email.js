@@ -403,24 +403,71 @@ export default async function handler(req, res) {
     `;
 
     // Enhanced anti-spam headers for better deliverability
-    const mailResult = await transporter.sendMail({
-      from: `"${actualSenderName}" <${actualSenderEmail}>`, // Use actual sender for domain alignment
-      replyTo: replyToAddress, // Secure reply-to with token
-      to: recipientEmail,
-      subject: finalSubject,
-      html: enhancedHtmlContent,
-      headers: {
-        'X-Mailer': 'Venuine Events System',
-        'X-Priority': '3', // Normal priority
-        'X-Email-Type': finalType,
-        'Message-ID': `<${Date.now()}.${Math.random().toString(36)}@${actualSenderEmail.split('@')[1]}>`,
-        'List-Unsubscribe': `<mailto:unsubscribe@${actualSenderEmail.split('@')[1]}>`,
-        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-        'Authentication-Results': `${actualSenderEmail.split('@')[1]}; dkim=pass; spf=pass`,
-        'X-Original-Sender': actualSenderEmail,
-        'Return-Path': actualSenderEmail
+    let mailResult;
+    try {
+      mailResult = await transporter.sendMail({
+        from: `"${actualSenderName}" <${actualSenderEmail}>`, // Use actual sender for domain alignment
+        replyTo: replyToAddress, // Secure reply-to with token
+        to: recipientEmail,
+        subject: finalSubject,
+        html: enhancedHtmlContent,
+        headers: {
+          'X-Mailer': 'Venuine Events System',
+          'X-Priority': '3', // Normal priority
+          'X-Email-Type': finalType,
+          'Message-ID': `<${Date.now()}.${Math.random().toString(36)}@${actualSenderEmail.split('@')[1]}>`,
+          'List-Unsubscribe': `<mailto:unsubscribe@${actualSenderEmail.split('@')[1]}>`,
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+          'Authentication-Results': `${actualSenderEmail.split('@')[1]}; dkim=pass; spf=pass`,
+          'X-Original-Sender': actualSenderEmail,
+          'Return-Path': actualSenderEmail
+        }
+      });
+    } catch (smtpError) {
+      console.error('📧 SMTP Error:', smtpError.message);
+
+      // If IMAP/custom SMTP fails, fall back to Gmail
+      if (smtpError.code === 'EAUTH' || smtpError.responseCode === 535) {
+        console.log('📧 IMAP authentication failed, falling back to Gmail...');
+
+        // Use Gmail as fallback
+        const fallbackEmail = process.env.GLOBAL_EMAIL_ADDRESS;
+        const fallbackPassword = process.env.GLOBAL_EMAIL_PASSWORD;
+
+        if (fallbackEmail && fallbackPassword) {
+          console.log('📧 Using Gmail fallback for failed IMAP');
+
+          const fallbackTransporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+              user: fallbackEmail,
+              pass: fallbackPassword
+            }
+          });
+
+          mailResult = await fallbackTransporter.sendMail({
+            from: `"${senderName}" <${fallbackEmail}>`,
+            replyTo: replyToAddress,
+            to: recipientEmail,
+            subject: finalSubject,
+            html: enhancedHtmlContent,
+            headers: {
+              'X-Mailer': 'Venuine Events System (Gmail Fallback)',
+              'X-Priority': '3',
+              'X-Email-Type': finalType
+            }
+          });
+
+          // Update sender info for logging
+          actualSenderEmail = fallbackEmail;
+          actualSenderName = senderName + ' (Gmail Fallback)';
+        } else {
+          throw new Error('IMAP authentication failed and no Gmail fallback configured');
+        }
+      } else {
+        throw smtpError; // Re-throw if not an auth error
       }
-    });
+    }
 
     // Record the communication in the database if we have tenant context
     if (tenantId && pool) {
