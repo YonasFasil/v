@@ -533,9 +533,40 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('Email error:', error);
+    console.error('Error details:', {
+      code: error.code,
+      responseCode: error.responseCode,
+      response: error.response,
+      stack: error.stack
+    });
+
+    // Provide more detailed error information
+    let errorMessage = 'Failed to send email';
+    let debugInfo = {};
+
+    if (error.code === 'EAUTH') {
+      errorMessage = 'Email authentication failed. Please check your email configuration.';
+      debugInfo.authError = true;
+    } else if (error.responseCode === 535) {
+      errorMessage = 'Email login rejected. Please verify your email credentials.';
+      debugInfo.loginError = true;
+    } else if (error.code === 'ENOTFOUND') {
+      errorMessage = 'Email server not found. Please check your SMTP host configuration.';
+      debugInfo.hostError = true;
+    } else if (error.code === 'ECONNECTION') {
+      errorMessage = 'Could not connect to email server. Please check your network and SMTP settings.';
+      debugInfo.connectionError = true;
+    }
+
     return res.status(500).json({
       error: 'Failed to send email',
-      message: error.message
+      message: errorMessage,
+      details: error.message,
+      debug: {
+        ...debugInfo,
+        hasGmailFallback: !!(process.env.GLOBAL_EMAIL_ADDRESS && process.env.GLOBAL_EMAIL_PASSWORD),
+        timestamp: new Date().toISOString()
+      }
     });
   } finally {
     if (pool) {
