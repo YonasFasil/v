@@ -145,10 +145,19 @@ export default async function handler(req, res) {
       }
     }
 
+    // Fallback to environment variables (Gmail) if no IMAP config
+    if (!senderEmail || !senderPassword) {
+      senderEmail = process.env.GLOBAL_EMAIL_ADDRESS;
+      senderPassword = process.env.GLOBAL_EMAIL_PASSWORD;
+      smtpHost = process.env.GLOBAL_EMAIL_HOST;
+      smtpPort = process.env.GLOBAL_EMAIL_PORT;
+      console.log('📧 Using Gmail fallback configuration');
+    }
+
     if (!senderEmail || !senderPassword) {
       return res.status(400).json({
-        error: 'IMAP email configuration missing',
-        message: 'Please configure IMAP email settings in Super Admin panel. Gmail configuration is no longer supported.'
+        error: 'Email configuration missing',
+        message: 'Please configure IMAP email settings in Super Admin panel or check Gmail environment variables.'
       });
     }
 
@@ -272,20 +281,33 @@ export default async function handler(req, res) {
         });
         console.log('📧 Using cPanel SMTP from environment');
       } else {
-        // Use default SMTP settings for IMAP configuration
-        transporter = nodemailer.createTransport({
-          host: smtpHost || 'mail.venuine.com',
-          port: 587,
-          secure: false,
-          auth: {
-            user: senderEmail,
-            pass: senderPassword
-          },
-          tls: {
-            rejectUnauthorized: false
-          }
-        });
-        console.log('📧 Using default IMAP SMTP configuration');
+        // Check if this is Gmail (no custom SMTP host configured)
+        if (!smtpHost) {
+          // Use Gmail SMTP
+          transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+              user: senderEmail,
+              pass: senderPassword
+            }
+          });
+          console.log('📧 Using Gmail SMTP fallback');
+        } else {
+          // Use custom SMTP settings
+          transporter = nodemailer.createTransport({
+            host: smtpHost,
+            port: parseInt(smtpPort) || 587,
+            secure: parseInt(smtpPort) === 465,
+            auth: {
+              user: senderEmail,
+              pass: senderPassword
+            },
+            tls: {
+              rejectUnauthorized: false
+            }
+          });
+          console.log('📧 Using custom SMTP configuration');
+        }
       }
     }
 

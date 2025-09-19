@@ -47,7 +47,7 @@ export default async function handler(req, res) {
       gmail: {
         configured: false,
         email: null,
-        status: 'disabled_by_admin'
+        status: 'not_configured'
       },
       imap: {
         configured: false,
@@ -58,11 +58,19 @@ export default async function handler(req, res) {
         status: 'not_configured'
       },
       current_notification_email: 'notification@venuine.com',
-      active_system: 'imap', // IMAP is now the primary system
-      system_message: 'Gmail configuration has been disabled. IMAP is the primary email system.'
+      active_system: 'none', // Will be determined based on configuration
+      system_message: 'No email system configured.'
     };
 
-    // Gmail is no longer checked or supported
+    // Check Gmail configuration (fallback)
+    const gmailEmail = process.env.GLOBAL_EMAIL_ADDRESS;
+    const gmailPassword = process.env.GLOBAL_EMAIL_PASSWORD;
+
+    if (gmailEmail && gmailPassword) {
+      status.gmail.configured = true;
+      status.gmail.email = gmailEmail;
+      status.gmail.status = 'configured';
+    }
 
     // Check IMAP configuration
     const databaseUrl = getDatabaseUrl();
@@ -101,13 +109,16 @@ export default async function handler(req, res) {
       console.warn('Failed to get notification email:', error);
     }
 
-    // Determine active system - IMAP only
+    // Determine active system - IMAP has priority, Gmail as fallback
     if (status.imap.configured && status.imap.enabled) {
       status.active_system = 'imap';
       status.system_message = `IMAP email system active: ${status.imap.email}`;
+    } else if (status.gmail.configured) {
+      status.active_system = 'gmail';
+      status.system_message = `Gmail fallback active: ${status.gmail.email}. Consider configuring IMAP for better deliverability.`;
     } else {
       status.active_system = 'not_configured';
-      status.system_message = 'No email system configured. Please configure IMAP email settings.';
+      status.system_message = 'No email system configured. Please configure IMAP email settings or Gmail environment variables.';
     }
 
     return res.json({

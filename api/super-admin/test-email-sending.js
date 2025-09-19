@@ -47,7 +47,11 @@ export default async function handler(req, res) {
     }
 
     // Use the existing send-communication-email API to test
-    const sendResponse = await fetch(`${req.headers.host ? `http://${req.headers.host}` : 'http://localhost:5001'}/api/send-communication-email`, {
+    const baseUrl = req.headers.host ?
+      (req.headers.host.includes('localhost') ? `http://${req.headers.host}` : `https://${req.headers.host}`) :
+      'http://localhost:3050';
+
+    const sendResponse = await fetch(`${baseUrl}/api/send-communication-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

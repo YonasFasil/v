@@ -842,6 +842,8 @@ export default function SuperAdminSettings() {
                           📧 Current Email System: {
                             emailStatusData.status.active_system === 'imap'
                               ? 'IMAP (Custom Email Server)'
+                              : emailStatusData.status.active_system === 'gmail'
+                              ? 'Gmail (Fallback)'
                               : emailStatusData.status.active_system === 'not_configured'
                               ? 'Not Configured'
                               : 'Unknown'
@@ -855,8 +857,10 @@ export default function SuperAdminSettings() {
                         <div className="text-sm space-y-1">
                           <div>
                             <strong>Sending emails from:</strong> {
-                              emailStatusData.status.imap.configured
+                              emailStatusData.status.imap.configured && emailStatusData.status.imap.enabled
                                 ? emailStatusData.status.imap.email
+                                : emailStatusData.status.gmail.configured
+                                ? emailStatusData.status.gmail.email
                                 : 'Not configured'
                             }
                           </div>
