@@ -446,14 +446,17 @@ module.exports = async function handler(req, res) {
         // Populate spaceIds for contracts and single bookings
         const resultWithSpaceIds = [];
 
-        // Handle contracts (multi-space bookings)
+        // Handle contracts (multi-day events)
         for (const contract of contracts.values()) {
-          const allSpaceIds = contract.contractEvents.map(event => event.spaceId).filter(Boolean);
+          // For contracts, each day can have different spaces
+          // So we collect all unique spaces across all days for the contract summary
+          const allSpaceIds = [...new Set(contract.contractEvents.map(event => event.spaceId).filter(Boolean))];
           contract.spaceIds = allSpaceIds;
 
-          // Also populate spaceIds for each individual event in the contract
+          // For individual events in the contract, each should only have its own spaceId
           contract.contractEvents.forEach(event => {
-            event.spaceIds = allSpaceIds;
+            // Each individual event in a contract gets only its own space, not all spaces
+            event.spaceIds = event.spaceId ? [event.spaceId] : [];
           });
 
           resultWithSpaceIds.push(contract);
