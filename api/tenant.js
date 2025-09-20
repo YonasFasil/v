@@ -1978,7 +1978,7 @@ module.exports = async function handler(req, res) {
 
           for (const bookingData of bookingsData) {
             const {
-              eventName, eventType, customerId, venueId, spaceId,
+              eventName, eventType, customerId, venueId, spaceId, spaceIds,
               eventDate, endDate, startTime, endTime, guestCount,
               setupStyle, status = 'inquiry', totalAmount, depositAmount,
               notes, isMultiDay, proposalId, proposalStatus, proposalSentAt,
@@ -1992,7 +1992,13 @@ module.exports = async function handler(req, res) {
             const safePricingOverrides = pricingOverrides && Object.keys(pricingOverrides).length > 0 ? pricingOverrides : null;
             const safeServiceTaxOverrides = serviceTaxOverrides && Object.keys(serviceTaxOverrides).length > 0 ? serviceTaxOverrides : null;
 
-            const newBooking = await pool.query(`
+            // Handle multiple spaces per day in contracts
+            const spacesToBook = spaceIds && spaceIds.length > 0 ? spaceIds : (spaceId ? [spaceId] : []);
+            console.log(`   📍 Day ${eventDate}: Creating bookings for ${spacesToBook.length} space(s):`, spacesToBook);
+
+            // Create a booking for each space for this day
+            for (const currentSpaceId of spacesToBook) {
+              const newBooking = await pool.query(`
               INSERT INTO bookings (
                 tenant_id, event_name, event_type, customer_id, venue_id, space_id,
                 event_date, end_date, start_time, end_time, guest_count,
@@ -2003,15 +2009,16 @@ module.exports = async function handler(req, res) {
               ) VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, NOW()
               ) RETURNING *
-            `, [
-              tenantId, eventName, eventType, customerId, venueId, spaceId,
+              `, [
+                tenantId, eventName, eventType, customerId, venueId, currentSpaceId,
               eventDate, endDate, startTime, endTime, guestCount,
               setupStyle, status, totalAmount, depositAmount, notes,
               contractId, isMultiDay, proposalId, proposalStatus, proposalSentAt,
               safePackageId, safeSelectedServices, safeItemQuantities, safePricingOverrides, safeServiceTaxOverrides
-            ]);
+              ]);
 
-            createdBookings.push(newBooking.rows[0]);
+              createdBookings.push(newBooking.rows[0]);
+            }
           }
 
           return res.status(201).json({
@@ -2129,7 +2136,7 @@ module.exports = async function handler(req, res) {
             const createdBookings = [];
             for (const bookingData of updateData.bookingsData) {
               const {
-                eventName, eventType, customerId, venueId, spaceId,
+                eventName, eventType, customerId, venueId, spaceId, spaceIds,
                 eventDate, endDate, startTime, endTime, guestCount,
                 setupStyle, status = 'inquiry', totalAmount, depositAmount,
                 notes, isMultiDay, proposalId, proposalStatus, proposalSentAt,
@@ -2143,7 +2150,13 @@ module.exports = async function handler(req, res) {
               const safePricingOverrides = pricingOverrides && Object.keys(pricingOverrides).length > 0 ? pricingOverrides : null;
               const safeServiceTaxOverrides = serviceTaxOverrides && Object.keys(serviceTaxOverrides).length > 0 ? serviceTaxOverrides : null;
 
-              const newBooking = await pool.query(`
+              // Handle multiple spaces per day in contract updates
+              const spacesToBook = spaceIds && spaceIds.length > 0 ? spaceIds : (spaceId ? [spaceId] : []);
+              console.log(`   📍 Day ${eventDate}: Updating bookings for ${spacesToBook.length} space(s):`, spacesToBook);
+
+              // Create a booking for each space for this day
+              for (const currentSpaceId of spacesToBook) {
+                const newBooking = await pool.query(`
                 INSERT INTO bookings (
                   tenant_id, event_name, event_type, customer_id, venue_id, space_id,
                   event_date, end_date, start_time, end_time, guest_count,
@@ -2155,14 +2168,15 @@ module.exports = async function handler(req, res) {
                   $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, NOW()
                 ) RETURNING *
               `, [
-                tenantId, eventName, eventType, customerId, venueId, spaceId,
-                eventDate, endDate, startTime, endTime, guestCount,
-                setupStyle, status, totalAmount, depositAmount, notes,
-                contractId, isMultiDay, proposalId, proposalStatus, proposalSentAt,
-                safePackageId, safeSelectedServices, safeItemQuantities, safePricingOverrides, safeServiceTaxOverrides
-              ]);
+                  tenantId, eventName, eventType, customerId, venueId, currentSpaceId,
+                  eventDate, endDate, startTime, endTime, guestCount,
+                  setupStyle, status, totalAmount, depositAmount, notes,
+                  contractId, isMultiDay, proposalId, proposalStatus, proposalSentAt,
+                  safePackageId, safeSelectedServices, safeItemQuantities, safePricingOverrides, safeServiceTaxOverrides
+                ]);
 
-              createdBookings.push(newBooking.rows[0]);
+                createdBookings.push(newBooking.rows[0]);
+              }
             }
 
             // Update the contract total amount if needed
