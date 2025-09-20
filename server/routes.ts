@@ -1729,7 +1729,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Handle space IDs for multi-space bookings
         spaceIds: req.body.spaceIds || (req.body.spaceId ? [req.body.spaceId] : []),
       };
-      
+
+      // Debug logging for multi-space bookings
+      console.log('🔍 CREATE BOOKING DEBUG:', {
+        spaceId: req.body.spaceId,
+        spaceIds: req.body.spaceIds,
+        finalSpaceIds: bookingData.spaceIds,
+        eventName: req.body.eventName
+      });
+
       // Add tenantId to booking data
       bookingData.tenantId = tenantId;
       
