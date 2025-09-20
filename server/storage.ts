@@ -539,6 +539,12 @@ export class MemStorage implements IStorage {
   // Bookings
   async getBookings(): Promise<Booking[]> {
     const allBookings = Array.from(this.bookings.values());
+    // Ensure spaceIds is populated for multi-space support
+    allBookings.forEach(booking => {
+      if (!booking.spaceIds && booking.spaceId) {
+        (booking as any).spaceIds = [booking.spaceId];
+      }
+    });
     return this.filterByTenant(allBookings);
   }
 
@@ -548,7 +554,12 @@ export class MemStorage implements IStorage {
   }
 
   async getBooking(id: string): Promise<Booking | undefined> {
-    return this.bookings.get(id);
+    const booking = this.bookings.get(id);
+    // Ensure spaceIds is populated for multi-space support
+    if (booking && !booking.spaceIds && booking.spaceId) {
+      (booking as any).spaceIds = [booking.spaceId];
+    }
+    return booking;
   }
 
   async getBookingsByCustomer(customerId: string): Promise<Booking[]> {
