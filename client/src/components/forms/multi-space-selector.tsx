@@ -5,12 +5,26 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown, X, AlertTriangle } from "lucide-react";
 
 interface Space {
   id: string;
   name: string;
   capacity: number;
+}
+
+interface SpaceConflict {
+  spaceId: string;
+  spaceName: string;
+  venueId: string;
+  venueName: string;
+  conflicts: Array<{
+    bookingId: string;
+    eventName: string;
+    startTime: string;
+    endTime: string;
+    customerName: string;
+  }>;
 }
 
 interface MultiSpaceSelectorProps {
@@ -20,6 +34,8 @@ interface MultiSpaceSelectorProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  conflicts?: SpaceConflict[];
+  showConflictWarnings?: boolean;
 }
 
 export function MultiSpaceSelector({
@@ -28,11 +44,55 @@ export function MultiSpaceSelector({
   onSelectionChange,
   placeholder = "Select spaces",
   className,
-  disabled = false
+  disabled = false,
+  conflicts = [],
+  showConflictWarnings = false
 }: MultiSpaceSelectorProps) {
   const [isOpen, setIsOpen] = React.useState(false);
 
   const selectedSpaces = spaces.filter(space => selectedSpaceIds.includes(space.id));
+
+  const getSpaceConflict = (spaceId: string) => {
+    return conflicts.find(conflict => conflict.spaceId === spaceId);
+  };
+
+  const hasConflictedSpaces = showConflictWarnings && conflicts.length > 0;
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('MultiSpaceSelector Debug:', {
+      showConflictWarnings,
+      conflictsLength: conflicts.length,
+      conflicts,
+      hasConflictedSpaces
+    });
+  }, [showConflictWarnings, conflicts, hasConflictedSpaces]);
+
+  // Group conflicts by venue
+  const conflictsByVenue = React.useMemo(() => {
+    if (!showConflictWarnings || conflicts.length === 0) return {};
+
+    return conflicts.reduce((acc, conflict) => {
+      const venueId = conflict.venueId || 'unknown';
+      const venueName = conflict.venueName || 'Unknown Venue';
+
+      if (!acc[venueId]) {
+        acc[venueId] = {
+          venueName,
+          spaces: [],
+          totalConflicts: 0
+        };
+      }
+
+      acc[venueId].spaces.push({
+        spaceName: conflict.spaceName,
+        conflictCount: conflict.conflicts.length
+      });
+      acc[venueId].totalConflicts += conflict.conflicts.length;
+
+      return acc;
+    }, {} as Record<string, { venueName: string; spaces: Array<{ spaceName: string; conflictCount: number }>; totalConflicts: number }>);
+  }, [conflicts, showConflictWarnings]);
 
   const handleSpaceToggle = (spaceId: string) => {
     const newSelection = selectedSpaceIds.includes(spaceId)
@@ -103,12 +163,29 @@ export function MultiSpaceSelector({
           </div>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
+      <PopoverContent className="w-[500px] p-0" align="start">
         <div className="p-3 border-b">
           <h4 className="font-medium text-sm">Select Spaces</h4>
           <p className="text-xs text-muted-foreground mt-1">
             Choose one or more spaces for this event
           </p>
+          {hasConflictedSpaces && (
+            <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-md">
+              <div className="flex items-center gap-2 text-red-800 text-xs font-medium mb-2">
+                <AlertTriangle className="h-4 w-4" />
+                ⚠️ Booking conflicts detected
+              </div>
+              <div className="space-y-1">
+                {Object.entries(conflictsByVenue).map(([venueId, venueData]) => (
+                  <div key={venueId} className="text-red-700 text-xs">
+                    <span className="font-medium">{venueData.venueName}:</span>{' '}
+                    {venueData.spaces.map(space => space.spaceName).join(', ')}{' '}
+                    ({venueData.totalConflicts} conflict{venueData.totalConflicts !== 1 ? 's' : ''})
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         <div className="p-2 max-h-64 overflow-auto">
           {spaces.length === 0 ? (
@@ -118,27 +195,30 @@ export function MultiSpaceSelector({
           ) : (
             <div className="space-y-2">
               {spaces.map((space) => (
-                <div
-                  key={space.id}
-                  className="flex items-center space-x-3 p-2 rounded-md hover:bg-accent cursor-pointer"
-                  onClick={() => handleSpaceToggle(space.id)}
-                >
-                  <Checkbox
-                    id={`space-${space.id}`}
-                    checked={selectedSpaceIds.includes(space.id)}
-                    onChange={() => handleSpaceToggle(space.id)}
-                  />
-                  <Label
-                    htmlFor={`space-${space.id}`}
-                    className="flex-1 cursor-pointer"
+                <div key={space.id}>
+                  <div
+                    className="flex items-center space-x-3 p-2 rounded-md hover:bg-accent cursor-pointer"
+                    onClick={() => handleSpaceToggle(space.id)}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{space.name}</span>
-                      <Badge variant="outline" className="text-xs">
-                        {space.capacity} guests
-                      </Badge>
-                    </div>
-                  </Label>
+                    <Checkbox
+                      id={`space-${space.id}`}
+                      checked={selectedSpaceIds.includes(space.id)}
+                      onChange={() => handleSpaceToggle(space.id)}
+                    />
+                    <Label
+                      htmlFor={`space-${space.id}`}
+                      className="flex-1 cursor-pointer"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{space.name}</span>
+                        </div>
+                        <Badge variant="outline" className="text-xs">
+                          {space.capacity} guests
+                        </Badge>
+                      </div>
+                    </Label>
+                  </div>
                 </div>
               ))}
             </div>

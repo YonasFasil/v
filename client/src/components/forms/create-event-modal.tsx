@@ -72,6 +72,29 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
   useEffect(() => {
     console.log('📊 selectedDates changed:', selectedDates.length, selectedDates.map(d => d.date));
   }, [selectedDates]);
+
+  // Check for conflicts when date/time/space selection changes
+  useEffect(() => {
+    console.log('🎯 useEffect triggered for conflict checking:', selectedDates);
+    selectedDates.forEach((dateInfo, index) => {
+      console.log(`📋 Checking date ${index}:`, {
+        hasSpaceIds: !!dateInfo.spaceIds?.length,
+        spaceIds: dateInfo.spaceIds,
+        hasStartTime: !!dateInfo.startTime,
+        startTime: dateInfo.startTime,
+        hasEndTime: !!dateInfo.endTime,
+        endTime: dateInfo.endTime,
+        willCheckConflicts: !!(dateInfo.spaceIds?.length && dateInfo.startTime && dateInfo.endTime)
+      });
+
+      if (dateInfo.spaceIds?.length && dateInfo.startTime && dateInfo.endTime) {
+        console.log(`✅ All conditions met for date ${index}, calling checkConflicts`);
+        checkConflicts(index, dateInfo);
+      } else {
+        console.log(`❌ Missing required data for date ${index}, skipping conflict check`);
+      }
+    });
+  }, [selectedDates]);
   
   // Step 2: Event Configuration - now managed per date
   const [activeTabIndex, setActiveTabIndex] = useState(0);
@@ -100,7 +123,11 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
   // Voice booking integration
   const [showVoicePanel, setShowVoicePanel] = useState(false);
   const [voiceExtractedData, setVoiceExtractedData] = useState<any>(null);
-  
+
+  // Conflict detection
+  const [conflicts, setConflicts] = useState<Record<number, any[]>>({});
+  const [checkingConflicts, setCheckingConflicts] = useState<Record<number, boolean>>({});
+
   // Customer creation
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomer, setNewCustomer] = useState({
@@ -268,9 +295,48 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
 
   // Per-date configuration helpers
   const updateDateTime = (index: number, field: keyof SelectedDate, value: any) => {
-    setSelectedDates(prev => prev.map((date, i) => 
+    setSelectedDates(prev => prev.map((date, i) =>
       i === index ? { ...date, [field]: value } : date
     ));
+  };
+
+  // Conflict checking function
+  const checkConflicts = async (index: number, dateInfo: SelectedDate) => {
+    if (!dateInfo.spaceIds?.length || !dateInfo.startTime || !dateInfo.endTime) {
+      setConflicts(prev => ({ ...prev, [index]: [] }));
+      return;
+    }
+
+    setCheckingConflicts(prev => ({ ...prev, [index]: true }));
+
+    try {
+      const response = await apiRequest('/api/bookings/check-conflicts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          spaceIds: dateInfo.spaceIds,
+          eventDate: format(dateInfo.date, 'yyyy-MM-dd'),
+          startTime: dateInfo.startTime,
+          endTime: dateInfo.endTime
+        })
+      });
+
+      console.log('🔍 Conflict check response:', {
+        index,
+        spaceIds: dateInfo.spaceIds,
+        eventDate: format(dateInfo.date, 'yyyy-MM-dd'),
+        startTime: dateInfo.startTime,
+        endTime: dateInfo.endTime,
+        response
+      });
+
+      setConflicts(prev => ({ ...prev, [index]: response.conflicts || [] }));
+    } catch (error) {
+      console.error('Failed to check conflicts:', error);
+      setConflicts(prev => ({ ...prev, [index]: [] }));
+    } finally {
+      setCheckingConflicts(prev => ({ ...prev, [index]: false }));
+    }
   };
 
   // Get active date configuration (with bounds checking)
@@ -1495,77 +1561,11 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                   </div>
                                 </div>
                                 
-                                {/* Availability indicator */}
-                                {(() => {
-                                  const availability = getSpaceAvailability(
-                                    dateInfo.spaceId || '',
-                                    dateInfo.date,
-                                    dateInfo.startTime,
-                                    dateInfo.endTime
-                                  );
-                                  
-                                  
-                                  if (availability.available) {
-                                    return (
-                                      <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                        Available
-                                      </div>
-                                    );
-                                  } else {
-                                    const conflict = availability.conflictingBooking;
-                                    const statusConfig = getStatusConfig(conflict?.status || 'inquiry');
-                                    return (
-                                      <div className="text-right">
-                                        <div className="flex items-center gap-2 px-3 py-1.5 bg-red-100 text-red-700 rounded-full text-xs font-medium mb-1">
-                                          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                                          Conflict
-                                        </div>
-                                        <div className="text-xs text-red-600">
-                                          {conflict?.eventName}<br/>
-                                          {conflict?.startTime} - {conflict?.endTime}<br/>
-                                          <span className="inline-flex items-center gap-1 mt-1">
-                                            <div 
-                                              className="w-2 h-2 rounded-full" 
-                                              style={{ backgroundColor: statusConfig.color }}
-                                            />
-                                            <span className="font-medium">Status: {statusConfig.label}</span>
-                                          </span>
-                                        </div>
-                                      </div>
-                                    );
-                                  }
-                                })()}
                               </div>
                             </div>
 
                             {/* Form content */}
                             <div className="p-5 space-y-4">
-                              {/* Space Selection */}
-                              <div className="space-y-2">
-                                <Label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                                  <MapPin className="w-4 h-4 text-slate-500" />
-                                  Select Spaces
-                                  <span className="text-red-500 text-xs">*</span>
-                                </Label>
-                                <MultiSpaceSelector
-                                  spaces={selectedVenueData?.spaces || []}
-                                  selectedSpaceIds={dateInfo.spaceIds || (dateInfo.spaceId ? [dateInfo.spaceId] : [])}
-                                  onSelectionChange={(spaceIds) => {
-                                    updateDateTime(index, 'spaceIds', spaceIds);
-                                    // Also update single spaceId for backward compatibility
-                                    updateDateTime(index, 'spaceId', spaceIds[0] || '');
-                                  }}
-                                  placeholder="Choose spaces"
-                                  className={cn(
-                                    "w-full transition-colors",
-                                    (!dateInfo.spaceIds || dateInfo.spaceIds.length === 0) && !dateInfo.spaceId
-                                      ? "border-red-200 bg-red-50/30 focus:border-red-400"
-                                      : "border-slate-200 hover:border-slate-300 focus-within:border-blue-400"
-                                  )}
-                                />
-                              </div>
-                              
                               {/* Time and Details Grid */}
                               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                 {/* Event Time */}
@@ -1693,6 +1693,33 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                                     </Select>
                                   </div>
                                 </div>
+                              </div>
+
+                              {/* Space Selection */}
+                              <div className="space-y-2">
+                                <Label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                                  <MapPin className="w-4 h-4 text-slate-500" />
+                                  Select Spaces
+                                  <span className="text-red-500 text-xs">*</span>
+                                </Label>
+                                <MultiSpaceSelector
+                                  spaces={selectedVenueData?.spaces || []}
+                                  selectedSpaceIds={dateInfo.spaceIds || (dateInfo.spaceId ? [dateInfo.spaceId] : [])}
+                                  onSelectionChange={(spaceIds) => {
+                                    updateDateTime(index, 'spaceIds', spaceIds);
+                                    // Also update single spaceId for backward compatibility
+                                    updateDateTime(index, 'spaceId', spaceIds[0] || '');
+                                  }}
+                                  placeholder="Choose spaces"
+                                  className={cn(
+                                    "w-full transition-colors",
+                                    (!dateInfo.spaceIds || dateInfo.spaceIds.length === 0) && !dateInfo.spaceId
+                                      ? "border-red-200 bg-red-50/30 focus:border-red-400"
+                                      : "border-slate-200 hover:border-slate-300 focus-within:border-blue-400"
+                                  )}
+                                  conflicts={conflicts[index] || []}
+                                  showConflictWarnings={true}
+                                />
                               </div>
                             </div>
                           </Card>

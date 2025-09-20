@@ -900,7 +900,17 @@ export class DbStorage implements IStorage {
     const context = await getCurrentTenantContext();
     
     if (context.role === 'super_admin') {
-      const result = await this.db.select().from(spaces).where(eq(spaces.id, id)).limit(1);
+      const result = await this.db.select({
+        id: spaces.id,
+        venueId: spaces.venueId,
+        name: spaces.name,
+        description: spaces.description,
+        capacity: spaces.capacity,
+        pricePerHour: spaces.pricePerHour,
+        amenities: spaces.amenities,
+        isActive: spaces.isActive,
+        createdAt: spaces.createdAt,
+      }).from(spaces).where(eq(spaces.id, id)).limit(1);
       return result[0];
     } else if (context.tenantId) {
       const result = await this.db.select({
@@ -925,7 +935,17 @@ export class DbStorage implements IStorage {
   }
 
   async getSpacesByVenue(venueId: string): Promise<Space[]> {
-    return await this.db.select().from(spaces)
+    return await this.db.select({
+      id: spaces.id,
+      venueId: spaces.venueId,
+      name: spaces.name,
+      description: spaces.description,
+      capacity: spaces.capacity,
+      pricePerHour: spaces.pricePerHour,
+      amenities: spaces.amenities,
+      isActive: spaces.isActive,
+      createdAt: spaces.createdAt,
+    }).from(spaces)
       .where(and(eq(spaces.venueId, venueId), eq(spaces.isActive, true)))
       .orderBy(asc(spaces.createdAt));
   }

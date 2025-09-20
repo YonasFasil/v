@@ -19,7 +19,7 @@ import { tenantContextMiddleware } from "./middleware/tenant-context";
 import { enforceRLSTenantIsolation } from "./middleware/tenant-isolation";
 import { withTenantNeon } from "./db";
 import { createTenantAsSuperAdmin } from "./db/super-admin-helper";
-import { db, eq, and, bookings, venues, customers, spaces } from "./db";
+import { db, eq, and, or, ne, bookings, venues, customers, spaces, eventSpaces } from "./db";
 import { 
   insertBookingSchema, 
   insertCustomerSchema, 
@@ -1516,7 +1516,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('📋 GET /api/bookings - fetching all bookings for super admin');
         const bookingsData = await db.select().from(bookings);
         console.log(`📋 Found ${bookingsData.length} total bookings for super admin`);
-        
+
+        // Populate spaceIds for each booking from eventSpaces table
+        for (const booking of bookingsData) {
+          const associatedSpaces = await db
+            .select()
+            .from(eventSpaces)
+            .where(eq(eventSpaces.bookingId, booking.id));
+
+          // Add space IDs array to booking object
+          (booking as any).spaceIds = associatedSpaces.map(es => es.spaceId);
+          (booking as any).eventSpaces = associatedSpaces;
+        }
+
         // Apply multi-date event grouping logic for super admin too
         const groupedBookings = [];
         const processedContracts = new Set();
@@ -1602,7 +1614,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(bookings.tenantId, tenantId));
       
       console.log(`📋 Found ${bookingsData.length} bookings for tenant ${tenantId}`);
-      
+
+      // Populate spaceIds for each booking from eventSpaces table
+      for (const booking of bookingsData) {
+        const associatedSpaces = await db
+          .select()
+          .from(eventSpaces)
+          .where(eq(eventSpaces.bookingId, booking.id));
+
+        // Add space IDs array to booking object
+        (booking as any).spaceIds = associatedSpaces.map(es => es.spaceId);
+        (booking as any).eventSpaces = associatedSpaces;
+      }
+
       // Apply multi-date event grouping logic (same as calendar API)
       const groupedBookings = [];
       const processedContracts = new Set();
@@ -1687,7 +1711,150 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/bookings", 
+  // Check for booking conflicts on multiple spaces
+  app.post("/api/bookings/check-conflicts",
+    requireAuth('bookings'),
+    async (req: AuthenticatedRequest, res) => {
+    try {
+      const { spaceIds, eventDate, startTime, endTime, excludeBookingId } = req.body;
+      const tenantId = req.user!.tenantId;
+
+      if (!spaceIds || !Array.isArray(spaceIds) || spaceIds.length === 0) {
+        return res.status(400).json({ message: "spaceIds array is required" });
+      }
+
+      if (!eventDate || !startTime || !endTime) {
+        return res.status(400).json({ message: "eventDate, startTime, and endTime are required" });
+      }
+
+      const conflicts = [];
+
+      // Check each space individually for conflicts
+      for (const spaceId of spaceIds) {
+        console.log(`🔍 Searching for bookings with tenantId: ${tenantId}, eventDate: ${eventDate}, spaceId: ${spaceId}`);
+
+        // First, let's try a simple query to see all bookings for this tenant and date
+        const allBookingsForDate = await db
+          .select()
+          .from(bookings)
+          .where(
+            and(
+              eq(bookings.tenantId, tenantId),
+              eq(bookings.eventDate, new Date(eventDate + 'T05:00:00.000Z')) // Convert string to match stored date format
+            )
+          );
+
+        console.log(`📊 Found ${allBookingsForDate.length} total bookings for date ${eventDate}`);
+        allBookingsForDate.forEach((booking, i) => {
+          console.log(`  📅 ${i + 1}. "${booking.eventName}" on ${booking.eventDate} at space ${booking.spaceId}`);
+        });
+
+        // Also check without date filter to see all recent bookings
+        const recentBookings = await db
+          .select({
+            eventName: bookings.eventName,
+            eventDate: bookings.eventDate,
+            spaceId: bookings.spaceId
+          })
+          .from(bookings)
+          .where(eq(bookings.tenantId, tenantId))
+          .orderBy(bookings.eventDate)
+          .limit(10);
+
+        console.log(`🔍 Recent 10 bookings for comparison:`);
+        recentBookings.forEach((booking, i) => {
+          console.log(`  ${i + 1}. "${booking.eventName}" on ${booking.eventDate} (${typeof booking.eventDate}) at space ${booking.spaceId}`);
+        });
+
+        // Get all bookings for this space on the same date
+        const existingBookings = await db
+          .select()
+          .from(bookings)
+          .leftJoin(eventSpaces, eq(bookings.id, eventSpaces.bookingId))
+          .where(
+            and(
+              eq(bookings.tenantId, tenantId),
+              eq(bookings.eventDate, new Date(eventDate + 'T05:00:00.000Z')), // Convert string to match stored date format
+              or(
+                eq(bookings.spaceId, spaceId), // Legacy single space bookings
+                eq(eventSpaces.spaceId, spaceId) // Multi-space bookings
+              ),
+              excludeBookingId ? ne(bookings.id, excludeBookingId) : undefined
+            )
+          );
+
+        console.log(`🔍 Checking conflicts for space ${spaceId} on ${eventDate} from ${startTime} to ${endTime}`);
+        console.log(`Found ${existingBookings.length} existing bookings for this space/date`);
+
+        // Log details of existing bookings
+        existingBookings.forEach((booking, i) => {
+          console.log(`  ${i + 1}. "${booking.bookings.eventName}" from ${booking.bookings.startTime} to ${booking.bookings.endTime}`);
+        });
+
+        // Check for time overlaps
+        const conflictingBookings = existingBookings.filter(booking => {
+          const existingStart = booking.bookings.startTime;
+          const existingEnd = booking.bookings.endTime;
+          const newStart = startTime;
+          const newEnd = endTime;
+
+          // Check for any overlap between time ranges
+          const hasOverlap = (
+            (newStart < existingEnd && newEnd > existingStart) ||
+            (existingStart < newEnd && existingEnd > newStart)
+          );
+
+          if (hasOverlap) {
+            console.log(`⚠️  Conflict found: Existing ${existingStart}-${existingEnd} overlaps with new ${newStart}-${newEnd}`);
+          }
+
+          return hasOverlap;
+        });
+
+        if (conflictingBookings.length > 0) {
+          // Get space details
+          const space = await storage.getSpace(spaceId);
+
+          // Get venue details
+          let venueName = 'Unknown Venue';
+          if (space?.venueId) {
+            const venue = await storage.getVenue(space.venueId);
+            venueName = venue?.name || 'Unknown Venue';
+          }
+
+          conflicts.push({
+            spaceId: spaceId,
+            spaceName: space?.name || 'Unknown Space',
+            venueId: space?.venueId || '',
+            venueName: venueName,
+            conflicts: conflictingBookings.map(booking => ({
+              bookingId: booking.bookings.id,
+              eventName: booking.bookings.eventName,
+              startTime: booking.bookings.startTime,
+              endTime: booking.bookings.endTime,
+              customerName: booking.bookings.customerName
+            }))
+          });
+        }
+      }
+
+      console.log(`✅ Conflict check complete: ${conflicts.length} spaces with conflicts out of ${spaceIds.length} total spaces`);
+
+      res.json({
+        hasConflicts: conflicts.length > 0,
+        conflicts: conflicts,
+        totalSpaces: spaceIds.length,
+        conflictedSpaces: conflicts.length,
+        freeSpaces: spaceIds.length - conflicts.length
+      });
+
+    } catch (error) {
+      console.error('❌ Conflict check error:', error);
+      res.status(500).json({ message: "Failed to check for conflicts" });
+    }
+  });
+
+  app.post("/api/bookings",
     requireAuth('bookings'),
     async (req: AuthenticatedRequest, res) => {
     try {
@@ -4349,7 +4516,17 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
       const allBookings = await db.select().from(bookings);
       const allVenues = await db.select().from(venues);
       const allCustomers = await db.select().from(customers);
-      const allSpaces = await db.select().from(spaces);
+      const allSpaces = await db.select({
+        id: spaces.id,
+        venueId: spaces.venueId,
+        name: spaces.name,
+        description: spaces.description,
+        capacity: spaces.capacity,
+        pricePerHour: spaces.pricePerHour,
+        amenities: spaces.amenities,
+        isActive: spaces.isActive,
+        createdAt: spaces.createdAt,
+      }).from(spaces);
       
       console.log('[CALENDAR-DEBUG] Found', allBookings.length, 'bookings');
       
@@ -4412,7 +4589,17 @@ Be intelligent and helpful - if something seems unclear, make reasonable inferen
         const allBookings = await db.select().from(bookings);
         const allVenues = await db.select().from(venues);
         const allCustomers = await db.select().from(customers);
-        const allSpaces = await db.select().from(spaces);
+        const allSpaces = await db.select({
+        id: spaces.id,
+        venueId: spaces.venueId,
+        name: spaces.name,
+        description: spaces.description,
+        capacity: spaces.capacity,
+        pricePerHour: spaces.pricePerHour,
+        amenities: spaces.amenities,
+        isActive: spaces.isActive,
+        createdAt: spaces.createdAt,
+      }).from(spaces);
         
         // Create a simplified calendar for super admin showing all events
         const events = allBookings.map((booking) => {
@@ -6288,20 +6475,7 @@ Respond with specific, factual information from the actual data only. If the use
     return services;
   }
 
-  // Proposal API endpoints
-  app.get("/api/proposals", async (req, res) => {
-    try {
-      const tenantId = await getTenantIdFromAuth(req);
-      if (!tenantId) {
-        return res.status(401).json({ message: "Authentication required" });
-      }
-      
-      const proposals = await storage.getProposals();
-      res.json(proposals);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch proposals" });
-    }
-  });
+  // Proposal API endpoints (duplicate route removed - main route is defined earlier with proper auth)
 
   app.get("/api/proposals/:id", async (req, res) => {
     try {
