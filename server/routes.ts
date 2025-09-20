@@ -1750,7 +1750,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      const validatedData = insertBookingSchema.parse(bookingData);
+      // Separate spaceIds before validation since it's not part of the bookings table schema
+      const { spaceIds, ...bookingDataForValidation } = bookingData;
+      const validatedData = insertBookingSchema.parse(bookingDataForValidation);
+      // Add spaceIds back after validation
+      (validatedData as any).spaceIds = spaceIds;
       
       // Check for time conflicts with existing bookings
       const existingBookings = await storage.getBookings();
