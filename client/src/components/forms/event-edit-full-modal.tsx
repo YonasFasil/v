@@ -144,34 +144,50 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   const { data: taxSettings = [] } = useQuery({ queryKey: ["/api/tax-settings"] });
   const { data: existingBookings = [] } = useQuery({ queryKey: ["/api/bookings"] });
 
+  // Fetch fresh booking data with spaceIds when modal opens
+  const { data: freshBookingData } = useQuery({
+    queryKey: ['/api/bookings', booking?.id],
+    queryFn: async () => {
+      if (!booking?.id) return null;
+      const response = await apiRequest(`/api/bookings`);
+      const bookings = await response.json();
+      return bookings.find((b: any) => b.id === booking.id);
+    },
+    enabled: !!(booking?.id && open)
+  });
+
   // Initialize form data when booking changes
   useEffect(() => {
     if (booking && open) {
+      // Use fresh data if available, fallback to original booking data
+      const bookingToUse = freshBookingData || booking;
+
       // Debug logging to check what booking data we receive
       console.log('🔍 EventEditFullModal - Received booking data:', {
-        id: booking.id,
-        spaceId: booking.spaceId,
-        spaceIds: booking.spaceIds,
-        eventSpaces: booking.eventSpaces,
-        isContract: booking.isContract,
-        contractEvents: booking.contractEvents,
-        _editAsIndividual: booking._editAsIndividual
+        id: bookingToUse.id,
+        spaceId: bookingToUse.spaceId,
+        spaceIds: bookingToUse.spaceIds,
+        eventSpaces: bookingToUse.eventSpaces,
+        isContract: bookingToUse.isContract,
+        contractEvents: bookingToUse.contractEvents,
+        _editAsIndividual: bookingToUse._editAsIndividual,
+        freshDataUsed: !!freshBookingData
       });
 
       // Check if this is an individual event being edited from a contract
-      const editAsIndividual = booking._editAsIndividual;
+      const editAsIndividual = bookingToUse._editAsIndividual;
 
       if (editAsIndividual) {
         // Individual event editing: Use the specific event data, not the contract
-        setEventName(booking.eventName || booking.title || "");
-        setEventStatus(booking.status || "inquiry");
-        setSelectedVenue(booking.venueId || "");
-        setSelectedCustomer(booking.customerId || "");
+        setEventName(bookingToUse.eventName || bookingToUse.title || "");
+        setEventStatus(bookingToUse.status || "inquiry");
+        setSelectedVenue(bookingToUse.venueId || "");
+        setSelectedCustomer(bookingToUse.customerId || "");
 
         // Parse the event date properly
         let eventDate: Date;
-        if (booking.eventDate || booking.start) {
-          const dateStr = booking.eventDate || booking.start;
+        if (bookingToUse.eventDate || bookingToUse.start) {
+          const dateStr = bookingToUse.eventDate || bookingToUse.start;
           if (typeof dateStr === 'string') {
             eventDate = new Date(dateStr + (dateStr.includes('T') ? '' : 'T00:00:00'));
           } else {
@@ -183,16 +199,16 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
 
         const individualEventDate: SelectedDate = {
           date: eventDate,
-          startTime: booking.startTime || "09:00",
-          endTime: booking.endTime || "17:00",
-          spaceId: booking.spaceId || "", // For backward compatibility
-          spaceIds: booking.spaceIds || (booking.spaceId ? [booking.spaceId] : []), // Multi-space support
-          packageId: booking.packageId || "",
-          selectedServices: booking.selectedServices || [],
-          guestCount: booking.guestCount || 1,
-          itemQuantities: booking.itemQuantities || {},
-          pricingOverrides: booking.pricingOverrides || {},
-          serviceTaxOverrides: booking.serviceTaxOverrides || {}
+          startTime: bookingToUse.startTime || "09:00",
+          endTime: bookingToUse.endTime || "17:00",
+          spaceId: bookingToUse.spaceId || "", // For backward compatibility
+          spaceIds: bookingToUse.spaceIds || (bookingToUse.spaceId ? [bookingToUse.spaceId] : []), // Multi-space support
+          packageId: bookingToUse.packageId || "",
+          selectedServices: bookingToUse.selectedServices || [],
+          guestCount: bookingToUse.guestCount || 1,
+          itemQuantities: bookingToUse.itemQuantities || {},
+          pricingOverrides: bookingToUse.pricingOverrides || {},
+          serviceTaxOverrides: bookingToUse.serviceTaxOverrides || {}
         };
 
         setSelectedDates([individualEventDate]);
@@ -207,7 +223,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
       } else if (booking.isContract && booking.contractEvents) {
         // Handle full contract editing with multiple events
         setEventName(booking.contractInfo?.contractName || booking.eventName || "Event Contract");
-        setEventStatus(booking.status || "inquiry");
+        setEventStatus(bookingToUse.status || "inquiry");
         setSelectedVenue(booking.venueId || "");
         setSelectedCustomer(booking.customerId || "");
 
@@ -239,20 +255,20 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
       } else {
         // Handle single event
         setEventName(booking.eventName || "");
-        setEventStatus(booking.status || "inquiry");
+        setEventStatus(bookingToUse.status || "inquiry");
         setSelectedVenue(booking.venueId || "");
         setSelectedCustomer(booking.customerId || "");
 
         // Initialize dates with existing booking data - preserve original date
         // Ensure proper date parsing to prevent timezone issues
         let eventDate: Date;
-        if (booking.eventDate) {
+        if (bookingToUse.eventDate) {
           // If eventDate is a string, parse it carefully to avoid timezone issues
-          if (typeof booking.eventDate === 'string') {
+          if (typeof bookingToUse.eventDate === 'string') {
             // Handle ISO date strings or date-only strings
-            eventDate = new Date(booking.eventDate + (booking.eventDate.includes('T') ? '' : 'T00:00:00'));
+            eventDate = new Date(bookingToUse.eventDate + (bookingToUse.eventDate.includes('T') ? '' : 'T00:00:00'));
           } else {
-            eventDate = new Date(booking.eventDate);
+            eventDate = new Date(bookingToUse.eventDate);
           }
         } else {
           eventDate = new Date();
@@ -260,23 +276,23 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
 
         const bookingDate: SelectedDate = {
           date: eventDate,
-          startTime: booking.startTime || "09:00",
-          endTime: booking.endTime || "17:00",
-          spaceId: booking.spaceId || "", // For backward compatibility
-          spaceIds: booking.spaceIds || (booking.spaceId ? [booking.spaceId] : []), // Multi-space support
-          packageId: booking.packageId || "",
-          selectedServices: booking.selectedServices || [],
-          guestCount: booking.guestCount || 1,
-          itemQuantities: booking.itemQuantities || {},
-          pricingOverrides: booking.pricingOverrides || {},
-          serviceTaxOverrides: booking.serviceTaxOverrides || {}
+          startTime: bookingToUse.startTime || "09:00",
+          endTime: bookingToUse.endTime || "17:00",
+          spaceId: bookingToUse.spaceId || "", // For backward compatibility
+          spaceIds: bookingToUse.spaceIds || (bookingToUse.spaceId ? [bookingToUse.spaceId] : []), // Multi-space support
+          packageId: bookingToUse.packageId || "",
+          selectedServices: bookingToUse.selectedServices || [],
+          guestCount: bookingToUse.guestCount || 1,
+          itemQuantities: bookingToUse.itemQuantities || {},
+          pricingOverrides: bookingToUse.pricingOverrides || {},
+          serviceTaxOverrides: bookingToUse.serviceTaxOverrides || {}
         };
 
         console.log('📍 Setting booking date with spaceIds:', {
           spaceId: bookingDate.spaceId,
           spaceIds: bookingDate.spaceIds,
-          fromBookingSpaceIds: booking.spaceIds,
-          fromBookingSpaceId: booking.spaceId
+          fromBookingSpaceIds: bookingToUse.spaceIds,
+          fromBookingSpaceId: bookingToUse.spaceId
         });
 
         setSelectedDates([bookingDate]);
