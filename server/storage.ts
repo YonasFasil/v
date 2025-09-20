@@ -1278,12 +1278,15 @@ export class DbStorage implements IStorage {
       });
     }
 
-    // Populate spaceIds in the returned booking object
-    if (spaceIds && spaceIds.length > 0) {
-      (createdBooking as any).spaceIds = spaceIds;
-    } else if (bookingData.spaceId) {
-      (createdBooking as any).spaceIds = [bookingData.spaceId];
-    }
+    // Fetch and populate spaceIds from the database (same as other getter methods)
+    const associatedSpaces = await this.db
+      .select()
+      .from(eventSpaces)
+      .where(eq(eventSpaces.bookingId, bookingId));
+
+    // Add space IDs array to booking object
+    (createdBooking as any).spaceIds = associatedSpaces.map(es => es.spaceId);
+    (createdBooking as any).eventSpaces = associatedSpaces;
 
     console.log('✅ BACKEND: Returning booking with spaceIds:', (createdBooking as any).spaceIds);
 
