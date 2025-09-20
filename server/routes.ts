@@ -2031,7 +2031,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      console.log('🚀 ROUTES: About to call storage.createBooking with spaceIds:', (validatedData as any).spaceIds);
       const booking = await storage.createBooking(validatedData);
+      console.log('📦 ROUTES: Received booking response, spaceIds:', (booking as any).spaceIds);
       
       // Send booking confirmation notification if enabled
       // Skip booking confirmation emails for bookings created from proposals (tentative bookings)
