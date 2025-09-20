@@ -205,7 +205,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
           date: event.eventDate ? new Date(event.eventDate) : new Date(),
           startTime: event.startTime || "09:00",
           endTime: event.endTime || "17:00",
-          spaceId: event.spaceId,
+          spaceId: event.spaceId || "", // For backward compatibility
+          spaceIds: event.spaceIds || (event.spaceId ? [event.spaceId] : []), // Multi-space support
           packageId: event.packageId || "",
           selectedServices: event.selectedServices || [],
           guestCount: event.guestCount || 1,
