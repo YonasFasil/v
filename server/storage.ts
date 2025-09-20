@@ -1168,13 +1168,6 @@ export class DbStorage implements IStorage {
     const { spaceIds, ...bookingData } = booking;
     const bookingId = randomUUID();
 
-    // Debug logging for multi-space bookings
-    console.log('🔍 STORAGE createBooking DEBUG:', {
-      spaceIds,
-      bookingDataSpaceId: bookingData.spaceId,
-      bookingId,
-      eventName: bookingData.eventName
-    });
 
     const bookingToInsert = {
       ...bookingData,

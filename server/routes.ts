@@ -1730,13 +1730,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         spaceIds: req.body.spaceIds || (req.body.spaceId ? [req.body.spaceId] : []),
       };
 
-      // Debug logging for multi-space bookings
-      console.log('🔍 CREATE BOOKING DEBUG:', {
-        spaceId: req.body.spaceId,
-        spaceIds: req.body.spaceIds,
-        finalSpaceIds: bookingData.spaceIds,
-        eventName: req.body.eventName
-      });
 
       // Add tenantId to booking data
       bookingData.tenantId = tenantId;
@@ -1761,7 +1754,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const eventDate = validatedData.eventDate;
       const startTime = validatedData.startTime;
       const endTime = validatedData.endTime;
-      const spaceIds = (validatedData as any).spaceIds || (validatedData.spaceId ? [validatedData.spaceId] : []);
+      const requestedSpaceIds = (validatedData as any).spaceIds || (validatedData.spaceId ? [validatedData.spaceId] : []);
 
       const conflict = existingBookings.find(existing => {
         // Skip cancelled bookings
@@ -1775,7 +1768,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Check for conflicts with any of the requested spaces
         const existingSpaceIds = (existing as any).spaceIds || (existing.spaceId ? [existing.spaceId] : []);
-        const hasSpaceOverlap = spaceIds.some(spaceId => existingSpaceIds.includes(spaceId));
+        const hasSpaceOverlap = requestedSpaceIds.some(spaceId => existingSpaceIds.includes(spaceId));
 
         // Check if any overlapping space and same date
         if (hasSpaceOverlap &&
@@ -1826,7 +1819,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 eventDate: eventDate.toDateString(),
                 startTime,
                 endTime,
-                spaceIds: spaceIds
+                spaceIds: requestedSpaceIds
               },
               timeComparison: {
                 newStart,
