@@ -144,17 +144,11 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   const { data: taxSettings = [] } = useQuery({ queryKey: ["/api/tax-settings"] });
   const { data: existingBookings = [] } = useQuery({ queryKey: ["/api/bookings"] });
 
-  // Fetch fresh booking data with spaceIds when modal opens
-  const { data: freshBookingData } = useQuery({
-    queryKey: ['/api/bookings', booking?.id],
-    queryFn: async () => {
-      if (!booking?.id) return null;
-      const response = await apiRequest(`/api/bookings`);
-      const bookings = await response.json();
-      return bookings.find((b: any) => b.id === booking.id);
-    },
-    enabled: !!(booking?.id && open)
-  });
+  // Get fresh booking data with spaceIds from the existing bookings query
+  const freshBookingData = useMemo(() => {
+    if (!booking?.id || !existingBookings.length) return null;
+    return existingBookings.find((b: any) => b.id === booking.id);
+  }, [booking?.id, existingBookings]);
 
   // Initialize form data when booking changes
   useEffect(() => {
@@ -307,7 +301,7 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
         setCurrentStep(1);
       }
     }
-  }, [booking, open]);
+  }, [booking, open, freshBookingData]);
 
   // Reset form when modal closes
   useEffect(() => {
