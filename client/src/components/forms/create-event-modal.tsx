@@ -843,6 +843,13 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
   // Create booking mutation (single event)
   const createBooking = useMutation({
     mutationFn: async (bookingData: any) => {
+      console.log('🚀 Creating booking with data:', {
+        spaceId: bookingData.spaceId,
+        spaceIds: bookingData.spaceIds,
+        spaceIdsCount: bookingData.spaceIds?.length || 0,
+        title: bookingData.title,
+        eventDate: bookingData.eventDate
+      });
       return await apiRequest("POST", "/api/bookings", bookingData);
     },
     onSuccess: (data, variables) => {
