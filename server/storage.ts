@@ -1165,7 +1165,21 @@ export class DbStorage implements IStorage {
   }
 
   async getBookingsByTenant(tenantId: string): Promise<Booking[]> {
-    return await this.db.select().from(bookings).where(eq(bookings.tenantId, tenantId));
+    const bookingsList = await this.db.select().from(bookings).where(eq(bookings.tenantId, tenantId));
+
+    // Fetch associated spaces for each booking
+    for (const booking of bookingsList) {
+      const associatedSpaces = await this.db
+        .select()
+        .from(eventSpaces)
+        .where(eq(eventSpaces.bookingId, booking.id));
+
+      // Add space IDs array to booking object
+      (booking as any).spaceIds = associatedSpaces.map(es => es.spaceId);
+      (booking as any).eventSpaces = associatedSpaces;
+    }
+
+    return bookingsList;
   }
 
   async getBooking(id: string): Promise<Booking | undefined> {
@@ -1188,11 +1202,39 @@ export class DbStorage implements IStorage {
   }
 
   async getBookingsByCustomer(customerId: string): Promise<Booking[]> {
-    return await this.db.select().from(bookings).where(eq(bookings.customerId, customerId));
+    const bookingsList = await this.db.select().from(bookings).where(eq(bookings.customerId, customerId));
+
+    // Fetch associated spaces for each booking
+    for (const booking of bookingsList) {
+      const associatedSpaces = await this.db
+        .select()
+        .from(eventSpaces)
+        .where(eq(eventSpaces.bookingId, booking.id));
+
+      // Add space IDs array to booking object
+      (booking as any).spaceIds = associatedSpaces.map(es => es.spaceId);
+      (booking as any).eventSpaces = associatedSpaces;
+    }
+
+    return bookingsList;
   }
 
   async getBookingsByContract(contractId: string): Promise<Booking[]> {
-    return await this.db.select().from(bookings).where(eq(bookings.contractId, contractId));
+    const bookingsList = await this.db.select().from(bookings).where(eq(bookings.contractId, contractId));
+
+    // Fetch associated spaces for each booking
+    for (const booking of bookingsList) {
+      const associatedSpaces = await this.db
+        .select()
+        .from(eventSpaces)
+        .where(eq(eventSpaces.bookingId, booking.id));
+
+      // Add space IDs array to booking object
+      (booking as any).spaceIds = associatedSpaces.map(es => es.spaceId);
+      (booking as any).eventSpaces = associatedSpaces;
+    }
+
+    return bookingsList;
   }
 
   async createBooking(booking: InsertBooking & { spaceIds?: string[] }): Promise<Booking> {
