@@ -113,7 +113,7 @@ export default function Landing() {
     {
       name: "Sarah Chen",
       role: "Director, Premier Events",
-      content: "VenueFlow transformed our operations. We increased bookings by 150% and reduced admin time by 80% in just three months.",
+      content: "Venuine transformed our operations. We increased bookings by 150% and reduced admin time by 80% in just three months.",
       rating: 5,
       image: "SC"
     },
@@ -175,7 +175,7 @@ export default function Landing() {
               <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
                 <Building className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-semibold text-gray-900">VenueFlow</span>
+              <span className="text-xl font-semibold text-gray-900">Venuine</span>
             </div>
             
             {/* Desktop Navigation */}
@@ -496,7 +496,7 @@ export default function Landing() {
               <span className="text-gray-600">owners everywhere.</span>
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              See how VenueFlow is transforming businesses just like yours.
+              See how Venuine is transforming businesses just like yours.
             </p>
           </div>
 
@@ -542,7 +542,7 @@ export default function Landing() {
             your venue business?
           </h2>
           <p className="text-xl lg:text-2xl mb-12 opacity-90 leading-relaxed">
-            Join hundreds of venue owners who've already made the switch to VenueFlow.
+            Join hundreds of venue owners who've already made the switch to Venuine.
           </p>
           <Button 
             size="lg" 
@@ -569,7 +569,7 @@ export default function Landing() {
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
                   <Building className="w-6 h-6 text-white" />
                 </div>
-                <span className="text-2xl font-semibold text-gray-900">VenueFlow</span>
+                <span className="text-2xl font-semibold text-gray-900">Venuine</span>
               </div>
               <p className="text-gray-600 leading-relaxed mb-6">
                 The most advanced venue management platform for modern businesses who demand excellence.
@@ -620,7 +620,7 @@ export default function Landing() {
           
           <div className="border-t border-gray-200 mt-12 pt-8 flex flex-col lg:flex-row justify-between items-center">
             <p className="text-gray-600 text-sm mb-4 lg:mb-0">
-              &copy; 2024 VenueFlow. All rights reserved.
+              &copy; 2024 Venuine. All rights reserved.
             </p>
             <div className="flex space-x-8 text-sm">
               <a href="#" className="text-gray-600 hover:text-gray-900 transition-colors">Privacy Policy</a>
