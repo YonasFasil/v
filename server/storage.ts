@@ -1199,6 +1199,13 @@ export class DbStorage implements IStorage {
     const { spaceIds, ...bookingData } = booking;
     const bookingId = randomUUID();
 
+    console.log('🏗️ Creating booking with:', {
+      bookingId,
+      spaceId: bookingData.spaceId,
+      spaceIds: spaceIds,
+      spaceIdsCount: spaceIds?.length || 0
+    });
+
 
     const bookingToInsert = {
       ...bookingData,
@@ -1217,7 +1224,9 @@ export class DbStorage implements IStorage {
         isPrimary: index === 0, // First space is primary
       }));
 
+      console.log('📋 Inserting eventSpaces:', eventSpacesToInsert);
       await this.db.insert(eventSpaces).values(eventSpacesToInsert);
+      console.log('✅ EventSpaces inserted successfully');
     } else if (bookingData.spaceId) {
       // Fallback: create single entry for the primary spaceId if no spaceIds provided
       await this.db.insert(eventSpaces).values({
