@@ -1858,6 +1858,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     requireAuth('bookings'),
     async (req: AuthenticatedRequest, res) => {
     try {
+      console.log('🚨🚨🚨 CLAUDE FIX: MAIN BOOKING HANDLER REACHED! 🚨🚨🚨');
       const tenantId = req.user!.tenantId;
       console.log('Creating booking with data:', req.body);
       console.log('Tenant ID:', tenantId);
