@@ -147,6 +147,17 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
   // Initialize form data when booking changes
   useEffect(() => {
     if (booking && open) {
+      // Debug logging to check what booking data we receive
+      console.log('🔍 EventEditFullModal - Received booking data:', {
+        id: booking.id,
+        spaceId: booking.spaceId,
+        spaceIds: booking.spaceIds,
+        eventSpaces: booking.eventSpaces,
+        isContract: booking.isContract,
+        contractEvents: booking.contractEvents,
+        _editAsIndividual: booking._editAsIndividual
+      });
+
       // Check if this is an individual event being edited from a contract
       const editAsIndividual = booking._editAsIndividual;
 
@@ -260,6 +271,13 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
           pricingOverrides: booking.pricingOverrides || {},
           serviceTaxOverrides: booking.serviceTaxOverrides || {}
         };
+
+        console.log('📍 Setting booking date with spaceIds:', {
+          spaceId: bookingDate.spaceId,
+          spaceIds: bookingDate.spaceIds,
+          fromBookingSpaceIds: booking.spaceIds,
+          fromBookingSpaceId: booking.spaceId
+        });
 
         setSelectedDates([bookingDate]);
         setActiveTabIndex(0);
