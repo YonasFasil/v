@@ -403,36 +403,69 @@ module.exports = async function handler(req, res) {
           }
         });
 
-        // Combine contracts and single bookings
-        const result = [...Array.from(contracts.values()), ...singleBookings];
+        // Populate spaceIds for contracts and single bookings
+        const resultWithSpaceIds = [];
+
+        // Handle contracts (multi-space bookings)
+        for (const contract of contracts.values()) {
+          const allSpaceIds = contract.contractEvents.map(event => event.spaceId).filter(Boolean);
+          contract.spaceIds = allSpaceIds;
+
+          // Also populate spaceIds for each individual event in the contract
+          contract.contractEvents.forEach(event => {
+            event.spaceIds = allSpaceIds;
+          });
+
+          resultWithSpaceIds.push(contract);
+        }
+
+        // Handle single bookings
+        for (const booking of singleBookings) {
+          // For single bookings, spaceIds is just an array with the single spaceId
+          booking.spaceIds = booking.spaceId ? [booking.spaceId] : [];
+          resultWithSpaceIds.push(booking);
+        }
 
         // Sort by created_at or event_date
-        result.sort((a, b) => {
+        resultWithSpaceIds.sort((a, b) => {
           const dateA = new Date(a.contractEvents?.[0]?.eventDate || a.eventDate || a.created_at);
           const dateB = new Date(b.contractEvents?.[0]?.eventDate || b.eventDate || b.created_at);
           return dateB - dateA;
         });
 
-        return res.json(result);
+        console.log('📋 TENANT API: Returning', resultWithSpaceIds.length, 'bookings with spaceIds populated');
+        return res.json(resultWithSpaceIds);
       }
 
       if (req.method === 'POST') {
         // Create new booking/event
         const {
-          eventName, eventType, customerId, venueId, spaceId,
+          eventName, eventType, customerId, venueId, spaceId, spaceIds,
           eventDate, endDate, startTime, endTime, guestCount,
           setupStyle, status = 'inquiry', totalAmount, depositAmount,
           notes, contractId, isMultiDay, packageId, selectedServices,
           itemQuantities, pricingOverrides, serviceTaxOverrides
         } = req.body;
 
+        console.log('🔍 TENANT API: Booking creation with spaceIds support');
+        console.log('   spaceId:', spaceId);
+        console.log('   spaceIds:', spaceIds);
+        console.log('   spaceIds count:', spaceIds?.length || 0);
+
         if (!eventName || !eventDate || !startTime || !endTime) {
           return res.status(400).json({ message: 'Event name, date, start time, and end time are required' });
         }
 
-        // Check space availability if spaceId is provided
-        if (spaceId) {
-          // Check for conflicting bookings in the same space, date, and overlapping time
+        // Handle multi-space bookings: use spaceIds if provided, fallback to single spaceId
+        const spacesToBook = spaceIds && spaceIds.length > 0 ? spaceIds : (spaceId ? [spaceId] : []);
+        console.log('🎯 TENANT API: Spaces to book:', spacesToBook);
+
+        if (spacesToBook.length === 0) {
+          return res.status(400).json({ message: 'At least one space ID is required' });
+        }
+
+        // Check space availability for all spaces
+        for (const currentSpaceId of spacesToBook) {
           const conflictQuery = `
             SELECT
               b.id, b.event_name, b.status, b.start_time, b.end_time,
@@ -450,7 +483,7 @@ module.exports = async function handler(req, res) {
           `;
 
           const conflicts = await pool.query(conflictQuery, [
-            tenantId, spaceId, eventDate, startTime, endTime
+            tenantId, currentSpaceId, eventDate, startTime, endTime
           ]);
 
           if (conflicts.rows.length > 0) {
@@ -474,7 +507,6 @@ module.exports = async function handler(req, res) {
             };
 
             // For blocking conflicts, return 409 to prevent creation
-            // For warnings, we could still allow creation but return conflict info
             if (isBlocking) {
               return res.status(409).json(conflictResponse);
             }
@@ -484,25 +516,48 @@ module.exports = async function handler(req, res) {
           }
         }
 
-        const newBooking = await pool.query(`
-          INSERT INTO bookings (
-            tenant_id, event_name, event_type, customer_id, venue_id, space_id,
-            event_date, end_date, start_time, end_time, guest_count,
-            setup_style, status, total_amount, deposit_amount, notes,
-            contract_id, is_multi_day, package_id, selected_services,
-            item_quantities, pricing_overrides, service_tax_overrides, created_at
-          ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, NOW()
-          ) RETURNING *
-        `, [
-          tenantId, eventName, eventType, customerId, venueId, spaceId,
-          eventDate, endDate, startTime, endTime, guestCount,
-          setupStyle, status, totalAmount, depositAmount, notes,
-          contractId, isMultiDay, packageId, selectedServices,
-          itemQuantities, pricingOverrides, serviceTaxOverrides
-        ]);
+        // Create bookings for multi-space scenario
+        let createdBookings = [];
+        let sharedContractId = contractId;
 
-        return res.status(201).json(newBooking.rows[0]);
+        // If booking multiple spaces, generate a shared contract ID
+        if (spacesToBook.length > 1 && !sharedContractId) {
+          sharedContractId = uuidv4();
+          console.log('🔗 TENANT API: Generated contract ID for multi-space booking:', sharedContractId);
+        }
+
+        // Create a booking for each space
+        for (const currentSpaceId of spacesToBook) {
+          const newBooking = await pool.query(`
+            INSERT INTO bookings (
+              tenant_id, event_name, event_type, customer_id, venue_id, space_id,
+              event_date, end_date, start_time, end_time, guest_count,
+              setup_style, status, total_amount, deposit_amount, notes,
+              contract_id, is_multi_day, package_id, selected_services,
+              item_quantities, pricing_overrides, service_tax_overrides, created_at
+            ) VALUES (
+              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, NOW()
+            ) RETURNING *
+          `, [
+            tenantId, eventName, eventType, customerId, venueId, currentSpaceId,
+            eventDate, endDate, startTime, endTime, guestCount,
+            setupStyle, status, totalAmount, depositAmount, notes,
+            sharedContractId, isMultiDay, packageId, selectedServices,
+            itemQuantities, pricingOverrides, serviceTaxOverrides
+          ]);
+
+          createdBookings.push(newBooking.rows[0]);
+        }
+
+        console.log('✅ TENANT API: Created', createdBookings.length, 'booking(s) for spaces:', spacesToBook);
+
+        // Return the first booking with spaceIds array populated
+        const primaryBooking = createdBookings[0];
+        primaryBooking.spaceIds = spacesToBook;
+        primaryBooking.contractId = sharedContractId;
+
+        console.log('📤 TENANT API: Returning booking with spaceIds:', primaryBooking.spaceIds);
+        return res.status(201).json(primaryBooking);
       }
 
       // PATCH booking (update existing booking)
