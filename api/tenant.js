@@ -348,12 +348,17 @@ module.exports = async function handler(req, res) {
           WHERE b.tenant_id = $1
           ORDER BY b.event_date DESC`, [tenantId]);
 
-        // Group bookings by contract_id and create contract objects
+        // Group bookings by contract_id and multi-space group ID
         const contracts = new Map();
+        const multiSpaceGroups = new Map();
         const singleBookings = [];
 
         bookings.rows.forEach(booking => {
+          // Extract multi-space group ID from notes if present
+          const multiSpaceGroupId = booking.notes?.match(/__MULTISPACE_GROUP_ID__:([^\\n]+)/)?.[1];
+
           if (booking.contract_id) {
+            // Handle contract bookings (multi-date events)
             if (!contracts.has(booking.contract_id)) {
               // Create a contract object with all expected fields (using first booking's data)
               contracts.set(booking.contract_id, {
@@ -393,8 +398,43 @@ module.exports = async function handler(req, res) {
             });
             contract.eventCount = contract.contractEvents.length;
             contract.totalAmount = (parseFloat(contract.totalAmount || 0) + parseFloat(booking.totalAmount || 0)).toFixed(2);
+          } else if (multiSpaceGroupId) {
+            // Handle multi-space bookings (multiple spaces, single date)
+            if (!multiSpaceGroups.has(multiSpaceGroupId)) {
+              // Create a multi-space group object using first booking's data
+              multiSpaceGroups.set(multiSpaceGroupId, {
+                id: booking.id, // Use first booking's ID as group ID
+                isMultiSpace: true,
+                multiSpaceGroupId: multiSpaceGroupId,
+                groupedSpaces: [],
+                // Copy all the standard booking fields from the first booking
+                eventName: booking.eventName,
+                eventDate: booking.eventDate,
+                startTime: booking.startTime,
+                endTime: booking.endTime,
+                guestCount: booking.guestCount,
+                totalAmount: booking.totalAmount,
+                customerId: booking.customerId,
+                venueId: booking.venueId,
+                packageId: booking.packageId,
+                selectedServices: booking.selectedServices,
+                notes: booking.notes?.replace(/__MULTISPACE_GROUP_ID__:[^\\n]+\\n?/, '').trim() || '', // Clean notes
+                status: booking.status,
+                customer_name: booking.customer_name,
+                venue_name: booking.venue_name,
+                created_at: booking.created_at,
+                isContract: false,
+                isPartOfContract: false
+              });
+            }
+
+            const group = multiSpaceGroups.get(multiSpaceGroupId);
+            group.groupedSpaces.push({
+              ...booking,
+              isPartOfMultiSpace: true
+            });
           } else {
-            // Single booking (not part of contract)
+            // Single booking (not part of contract or multi-space group)
             singleBookings.push({
               ...booking,
               isContract: false,
@@ -417,6 +457,21 @@ module.exports = async function handler(req, res) {
           });
 
           resultWithSpaceIds.push(contract);
+        }
+
+        // Handle multi-space groups
+        for (const group of multiSpaceGroups.values()) {
+          // For multi-space groups, collect all spaceIds from grouped spaces
+          const allSpaceIds = group.groupedSpaces.map(space => space.spaceId).filter(Boolean);
+          group.spaceIds = allSpaceIds;
+
+          // Calculate total amount for multi-space group
+          const totalAmount = group.groupedSpaces.reduce((sum, space) => {
+            return sum + parseFloat(space.totalAmount || 0);
+          }, 0);
+          group.totalAmount = totalAmount.toFixed(2);
+
+          resultWithSpaceIds.push(group);
         }
 
         // Handle single bookings
@@ -520,10 +575,22 @@ module.exports = async function handler(req, res) {
         let createdBookings = [];
         let sharedContractId = contractId || null; // Only use contractId if explicitly provided (for multi-date events)
 
+        // For multi-space bookings (no contract), generate a unique group identifier
+        let multiSpaceGroupId = null;
+        if (spacesToBook.length > 1 && !sharedContractId) {
+          multiSpaceGroupId = uuidv4();
+          console.log('🎯 TENANT API: Generated multi-space group ID:', multiSpaceGroupId);
+        }
+
         console.log('🔗 TENANT API: Using contractId:', sharedContractId, '(multi-space bookings do NOT create contracts)');
 
         // Create a booking for each space
         for (const currentSpaceId of spacesToBook) {
+          // Add multi-space group ID to notes for grouping
+          const bookingNotes = multiSpaceGroupId
+            ? `${notes || ''}\n__MULTISPACE_GROUP_ID__:${multiSpaceGroupId}`.trim()
+            : notes;
+
           const newBooking = await pool.query(`
             INSERT INTO bookings (
               tenant_id, event_name, event_type, customer_id, venue_id, space_id,
@@ -537,7 +604,7 @@ module.exports = async function handler(req, res) {
           `, [
             tenantId, eventName, eventType, customerId, venueId, currentSpaceId,
             eventDate, endDate, startTime, endTime, guestCount,
-            setupStyle, status, totalAmount, depositAmount, notes,
+            setupStyle, status, totalAmount, depositAmount, bookingNotes,
             sharedContractId, isMultiDay, packageId, selectedServices,
             itemQuantities, pricingOverrides, serviceTaxOverrides
           ]);
