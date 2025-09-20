@@ -520,10 +520,28 @@ module.exports = async function handler(req, res) {
         let createdBookings = [];
         let sharedContractId = contractId;
 
-        // If booking multiple spaces, generate a shared contract ID
+        // If booking multiple spaces and we need a contract, create one
         if (spacesToBook.length > 1 && !sharedContractId) {
           sharedContractId = uuidv4();
-          console.log('🔗 TENANT API: Generated contract ID for multi-space booking:', sharedContractId);
+          console.log('🔗 TENANT API: Creating contract for multi-space booking:', sharedContractId);
+
+          // Create contract record in contracts table
+          await pool.query(`
+            INSERT INTO contracts (
+              id, tenant_id, customer_id, contract_name, status, total_amount, created_at, updated_at
+            ) VALUES (
+              $1, $2, $3, $4, $5, $6, NOW(), NOW()
+            )
+          `, [
+            sharedContractId,
+            tenantId,
+            customerId,
+            `${eventName} (Multi-Space)`,
+            status || 'inquiry',
+            totalAmount || 0
+          ]);
+
+          console.log('✅ TENANT API: Contract record created:', sharedContractId);
         }
 
         // Create a booking for each space
