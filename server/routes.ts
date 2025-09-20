@@ -2031,7 +2031,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      console.log('🚀 ROUTES: About to call storage.createBooking with spaceIds:', (validatedData as any).spaceIds);
+      console.log('🚀 ROUTES [v2]: About to call storage.createBooking with spaceIds:', (validatedData as any).spaceIds);
       const booking = await storage.createBooking(validatedData);
       console.log('📦 ROUTES: Received booking response, spaceIds:', (booking as any).spaceIds);
       
