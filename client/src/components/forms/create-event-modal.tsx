@@ -22,6 +22,7 @@ import { ProposalEmailModal } from "../proposals/proposal-email-modal";
 import { StatusSelector } from "../events/status-selector";
 import { type EventStatus, getStatusConfig } from "@shared/status-utils";
 import { type TaxSetting } from "@shared/schema";
+import { MultiSpaceSelector } from "./multi-space-selector";
 
 interface Props {
   open: boolean;
@@ -33,7 +34,8 @@ interface SelectedDate {
   date: Date;
   startTime: string;
   endTime: string;
-  spaceId?: string;
+  spaceId?: string; // For backward compatibility
+  spaceIds?: string[]; // New multi-space support
   packageId?: string;
   selectedServices?: string[];
   guestCount?: number;
@@ -200,7 +202,8 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         date: tomorrowDate,
         startTime: duplicateFromBooking.startTime || "09:00 AM",
         endTime: duplicateFromBooking.endTime || "05:00 PM",
-        spaceId: duplicateFromBooking.spaceId || "",
+        spaceId: duplicateFromBooking.spaceId || "", // For backward compatibility
+        spaceIds: duplicateFromBooking.spaceIds || (duplicateFromBooking.spaceId ? [duplicateFromBooking.spaceId] : []), // Multi-space support
         packageId: selectedPackages[0] || "",
         selectedServices: selectedServices,
         guestCount: duplicateFromBooking.guestCount || 1,
@@ -612,7 +615,9 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
 
     const conflicts = (existingBookings as any[]).filter(booking => {
       if (booking.status === 'cancelled') return false;
-      if (booking.spaceId !== spaceId) return false;
+      // Check for conflicts with both single space and multi-space bookings
+      const existingSpaceIds = booking.spaceIds || (booking.spaceId ? [booking.spaceId] : []);
+      if (!existingSpaceIds.includes(spaceId)) return false;
       
       const bookingDate = new Date(booking.eventDate);
       const dateMatch = bookingDate.toDateString() === date.toDateString();
@@ -977,7 +982,9 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
     }
 
     // Validate all dates have spaces selected
-    const missingSpaces = selectedDates.filter(date => !date.spaceId);
+    const missingSpaces = selectedDates.filter(date =>
+      !date.spaceId && (!date.spaceIds || date.spaceIds.length === 0)
+    );
     if (missingSpaces.length > 0) {
       toast({ 
         title: "Space selection required", 
@@ -1009,7 +1016,8 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
         status: (submitType === 'proposal' ? 'pending' : eventStatus) as string,
         customerId: selectedCustomer,
         venueId: selectedVenue,
-        spaceId: firstDate.spaceId,
+        spaceId: firstDate.spaceId, // For backward compatibility
+        spaceIds: firstDate.spaceIds && firstDate.spaceIds.length > 0 ? firstDate.spaceIds : (firstDate.spaceId ? [firstDate.spaceId] : []),
         setupStyle: firstDate.setupStyle || null,
         packageId: firstDate.packageId || null,
         selectedServices: firstDate.selectedServices || [],
@@ -1091,7 +1099,8 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
           status: ((submitType as string) === 'proposal' ? 'pending' : eventStatus) as string,
           customerId: selectedCustomer,
           venueId: selectedVenue,
-          spaceId: date.spaceId,
+          spaceId: date.spaceId, // For backward compatibility
+          spaceIds: date.spaceIds && date.spaceIds.length > 0 ? date.spaceIds : (date.spaceId ? [date.spaceId] : []),
           setupStyle: date.setupStyle || null,
           packageId: date.packageId || null,
           selectedServices: date.selectedServices?.length ? date.selectedServices : null,
@@ -1199,7 +1208,9 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
     
     if (currentStep === 1) {
       // Validate that all selected dates have spaces selected
-      const missingSpaces = selectedDates.filter(date => !date.spaceId);
+      const missingSpaces = selectedDates.filter(date =>
+        !date.spaceId && (!date.spaceIds || date.spaceIds.length === 0)
+      );
       if (missingSpaces.length > 0) {
         toast({ 
           title: "Space selection required", 
@@ -1534,34 +1545,25 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                               <div className="space-y-2">
                                 <Label className="text-sm font-medium text-slate-700 flex items-center gap-2">
                                   <MapPin className="w-4 h-4 text-slate-500" />
-                                  Select Space
+                                  Select Spaces
                                   <span className="text-red-500 text-xs">*</span>
                                 </Label>
-                                <Select
-                                  value={dateInfo.spaceId || ""}
-                                  onValueChange={(value) => updateDateTime(index, 'spaceId', value)}
-                                >
-                                  <SelectTrigger className={cn(
-                                    "w-full h-10 transition-colors",
-                                    !dateInfo.spaceId 
-                                      ? "border-red-200 bg-red-50/30 focus:border-red-400" 
-                                      : "border-slate-200 hover:border-slate-300 focus:border-blue-400"
-                                  )}>
-                                    <SelectValue placeholder="Choose a space" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {selectedVenueData?.spaces?.map((space: any) => (
-                                      <SelectItem key={space.id} value={space.id}>
-                                        <div className="flex items-center justify-between w-full">
-                                          <span>{space.name}</span>
-                                          <Badge variant="outline" className="ml-2 text-xs">
-                                            {space.capacity} guests
-                                          </Badge>
-                                        </div>
-                                      </SelectItem>
-                                    )) || <SelectItem value="no-spaces" disabled>No spaces available</SelectItem>}
-                                  </SelectContent>
-                                </Select>
+                                <MultiSpaceSelector
+                                  spaces={selectedVenueData?.spaces || []}
+                                  selectedSpaceIds={dateInfo.spaceIds || (dateInfo.spaceId ? [dateInfo.spaceId] : [])}
+                                  onSelectionChange={(spaceIds) => {
+                                    updateDateTime(index, 'spaceIds', spaceIds);
+                                    // Also update single spaceId for backward compatibility
+                                    updateDateTime(index, 'spaceId', spaceIds[0] || '');
+                                  }}
+                                  placeholder="Choose spaces"
+                                  className={cn(
+                                    "w-full transition-colors",
+                                    (!dateInfo.spaceIds || dateInfo.spaceIds.length === 0) && !dateInfo.spaceId
+                                      ? "border-red-200 bg-red-50/30 focus:border-red-400"
+                                      : "border-slate-200 hover:border-slate-300 focus-within:border-blue-400"
+                                  )}
+                                />
                               </div>
                               
                               {/* Time and Details Grid */}
@@ -3716,7 +3718,8 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                 status: 'pending', // This displays as "Proposal Shared"
                 customerId: selectedCustomer,
                 venueId: selectedVenue,
-                spaceId: firstDate.spaceId,
+                spaceId: firstDate.spaceId, // For backward compatibility
+                spaceIds: firstDate.spaceIds && firstDate.spaceIds.length > 0 ? firstDate.spaceIds : (firstDate.spaceId ? [firstDate.spaceId] : []),
                 setupStyle: firstDate.setupStyle || null,
                 packageId: firstDate.packageId || null,
                 selectedServices: firstDate.selectedServices?.length ? firstDate.selectedServices : null,
@@ -3754,7 +3757,8 @@ export function CreateEventModal({ open, onOpenChange, duplicateFromBooking }: P
                   status: 'pending', // This displays as "Proposal Shared"
                   customerId: selectedCustomer,
                   venueId: selectedVenue,
-                  spaceId: date.spaceId,
+                  spaceId: date.spaceId, // For backward compatibility
+                  spaceIds: date.spaceIds && date.spaceIds.length > 0 ? date.spaceIds : (date.spaceId ? [date.spaceId] : []),
                   setupStyle: date.setupStyle || null,
                   packageId: date.packageId || null,
                   selectedServices: date.selectedServices?.length ? date.selectedServices : null,
