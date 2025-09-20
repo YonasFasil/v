@@ -1236,6 +1236,15 @@ export class DbStorage implements IStorage {
       });
     }
 
+    // Populate spaceIds in the returned booking object
+    if (spaceIds && spaceIds.length > 0) {
+      (createdBooking as any).spaceIds = spaceIds;
+    } else if (bookingData.spaceId) {
+      (createdBooking as any).spaceIds = [bookingData.spaceId];
+    }
+
+    console.log('✅ BACKEND: Returning booking with spaceIds:', (createdBooking as any).spaceIds);
+
     return createdBooking;
   }
 
