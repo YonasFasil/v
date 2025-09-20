@@ -24,6 +24,7 @@ export {
   customers,
   contracts,
   bookings,
+  eventSpaces,
   proposals,
   payments,
   tasks,

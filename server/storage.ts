@@ -1,4 +1,4 @@
-import { 
+import {
   type User, type InsertUser,
   type Venue, type InsertVenue,
   type Space, type InsertSpace,
@@ -7,6 +7,7 @@ import {
   type Customer, type InsertCustomer,
   type Contract, type InsertContract,
   type Booking, type InsertBooking,
+  type EventSpace, type InsertEventSpace,
   type Proposal, type InsertProposal,
   type Payment, type InsertPayment,
   type Task, type InsertTask,
@@ -29,7 +30,7 @@ import {
   db,
   eq, and, or, not, isNull, isNotNull, desc, asc, like, ilike, inArray, sql,
   users, venues, spaces, setupStyles, companies, customers, contracts,
-  bookings, proposals, payments, tasks, packages, services,
+  bookings, eventSpaces, proposals, payments, tasks, packages, services,
   settings, communications, taxSettings, campaignSources, tags, leads,
   leadActivities, leadTasks, tours, tenants, subscriptionPackages, aiInsights,
 } from './db';
@@ -1115,7 +1116,21 @@ export class DbStorage implements IStorage {
   // Bookings
   async getBookings(): Promise<Booking[]> {
     const tenantWhere = await this.getTenantWhereClause(bookings);
-    return await this.db.select().from(bookings).where(tenantWhere);
+    const bookingsList = await this.db.select().from(bookings).where(tenantWhere);
+
+    // Fetch associated spaces for each booking
+    for (const booking of bookingsList) {
+      const associatedSpaces = await this.db
+        .select()
+        .from(eventSpaces)
+        .where(eq(eventSpaces.bookingId, booking.id));
+
+      // Add space IDs array to booking object
+      (booking as any).spaceIds = associatedSpaces.map(es => es.spaceId);
+      (booking as any).eventSpaces = associatedSpaces;
+    }
+
+    return bookingsList;
   }
 
   async getBookingsByTenant(tenantId: string): Promise<Booking[]> {
@@ -1124,7 +1139,21 @@ export class DbStorage implements IStorage {
 
   async getBooking(id: string): Promise<Booking | undefined> {
     const result = await this.db.select().from(bookings).where(eq(bookings.id, id)).limit(1);
-    return result[0];
+    const booking = result[0];
+
+    if (booking) {
+      // Fetch associated spaces for this booking
+      const associatedSpaces = await this.db
+        .select()
+        .from(eventSpaces)
+        .where(eq(eventSpaces.bookingId, booking.id));
+
+      // Add space IDs array to booking object
+      (booking as any).spaceIds = associatedSpaces.map(es => es.spaceId);
+      (booking as any).eventSpaces = associatedSpaces;
+    }
+
+    return booking;
   }
 
   async getBookingsByCustomer(customerId: string): Promise<Booking[]> {
@@ -1135,14 +1164,37 @@ export class DbStorage implements IStorage {
     return await this.db.select().from(bookings).where(eq(bookings.contractId, contractId));
   }
 
-  async createBooking(booking: InsertBooking): Promise<Booking> {
+  async createBooking(booking: InsertBooking & { spaceIds?: string[] }): Promise<Booking> {
+    const { spaceIds, ...bookingData } = booking;
+    const bookingId = randomUUID();
     const bookingToInsert = {
-      ...booking,
-      id: randomUUID(),
+      ...bookingData,
+      id: bookingId,
     };
 
+    // Create the booking first
     const result = await this.db.insert(bookings).values(bookingToInsert).returning();
-    return result[0];
+    const createdBooking = result[0];
+
+    // If spaceIds are provided, create entries in the eventSpaces join table
+    if (spaceIds && spaceIds.length > 0) {
+      const eventSpacesToInsert = spaceIds.map((spaceId, index) => ({
+        bookingId: bookingId,
+        spaceId: spaceId,
+        isPrimary: index === 0, // First space is primary
+      }));
+
+      await this.db.insert(eventSpaces).values(eventSpacesToInsert);
+    } else if (bookingData.spaceId) {
+      // Fallback: create single entry for the primary spaceId if no spaceIds provided
+      await this.db.insert(eventSpaces).values({
+        bookingId: bookingId,
+        spaceId: bookingData.spaceId,
+        isPrimary: true,
+      });
+    }
+
+    return createdBooking;
   }
 
   async updateBooking(id: string, booking: Partial<InsertBooking>): Promise<Booking | undefined> {

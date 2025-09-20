@@ -149,6 +149,15 @@ export const bookings = pgTable("bookings", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Join table for multi-space bookings
+export const eventSpaces = pgTable("event_spaces", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  bookingId: uuid("booking_id").references(() => bookings.id, { onDelete: 'cascade' }).notNull(),
+  spaceId: uuid("space_id").references(() => spaces.id).notNull(),
+  isPrimary: boolean("is_primary").default(false), // One space should be marked as primary
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const proposals = pgTable("proposals", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   tenantId: uuid("tenant_id").references(() => tenants.id).notNull(),
@@ -452,6 +461,7 @@ export const insertBookingSchema = createInsertSchema(bookings, {
     val === null ? null : (typeof val === 'string' ? new Date(val) : val)
   ).optional(),
 }).omit({ id: true, createdAt: true });
+export const insertEventSpaceSchema = createInsertSchema(eventSpaces).omit({ id: true, createdAt: true });
 export const insertProposalSchema = createInsertSchema(proposals, {
   validUntil: z.union([z.string(), z.date(), z.null()]).transform((val) => 
     val === null ? null : (typeof val === 'string' ? new Date(val) : val)
@@ -499,6 +509,8 @@ export type Contract = typeof contracts.$inferSelect;
 export type InsertContract = z.infer<typeof insertContractSchema>;
 export type Booking = typeof bookings.$inferSelect;
 export type InsertBooking = z.infer<typeof insertBookingSchema>;
+export type EventSpace = typeof eventSpaces.$inferSelect;
+export type InsertEventSpace = z.infer<typeof insertEventSpaceSchema>;
 export type Proposal = typeof proposals.$inferSelect;
 export type InsertProposal = z.infer<typeof insertProposalSchema>;
 export type Payment = typeof payments.$inferSelect;

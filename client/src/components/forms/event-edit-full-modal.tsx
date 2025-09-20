@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useFormattedCurrency } from "@/lib/currency";
 import { usePermissions } from "@/hooks/usePermissions";
 import { type EventStatus, getStatusConfig } from "@shared/status-utils";
+import { MultiSpaceSelector } from "./multi-space-selector";
 
 interface Props {
   open: boolean;
@@ -27,7 +28,8 @@ interface SelectedDate {
   date: Date;
   startTime: string;
   endTime: string;
-  spaceId?: string;
+  spaceId?: string; // For backward compatibility
+  spaceIds?: string[]; // New multi-space support
   packageId?: string;
   selectedServices?: string[];
   guestCount?: number;
@@ -172,7 +174,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
           date: eventDate,
           startTime: booking.startTime || "09:00",
           endTime: booking.endTime || "17:00",
-          spaceId: booking.spaceId || "",
+          spaceId: booking.spaceId || "", // For backward compatibility
+          spaceIds: booking.spaceIds || (booking.spaceId ? [booking.spaceId] : []), // Multi-space support
           packageId: booking.packageId || "",
           selectedServices: booking.selectedServices || [],
           guestCount: booking.guestCount || 1,
@@ -311,7 +314,9 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
       // Exclude the current booking being edited
       if (existingBooking.id === booking?.id) return false;
       if (existingBooking.status === 'cancelled') return false;
-      if (existingBooking.spaceId !== spaceId) return false;
+      // Check if this space conflicts - handle both single space and multi-space bookings
+      const existingSpaceIds = existingBooking.spaceIds || (existingBooking.spaceId ? [existingBooking.spaceId] : []);
+      if (!existingSpaceIds.includes(spaceId)) return false;
       
       const bookingDate = new Date(existingBooking.eventDate);
       if (bookingDate.toDateString() !== date.toDateString()) return false;
@@ -516,7 +521,8 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
             eventType: packages.find((p: any) => p.id === date.packageId)?.name || "Custom Event",
             customerId: selectedCustomer,
             venueId: selectedVenue,
-            spaceId: date.spaceId,
+            spaceId: date.spaceId, // For backward compatibility
+            spaceIds: date.spaceIds && date.spaceIds.length > 0 ? date.spaceIds : (date.spaceId ? [date.spaceId] : []),
             eventDate: date.date,
             startTime: date.startTime,
             endTime: date.endTime,
@@ -625,10 +631,12 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
       }
 
       // Validate that all selected dates have spaces selected
-      const missingSpaces = selectedDates.filter(date => !date.spaceId);
+      const missingSpaces = selectedDates.filter(date =>
+        !date.spaceId && (!date.spaceIds || date.spaceIds.length === 0)
+      );
       if (missingSpaces.length > 0) {
-        toast({ 
-          title: "Space selection required", 
+        toast({
+          title: "Space selection required",
           description: `Please select a space for ${missingSpaces.length} event date${missingSpaces.length > 1 ? 's' : ''}`,
           variant: "destructive" 
         });
@@ -1553,34 +1561,25 @@ export function EventEditFullModal({ open, onOpenChange, booking }: Props) {
                                 <div className="space-y-2">
                                   <Label className="text-sm font-medium text-slate-700 flex items-center gap-2">
                                     <MapPin className="w-4 h-4 text-slate-500" />
-                                    Select Space
+                                    Select Spaces
                                     <span className="text-red-500 text-xs">*</span>
                                   </Label>
-                                  <Select
-                                    value={slot.spaceId || ""}
-                                    onValueChange={(value) => updateDateSlot(index, 'spaceId', value)}
-                                  >
-                                    <SelectTrigger className={cn(
-                                      "w-full h-10 transition-colors",
-                                      !slot.spaceId 
-                                        ? "border-red-200 bg-red-50/30 focus:border-red-400" 
-                                        : "border-slate-200 hover:border-slate-300 focus:border-blue-400"
-                                    )}>
-                                      <SelectValue placeholder="Choose a space" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {selectedVenueData?.spaces?.map((space: any) => (
-                                        <SelectItem key={space.id} value={space.id}>
-                                          <div className="flex items-center justify-between w-full">
-                                            <span>{space.name}</span>
-                                            <Badge variant="outline" className="ml-2 text-xs">
-                                              {space.capacity} guests
-                                            </Badge>
-                                          </div>
-                                        </SelectItem>
-                                      )) || <SelectItem value="no-spaces" disabled>No spaces available</SelectItem>}
-                                    </SelectContent>
-                                  </Select>
+                                  <MultiSpaceSelector
+                                    spaces={selectedVenueData?.spaces || []}
+                                    selectedSpaceIds={slot.spaceIds || (slot.spaceId ? [slot.spaceId] : [])}
+                                    onSelectionChange={(spaceIds) => {
+                                      updateDateSlot(index, 'spaceIds', spaceIds);
+                                      // Also update single spaceId for backward compatibility
+                                      updateDateSlot(index, 'spaceId', spaceIds[0] || '');
+                                    }}
+                                    placeholder="Choose spaces"
+                                    className={cn(
+                                      "w-full transition-colors",
+                                      (!slot.spaceIds || slot.spaceIds.length === 0) && !slot.spaceId
+                                        ? "border-red-200 bg-red-50/30 focus:border-red-400"
+                                        : "border-slate-200 hover:border-slate-300 focus-within:border-blue-400"
+                                    )}
+                                  />
                                 </div>
                                 
                                 {/* Time and Details Grid */}

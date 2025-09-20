@@ -1726,6 +1726,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         proposalRespondedAt: req.body.proposalRespondedAt && typeof req.body.proposalRespondedAt === 'string'
           ? new Date(req.body.proposalRespondedAt)
           : req.body.proposalRespondedAt,
+        // Handle space IDs for multi-space bookings
+        spaceIds: req.body.spaceIds || (req.body.spaceId ? [req.body.spaceId] : []),
       };
       
       // Add tenantId to booking data
@@ -1747,20 +1749,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const eventDate = validatedData.eventDate;
       const startTime = validatedData.startTime;
       const endTime = validatedData.endTime;
-      const spaceId = validatedData.spaceId;
-      
+      const spaceIds = (validatedData as any).spaceIds || (validatedData.spaceId ? [validatedData.spaceId] : []);
+
       const conflict = existingBookings.find(existing => {
         // Skip cancelled bookings
         if (existing.status === 'cancelled') return false;
-        
+
         // Skip if this is the same proposal booking (check by proposalId if provided)
         if (validatedData.proposalId && existing.proposalId === validatedData.proposalId) {
           console.log('Skipping conflict check for same proposal:', validatedData.proposalId);
           return false;
         }
-        
-        // Check if same space and same date (more specific than venue)
-        if (existing.spaceId === spaceId && 
+
+        // Check for conflicts with any of the requested spaces
+        const existingSpaceIds = (existing as any).spaceIds || (existing.spaceId ? [existing.spaceId] : []);
+        const hasSpaceOverlap = spaceIds.some(spaceId => existingSpaceIds.includes(spaceId));
+
+        // Check if any overlapping space and same date
+        if (hasSpaceOverlap &&
             new Date(existing.eventDate).toDateString() === eventDate.toDateString()) {
           
           // Convert times to minutes for easier comparison
@@ -1802,13 +1808,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 eventDate: new Date(existing.eventDate).toDateString(),
                 startTime: existing.startTime,
                 endTime: existing.endTime,
-                spaceId: existing.spaceId
+                spaceIds: existingSpaceIds
               },
               newBooking: {
                 eventDate: eventDate.toDateString(),
                 startTime,
                 endTime,
-                spaceId
+                spaceIds: spaceIds
               },
               timeComparison: {
                 newStart,
